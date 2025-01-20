@@ -67,10 +67,11 @@ void HTTPServer::handleReqs() {
 }
 
 void HTTPServer::genResponse(std::string& buffer, const HTTPRequest& req) {
-    std::string statusLine, headers, body;
+    std::string statusLine, body;
+    std::unordered_map<std::string, std::string> resHeaders;
 
     // Load preset headers
-    loadConfHeaders(headers);
+    loadConfHeaders(resHeaders);
 
     // Switch on method
     switch (req.getMethod()) {
@@ -84,7 +85,7 @@ void HTTPServer::genResponse(std::string& buffer, const HTTPRequest& req) {
 
                 // If the request allows HTML, return an HTML display
                 if (req.isMIMEAccepted("text/html")) {
-                    headers += "Content-Type: text/html";
+                    resHeaders.insert({"Content-Type", "text/html"});
                     loadErrorDoc(404, "Not Found", body);
                 }
                 break;
@@ -100,7 +101,7 @@ void HTTPServer::genResponse(std::string& buffer, const HTTPRequest& req) {
 
                 // If the request allows HTML, return an HTML display
                 if (req.isMIMEAccepted("text/html")) {
-                    headers += "Content-Type: text/html";
+                    resHeaders.insert({"Content-Type", "text/html"});
                     loadErrorDoc(406, "Not Acceptable", body);
                 }
                 break;
@@ -111,24 +112,46 @@ void HTTPServer::genResponse(std::string& buffer, const HTTPRequest& req) {
                 statusLine = "HTTP/1.1 500 Internal Server Error";
 
                 if (req.isMIMEAccepted("text/html")) {
-                    headers += "Content-Type: text/html";
+                    resHeaders.insert({"Content-Type", "text/html"});
                     loadErrorDoc(500, "Internal Server Error", body);
                 }
             } else {
                 // Body loaded successfully
                 statusLine = "HTTP/1.1 200 OK";
-                headers += "Content-Type: " + file.MIME;
+                resHeaders.insert({"Content-Type", file.MIME});
             }
             break;
         }
         default: {
             statusLine = "HTTP/1.1 405 Method Not Allowed";
-            headers += "Content-Type: text/html";
+            resHeaders.insert({"Content-Type", "text/html"});
             loadErrorDoc(405, "Method Not Allowed", body);
             break;
         }
     }
 
+    // Handle compression
+    if (req.isEncodingAccepted("deflate") && (resHeaders.find("Content-Type") != resHeaders.end() &&
+        (resHeaders.find("Content-Type")->second.find("text/") == 0 || resHeaders.find("Content-Type")->second == "application/json"))) {
+        // Create compression buffer
+        const size_t bodySize = sizeof(char) * body.size();
+        char* buffer = (char*)malloc(bodySize);
+        deflateText(body.c_str(), bodySize, buffer, bodySize);
+
+        // Only use compressed body if it's smaller
+        if (std::strlen(buffer) < body.size()) {
+            body = buffer;
+
+            // Append compression header
+            resHeaders.insert({"Content-Encoding", "deflate"});
+        }
+        free(buffer);
+    }
+
     // Compile output buffer
-    buffer = statusLine + '\n' + headers + "\n\n" + body;
+    resHeaders.insert({"Content-Length", std::to_string(body.size())});
+    std::string headers = "";
+    for (auto [headerName, value] : resHeaders)
+        headers += headerName + ": " + value + '\n';
+    buffer = statusLine + '\n' + headers + "\n" + body;
 }

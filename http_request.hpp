@@ -6,7 +6,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
-#include <set>
+#include <unordered_set>
 
 #include "toolbox.hpp"
 
@@ -26,10 +26,12 @@ class HTTPRequest {
         const std::string& getBody() const { return body; };
 
         bool isMIMEAccepted(const std::string&) const;
+        bool isEncodingAccepted(const std::string&) const;
     private:
         std::unordered_map<std::string, std::string> headers;
 
-        std::set<std::string> acceptedMIMETypes;
+        std::unordered_set<std::string> acceptedMIMETypes;
+        std::unordered_set<std::string> acceptedEncodings;
 
         std::string ipStr;
 

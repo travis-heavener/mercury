@@ -1,5 +1,5 @@
 #include "http_request.hpp"
-#include <iostream>
+
 HTTPRequest::HTTPRequest(const char* raw, const char* clientIP) {
     this->ipStr = clientIP;
 
@@ -48,7 +48,11 @@ HTTPRequest::HTTPRequest(const char* raw, const char* clientIP) {
 
     // Extract accepted MIME types
     if (headers.find("ACCEPT") != headers.end())
-        splitStringUnique(acceptedMIMETypes, headers["ACCEPT"], ',');
+        splitStringUnique(acceptedMIMETypes, headers["ACCEPT"], ',', true);
+
+    // Extract accepted encodings
+    if (headers.find("ACCEPT-ENCODING") != headers.end())
+        splitStringUnique(acceptedEncodings, headers["ACCEPT-ENCODING"], ',', true);
 }
 
 const std::string* HTTPRequest::getHeader(const std::string& header) const {
@@ -60,4 +64,8 @@ const std::string* HTTPRequest::getHeader(const std::string& header) const {
 bool HTTPRequest::isMIMEAccepted(const std::string& MIME) const {
     if (!acceptedMIMETypes.size()) return true;
     return acceptedMIMETypes.find(MIME) != acceptedMIMETypes.end();
+}
+
+bool HTTPRequest::isEncodingAccepted(const std::string& encoding) const {
+    return acceptedEncodings.find(encoding) != acceptedEncodings.end();
 }

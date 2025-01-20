@@ -1,8 +1,10 @@
 #ifndef __HTTP_SERVER_HPP
 #define __HTTP_SERVER_HPP
 
+#include <cstring>
 #include <iostream>
 #include <string>
+#include <unordered_map>
 
 #include "http_request.hpp"
 #include "toolbox.hpp"
