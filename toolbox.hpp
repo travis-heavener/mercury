@@ -10,6 +10,8 @@
 #include <vector>
 #include <zlib.h>
 
+#include "conf.hpp"
+
 #define IO_SUCCESS 0
 #define IO_FAILURE 1
 

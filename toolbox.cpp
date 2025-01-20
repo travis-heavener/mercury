@@ -154,12 +154,17 @@ int loadConfHeaders(std::unordered_map<std::string, std::string>& buffer) {
         headerName = line.substr(0, delimIndex);
         value = line.substr(delimIndex+1);
         trimString(headerName);
+        strToUpper(headerName);
         trimString(value);
         buffer.insert({headerName, value});
     }
 
     // Close file handle
     inHandle.close();
+
+    // Load preset headers
+    buffer.insert({"CONNECTION", "close"});
+    buffer.insert({"SERVER", VERSION});
 
     // Base case, return success
     return IO_SUCCESS;
