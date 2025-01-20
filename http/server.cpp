@@ -3,11 +3,11 @@
 namespace HTTP {
 
     void Server::kill() {
-        if (!close(this->sock))
-            std::cout << "Socket closed.\n";
-
-        if (!close(this->c_sock))
+        if (this->c_sock != -1 && !close(this->c_sock))
             std::cout << "Client socket closed.\n";
+
+        if (this->sock != -1 && !close(this->sock))
+            std::cout << "Socket closed.\n";
     }
 
     // Initialize the socket
