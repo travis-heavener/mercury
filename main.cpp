@@ -1,12 +1,12 @@
 #include <signal.h>
 #include <string>
 
-#include "http_server.hpp"
+#include "http/server.hpp"
 #include "toolbox.hpp"
 
 #define DEFAULT_PORT 9220
 
-HTTPServer* pServer = nullptr;
+HTTP::Server* pServer = nullptr;
 
 void catchSig(int s) {
     std::cerr << "\nIntercepted exit signal " << s << ", closing...\n";
@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Init server
-    pServer = new HTTPServer(HOST, PORT);
+    pServer = new HTTP::Server(HOST, PORT);
 
     const int status = pServer->init();
     if (status < 0) return 1;
