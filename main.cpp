@@ -2,6 +2,7 @@
 #include <string>
 
 #include "http_server.hpp"
+#include "toolbox.hpp"
 
 #define DEFAULT_PORT 9220
 
@@ -31,13 +32,19 @@ int main(int argc, char* argv[]) {
     // Configure interrupt handler
     initSigHandler();
 
+    // Load aux resources
+    if (loadResources() == IO_FAILURE) {
+        std::cerr << "Failed to load additional resources.\n";
+        return 1;
+    }
+
     // Init server
     pServer = new HTTPServer(HOST, PORT);
 
     const int status = pServer->init();
-    if (status < 0) return status;
+    if (status < 0) return 1;
 
-    // Accept client responses
+    // Accept client responses (blocks main thread)
     pServer->handleReqs();
 
     // Free server

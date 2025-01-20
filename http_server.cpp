@@ -75,15 +75,49 @@ void HTTPServer::genResponse(std::string& buffer, const HTTPRequest& req) {
     // Switch on method
     switch (req.getMethod()) {
         case HTTP_METHOD::GET: {
-            statusLine = "HTTP/1.1 200 OK";
-            headers += "Content-Type: text/html";
-
-            // Resolve body
+            // Lookup file
             std::string path = (std::filesystem::current_path() / ("public" + req.getPathStr())).string();
-            if (loadTextFile(path, body) == IO_FAILURE) {
+
+            if (!doesFileExist(path)) {
                 // Update body to error document
                 statusLine = "HTTP/1.1 404 Not Found";
-                loadErrorDoc(404, "Not Found", body);
+
+                // If the request allows HTML, return an HTML display
+                if (req.isMIMEAccepted("text/html")) {
+                    headers += "Content-Type: text/html";
+                    loadErrorDoc(404, "Not Found", body);
+                }
+                break;
+            }
+
+            // Base case, file does exist
+            File file = lookupFile(path);
+
+            // Check accepted MIMES
+            if (!req.isMIMEAccepted(file.MIME)) {
+                // File does not match requested MIME
+                statusLine = "HTTP/1.1 406 Not Acceptable";
+
+                // If the request allows HTML, return an HTML display
+                if (req.isMIMEAccepted("text/html")) {
+                    headers += "Content-Type: text/html";
+                    loadErrorDoc(406, "Not Acceptable", body);
+                }
+                break;
+            }
+
+            // MIME matches, resolve resource
+            if (file.loadToBuffer(body) == IO_FAILURE) {
+                statusLine = "HTTP/1.1 500 Internal Server Error";
+
+                if (req.isMIMEAccepted("text/html")) {
+                    headers += "Content-Type: text/html";
+                    loadErrorDoc(500, "Internal Server Error", body);
+                }
+            } else {
+                // Body loaded successfully
+                statusLine = "HTTP/1.1 200 OK";
+                headers += "Content-Type: " + file.MIME;
             }
             break;
         }

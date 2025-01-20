@@ -6,6 +6,7 @@
 
 #include "http_request.hpp"
 #include "toolbox.hpp"
+#include "file.hpp"
 
 #include <sys/socket.h>
 #include <unistd.h>

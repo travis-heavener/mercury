@@ -1,5 +1,5 @@
 #include "http_request.hpp"
-
+#include <iostream>
 HTTPRequest::HTTPRequest(const char* raw, const char* clientIP) {
     this->ipStr = clientIP;
 
@@ -35,6 +35,7 @@ HTTPRequest::HTTPRequest(const char* raw, const char* clientIP) {
         if (firstSpaceIndex != std::string::npos) {
             std::string key = line.substr(0, firstSpaceIndex);
             std::string value = line.substr(firstSpaceIndex+2);
+            strToUpper(key);
             this->headers.insert({key, value});
         }
     }
@@ -44,9 +45,19 @@ HTTPRequest::HTTPRequest(const char* raw, const char* clientIP) {
         this->body = buffer.str().substr(buffer.tellg());
     else
         this->body = "";
+
+    // Extract accepted MIME types
+    if (headers.find("ACCEPT") != headers.end())
+        splitStringUnique(acceptedMIMETypes, headers["ACCEPT"], ',');
 }
 
 const std::string* HTTPRequest::getHeader(const std::string& header) const {
     const auto result = this->headers.find(header);
     return (result != this->headers.end()) ? &result->second : nullptr;
+}
+
+// Returns true if the MIME type is accepted by the request OR if there aren't any present
+bool HTTPRequest::isMIMEAccepted(const std::string& MIME) const {
+    if (!acceptedMIMETypes.size()) return true;
+    return acceptedMIMETypes.find(MIME) != acceptedMIMETypes.end();
 }

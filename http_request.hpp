@@ -1,10 +1,14 @@
 #ifndef __HTTP_REQUEST_HPP
 #define __HTTP_REQUEST_HPP
 
+#include <algorithm>
 #include <filesystem>
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <set>
+
+#include "toolbox.hpp"
 
 enum HTTP_METHOD {
     GET = 0
@@ -20,8 +24,12 @@ class HTTPRequest {
         const std::string& getMethodStr() const { return methodStr; };
         const std::string& getPathStr() const { return pathStr; };
         const std::string& getBody() const { return body; };
+
+        bool isMIMEAccepted(const std::string&) const;
     private:
         std::unordered_map<std::string, std::string> headers;
+
+        std::set<std::string> acceptedMIMETypes;
 
         std::string ipStr;
 
