@@ -61,19 +61,28 @@ void trimString(std::string& str) {
 }
 
 int deflateText(const char* inputStr, int inputSize, char* outputStr, int outputSize) {
-    z_stream zs;
-    zs.zalloc = Z_NULL;
-    zs.zfree = Z_NULL;
-    zs.opaque = Z_NULL;
-    zs.avail_in = (uInt)inputSize;
-    zs.avail_out = (uInt)outputSize;
-    zs.next_in = (Bytef*)inputStr;
-    zs.next_out = (Bytef*)outputStr;
+    // Handle deflate compression on Linux systems
+    #if __linux__
+        z_stream zs;
+        zs.zalloc = Z_NULL;
+        zs.zfree = Z_NULL;
+        zs.opaque = Z_NULL;
+        zs.avail_in = (uInt)inputSize;
+        zs.avail_out = (uInt)outputSize;
+        zs.next_in = (Bytef*)inputStr;
+        zs.next_out = (Bytef*)outputStr;
 
-    deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15, 8, Z_DEFAULT_STRATEGY);
-    deflate(&zs, Z_FINISH);
-    deflateEnd(&zs);
-    return zs.total_out;
+        deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15, 8, Z_DEFAULT_STRATEGY);
+        deflate(&zs, Z_FINISH);
+        deflateEnd(&zs);
+        return zs.total_out;
+    #else
+        (void)inputStr;
+        (void)inputSize;
+        (void)outputStr;
+        (void)outputSize;
+        return IO_ABORTED;
+    #endif
 }
 
 int loadResources() {

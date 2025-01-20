@@ -10,10 +10,16 @@
 #include "../toolbox.hpp"
 #include "../file.hpp"
 
-#include <sys/socket.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+#else
+    #include <sys/socket.h>
+    #include <arpa/inet.h>
+
+    #include <netinet/in.h>
+    #include <unistd.h>
+#endif
 
 #define MAX_BACKLOG 25
 #define MAX_READ_BUFFER 1024 * 16

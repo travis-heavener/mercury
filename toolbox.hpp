@@ -8,12 +8,16 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <zlib.h>
+
+#if __linux__
+    #include <zlib.h>
+#endif
 
 #include "conf.hpp"
 
 #define IO_SUCCESS 0
 #define IO_FAILURE 1
+#define IO_ABORTED 2
 
 extern std::unordered_map<std::string, std::string> MIMES;
 

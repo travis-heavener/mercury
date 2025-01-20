@@ -3,11 +3,19 @@
 namespace HTTP {
 
     void Server::kill() {
-        if (this->c_sock != -1 && !close(this->c_sock))
-            std::cout << "Client socket closed.\n";
+        #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+            if (this->c_sock != -1 && !closesocket(this->c_sock))
+                std::cout << "Client socket closed.\n";
 
-        if (this->sock != -1 && !close(this->sock))
-            std::cout << "Socket closed.\n";
+            if (this->sock != -1 && !closesocket(this->sock))
+                std::cout << "Socket closed.\n";
+        #else
+            if (this->c_sock != -1 && !close(this->c_sock))
+                std::cout << "Client socket closed.\n";
+
+            if (this->sock != -1 && !close(this->sock))
+                std::cout << "Socket closed.\n";
+        #endif
     }
 
     // Initialize the socket
@@ -52,7 +60,12 @@ namespace HTTP {
             // Read buffer
             recv(this->c_sock, this->readBuffer, sizeof(this->readBuffer), 0);
             clientIP = ((struct sockaddr_in*)&clientAddr)->sin_addr;
-            inet_ntop( AF_INET, &clientIP, clientIPStr, INET_ADDRSTRLEN );
+
+            #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+                strcpy(clientIPStr, inet_ntoa( clientIP ));
+            #else
+                inet_ntop( AF_INET, &clientIP, clientIPStr, INET_ADDRSTRLEN );
+            #endif
 
             // Parse request
             Request req( this->readBuffer, clientIPStr );
@@ -64,7 +77,11 @@ namespace HTTP {
             send(this->c_sock, resBuffer.c_str(), resBuffer.size(), 0);
 
             // Close client socket
-            close(this->c_sock);
+            #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+                closesocket(this->c_sock);
+            #else
+                close(this->c_sock);
+            #endif
         }
     }
 
@@ -133,22 +150,24 @@ namespace HTTP {
         }
 
         // Handle compression
-        if (req.isEncodingAccepted("deflate") && (resHeaders.find("CONTENT-TYPE") != resHeaders.end() &&
-            (resHeaders.find("CONTENT-TYPE")->second.find("text/") == 0 || resHeaders.find("CONTENT-TYPE")->second == "application/json"))) {
-            // Create compression buffer
-            const size_t bodySize = sizeof(char) * body.size();
-            char* buffer = (char*)malloc(bodySize);
-            deflateText(body.c_str(), bodySize, buffer, bodySize);
+        #if __linux__
+            if (req.isEncodingAccepted("deflate") && (resHeaders.find("CONTENT-TYPE") != resHeaders.end() &&
+                (resHeaders.find("CONTENT-TYPE")->second.find("text/") == 0 || resHeaders.find("CONTENT-TYPE")->second == "application/json"))) {
+                // Create compression buffer
+                const size_t bodySize = sizeof(char) * body.size();
+                char* buffer = (char*)malloc(bodySize);
+                deflateText(body.c_str(), bodySize, buffer, bodySize);
 
-            // Only use compressed body if it's smaller
-            if (std::strlen(buffer) < body.size()) {
-                body = buffer;
+                // Only use compressed body if it's smaller
+                if (std::strlen(buffer) < body.size()) {
+                    body = buffer;
 
-                // Append compression header
-                resHeaders.insert({"CONTENT-ENCODING", "deflate"});
+                    // Append compression header
+                    resHeaders.insert({"CONTENT-ENCODING", "deflate"});
+                }
+                free(buffer);
             }
-            free(buffer);
-        }
+        #endif
 
         // Compile output buffer
         resHeaders.insert({"CONTENT-LENGTH", std::to_string(body.size())});

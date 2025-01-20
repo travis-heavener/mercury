@@ -13,21 +13,40 @@ void catchSig(int s) {
 
     if (pServer != nullptr)
         pServer->kill();
+
+    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+        WSACleanup();
+    #endif
 }
 
 void initSigHandler() {
-    struct sigaction sigIntHandler;
+    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+        signal(SIGINT, catchSig);
+        signal(SIGABRT, catchSig);
+        signal(SIGTERM, catchSig);
+    #else
+        struct sigaction sigIntHandler;
 
-    sigIntHandler.sa_handler = catchSig;
-    sigemptyset(&sigIntHandler.sa_mask);
-    sigIntHandler.sa_flags = 0;
+        sigIntHandler.sa_handler = catchSig;
+        sigemptyset(&sigIntHandler.sa_mask);
+        sigIntHandler.sa_flags = 0;
 
-    sigaction(SIGINT, &sigIntHandler, NULL);
+        sigaction(SIGINT, &sigIntHandler, NULL);
+    #endif
 }
 
 int main(int argc, char* argv[]) {
     const int PORT = (argc >= 2) ? std::atoi(argv[1]) : DEFAULT_PORT;
     const std::string HOST = "0.0.0.0";
+
+    // Initialize Winsock API
+    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+        WSADATA wsa;
+        if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+            std::cerr << "Failed to initialize Winsock API.\n";
+            return 1;
+        }
+    #endif
 
     // Configure interrupt handler
     initSigHandler();
