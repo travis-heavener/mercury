@@ -45,7 +45,7 @@ namespace HTTP {
         // Accept requests from clients
         struct sockaddr_in clientAddr;
         struct in_addr clientIP;
-        socklen_t clientLen;
+        socklen_t clientLen = sizeof(clientAddr);
         char clientIPStr[INET_ADDRSTRLEN];
 
         while ( (this->c_sock = accept(this->sock, (struct sockaddr*)&clientAddr, &clientLen)) >= 0 ) {
