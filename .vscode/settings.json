@@ -68,6 +68,7 @@
         "forward_list": "cpp",
         "iomanip": "cpp",
         "optional": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "set": "cpp"
     }
 }
