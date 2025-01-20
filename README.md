@@ -12,3 +12,9 @@ Currently, Mercury is only available on Linux.
 
 Linux dependencies:
 - zlib (`sudo apt-get install zlib1g-dev`)
+
+## Changelog
+
+### v0.1.0
+ - Added changelog (lol)
+ - Added Windows port
