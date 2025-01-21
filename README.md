@@ -2,13 +2,22 @@
 
 ### A project by Travis Heavener
 
+## Table of Contents
+
+- [Table of Contents](#table-of-contents)
+- [About](#about)
+- [Build Info](#build-info)
+    - [Linux](#linux)
+    - [Windows](#windows)
+- [Changelog](#changelog)
+
 ## About
 
 Mercury is an HTTP server designed in C++ using the C-socket paradigm.
 
-## Dependencies
-
 Currently, Mercury is available on Linux and Windows.
+
+## Build Info
 
 ### Linux
 
@@ -20,6 +29,8 @@ To build for Linux, zlib must be installed.
 2. `cd` into the directory of this repository clone and run `make linux`.
 
 ### Windows
+
+Windows builds are compiled in the same inunx environment as mentioned above (see [Linux](#linux)).
 
 To build for Windows, zlib must be installed.
 
@@ -39,7 +50,8 @@ To build for Windows, zlib must be installed.
 ## Changelog
 
 ### v0.1.6
-- Fixed #3 (socket bind failure in immediate re-execution)
+- Fixed [#3](#3) (socket bind failure in immediate re-execution)
+- Added Table of Contents ([#4](#4))
 
 ### v0.1.5
 - Added mercury.conf configuration XML file
