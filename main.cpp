@@ -33,6 +33,12 @@ void initSigHandler() {
 
         sigaction(SIGINT, &sigIntHandler, NULL);
     #endif
+
+    std::cout << "------------------------------------\n"
+                 "|          "  VERSION   "          |\n"
+                 "|           ...........            |\n"
+                 "|         Ctrl+C to close.         |\n"
+                 "------------------------------------\n";
 }
 
 int main(int argc, char* argv[]) {
