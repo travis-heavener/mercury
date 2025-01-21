@@ -5,7 +5,7 @@ SRCS = *.cpp http/*.cpp
 DEPS = */*.hpp $(SRCS)
 
 all: $(TARGET) $(TARGET_WIN)
-unix: $(TARGET)
+linux: $(TARGET)
 windows: $(TARGET_WIN)
 
 $(TARGET): $(DEPS)
@@ -15,5 +15,5 @@ $(TARGET): $(DEPS)
 
 $(TARGET_WIN): $(DEPS)
 	@echo -n "Building port for Windows... "
-	@x86_64-w64-mingw32-g++-win32 $(SRCS) -o $(TARGET_WIN) -static -static-libgcc -static-libstdc++ -std=c++17 -l ws2_32 $(GPPFLAGS)
+	@x86_64-w64-mingw32-g++-win32 $(SRCS) -o $(TARGET_WIN) -static -static-libgcc -static-libstdc++ -std=c++17 -lz -l ws2_32 $(GPPFLAGS)
 	@echo "Done."

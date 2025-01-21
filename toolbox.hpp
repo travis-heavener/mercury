@@ -9,9 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
-#if __linux__
-    #include <zlib.h>
-#endif
+#include <zlib.h>
 
 #include "conf.hpp"
 

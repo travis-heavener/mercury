@@ -150,24 +150,22 @@ namespace HTTP {
         }
 
         // Handle compression
-        #if __linux__
-            if (req.isEncodingAccepted("deflate") && (resHeaders.find("CONTENT-TYPE") != resHeaders.end() &&
-                (resHeaders.find("CONTENT-TYPE")->second.find("text/") == 0 || resHeaders.find("CONTENT-TYPE")->second == "application/json"))) {
-                // Create compression buffer
-                const size_t bodySize = sizeof(char) * body.size();
-                char* buffer = (char*)malloc(bodySize);
-                deflateText(body.c_str(), bodySize, buffer, bodySize);
+        if (req.isEncodingAccepted("deflate") && (resHeaders.find("CONTENT-TYPE") != resHeaders.end() &&
+            (resHeaders.find("CONTENT-TYPE")->second.find("text/") == 0 || resHeaders.find("CONTENT-TYPE")->second == "application/json"))) {
+            // Create compression buffer
+            const size_t bodySize = sizeof(char) * body.size();
+            char* buffer = (char*)malloc(bodySize);
+            deflateText(body.c_str(), bodySize, buffer, bodySize);
 
-                // Only use compressed body if it's smaller
-                if (std::strlen(buffer) < body.size()) {
-                    body = buffer;
+            // Only use compressed body if it's smaller
+            if (std::strlen(buffer) < body.size()) {
+                body = buffer;
 
-                    // Append compression header
-                    resHeaders.insert({"CONTENT-ENCODING", "deflate"});
-                }
-                free(buffer);
+                // Append compression header
+                resHeaders.insert({"CONTENT-ENCODING", "deflate"});
             }
-        #endif
+            free(buffer);
+        }
 
         // Compile output buffer
         resHeaders.insert({"CONTENT-LENGTH", std::to_string(body.size())});
