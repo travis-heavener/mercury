@@ -9,14 +9,13 @@
 
 class File {
     public:
-        File(const std::string& MIME, const std::string& path) : MIME(MIME), path(path) {};
+        File(const std::string&);
 
         int loadToBuffer(std::string&) const;
 
-        const std::string MIME;
-        const std::string path;
+        std::string MIME;
+        std::string path;
+        std::string queryStr;
 };
-
-File lookupFile(const std::string&);
 
 #endif

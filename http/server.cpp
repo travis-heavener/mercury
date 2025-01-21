@@ -97,8 +97,9 @@ namespace HTTP {
             case METHOD::GET: {
                 // Lookup file
                 std::string path = (std::filesystem::current_path() / ("public" + req.getPathStr())).string();
+                File file(path);
 
-                if (!doesFileExist(path)) {
+                if (!doesFileExist(file.path)) {
                     // Update body to error document
                     statusLine = "HTTP/1.1 404 Not Found";
 
@@ -109,9 +110,6 @@ namespace HTTP {
                     }
                     break;
                 }
-
-                // Base case, file does exist
-                File file = lookupFile(path);
 
                 // Check accepted MIMES
                 if (!req.isMIMEAccepted(file.MIME)) {

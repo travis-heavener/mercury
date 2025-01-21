@@ -21,10 +21,6 @@ namespace HTTP {
         this->pathStr = line.substr(firstSpaceIndex + 1, secondSpaceIndex - firstSpaceIndex - 1);
         this->httpVersionStr = line.substr(secondSpaceIndex + 1);
 
-        // Format path
-        if (this->pathStr.back() == '/')
-            this->pathStr += "index.html";
-
         // Determine method
         if (this->methodStr == "GET") this->method = METHOD::GET;
 
