@@ -50,8 +50,8 @@ To build for Windows, zlib must be installed.
 ## Changelog
 
 ### v0.1.6
-- Fixed [#3](#3) (socket bind failure in immediate re-execution)
-- Added Table of Contents ([#4](#4))
+- Fixed [#3](https://github.com/travis-heavener/mercury/issues/3) (socket bind failure in immediate re-execution)
+- Added Table of Contents ([#4](https://github.com/travis-heavener/mercury/issues/4))
 
 ### v0.1.5
 - Added mercury.conf configuration XML file
