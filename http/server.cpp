@@ -28,6 +28,20 @@ namespace HTTP {
             return SOCKET_FAILURE;
         }
 
+        // Init socket opts
+        const char optFlag = 1;
+        if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEADDR, &optFlag, sizeof(int)) < 0) {
+            std::cerr << "Failed to set socket opt SO_REUSEADDR.\n";
+            return SOCKET_FAILURE;
+        }
+
+        #if __linux__
+            if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEPORT, &optFlag, sizeof(int)) < 0) {
+                std::cerr << "Failed to set socket opt SO_REUSEPORT.\n";
+                return SOCKET_FAILURE;
+            }
+        #endif
+
         // Bind the host address
         struct sockaddr_in addr;
         addr.sin_family = AF_INET;

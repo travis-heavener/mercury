@@ -38,6 +38,9 @@ To build for Windows, zlib must be installed.
 
 ## Changelog
 
+### v0.1.6
+- Fixed #3 (socket bind failure in immediate re-execution)
+
 ### v0.1.5
 - Added mercury.conf configuration XML file
     - Config file has logfile directives that don't currently do anything yet
