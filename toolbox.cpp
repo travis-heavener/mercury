@@ -60,21 +60,38 @@ void trimString(std::string& str) {
         str = str.substr(1);
 }
 
-int deflateText(const char* inputStr, int inputSize, char* outputStr, int outputSize) {
+int deflateText(std::string& buffer) {
     // Handle deflate compression
+    const size_t sourceLen = buffer.size();
     z_stream zs;
     zs.zalloc = Z_NULL;
     zs.zfree = Z_NULL;
     zs.opaque = Z_NULL;
-    zs.avail_in = (uInt)inputSize;
-    zs.avail_out = (uInt)outputSize;
-    zs.next_in = (Bytef*)inputStr;
-    zs.next_out = (Bytef*)outputStr;
 
+    if (deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15, 8, Z_DEFAULT_STRATEGY) != Z_OK)
+        return IO_FAILURE;
+
+    // Determine output size
+    const size_t outputLen = deflateBound(&zs, sourceLen);
+    char* pBuffer = new char[outputLen];
+
+    zs.avail_in = (uInt)sourceLen;
+    zs.avail_out = (uInt)outputLen;
+    zs.next_in = (Bytef*)buffer.c_str();
+    zs.next_out = (Bytef*)pBuffer;
+
+    // Deflate
     deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15, 8, Z_DEFAULT_STRATEGY);
     deflate(&zs, Z_FINISH);
     deflateEnd(&zs);
-    return zs.total_out;
+
+    // Copy buffer
+    buffer.clear();
+    for (size_t i = 0; i < zs.total_out; ++i)
+        buffer.push_back(pBuffer[i]);
+    delete pBuffer;
+
+    return IO_SUCCESS;
 }
 
 int loadResources() {

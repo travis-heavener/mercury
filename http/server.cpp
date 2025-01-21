@@ -150,19 +150,9 @@ namespace HTTP {
         // Handle compression
         if (req.isEncodingAccepted("deflate") && (resHeaders.find("CONTENT-TYPE") != resHeaders.end() &&
             (resHeaders.find("CONTENT-TYPE")->second.find("text/") == 0 || resHeaders.find("CONTENT-TYPE")->second == "application/json"))) {
-            // Create compression buffer
-            const size_t bodySize = sizeof(char) * body.size();
-            char* buffer = (char*)malloc(bodySize);
-            deflateText(body.c_str(), bodySize, buffer, bodySize);
-
-            // Only use compressed body if it's smaller
-            if (std::strlen(buffer) < body.size()) {
-                body = buffer;
-
-                // Append compression header
+            // Append compression header
+            if (deflateText(body) == IO_SUCCESS)
                 resHeaders.insert({"CONTENT-ENCODING", "deflate"});
-            }
-            free(buffer);
         }
 
         // Compile output buffer

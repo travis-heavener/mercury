@@ -24,7 +24,7 @@ void splitStringUnique(std::unordered_set<std::string>&, std::string&, char, boo
 void splitString(std::vector<std::string>&, std::string&, char, bool);
 void trimString(std::string&);
 
-int deflateText(const char*, int, char*, int);
+int deflateText(std::string&);
 
 int loadResources();
 

@@ -38,6 +38,14 @@ To build for Windows, zlib must be installed.
 
 ## Changelog
 
+### v0.1.3
+- Fixed MAJOR file compression bug on Windows systems
+- Improved overall handling of file compression
+
+### v0.1.2
+- File paths with query strings are now handled as intended
+- Improved handling of index files
+
 ### v0.1.1
 - Added initial welcome note
 - Fixed [Dependencies](#dependencies) with Windows info
