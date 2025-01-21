@@ -35,13 +35,13 @@ namespace HTTP {
         addr.sin_addr.s_addr = inet_addr(this->host.c_str());
 
         if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            std::cerr << "Failed to bind socket.\n";
+            std::cerr << "Failed to bind socket (errno: " << errno << ")\n";
             return BIND_FAILURE;
         }
 
         // Listen to socket
         if (listen(this->sock, MAX_BACKLOG) < 0) {
-            std::cerr << "Failed to listen to socket.\n";
+            std::cerr << "Failed to listen to socket (errno: " << errno << ")\n";
             return LISTEN_FAILURE;
         }
 

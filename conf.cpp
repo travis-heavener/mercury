@@ -3,7 +3,7 @@
 /****** EXTERNAL FIELDS ******/
 
 std::filesystem::path DOCUMENT_ROOT;
-unsigned short PORT;
+port_t PORT;
 
 std::unordered_map<std::string, std::string> MIMES;
 

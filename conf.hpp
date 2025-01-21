@@ -16,10 +16,12 @@
 #define CONF_FILE "conf/mercury.conf"
 #define MIMES_FILE "conf/mimes.conf"
 
+typedef unsigned short port_t;
+
 /****** EXTERNAL FIELDS ******/
 
 extern std::filesystem::path DOCUMENT_ROOT;
-extern unsigned short PORT;
+extern port_t PORT;
 
 extern std::unordered_map<std::string, std::string> MIMES;
 
