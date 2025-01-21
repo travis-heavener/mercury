@@ -29,7 +29,7 @@
 
 ## v0.1.1
 - Added initial welcome note
-- Fixed [Dependencies](#dependencies) with Windows info
+- Fixed [Dependencies](README.md#dependencies) with Windows info
 - Windows port now allows deflate compresesion via zlib port
 
 ## v0.1.0
