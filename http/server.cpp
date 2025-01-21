@@ -126,7 +126,7 @@ namespace HTTP {
                 std::string path = (DOCUMENT_ROOT / rawPath.substr(1)).string();
                 File file(path);
 
-                if (!doesFileExist(file.path, false)) {
+                if (!doesFileExist(file.path, true)) {
                     // Update body to error document
                     statusLine = "HTTP/1.1 404 Not Found";
 
