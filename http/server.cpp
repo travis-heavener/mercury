@@ -95,11 +95,24 @@ namespace HTTP {
         // Switch on method
         switch (req.getMethod()) {
             case METHOD::GET: {
-                // Lookup file
-                std::string path = (std::filesystem::current_path() / ("public" + req.getPathStr())).string();
+                const std::string rawPath = req.getPathStr();
+                if (rawPath.size() == 0 || rawPath[0] != '/') {
+                    statusLine = "HTTP/1.1 400 Bad Request";
+                    resHeaders.insert({"ALLOW", ALLOWED_HEADERS});
+
+                    // If the request allows HTML, return an HTML display
+                    if (req.isMIMEAccepted("text/html")) {
+                        resHeaders.insert({"CONTENT-TYPE", "text/html"});
+                        loadErrorDoc(400, "Bad Request", body);
+                    }
+                    break;
+                }
+
+                // Lookup file (skip leading fwd slash)
+                std::string path = (DOCUMENT_ROOT / rawPath.substr(1)).string();
                 File file(path);
 
-                if (!doesFileExist(file.path)) {
+                if (!doesFileExist(file.path, false)) {
                     // Update body to error document
                     statusLine = "HTTP/1.1 404 Not Found";
 
@@ -141,8 +154,13 @@ namespace HTTP {
             }
             default: {
                 statusLine = "HTTP/1.1 405 Method Not Allowed";
-                resHeaders.insert({"CONTENT-TYPE", "text/html"});
-                loadErrorDoc(405, "Method Not Allowed", body);
+                resHeaders.insert({"ALLOW", ALLOWED_HEADERS});
+
+                // If the request allows HTML, return an HTML display
+                if (req.isMIMEAccepted("text/html")) {
+                    resHeaders.insert({"CONTENT-TYPE", "text/html"});
+                    loadErrorDoc(405, "Method Not Allowed", body);
+                }
                 break;
             }
         }

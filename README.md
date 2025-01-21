@@ -38,6 +38,13 @@ To build for Windows, zlib must be installed.
 
 ## Changelog
 
+### v0.1.4
+- Accept header now processes `*/*` as intended
+- Now explicitly prevents users from accessing files above the document root
+- Improved handling of 405 Method Not Allowed status codes
+    - Response now appropriately specifies Allow header
+    - Now only returns HTML display if explicitly Accepted by the request
+
 ### v0.1.3
 - Fixed MAJOR file compression bug on Windows systems
 - Improved overall handling of file compression

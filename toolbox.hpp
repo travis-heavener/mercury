@@ -29,7 +29,7 @@ int deflateText(std::string&);
 int loadResources();
 
 void stringReplaceAll(std::string&, const std::string&, const std::string&);
-bool doesFileExist(const std::string&);
+bool doesFileExist(const std::string&, const bool);
 int loadTextFile(const std::string&, std::string&);
 int loadErrorDoc(const int, const std::string&, std::string&);
 int loadConfHeaders(std::unordered_map<std::string, std::string>&);

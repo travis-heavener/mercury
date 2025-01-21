@@ -61,7 +61,7 @@ namespace HTTP {
     // Returns true if the MIME type is accepted by the request OR if there aren't any present
     bool Request::isMIMEAccepted(const std::string& MIME) const {
         if (!acceptedMIMETypes.size()) return true;
-        return acceptedMIMETypes.find(MIME) != acceptedMIMETypes.end();
+        return (acceptedMIMETypes.find(MIME) != acceptedMIMETypes.end() || acceptedMIMETypes.find("*/*") != acceptedMIMETypes.end());
     }
 
     bool Request::isEncodingAccepted(const std::string& encoding) const {

@@ -10,6 +10,8 @@
 
 #include "../toolbox.hpp"
 
+#define ALLOWED_HEADERS "GET"
+
 namespace HTTP {
 
     enum METHOD {

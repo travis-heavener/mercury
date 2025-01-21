@@ -123,8 +123,11 @@ void stringReplaceAll(std::string& haystack, const std::string& needle, const st
     }
 }
 
-bool doesFileExist(const std::string& path) {
-    return std::filesystem::exists(path);
+bool doesFileExist(const std::string& path, const bool forceInDocumentRoot) {
+    if (!forceInDocumentRoot)
+        return std::filesystem::exists(path);
+    else // Match document root at start of filename
+        return std::filesystem::exists(path) && path.find(DOCUMENT_ROOT.string()) == 0;
 }
 
 int loadTextFile(const std::string& path, std::string& buffer) {
