@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -17,20 +18,13 @@
 #define IO_FAILURE 1
 #define IO_ABORTED 2
 
-extern std::unordered_map<std::string, std::string> MIMES;
-
 void strToUpper(std::string&);
 void splitStringUnique(std::unordered_set<std::string>&, std::string&, char, bool);
-void splitString(std::vector<std::string>&, std::string&, char, bool);
-void trimString(std::string&);
+void stringReplaceAll(std::string&, const std::string&, const std::string&);
 
 int deflateText(std::string&);
 
-int loadResources();
-
-void stringReplaceAll(std::string&, const std::string&, const std::string&);
 bool doesFileExist(const std::string&, const bool);
-int loadTextFile(const std::string&, std::string&);
 int loadErrorDoc(const int, const std::string&, std::string&);
 int loadConfHeaders(std::unordered_map<std::string, std::string>&);
 

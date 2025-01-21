@@ -4,8 +4,6 @@
 #include "http/server.hpp"
 #include "toolbox.hpp"
 
-#define DEFAULT_PORT 9220
-
 HTTP::Server* pServer = nullptr;
 
 void catchSig(int s) {
@@ -41,8 +39,7 @@ void initSigHandler() {
                  "------------------------------------\n";
 }
 
-int main(int argc, char* argv[]) {
-    const int PORT = (argc >= 2) ? std::atoi(argv[1]) : DEFAULT_PORT;
+int main() {
     const std::string HOST = "0.0.0.0";
 
     // Initialize Winsock API
@@ -57,11 +54,8 @@ int main(int argc, char* argv[]) {
     // Configure interrupt handler
     initSigHandler();
 
-    // Load aux resources
-    if (loadResources() == IO_FAILURE) {
-        std::cerr << "Failed to load additional resources.\n";
-        return 1;
-    }
+    // Load config files
+    if (loadConfig() == CONF_FAILURE) return 1;
 
     // Init server
     pServer = new HTTP::Server(HOST, PORT);

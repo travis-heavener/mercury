@@ -38,6 +38,13 @@ To build for Windows, zlib must be installed.
 
 ## Changelog
 
+### v0.1.5
+- Added mercury.conf configuration XML file
+    - Config file has logfile directives that don't currently do anything yet
+    - Parsed by [PugiXML](https://github.com/zeux/pugixml)!
+- Refactored & reduced unused methods
+    - Known MIME types are now loaded by the loadConfig method in conf.hpp
+
 ### v0.1.4
 - Accept header now processes `*/*` as intended
 - Now explicitly prevents users from accessing files above the document root
