@@ -20,10 +20,14 @@ typedef unsigned short port_t;
 
 /****** EXTERNAL FIELDS ******/
 
-extern std::filesystem::path DOCUMENT_ROOT;
-extern port_t PORT;
+namespace conf {
 
-extern std::unordered_map<std::string, std::string> MIMES;
+    extern std::filesystem::path DOCUMENT_ROOT;
+    extern port_t PORT;
+
+    extern std::unordered_map<std::string, std::string> MIMES;
+
+}
 
 /*****************************/
 

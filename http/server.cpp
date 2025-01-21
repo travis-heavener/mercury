@@ -123,7 +123,7 @@ namespace HTTP {
                 }
 
                 // Lookup file (skip leading fwd slash)
-                std::string path = (DOCUMENT_ROOT / rawPath.substr(1)).string();
+                std::string path = (conf::DOCUMENT_ROOT / rawPath.substr(1)).string();
                 File file(path);
 
                 if (!doesFileExist(file.path, true)) {

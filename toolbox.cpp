@@ -73,7 +73,7 @@ bool doesFileExist(const std::string& path, const bool forceInDocumentRoot) {
     if (!forceInDocumentRoot)
         return std::filesystem::exists(path);
     else // Match document root at start of filename
-        return std::filesystem::exists(path) && path.find(DOCUMENT_ROOT.string()) == 0;
+        return std::filesystem::exists(path) && path.find(conf::DOCUMENT_ROOT.string()) == 0;
 }
 
 int loadErrorDoc(const int status, const std::string& title, std::string& buffer) {

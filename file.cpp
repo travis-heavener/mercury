@@ -17,7 +17,7 @@ File::File(const std::string& path) {
     // Lookup MIME type
     std::string ext = std::filesystem::path(this->path).extension().string();
     if (ext.size()) ext = ext.substr(1); // Remove leading period
-    this->MIME = MIMES.find(ext) != MIMES.end() ? MIMES[ext] : "";
+    this->MIME = conf::MIMES.find(ext) != conf::MIMES.end() ? conf::MIMES[ext] : "";
 }
 
 int File::loadToBuffer(std::string& buffer) const {

@@ -2,10 +2,14 @@
 
 /****** EXTERNAL FIELDS ******/
 
-std::filesystem::path DOCUMENT_ROOT;
-port_t PORT;
+namespace conf {
 
-std::unordered_map<std::string, std::string> MIMES;
+    std::filesystem::path DOCUMENT_ROOT;
+    port_t PORT;
+
+    std::unordered_map<std::string, std::string> MIMES;
+
+}
 
 /*****************************/
 
@@ -13,6 +17,8 @@ std::unordered_map<std::string, std::string> MIMES;
 int loadMIMES();
 
 int loadConfig() {
+    using namespace conf;
+
     // Read XML config file
     pugi::xml_document doc;
     pugi::xml_parse_result result = doc.load_file(CONF_FILE);
@@ -67,6 +73,8 @@ int loadConfig() {
 }
 
 int loadMIMES() {
+    using namespace conf;
+
     // Load MIMES
     std::ifstream mimeHandle(MIMES_FILE);
     if (!mimeHandle.is_open()) return CONF_FAILURE;

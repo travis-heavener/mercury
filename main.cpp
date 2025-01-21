@@ -58,7 +58,7 @@ int main() {
     if (loadConfig() == CONF_FAILURE) return 1;
 
     // Init server
-    pServer = new HTTP::Server(HOST, PORT);
+    pServer = new HTTP::Server(HOST, conf::PORT);
 
     const int status = pServer->init();
     if (status < 0) return 1;
