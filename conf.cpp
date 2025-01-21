@@ -5,6 +5,7 @@
 namespace conf {
 
     std::filesystem::path DOCUMENT_ROOT;
+    std::string HOST;
     port_t PORT;
 
     std::unordered_map<std::string, std::string> MIMES;
@@ -37,7 +38,7 @@ int loadConfig() {
 
     /************************** Extract DocumentRoot **************************/
     pugi::xml_node documentRootNode = root.child("DocumentRoot");
-    if (!root) {
+    if (!documentRootNode) {
         std::cerr << "Failed to parse config file, missing DocumentRoot node.\n";
         return CONF_FAILURE;
     }
@@ -57,14 +58,24 @@ int loadConfig() {
 
     /************************** Extract Port **************************/
     pugi::xml_node portNode = root.child("Port");
-    if (!root) {
+    if (!portNode) {
         std::cerr << "Failed to parse config file, missing Port node.\n";
         return CONF_FAILURE;
     }
 
     PORT = portNode.text().as_uint();
 
-    // Load known MIMES
+    /************************** Extract DocumentRoot **************************/
+    pugi::xml_node hostNode = root.child("Host");
+    if (!hostNode) {
+        std::cerr << "Failed to parse config file, missing Host node.\n";
+        return CONF_FAILURE;
+    }
+
+    HOST = hostNode.text().as_string();
+    trimString(HOST);
+
+    /************************** Load known MIMES **************************/
     if (loadMIMES() == CONF_FAILURE)
         return CONF_FAILURE;
 

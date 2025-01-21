@@ -12,7 +12,7 @@
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1
 
-#define VERSION "Mercury v0.1.6"
+#define VERSION "Mercury v0.1.7"
 #define CONF_FILE "conf/mercury.conf"
 #define MIMES_FILE "conf/mimes.conf"
 
@@ -23,6 +23,7 @@ typedef unsigned short port_t;
 namespace conf {
 
     extern std::filesystem::path DOCUMENT_ROOT;
+    extern std::string HOST;
     extern port_t PORT;
 
     extern std::unordered_map<std::string, std::string> MIMES;

@@ -31,7 +31,9 @@ void initSigHandler() {
 
         sigaction(SIGINT, &sigIntHandler, NULL);
     #endif
+}
 
+void printWelcomeBanner() {
     std::cout << "------------------------------------\n"
                  "|          "  VERSION   "          |\n"
                  "|           ...........            |\n"
@@ -40,8 +42,6 @@ void initSigHandler() {
 }
 
 int main() {
-    const std::string HOST = "0.0.0.0";
-
     // Initialize Winsock API
     #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
         WSADATA wsa;
@@ -58,7 +58,10 @@ int main() {
     if (loadConfig() == CONF_FAILURE) return 1;
 
     // Init server
-    pServer = new HTTP::Server(HOST, conf::PORT);
+    pServer = new HTTP::Server(conf::HOST, conf::PORT);
+
+    // Print welcome banner
+    printWelcomeBanner();
 
     const int status = pServer->init();
     if (status < 0) return 1;

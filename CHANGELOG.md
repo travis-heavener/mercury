@@ -1,6 +1,11 @@
 
 # Changelog
 
+## v0.1.7
+- Fixed config loader error checking
+- Added Host node to config data to control hosted IPv4 address
+- Welcome message now shows after config data loads
+
 ## v0.1.6
 - Fixed [#3](https://github.com/travis-heavener/mercury/issues/3) (socket bind failure in immediate re-execution)
 - Added Table of Contents ([#4](https://github.com/travis-heavener/mercury/issues/4))
