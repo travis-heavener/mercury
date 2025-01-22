@@ -2,7 +2,14 @@
 
 namespace HTTP {
 
+    Server::Server(const std::string& host, const port_t port, const u_short maxBacklog, const u_int maxBufferSize)
+                : host(host), port(port), maxBacklog(maxBacklog), maxBufferSize(maxBufferSize) {
+        // Create request buffer
+        this->readBuffer = new char[this->maxBufferSize];
+    };
+
     void Server::kill() {
+        // Close sockets
         #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
             #define close_socket closesocket
         #else
@@ -14,6 +21,9 @@ namespace HTTP {
 
         if (this->sock != -1 && !close_socket(this->sock))
             std::cout << "Socket closed.\n";
+
+        // Free read buffer
+        delete[] this->readBuffer;
     }
 
     // Initialize the socket
@@ -52,7 +62,7 @@ namespace HTTP {
         }
 
         // Listen to socket
-        if (listen(this->sock, MAX_BACKLOG) < 0) {
+        if (listen(this->sock, this->maxBacklog) < 0) {
             std::cerr << "Failed to listen to socket (errno: " << errno << ")\n";
             return LISTEN_FAILURE;
         }
@@ -69,8 +79,11 @@ namespace HTTP {
         char clientIPStr[INET_ADDRSTRLEN];
 
         while ( (this->c_sock = accept(this->sock, (struct sockaddr*)&clientAddr, &clientLen)) >= 0 ) {
+            // Clear buffer
+            this->clearBuffer();
+
             // Read buffer
-            recv(this->c_sock, this->readBuffer, sizeof(this->readBuffer), 0);
+            recv(this->c_sock, this->readBuffer, this->maxBufferSize, 0);
             clientIP = ((struct sockaddr_in*)&clientAddr)->sin_addr;
 
             #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
@@ -206,6 +219,11 @@ namespace HTTP {
         for (auto [headerName, value] : resHeaders)
             headers += headerName + ": " + value + '\n';
         buffer = statusLine + '\n' + headers + "\n" + body;
+    }
+
+    void Server::clearBuffer() {
+        for (u_int i = 0; i < this->maxBufferSize; ++i)
+            this->readBuffer[i] = 0;
     }
 
 }

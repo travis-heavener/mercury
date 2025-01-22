@@ -16,7 +16,7 @@
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1
 
-#define VERSION "Mercury v0.2.2"
+#define VERSION "Mercury v0.2.3"
 #define CONF_FILE "../conf/mercury.conf"
 #define MIMES_FILE "../conf/mimes.conf"
 
@@ -29,6 +29,8 @@ namespace conf {
     extern std::filesystem::path DOCUMENT_ROOT;
     extern std::string HOST;
     extern port_t PORT;
+    extern unsigned short MAX_REQUEST_BACKLOG;
+    extern unsigned int MAX_REQUEST_BUFFER;
     extern std::vector<conf::Match*> matchConfigs;
 
     extern std::unordered_map<std::string, std::string> MIMES;

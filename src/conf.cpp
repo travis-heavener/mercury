@@ -7,6 +7,8 @@ namespace conf {
     std::filesystem::path DOCUMENT_ROOT;
     std::string HOST;
     port_t PORT;
+    unsigned short MAX_REQUEST_BACKLOG;
+    unsigned int MAX_REQUEST_BUFFER;
     std::vector<conf::Match*> matchConfigs;
 
     std::unordered_map<std::string, std::string> MIMES;
@@ -92,6 +94,24 @@ int loadConfig() {
         if (pMatch == nullptr) return CONF_FAILURE;
         matchConfigs.push_back(pMatch);
     }
+
+    /************************** Extract MaxRequestBacklog **************************/
+    pugi::xml_node reqBacklogNode = root.child("MaxRequestBacklog");
+    if (!reqBacklogNode) {
+        std::cerr << "Failed to parse config file, missing MaxRequestBacklog node.\n";
+        return CONF_FAILURE;
+    }
+
+    MAX_REQUEST_BACKLOG = reqBacklogNode.text().as_uint();
+
+    /************************** Extract MaxRequestBuffer **************************/
+    pugi::xml_node reqBufferNode = root.child("MaxRequestBuffer");
+    if (!reqBufferNode) {
+        std::cerr << "Failed to parse config file, missing MaxRequestBuffer node.\n";
+        return CONF_FAILURE;
+    }
+
+    MAX_REQUEST_BUFFER = reqBufferNode.text().as_uint();
 
     /************************** Load known MIMES **************************/
     if (loadMIMES() == CONF_FAILURE)

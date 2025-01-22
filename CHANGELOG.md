@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.2.3
+- Extended control of request buffer size & backlog to config file
+
 ## v0.2.2
 - Extended content encoding support for both gzip & zlib deflate
 - Fixed terminology of Host node in config file

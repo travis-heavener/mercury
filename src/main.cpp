@@ -71,7 +71,7 @@ int main() {
     }
 
     // Init server
-    pServer = new HTTP::Server(conf::HOST, conf::PORT);
+    pServer = new HTTP::Server(conf::HOST, conf::PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER);
 
     // Print welcome banner
     printWelcomeBanner();

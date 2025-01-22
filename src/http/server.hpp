@@ -22,18 +22,18 @@
     #include <unistd.h>
 #endif
 
-#define MAX_BACKLOG 25
-#define MAX_READ_BUFFER 1024 * 16
-
 #define SOCKET_FAILURE 1
 #define BIND_FAILURE 2
 #define LISTEN_FAILURE 3
+
+typedef unsigned short u_short;
+typedef unsigned int u_int;
 
 namespace HTTP {
 
     class Server {
         public:
-            Server(const std::string& host, const port_t port) : host(host), port(port) {};
+            Server(const std::string& host, const port_t port, const u_short maxBacklog, const u_int maxBufferSize);
             ~Server() { this->kill(); };
 
             int init();
@@ -41,12 +41,16 @@ namespace HTTP {
             void kill();
             void genResponse(std::string&, const Request&);
         private:
+            void clearBuffer();
+
             const std::string host;
             const port_t port;
             int sock = -1;
             int c_sock = -1;
 
-            char readBuffer[MAX_READ_BUFFER];
+            const u_short maxBacklog;
+            const u_int maxBufferSize;
+            char* readBuffer;
     };
 
 }
