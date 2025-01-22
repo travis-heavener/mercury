@@ -7,8 +7,8 @@
 #include <unordered_map>
 
 #include "request.hpp"
-#include "../toolbox.hpp"
-#include "../file.hpp"
+#include "../util/toolbox.hpp"
+#include "../util/file.hpp"
 
 #include <zlib.h>
 

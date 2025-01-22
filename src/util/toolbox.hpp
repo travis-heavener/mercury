@@ -7,8 +7,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "util/string_tools.hpp"
-#include "conf.hpp"
+#include "string_tools.hpp"
+#include "../conf.hpp"
 
 bool doesFileExist(const std::string&, const bool);
 bool doesDirectoryExist(const std::string&, const bool);
