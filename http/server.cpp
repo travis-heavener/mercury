@@ -188,11 +188,16 @@ namespace HTTP {
         }
 
         // Handle compression
-        if (req.isEncodingAccepted("deflate") && (resHeaders.find("CONTENT-TYPE") != resHeaders.end() &&
-            (resHeaders.find("CONTENT-TYPE")->second.find("text/") == 0 || resHeaders.find("CONTENT-TYPE")->second == "application/json"))) {
-            // Append compression header
-            if (deflateText(body) == IO_SUCCESS)
-                resHeaders.insert({"CONTENT-ENCODING", "deflate"});
+        auto contentTypeHeader = resHeaders.find("CONTENT-TYPE");
+        if (contentTypeHeader != resHeaders.end() && (contentTypeHeader->second.find("text/") == 0 || contentTypeHeader->second == "application/json")) {
+            // Determine compression method
+            if (req.isEncodingAccepted("gzip")) {
+                if (compressText(body, COMPRESS_GZIP) == IO_SUCCESS)
+                    resHeaders.insert({"CONTENT-ENCODING", "gzip"});
+            } else if (req.isEncodingAccepted("deflate")) {
+                if (compressText(body, COMPRESS_DEFLATE) == IO_SUCCESS)
+                    resHeaders.insert({"CONTENT-ENCODING", "deflate"});
+            }
         }
 
         // Compile output buffer

@@ -52,7 +52,7 @@ void decodeURI(std::string& str) {
     }
 }
 
-int deflateText(std::string& buffer) {
+int compressText(std::string& buffer, const int method) {
     // Handle deflate compression
     const size_t sourceLen = buffer.size();
     z_stream zs;
@@ -60,7 +60,8 @@ int deflateText(std::string& buffer) {
     zs.zfree = Z_NULL;
     zs.opaque = Z_NULL;
 
-    if (deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15, 8, Z_DEFAULT_STRATEGY) != Z_OK)
+    const int windowBits = method == COMPRESS_GZIP ? (15 | 16) : 15; 
+    if (deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, windowBits, 8, Z_DEFAULT_STRATEGY) != Z_OK)
         return IO_FAILURE;
 
     // Determine output size

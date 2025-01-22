@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.2
+- Extended content encoding support for both gzip & zlib deflate
+- Fixed terminology of Host node in config file
+
 ## v0.2.1
 - Improved parsing support for Accept header
 

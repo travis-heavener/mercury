@@ -11,12 +11,15 @@
 #define IO_FAILURE 1
 #define IO_ABORTED 2
 
+#define COMPRESS_DEFLATE 0
+#define COMPRESS_GZIP 1
+
 void strToUpper(std::string&);
 void splitStringUnique(std::unordered_set<std::string>&, std::string&, char, bool);
 void stringReplaceAll(std::string&, const std::string&, const std::string&);
 void trimString(std::string&);
 void decodeURI(std::string&);
 
-int deflateText(std::string&);
+int compressText(std::string&, const int);
 
 #endif
