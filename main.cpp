@@ -6,15 +6,10 @@
 
 HTTP::Server* pServer = nullptr;
 
+void m_exit(int); // Fwd declaration
 void catchSig(int s) {
     std::cerr << "\nIntercepted exit signal " << s << ", closing...\n";
-
-    if (pServer != nullptr)
-        pServer->kill();
-
-    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-        WSACleanup();
-    #endif
+    m_exit(0);
 }
 
 void initSigHandler() {
@@ -41,6 +36,20 @@ void printWelcomeBanner() {
                  "------------------------------------\n";
 }
 
+void m_exit(int status) {
+    if (pServer != nullptr)
+        pServer->kill();
+
+    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+        WSACleanup();
+    #endif
+
+    // Cleanup config resources
+    cleanupConfig();
+
+    exit(status);
+}
+
 int main() {
     // Initialize Winsock API
     #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
@@ -55,7 +64,7 @@ int main() {
     initSigHandler();
 
     // Load config files
-    if (loadConfig() == CONF_FAILURE) return 1;
+    if (loadConfig() == CONF_FAILURE) m_exit(1);
 
     // Init server
     pServer = new HTTP::Server(conf::HOST, conf::PORT);
@@ -64,13 +73,12 @@ int main() {
     printWelcomeBanner();
 
     const int status = pServer->init();
-    if (status < 0) return 1;
+    if (status < 0) m_exit(1);
 
     // Accept client responses (blocks main thread)
     pServer->handleReqs();
 
-    // Free server
-    delete pServer;
-
+    // Clean up
+    m_exit(0);
     return 0;
 }

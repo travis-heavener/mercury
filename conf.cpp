@@ -7,6 +7,7 @@ namespace conf {
     std::filesystem::path DOCUMENT_ROOT;
     std::string HOST;
     port_t PORT;
+    std::vector<conf::Match*> matchConfigs;
 
     std::unordered_map<std::string, std::string> MIMES;
 
@@ -75,6 +76,16 @@ int loadConfig() {
     HOST = hostNode.text().as_string();
     trimString(HOST);
 
+    // Load all Matches
+    pugi::xml_object_range matchNodes = root.children("Match");
+
+    for (pugi::xml_node& match : matchNodes) {
+        // Parse match
+        Match* pMatch = loadMatch(match);
+        if (pMatch == nullptr) return CONF_FAILURE;
+        matchConfigs.push_back(pMatch);
+    }
+
     /************************** Load known MIMES **************************/
     if (loadMIMES() == CONF_FAILURE)
         return CONF_FAILURE;
@@ -105,10 +116,8 @@ int loadMIMES() {
     return CONF_SUCCESS;
 }
 
-void trimString(std::string& str) {
-    while (str.size() && std::isspace(str.back()))
-        str.pop_back();
-
-    while (str.size() && std::isspace(str[0]))
-        str = str.substr(1);
+void cleanupConfig() {
+    // Free any matches
+    for (conf::Match* pMatch : conf::matchConfigs)
+        delete pMatch;
 }

@@ -1,8 +1,8 @@
 GPPFLAGS = -Wall -Wextra -g
 TARGET = main.o
 TARGET_WIN = main.exe
-SRCS = *.cpp http/*.cpp lib/*.cpp
-DEPS = *.hpp http/*.hpp lib/*.hpp $(SRCS)
+SRCS = *.cpp http/*.cpp util/*.cpp lib/*.cpp
+DEPS = *.hpp http/*.hpp util/*.hpp lib/*.hpp $(SRCS)
 
 all: $(TARGET) $(TARGET_WIN)
 linux: $(TARGET)

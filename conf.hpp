@@ -5,14 +5,18 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 #include <unordered_map>
+
+#include "util/string_tools.hpp"
+#include "util/conf_match.hpp"
 
 #include "lib/pugixml.hpp"
 
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1
 
-#define VERSION "Mercury v0.1.7"
+#define VERSION "Mercury v0.1.8"
 #define CONF_FILE "conf/mercury.conf"
 #define MIMES_FILE "conf/mimes.conf"
 
@@ -25,6 +29,7 @@ namespace conf {
     extern std::filesystem::path DOCUMENT_ROOT;
     extern std::string HOST;
     extern port_t PORT;
+    extern std::vector<conf::Match*> matchConfigs;
 
     extern std::unordered_map<std::string, std::string> MIMES;
 
@@ -33,6 +38,6 @@ namespace conf {
 /*****************************/
 
 int loadConfig();
-void trimString(std::string&);
+void cleanupConfig();
 
 #endif

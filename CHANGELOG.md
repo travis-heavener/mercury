@@ -1,5 +1,10 @@
-
 # Changelog
+
+## v0.1.8
+- Improved handling of program exits
+- Fixed memory leak w/ deflateText
+- Refactored string tools
+- Added Match & Header nodes to config
 
 ## v0.1.7
 - Fixed config loader error checking

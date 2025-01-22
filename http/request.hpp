@@ -10,7 +10,7 @@
 
 #include "../toolbox.hpp"
 
-#define ALLOWED_HEADERS "GET"
+#define ALLOWED_METHODS "GET"
 
 namespace HTTP {
 

@@ -29,14 +29,14 @@ namespace HTTP {
         }
 
         // Init socket opts
-        const char optFlag = 1;
-        if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEADDR, &optFlag, sizeof(int)) < 0) {
+        const int optFlag = 1;
+        if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&optFlag, sizeof(int)) < 0) {
             std::cerr << "Failed to set socket opt SO_REUSEADDR.\n";
             return SOCKET_FAILURE;
         }
 
         #if __linux__
-            if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEPORT, &optFlag, sizeof(int)) < 0) {
+            if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&optFlag, sizeof(int)) < 0) {
                 std::cerr << "Failed to set socket opt SO_REUSEPORT.\n";
                 return SOCKET_FAILURE;
             }
@@ -112,7 +112,7 @@ namespace HTTP {
                 const std::string rawPath = req.getPathStr();
                 if (rawPath.size() == 0 || rawPath[0] != '/') {
                     statusLine = "HTTP/1.1 400 Bad Request";
-                    resHeaders.insert({"ALLOW", ALLOWED_HEADERS});
+                    resHeaders.insert({"ALLOW", ALLOWED_METHODS});
 
                     // If the request allows HTML, return an HTML display
                     if (req.isMIMEAccepted("text/html")) {
@@ -151,7 +151,7 @@ namespace HTTP {
                     break;
                 }
 
-                // MIME matches, resolve resource
+                // Attempt to buffer resource
                 if (file.loadToBuffer(body) == IO_FAILURE) {
                     statusLine = "HTTP/1.1 500 Internal Server Error";
 
@@ -159,16 +159,27 @@ namespace HTTP {
                         resHeaders.insert({"CONTENT-TYPE", "text/html"});
                         loadErrorDoc(500, "Internal Server Error", body);
                     }
-                } else {
-                    // Body loaded successfully
-                    statusLine = "HTTP/1.1 200 OK";
-                    resHeaders.insert({"CONTENT-TYPE", file.MIME});
+                    break;
+                }
+
+                // Otherwise, body loaded successfully
+                statusLine = "HTTP/1.1 200 OK";
+                resHeaders.insert({"CONTENT-TYPE", file.MIME});
+
+                // Load additional headers for body loading
+                for (conf::Match* pMatch : conf::matchConfigs) {
+                    if (std::regex_match(file.path, pMatch->getPattern())) {
+                        // Apply headers
+                        for (auto [name, value] : pMatch->getHeaders()) {
+                            resHeaders.insert({name, value});
+                        }
+                    }
                 }
                 break;
             }
             default: {
                 statusLine = "HTTP/1.1 405 Method Not Allowed";
-                resHeaders.insert({"ALLOW", ALLOWED_HEADERS});
+                resHeaders.insert({"ALLOW", ALLOWED_METHODS});
 
                 // If the request allows HTML, return an HTML display
                 if (req.isMIMEAccepted("text/html")) {
