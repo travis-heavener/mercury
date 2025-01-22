@@ -3,6 +3,7 @@
 ## v0.2.2
 - Extended content encoding support for both gzip & zlib deflate
 - Fixed terminology of Host node in config file
+- Global refactor of C++ source files & binaries
 
 ## v0.2.1
 - Improved parsing support for Accept header
