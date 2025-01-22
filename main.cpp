@@ -4,19 +4,12 @@
 #include "http/server.hpp"
 #include "toolbox.hpp"
 
-#define DEFAULT_PORT 9220
-
 HTTP::Server* pServer = nullptr;
 
+void m_exit(int); // Fwd declaration
 void catchSig(int s) {
     std::cerr << "\nIntercepted exit signal " << s << ", closing...\n";
-
-    if (pServer != nullptr)
-        pServer->kill();
-
-    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-        WSACleanup();
-    #endif
+    m_exit(0);
 }
 
 void initSigHandler() {
@@ -33,7 +26,9 @@ void initSigHandler() {
 
         sigaction(SIGINT, &sigIntHandler, NULL);
     #endif
+}
 
+void printWelcomeBanner() {
     std::cout << "------------------------------------\n"
                  "|          "  VERSION   "          |\n"
                  "|           ...........            |\n"
@@ -41,10 +36,21 @@ void initSigHandler() {
                  "------------------------------------\n";
 }
 
-int main(int argc, char* argv[]) {
-    const int PORT = (argc >= 2) ? std::atoi(argv[1]) : DEFAULT_PORT;
-    const std::string HOST = "0.0.0.0";
+void m_exit(int status) {
+    if (pServer != nullptr)
+        pServer->kill();
 
+    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+        WSACleanup();
+    #endif
+
+    // Cleanup config resources
+    cleanupConfig();
+
+    exit(status);
+}
+
+int main() {
     // Initialize Winsock API
     #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
         WSADATA wsa;
@@ -57,23 +63,22 @@ int main(int argc, char* argv[]) {
     // Configure interrupt handler
     initSigHandler();
 
-    // Load aux resources
-    if (loadResources() == IO_FAILURE) {
-        std::cerr << "Failed to load additional resources.\n";
-        return 1;
-    }
+    // Load config files
+    if (loadConfig() == CONF_FAILURE) m_exit(1);
 
     // Init server
-    pServer = new HTTP::Server(HOST, PORT);
+    pServer = new HTTP::Server(conf::HOST, conf::PORT);
+
+    // Print welcome banner
+    printWelcomeBanner();
 
     const int status = pServer->init();
-    if (status < 0) return 1;
+    if (status < 0) m_exit(1);
 
     // Accept client responses (blocks main thread)
     pServer->handleReqs();
 
-    // Free server
-    delete pServer;
-
+    // Clean up
+    m_exit(0);
     return 0;
 }

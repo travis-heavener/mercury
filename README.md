@@ -2,13 +2,22 @@
 
 ### A project by Travis Heavener
 
+## Table of Contents
+
+- [Table of Contents](#table-of-contents)
+- [About](#about)
+- [Build Info](#build-info)
+    - [Linux](#linux)
+    - [Windows](#windows)
+- [Changelog](CHANGELOG.md)
+
 ## About
 
 Mercury is an HTTP server designed in C++ using the C-socket paradigm.
 
-## Dependencies
-
 Currently, Mercury is available on Linux and Windows.
+
+## Build Info
 
 ### Linux
 
@@ -20,6 +29,8 @@ To build for Linux, zlib must be installed.
 2. `cd` into the directory of this repository clone and run `make linux`.
 
 ### Windows
+
+Windows builds are compiled in the same inunx environment as mentioned above (see [Linux](#linux)).
 
 To build for Windows, zlib must be installed.
 
@@ -35,29 +46,3 @@ To build for Windows, zlib must be installed.
     `sudo BINARY_PATH=<dir>/bin INCLUDE_PATH=<dir>/include LIBRARY_PATH=<dir>/lib make -B -f win32/Makefile.gcc install`.
 
 6. *Now*, `cd` back into the directory of this repository and run `make windows`.
-
-## Changelog
-
-### v0.1.4
-- Accept header now processes `*/*` as intended
-- Now explicitly prevents users from accessing files above the document root
-- Improved handling of 405 Method Not Allowed status codes
-    - Response now appropriately specifies Allow header
-    - Now only returns HTML display if explicitly Accepted by the request
-
-### v0.1.3
-- Fixed MAJOR file compression bug on Windows systems
-- Improved overall handling of file compression
-
-### v0.1.2
-- File paths with query strings are now handled as intended
-- Improved handling of index files
-
-### v0.1.1
-- Added initial welcome note
-- Fixed [Dependencies](#dependencies) with Windows info
-- Windows port now allows deflate compresesion via zlib port
-
-### v0.1.0
-- Added changelog (lol)
-- Added Windows port
