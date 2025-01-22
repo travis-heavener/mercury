@@ -52,7 +52,11 @@ int loadConfig() {
     else // Absolute paths
         DOCUMENT_ROOT = documentRootStr;
 
-    if (!std::filesystem::exists(DOCUMENT_ROOT) || !std::filesystem::is_directory(DOCUMENT_ROOT)) {
+    // Affix trailing slash
+    if (DOCUMENT_ROOT.string().size() && DOCUMENT_ROOT.string().back() != '/')
+        DOCUMENT_ROOT = DOCUMENT_ROOT.string() + '/';
+
+    if (!DOCUMENT_ROOT.string().size() || !std::filesystem::exists(DOCUMENT_ROOT) || !std::filesystem::is_directory(DOCUMENT_ROOT)) {
         std::cerr << "Failed to parse config file, DocumentRoot points to invalid/nonexistant directory.\n";
         return CONF_FAILURE;
     }

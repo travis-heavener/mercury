@@ -3,6 +3,7 @@
 ## v0.2.0
 - **URI decoding is now supported**
 - Added directory index file listings
+- Fixed Windows bug where Document Root not terminated by a forward slash fails to recognize index.html in root directory
 
 ## v0.1.8
 - Improved handling of program exits
