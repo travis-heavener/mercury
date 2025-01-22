@@ -29,7 +29,6 @@
 #define BIND_FAILURE 2
 #define LISTEN_FAILURE 3
 
-
 namespace HTTP {
 
     class Server {

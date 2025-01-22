@@ -4,18 +4,16 @@ namespace HTTP {
 
     void Server::kill() {
         #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-            if (this->c_sock != -1 && !closesocket(this->c_sock))
-                std::cout << "Client socket closed.\n";
-
-            if (this->sock != -1 && !closesocket(this->sock))
-                std::cout << "Socket closed.\n";
+            #define close_socket closesocket
         #else
-            if (this->c_sock != -1 && !close(this->c_sock))
-                std::cout << "Client socket closed.\n";
-
-            if (this->sock != -1 && !close(this->sock))
-                std::cout << "Socket closed.\n";
+            #define close_socket close
         #endif
+
+        if (this->c_sock != -1 && !close_socket(this->c_sock))
+            std::cout << "Client socket closed.\n";
+
+        if (this->sock != -1 && !close_socket(this->sock))
+            std::cout << "Socket closed.\n";
     }
 
     // Initialize the socket
