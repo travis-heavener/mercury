@@ -1,8 +1,8 @@
 # Changelog
 
-## v0.1.9
+## v0.2.0
+- **URI decoding is now supported**
 - Added directory index file listings
-- URI decoding is now supported
 
 ## v0.1.8
 - Improved handling of program exits
