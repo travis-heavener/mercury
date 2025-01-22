@@ -8,7 +8,8 @@ HTTP::Server* pServer = nullptr;
 
 void m_exit(); // Fwd declaration
 void catchSig(int s) {
-    std::cerr << "\nIntercepted exit signal " << s << ", closing...\n";
+    std::cout << "\nIntercepted exit signal " << s << ", closing...\n";
+    ACCESS_LOG << "Intercepted exit signal " << s << ", closing..." << '\n'; // No endl bc flush happens async w/ signals
     m_exit();
     exit(0);
 }
@@ -35,6 +36,7 @@ void printWelcomeBanner() {
                  "|           ...........            |\n"
                  "|         Ctrl+C to close.         |\n"
                  "------------------------------------\n";
+    ACCESS_LOG << VERSION " started successfully." << std::endl;
 }
 
 void m_exit() {
@@ -46,6 +48,9 @@ void m_exit() {
     #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
         WSACleanup();
     #endif
+
+    // Log process closure
+    ACCESS_LOG << "Process killed successfully." << '\n';
 
     // Cleanup config resources
     cleanupConfig();

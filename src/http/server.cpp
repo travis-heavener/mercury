@@ -16,11 +16,15 @@ namespace HTTP {
             #define close_socket close
         #endif
 
-        if (this->c_sock != -1 && !close_socket(this->c_sock))
-            std::cout << "Client socket closed.\n";
+        if (this->c_sock != -1 && !close_socket(this->c_sock)) {
+            ACCESS_LOG << "Client socket closed." << '\n';
+            this->c_sock = -1;
+        }
 
-        if (this->sock != -1 && !close_socket(this->sock))
-            std::cout << "Socket closed.\n";
+        if (this->sock != -1 && !close_socket(this->sock)) {
+            ACCESS_LOG << "Socket closed." << '\n';
+            this->sock = -1;
+        }
 
         // Free read buffer
         delete[] this->readBuffer;
@@ -32,20 +36,20 @@ namespace HTTP {
         this->sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
         if (this->sock < 0) {
-            std::cerr << "Failed to open socket on port " << this->port << ".\n";
+            ERROR_LOG << "Failed to open socket on port " << this->port << '\n';
             return SOCKET_FAILURE;
         }
 
         // Init socket opts
         const int optFlag = 1;
         if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&optFlag, sizeof(int)) < 0) {
-            std::cerr << "Failed to set socket opt SO_REUSEADDR.\n";
+            ERROR_LOG << "Failed to set socket opt SO_REUSEADDR." << '\n';
             return SOCKET_FAILURE;
         }
 
         #if __linux__
             if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&optFlag, sizeof(int)) < 0) {
-                std::cerr << "Failed to set socket opt SO_REUSEPORT.\n";
+                ERROR_LOG << "Failed to set socket opt SO_REUSEPORT." << '\n';
                 return SOCKET_FAILURE;
             }
         #endif
@@ -57,17 +61,17 @@ namespace HTTP {
         addr.sin_addr.s_addr = inet_addr(this->host.c_str());
 
         if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            std::cerr << "Failed to bind socket (errno: " << errno << ")\n";
+            ERROR_LOG << "Failed to bind socket (errno: " << errno << ')' << '\n';
             return BIND_FAILURE;
         }
 
         // Listen to socket
         if (listen(this->sock, this->maxBacklog) < 0) {
-            std::cerr << "Failed to listen to socket (errno: " << errno << ")\n";
+            ERROR_LOG << "Failed to listen to socket (errno: " << errno << ')' << '\n';
             return LISTEN_FAILURE;
         }
 
-        std::cout << "Listening to " << this->host << " on port " << this->port << ".\n";
+        ACCESS_LOG << "Listening to " << this->host << " on port " << this->port << '.' << '\n';
         return 0;
     }
 
@@ -92,9 +96,12 @@ namespace HTTP {
                 inet_ntop( AF_INET, &clientIP, clientIPStr, INET_ADDRSTRLEN );
             #endif
 
+            // Catch any stray packets after the program is killed
+            if (std::strlen(this->readBuffer) == 0) return;
+
             // Parse request
             Request req( this->readBuffer, clientIPStr );
-            std::cout << req.getMethodStr() << ' ' << req.getIPStr() << ' ' << req.getPathStr() << '\n';
+            ACCESS_LOG << req.getMethodStr() << ' ' << req.getIPStr() << ' ' << req.getPathStr() << std::endl; // Flush w/ endl vs newline
 
             // Return response
             std::string resBuffer;

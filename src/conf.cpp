@@ -11,6 +11,12 @@ namespace conf {
     unsigned int MAX_REQUEST_BUFFER;
     std::vector<conf::Match*> matchConfigs;
 
+    std::filesystem::path ACCESS_LOG_FILE;
+    std::filesystem::path ERROR_LOG_FILE;
+
+    std::ofstream accessLogHandle;
+    std::ofstream errorLogHandle;
+
     std::unordered_map<std::string, std::string> MIMES;
 
     // CWD in root directory of repo
@@ -113,9 +119,58 @@ int loadConfig() {
 
     MAX_REQUEST_BUFFER = reqBufferNode.text().as_uint();
 
+    /************************** Extract AccessLogFile **************************/
+    pugi::xml_node accessLogNode = root.child("AccessLogFile");
+    if (!accessLogNode) {
+        std::cerr << "Failed to parse config file, missing AccessLogFile node.\n";
+        return CONF_FAILURE;
+    }
+
+    std::string accessFileStr( accessLogNode.text().as_string() );
+    trimString(accessFileStr);
+
+    // Format string
+    ACCESS_LOG_FILE = (accessFileStr.find("./") == 0) ? (CWD / accessFileStr.substr(2)) : std::filesystem::path(accessFileStr);
+
+    if (!ACCESS_LOG_FILE.string().size()) {
+        std::cerr << "Failed to parse config file, invalid Access Log File.\n";
+        return CONF_FAILURE;
+    }
+
+    /************************** Extract ErrorLogFile **************************/
+    pugi::xml_node errorLogNode = root.child("ErrorLogFile");
+    if (!errorLogNode) {
+        std::cerr << "Failed to parse config file, missing ErrorLogFile node.\n";
+        return CONF_FAILURE;
+    }
+
+    std::string errorFileStr( errorLogNode.text().as_string() );
+    trimString(errorFileStr);
+
+    // Format string
+    ERROR_LOG_FILE = (errorFileStr.find("./") == 0) ? (CWD / errorFileStr.substr(2)) : std::filesystem::path(errorFileStr);
+
+    if (!ERROR_LOG_FILE.string().size()) {
+        std::cerr << "Failed to parse config file, invalid Error Log File.\n";
+        return CONF_FAILURE;
+    }
+
     /************************** Load known MIMES **************************/
     if (loadMIMES() == CONF_FAILURE)
         return CONF_FAILURE;
+
+    /************************** Open log files **************************/
+    accessLogHandle = std::ofstream(ACCESS_LOG_FILE, std::ios_base::app);
+    if (!accessLogHandle.is_open()) {
+        std::cerr << "Failed to open Access Log File.\n";
+        return CONF_FAILURE;
+    }
+
+    errorLogHandle = std::ofstream(ERROR_LOG_FILE, std::ios_base::app);
+    if (!errorLogHandle.is_open()) {
+        std::cerr << "Failed to open Error Log File.\n";
+        return CONF_FAILURE;
+    }
 
     // Return success
     return CONF_SUCCESS;
@@ -149,4 +204,21 @@ void cleanupConfig() {
         delete pMatch;
 
     conf::matchConfigs.clear();
+
+    // Close log file handles
+    if (conf::accessLogHandle.is_open())
+        conf::accessLogHandle.close();
+
+    if (conf::errorLogHandle.is_open())
+        conf::errorLogHandle.close();
+}
+
+std::ofstream& operator<<(std::ofstream& os, const __LogTimestamp&) {
+    // Cast timestamp
+    using namespace std::chrono;
+    auto tp = system_clock::to_time_t(system_clock::now());
+
+    // Write to output stream
+    os << std::put_time(std::localtime(&tp), "[%m/%d/%y, %I:%M:%S %p] ");
+    return os;
 }

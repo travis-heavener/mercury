@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.2.4
+- Added access & error log files
+
 ## v0.2.3
 - Extended control of request buffer size & backlog to config file
 
