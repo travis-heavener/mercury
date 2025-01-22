@@ -120,4 +120,6 @@ void cleanupConfig() {
     // Free any matches
     for (conf::Match* pMatch : conf::matchConfigs)
         delete pMatch;
+
+    conf::matchConfigs.clear();
 }

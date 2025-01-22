@@ -64,7 +64,6 @@ int deflateText(std::string& buffer) {
     zs.next_out = (Bytef*)pBuffer;
 
     // Deflate
-    deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15, 8, Z_DEFAULT_STRATEGY);
     deflate(&zs, Z_FINISH);
     deflateEnd(&zs);
 

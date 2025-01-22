@@ -6,10 +6,11 @@
 
 HTTP::Server* pServer = nullptr;
 
-void m_exit(int); // Fwd declaration
+void m_exit(); // Fwd declaration
 void catchSig(int s) {
     std::cerr << "\nIntercepted exit signal " << s << ", closing...\n";
-    m_exit(0);
+    m_exit();
+    exit(0);
 }
 
 void initSigHandler() {
@@ -36,9 +37,11 @@ void printWelcomeBanner() {
                  "------------------------------------\n";
 }
 
-void m_exit(int status) {
-    if (pServer != nullptr)
-        pServer->kill();
+void m_exit() {
+    if (pServer != nullptr) {
+        delete pServer;
+        pServer = nullptr;
+    }
 
     #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
         WSACleanup();
@@ -46,8 +49,6 @@ void m_exit(int status) {
 
     // Cleanup config resources
     cleanupConfig();
-
-    exit(status);
 }
 
 int main() {
@@ -64,7 +65,10 @@ int main() {
     initSigHandler();
 
     // Load config files
-    if (loadConfig() == CONF_FAILURE) m_exit(1);
+    if (loadConfig() == CONF_FAILURE) {
+        m_exit();
+        return 1;
+    }
 
     // Init server
     pServer = new HTTP::Server(conf::HOST, conf::PORT);
@@ -72,13 +76,16 @@ int main() {
     // Print welcome banner
     printWelcomeBanner();
 
-    const int status = pServer->init();
-    if (status < 0) m_exit(1);
+    if (pServer != nullptr && pServer->init() < 0) {
+        m_exit();
+        return 1;
+    }
 
     // Accept client responses (blocks main thread)
-    pServer->handleReqs();
+    if (pServer != nullptr)
+        pServer->handleReqs();
 
     // Clean up
-    m_exit(0);
+    m_exit();
     return 0;
 }

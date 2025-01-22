@@ -2,7 +2,8 @@
 
 ## v0.1.8
 - Improved handling of program exits
-- Fixed memory leak w/ deflateText
+- Fixed memory leak w/ deflateText calling delete instead of delete[]
+- Fixed major memory leak w/ deflateText calling deflateInit2_ twice
 - Refactored string tools
 - Added Match & Header nodes to config
 

@@ -44,8 +44,8 @@ namespace HTTP {
         private:
             const std::string host;
             const port_t port;
-            int sock;
-            int c_sock;
+            int sock = -1;
+            int c_sock = -1;
 
             char readBuffer[MAX_READ_BUFFER];
     };
