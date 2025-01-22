@@ -78,7 +78,7 @@ void formatDate(std::filesystem::file_time_type dur, std::string& buffer) {
 
     // Format date string
     std::stringstream ss;
-    ss << std::put_time(std::localtime(&tp), "%D, %I:%M:%S %p");
+    ss << std::put_time(std::localtime(&tp), "%m/%d/%y, %I:%M:%S %p");
 
     // Write to buffer
     buffer = ss.str();
