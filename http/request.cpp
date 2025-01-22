@@ -2,6 +2,8 @@
 
 namespace HTTP {
 
+    void parseAcceptHeader(std::unordered_set<std::string>&, std::string&);
+
     Request::Request(const char* raw, const char* clientIP) {
         this->ipStr = clientIP;
 
@@ -49,7 +51,7 @@ namespace HTTP {
 
         // Extract accepted MIME types
         if (headers.find("ACCEPT") != headers.end())
-            splitStringUnique(acceptedMIMETypes, headers["ACCEPT"], ',', true);
+            parseAcceptHeader(acceptedMIMETypes, headers["ACCEPT"]);
 
         // Extract accepted encodings
         if (headers.find("ACCEPT-ENCODING") != headers.end())
@@ -69,6 +71,30 @@ namespace HTTP {
 
     bool Request::isEncodingAccepted(const std::string& encoding) const {
         return acceptedEncodings.find(encoding) != acceptedEncodings.end();
+    }
+
+    void parseAcceptHeader(std::unordered_set<std::string>& splitVec, std::string& string) {
+        std::vector<std::string> splitBuf;
+        size_t startIndex = 0;
+        for (size_t i = 0; i < string.size(); i++) {
+            if (string[i] == ',') {
+                std::string substr = string.substr(startIndex, i-startIndex);
+                trimString(substr);
+                if (substr.size() > 0) splitBuf.push_back(substr);
+                startIndex = i+1;
+            }
+        }
+
+        // append last snippet
+        if (startIndex < string.size()) {
+            std::string substr = string.substr(startIndex);
+            trimString(substr);
+            if (substr.size() > 0) splitBuf.push_back(substr);
+        }
+
+        // Format split buffer
+        for (std::string& mime : splitBuf)
+            splitVec.insert(mime.substr(0, mime.find(';')));
     }
 
 }

@@ -16,7 +16,7 @@
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1
 
-#define VERSION "Mercury v0.2.0"
+#define VERSION "Mercury v0.2.1"
 #define CONF_FILE "conf/mercury.conf"
 #define MIMES_FILE "conf/mimes.conf"
 

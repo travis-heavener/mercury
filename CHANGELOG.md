@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.2.1
+- Improved parsing support for Accept header
+
 ## v0.2.0
 - **URI decoding is now supported**
 - Added directory index file listings

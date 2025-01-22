@@ -12,10 +12,7 @@ File::File(const std::string& rawPath) {
     } else {
         this->path = path.substr(0, queryIndex);
         this->queryStr = path.substr(queryIndex);
-
-        size_t rawQueryIndex = this->rawPath.find('?');
-        while (this->rawPath.size() >= rawQueryIndex && rawQueryIndex != std::string::npos)
-            this->rawPath.pop_back();
+        this->rawPath = this->rawPath.substr(0, this->rawPath.find('?'));
     }
 
     // Check for index file
