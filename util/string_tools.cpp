@@ -43,6 +43,15 @@ void trimString(std::string& str) {
         str = str.substr(1);
 }
 
+void decodeURI(std::string& str) {
+    size_t index;
+    while ((index = str.find('%')) != std::string::npos) {
+        unsigned short ascii = std::stoul(str.substr(index+1, 2), nullptr, 16);
+        str.erase(index, 2);
+        str[index] = ascii;
+    }
+}
+
 int deflateText(std::string& buffer) {
     // Handle deflate compression
     const size_t sourceLen = buffer.size();

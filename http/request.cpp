@@ -21,6 +21,9 @@ namespace HTTP {
         this->pathStr = line.substr(firstSpaceIndex + 1, secondSpaceIndex - firstSpaceIndex - 1);
         this->httpVersionStr = line.substr(secondSpaceIndex + 1);
 
+        // Decode URI
+        decodeURI(this->pathStr);
+
         // Determine method
         if (this->methodStr == "GET") this->method = METHOD::GET;
 

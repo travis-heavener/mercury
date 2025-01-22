@@ -2,6 +2,7 @@
 
 ## v0.1.9
 - Added directory index file listings
+- URI decoding is now supported
 
 ## v0.1.8
 - Improved handling of program exits
