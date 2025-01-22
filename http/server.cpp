@@ -120,11 +120,10 @@ namespace HTTP {
                     break;
                 }
 
-                // Lookup file (skip leading fwd slash)
-                std::string path = (conf::DOCUMENT_ROOT / rawPath.substr(1)).string();
-                File file(path);
+                // Lookup file
+                File file(rawPath);
 
-                if (!doesFileExist(file.path, true)) {
+                if (!doesFileExist(file.path, true) && !doesDirectoryExist(file.path, true)) {
                     // Update body to error document
                     statusLine = "HTTP/1.1 404 Not Found";
 

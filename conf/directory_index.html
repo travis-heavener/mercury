@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Index of %dirname%</title>
+        <style>
+            th, td { padding: 0 0.33rem; }
+            td:first-of-type { text-align: left; }
+            td:nth-of-type(2), td:nth-of-type(3) { text-align: right; }
+        </style>
+    </head>
+    <body>
+        <h1>Index of %dirname%</h1>
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>Size</th>
+                <th>Last Modified</th>
+            </tr>
+            %files%
+        </table>
+    </body>
+</html>

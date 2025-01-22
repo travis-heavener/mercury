@@ -11,10 +11,11 @@ class File {
     public:
         File(const std::string&);
 
-        int loadToBuffer(std::string&) const;
+        int loadToBuffer(std::string&);
 
         std::string MIME;
         std::string path;
+        std::string rawPath;
         std::string queryStr;
 };
 

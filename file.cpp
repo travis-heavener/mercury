@@ -1,6 +1,10 @@
 #include "file.hpp"
 
-File::File(const std::string& path) {
+File::File(const std::string& rawPath) {
+    // Format path
+    const std::string path = (conf::DOCUMENT_ROOT / rawPath.substr(1)).string();
+    this->rawPath = rawPath;
+
     // Handle query string
     size_t queryIndex = path.find('?');
     if (queryIndex == std::string::npos) {
@@ -8,19 +12,41 @@ File::File(const std::string& path) {
     } else {
         this->path = path.substr(0, queryIndex);
         this->queryStr = path.substr(queryIndex);
+
+        size_t rawQueryIndex = this->rawPath.find('?');
+        while (this->rawPath.size() >= rawQueryIndex && rawQueryIndex != std::string::npos)
+            this->rawPath.pop_back();
     }
 
-    // Format index files
-    if (this->path.back() == '/')
+    // Check for index file
+    if (this->path.back() == '/' && std::filesystem::exists(this->path + "index.html") &&
+        !std::filesystem::is_directory(this->path + "index.html"))
         this->path += "index.html";
 
-    // Lookup MIME type
-    std::string ext = std::filesystem::path(this->path).extension().string();
-    if (ext.size()) ext = ext.substr(1); // Remove leading period
-    this->MIME = conf::MIMES.find(ext) != conf::MIMES.end() ? conf::MIMES[ext] : "";
+    // Handle the MIME type if this is a directory
+    if (doesDirectoryExist(this->path, true)) {
+        this->MIME = "text/html";
+    } else {
+        // Lookup MIME type
+        std::string ext = std::filesystem::path(this->path).extension().string();
+        if (ext.size()) ext = ext.substr(1); // Remove leading period
+        this->MIME = conf::MIMES.find(ext) != conf::MIMES.end() ? conf::MIMES[ext] : "";
+    }
 }
 
-int File::loadToBuffer(std::string& buffer) const {
+int File::loadToBuffer(std::string& buffer) {
+    // Handle directory listings
+    if (doesDirectoryExist(path, true)) {
+        // Load directory listing document
+        if (loadDirectoryListing(buffer, path, rawPath) == IO_FAILURE)
+            return IO_FAILURE;
+
+        // Update MIME
+        this->MIME = "text/html";
+        return IO_SUCCESS;
+    }
+
+    // Base case, load as normal file
     // Open file
     std::ifstream handle( path, std::ios::binary );
     if (!handle.is_open()) return IO_FAILURE;
