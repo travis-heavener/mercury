@@ -30,7 +30,7 @@ To build for Linux, zlib must be installed.
 
 ### Windows
 
-Windows builds are compiled in the same inunx environment as mentioned above (see [Linux](#linux)).
+Windows builds are compiled in the same Linux environment as mentioned above (see [Linux](#linux)).
 
 To build for Windows, zlib must be installed.
 
