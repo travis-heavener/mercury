@@ -1,8 +1,28 @@
 # Changelog
 
+## v0.2.4
+- Added access & error log files
+
+## v0.2.3
+- Extended control of request buffer size & backlog to config file
+
+## v0.2.2
+- Extended content encoding support for both gzip & zlib deflate
+- Fixed terminology of Host node in config file
+- Global refactor of C++ source files & binaries
+
+## v0.2.1
+- Improved parsing support for Accept header
+
+## v0.2.0
+- **URI decoding is now supported**
+- Added directory index file listings
+- Fixed Windows bug where Document Root not terminated by a forward slash fails to recognize index.html in root directory
+
 ## v0.1.8
 - Improved handling of program exits
-- Fixed memory leak w/ deflateText
+- Fixed memory leak w/ deflateText calling delete instead of delete[]
+- Fixed major memory leak w/ deflateText calling deflateInit2_ twice
 - Refactored string tools
 - Added Match & Header nodes to config
 
