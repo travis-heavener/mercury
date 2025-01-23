@@ -1,4 +1,4 @@
-GPPFLAGS = -Wall -Wextra -g
+GPPFLAGS = -Wall -Wextra
 TARGET = bin/main.o
 TARGET_WIN = bin/main.exe
 SRCS = src/*.cpp src/http/*.cpp src/util/*.cpp lib/*.cpp

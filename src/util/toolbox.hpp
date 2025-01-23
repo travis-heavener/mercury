@@ -20,4 +20,7 @@ void formatDate(const std::chrono::system_clock::duration, std::string&);
 
 int loadDirectoryListing(std::string&, const std::string&, const std::string&);
 
+// Debug profiling
+long long debug_getTimestamp();
+
 #endif

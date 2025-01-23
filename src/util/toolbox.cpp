@@ -150,3 +150,10 @@ int loadDirectoryListing(std::string& buffer, const std::string& path, const std
     // Base case, return success
     return IO_SUCCESS;
 }
+
+// Debug profiling
+long long debug_getTimestamp() {
+    using namespace std::chrono;
+    milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+    return ms.count();
+}
