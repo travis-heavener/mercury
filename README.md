@@ -30,13 +30,13 @@ To build for Linux, zlib must be installed.
 
 ### Windows
 
-Windows builds are compiled in the same inunx environment as mentioned above (see [Linux](#linux)).
+Windows builds are compiled in the same Linux environment as mentioned above (see [Linux](#linux)).
 
 To build for Windows, zlib must be installed.
 
 1. Clone the official zlib repository (https://github.com/luvit/zlib)
 2. `cd` into the repository
-3. Edit win32/Makefile.gcc
+3. Edit win32/Makefile.gcc. Search for "PREFIX" and set it equal to `x86_64-w64-mingw32-`. On the next line, edit "CC" to be equal to `$(PREFIX)gcc-win32`.
 4. Locate the install location of x86_64-w64-mingw32 on your system (try /usr/x86_64-w64-mingw32). With this location, replace `<dir>` with the install location of x86_64-w64-mingw32 and run:
 
     `sudo BINARY_PATH=<dir>/bin INCLUDE_PATH=<dir>/include LIBRARY_PATH=<dir>/lib make -B -f win32/Makefile.gcc`.
