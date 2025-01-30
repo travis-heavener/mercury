@@ -10,6 +10,7 @@ namespace conf {
     unsigned short MAX_REQUEST_BACKLOG;
     unsigned int MAX_REQUEST_BUFFER;
     std::vector<conf::Match*> matchConfigs;
+    std::string INDEX_FILE;
 
     std::filesystem::path ACCESS_LOG_FILE;
     std::filesystem::path ERROR_LOG_FILE;
@@ -80,6 +81,21 @@ int loadConfig() {
     }
 
     PORT = portNode.text().as_uint();
+
+    /************************** Extract IndexFile **************************/
+    pugi::xml_node indexFileNode = root.child("IndexFile");
+    if (!indexFileNode) {
+        std::cerr << "Failed to parse config file, missing IndexFile node.\n";
+        return CONF_FAILURE;
+    }
+
+    INDEX_FILE = indexFileNode.text().as_string();
+    trimString(INDEX_FILE);
+
+    if (!INDEX_FILE.size() || INDEX_FILE.find('/') != std::string::npos || INDEX_FILE.find('\\') != std::string::npos) {
+        std::cerr << "Failed to parse config file, invalid IndexFile value.\n";
+        return CONF_FAILURE;
+    }
 
     /************************** Extract DocumentRoot **************************/
     pugi::xml_node hostNode = root.child("Host");

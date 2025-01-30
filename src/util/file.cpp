@@ -16,9 +16,9 @@ File::File(const std::string& rawPath) {
     }
 
     // Check for index file
-    if (this->path.back() == '/' && std::filesystem::exists(this->path + "index.html") &&
-        !std::filesystem::is_directory(this->path + "index.html"))
-        this->path += "index.html";
+    if (this->path.back() == '/' && std::filesystem::exists(this->path + conf::INDEX_FILE) &&
+        !std::filesystem::is_directory(this->path + conf::INDEX_FILE))
+        this->path += conf::INDEX_FILE;
 
     // Handle the MIME type if this is a directory
     if (doesDirectoryExist(this->path, true)) {

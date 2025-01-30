@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.2.5
+- Added IndexFile config directive
+
 ## v0.2.4
 - Added access & error log files
 - Updated default config file headers
