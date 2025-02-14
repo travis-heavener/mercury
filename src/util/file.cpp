@@ -45,13 +45,14 @@ int File::loadToBuffer(std::string& buffer) {
 
     // Base case, load as normal file
     // Open file
-    std::ifstream handle( path, std::ios::binary );
+    std::ifstream handle( path, std::ios::binary | std::ios::ate );
     if (!handle.is_open()) return IO_FAILURE;
 
     // Read file to buffer
-    std::stringstream sstream;
-    sstream << handle.rdbuf();
-    buffer = sstream.str();
+    std::streamsize size = handle.tellg();
+    handle.seekg(0, std::ios::beg);
+    buffer = std::string(size, '\0');
+    handle.read(buffer.data(), size);
 
     // Close file
     handle.close();
