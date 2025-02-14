@@ -16,13 +16,14 @@ int loadErrorDoc(const int status, const std::string& title, std::string& buffer
     std::filesystem::path cwd = conf::CWD / "conf" / "html" / "err.html";
 
     // Open file
-    std::ifstream handle( cwd.string(), std::ios::binary );
+    std::ifstream handle( cwd.string(), std::ios::binary | std::ios::ate );
     if (!handle.is_open()) return IO_FAILURE;
 
     // Read file to buffer
-    std::stringstream sstream;
-    sstream << handle.rdbuf();
-    buffer = sstream.str();
+    std::streamsize size = handle.tellg();
+    handle.seekg(0, std::ios::beg);
+    buffer = std::string(size, '\0');
+    handle.read(buffer.data(), size);
 
     // Close file
     handle.close();
@@ -88,13 +89,14 @@ int loadDirectoryListing(std::string& buffer, const std::string& path, const std
     std::filesystem::path directoryListing = conf::CWD / "conf" / "html" / "dir_index.html";
 
     // Read directory listing file
-    std::ifstream handle( directoryListing.string(), std::ios::binary );
+    std::ifstream handle( directoryListing.string(), std::ios::binary | std::ios::ate );
     if (!handle.is_open()) return IO_FAILURE;
 
     // Read file to buffer
-    std::stringstream sstream;
-    sstream << handle.rdbuf();
-    buffer = sstream.str();
+    std::streamsize size = handle.tellg();
+    handle.seekg(0, std::ios::beg);
+    buffer = std::string(size, '\0');
+    handle.read(buffer.data(), size);
 
     // Close file
     handle.close();

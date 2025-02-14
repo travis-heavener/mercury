@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.2.7
+- File I/O improvements
+
 ## v0.2.6
 - Improved handling of blank packets
 
