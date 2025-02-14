@@ -23,17 +23,20 @@ File::File(const std::string& rawPath) {
     // Handle the MIME type if this is a directory
     if (doesDirectoryExist(this->path, true)) {
         this->MIME = "text/html";
+        this->exists = true;
+        this->isDirectory = true;
     } else {
         // Lookup MIME type
         std::string ext = std::filesystem::path(this->path).extension().string();
         if (ext.size()) ext = ext.substr(1); // Remove leading period
         this->MIME = conf::MIMES.find(ext) != conf::MIMES.end() ? conf::MIMES[ext] : "";
+        this->exists = doesFileExist(this->path, true);
     }
 }
 
 int File::loadToBuffer(std::string& buffer) {
     // Handle directory listings
-    if (doesDirectoryExist(path, true)) {
+    if (this->isDirectory) {
         // Load directory listing document
         if (loadDirectoryListing(buffer, path, rawPath) == IO_FAILURE)
             return IO_FAILURE;

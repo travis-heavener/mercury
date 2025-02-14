@@ -12,6 +12,8 @@ class File {
         File(const std::string&);
 
         int loadToBuffer(std::string&);
+        bool exists = false;
+        bool isDirectory = false;
 
         std::string MIME;
         std::string path;

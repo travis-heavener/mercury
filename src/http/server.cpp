@@ -148,7 +148,7 @@ namespace HTTP {
                 // Lookup file
                 File file(rawPath);
 
-                if (!doesFileExist(file.path, true) && !doesDirectoryExist(file.path, true)) {
+                if (!file.exists) {
                     // Update body to error document
                     statusLine = "HTTP/1.1 404 Not Found";
 
