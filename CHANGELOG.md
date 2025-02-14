@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.2.6
+- Improved handling of blank packets
+
 ## v0.2.5
 - Added IndexFile config directive
 

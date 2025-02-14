@@ -47,6 +47,11 @@ namespace HTTP {
             return SOCKET_FAILURE;
         }
 
+        if (setsockopt(this->sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&optFlag, sizeof(int)) < 0) {
+            ERROR_LOG << "Failed to set socket opt TCP_NODELAY." << '\n';
+            return SOCKET_FAILURE;
+        }
+
         #if __linux__
             if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&optFlag, sizeof(int)) < 0) {
                 ERROR_LOG << "Failed to set socket opt SO_REUSEPORT." << '\n';
@@ -87,7 +92,7 @@ namespace HTTP {
             this->clearBuffer();
 
             // Read buffer
-            recv(this->c_sock, this->readBuffer, this->maxBufferSize, 0);
+            size_t bytesReceived = recv(this->c_sock, this->readBuffer, this->maxBufferSize, 0);
             clientIP = ((struct sockaddr_in*)&clientAddr)->sin_addr;
 
             #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
@@ -96,8 +101,8 @@ namespace HTTP {
                 inet_ntop( AF_INET, &clientIP, clientIPStr, INET_ADDRSTRLEN );
             #endif
 
-            // Catch any stray packets after the program is killed
-            if (std::strlen(this->readBuffer) == 0) return;
+            // Skip empty packets
+            if (bytesReceived == 0) continue;
 
             // Parse request
             Request req( this->readBuffer, clientIPStr );
