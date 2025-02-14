@@ -13,7 +13,7 @@ namespace HTTP {
         // Read verb, path, & protocol version
         std::getline(buffer, line);
 
-        if (line.size() && line[line.size()-1] == '\r') // remove carriage return
+        if (line.size() && line.back() == '\r') // remove carriage return
             line.pop_back();
 
         size_t firstSpaceIndex = line.find(" ");
@@ -47,7 +47,7 @@ namespace HTTP {
         if (buffer.tellg() != -1)
             this->body = buffer.str().substr(buffer.tellg());
         else
-            this->body = "";
+            this->body.clear();
 
         // Extract accepted MIME types
         if (headers.find("ACCEPT") != headers.end())
