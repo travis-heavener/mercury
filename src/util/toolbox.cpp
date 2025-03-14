@@ -153,6 +153,57 @@ int loadDirectoryListing(std::string& buffer, const std::string& path, const std
     return IO_SUCCESS;
 }
 
+// Used to bind TCP sockets
+int bindTCPSocket(int& sock, const std::string host, const port_t port, const u_short maxBacklog) {
+    // Open the socket
+    sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    if (sock < 0) {
+        ERROR_LOG << "Failed to open socket on port " << port << '\n';
+        return SOCKET_FAILURE;
+    }
+
+    // Init socket opts
+    const int optFlag = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&optFlag, sizeof(int)) < 0) {
+        ERROR_LOG << "Failed to set socket opt SO_REUSEADDR." << '\n';
+        return SOCKET_FAILURE;
+    }
+
+    if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&optFlag, sizeof(int)) < 0) {
+        ERROR_LOG << "Failed to set socket opt TCP_NODELAY." << '\n';
+        return SOCKET_FAILURE;
+    }
+
+    #if __linux__
+        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&optFlag, sizeof(int)) < 0) {
+            ERROR_LOG << "Failed to set socket opt SO_REUSEPORT." << '\n';
+            return SOCKET_FAILURE;
+        }
+    #endif
+
+    // Bind the host address
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr(host.c_str());
+
+    if (bind(sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        ERROR_LOG << "Failed to bind socket (errno: " << errno << ')' << '\n';
+        return BIND_FAILURE;
+    }
+
+    // Listen to socket
+    if (listen(sock, maxBacklog) < 0) {
+        ERROR_LOG << "Failed to listen to socket (errno: " << errno << ')' << '\n';
+        return LISTEN_FAILURE;
+    }
+
+    // Log success
+    ACCESS_LOG << "Listening to " << host << " on port " << port << '.' << '\n';
+    return 0;
+}
+
 // Debug profiling
 long long debug_getTimestamp() {
     using namespace std::chrono;

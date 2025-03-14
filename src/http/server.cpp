@@ -33,50 +33,17 @@ namespace HTTP {
     // Initialize the socket
     int Server::init() {
         // Open the socket
-        this->sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        int sockStatus = bindTCPSocket(this->sock, this->host, this->port, this->maxBacklog);
+        if (sockStatus)
+            return sockStatus;
 
-        if (this->sock < 0) {
-            ERROR_LOG << "Failed to open socket on port " << this->port << '\n';
-            return SOCKET_FAILURE;
+        // If a Node Extension is specified, open a Node Extension socket
+        if (conf::NODE_EXTENSION_FILE.string() != "") {
+            sockStatus = bindTCPSocket(this->node_sock, "0.0.0.0", 9220, this->maxBacklog);
+            if (sockStatus)
+                return sockStatus;
         }
 
-        // Init socket opts
-        const int optFlag = 1;
-        if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set socket opt SO_REUSEADDR." << '\n';
-            return SOCKET_FAILURE;
-        }
-
-        if (setsockopt(this->sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set socket opt TCP_NODELAY." << '\n';
-            return SOCKET_FAILURE;
-        }
-
-        #if __linux__
-            if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&optFlag, sizeof(int)) < 0) {
-                ERROR_LOG << "Failed to set socket opt SO_REUSEPORT." << '\n';
-                return SOCKET_FAILURE;
-            }
-        #endif
-
-        // Bind the host address
-        struct sockaddr_in addr;
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(this->port);
-        addr.sin_addr.s_addr = inet_addr(this->host.c_str());
-
-        if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            ERROR_LOG << "Failed to bind socket (errno: " << errno << ')' << '\n';
-            return BIND_FAILURE;
-        }
-
-        // Listen to socket
-        if (listen(this->sock, this->maxBacklog) < 0) {
-            ERROR_LOG << "Failed to listen to socket (errno: " << errno << ')' << '\n';
-            return LISTEN_FAILURE;
-        }
-
-        ACCESS_LOG << "Listening to " << this->host << " on port " << this->port << '.' << '\n';
         return 0;
     }
 
