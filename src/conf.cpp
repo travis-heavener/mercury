@@ -175,7 +175,10 @@ int loadConfig() {
 
     /************************** Extract NodeExtensionFile **************************/
     pugi::xml_node nodeExtensionNode = root.child("NodeExtensionFile");
-    if (nodeExtensionNode) {
+    if (!nodeExtensionNode) {
+        // Mark as unset
+        NODE_EXTENSION_FILE = "";
+    } else {
         std::string nodeExtFile( nodeExtensionNode.text().as_string() );
         trimString(nodeExtFile);
 
