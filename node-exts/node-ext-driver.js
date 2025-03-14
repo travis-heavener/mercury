@@ -203,6 +203,6 @@ class NodeExtension {
 };
 
 // Establish connection with Mercury socket
-export const connect = (host, port) => {
+export const connect = (host="127.0.0.1", port=9220) => {
     return new NodeExtension(host, port);
 };
