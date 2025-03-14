@@ -12,6 +12,8 @@ namespace conf {
     std::vector<conf::Match*> matchConfigs;
     std::string INDEX_FILE;
 
+    std::filesystem::path NODE_EXTENSION_FILE;
+
     std::filesystem::path ACCESS_LOG_FILE;
     std::filesystem::path ERROR_LOG_FILE;
 
@@ -97,7 +99,7 @@ int loadConfig() {
         return CONF_FAILURE;
     }
 
-    /************************** Extract DocumentRoot **************************/
+    /************************** Extract Host **************************/
     pugi::xml_node hostNode = root.child("Host");
     if (!hostNode) {
         std::cerr << "Failed to parse config file, missing Host node.\n";
@@ -169,6 +171,21 @@ int loadConfig() {
     if (!ERROR_LOG_FILE.string().size()) {
         std::cerr << "Failed to parse config file, invalid Error Log File.\n";
         return CONF_FAILURE;
+    }
+
+    /************************** Extract NodeExtensionFile **************************/
+    pugi::xml_node nodeExtensionNode = root.child("NodeExtensionFile");
+    if (nodeExtensionNode) {
+        std::string nodeExtFile( nodeExtensionNode.text().as_string() );
+        trimString(nodeExtFile);
+
+        // Format string
+        NODE_EXTENSION_FILE = (nodeExtFile.find("./") == 0) ? (CWD / nodeExtFile.substr(2)) : std::filesystem::path(nodeExtFile);
+
+        if (!NODE_EXTENSION_FILE.string().size()) {
+            std::cerr << "Failed to parse config file, invalid Error Log File.\n";
+            return CONF_FAILURE;
+        }
     }
 
     /************************** Load known MIMES **************************/
