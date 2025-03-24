@@ -96,6 +96,11 @@ namespace HTTP {
         // Load preset headers
         loadConfHeaders(resHeaders);
 
+        // Check for Node Extension middleware
+        if (conf::NODE_EXTENSION_FILE.string() != "") {
+            // TODO
+        }
+
         // Switch on method
         switch (req.getMethod()) {
             case METHOD::GET: {

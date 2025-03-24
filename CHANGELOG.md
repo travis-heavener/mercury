@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0
+- Added Node Extension Driver for more-complex web apps & APIs
+
 ## v0.2.7
 - File I/O improvements
 - Improved latency on systems with slower disk I/O speeds
