@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.2.8
+- Switch to static build for Linux
+
 ## v0.2.7
 - File I/O improvements
 - Improved latency on systems with slower disk I/O speeds
