@@ -21,6 +21,9 @@
     #include <netinet/in.h>
     #include <netinet/tcp.h>
     #include <unistd.h>
+
+    // SSL only supported on Linux builds
+    #include "tls.hpp"
 #endif
 
 #define SOCKET_FAILURE 1
@@ -34,7 +37,7 @@ namespace HTTP {
 
     class Server {
         public:
-            Server(const std::string& host, const port_t port, const u_short maxBacklog, const u_int maxBufferSize);
+            Server(const std::string& host, const port_t port, const u_short maxBacklog, const u_int maxBufferSize, const bool useTLS);
             ~Server() { this->kill(); };
 
             int init();
@@ -43,6 +46,9 @@ namespace HTTP {
             void genResponse(std::string&, const Request&);
         private:
             void clearBuffer();
+            size_t readClientSock();
+            void writeClientSock(const char*, const size_t);
+            int closeSocket(const int);
 
             const std::string host;
             const port_t port;
@@ -52,6 +58,13 @@ namespace HTTP {
             const u_short maxBacklog;
             const u_int maxBufferSize;
             char* readBuffer;
+
+            // OpenSSL
+            bool useTLS;
+            #if __linux__
+                SSL* pSSL = nullptr;
+                SSL_CTX* pSSL_CTX = nullptr;
+            #endif
     };
 
 }

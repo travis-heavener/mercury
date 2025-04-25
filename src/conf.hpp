@@ -16,7 +16,7 @@
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1
 
-#define VERSION "Mercury v0.2.8"
+#define VERSION "Mercury v0.3.0"
 #define CONF_FILE "../conf/mercury.conf"
 #define MIMES_FILE "../conf/mimes.conf"
 
@@ -36,6 +36,9 @@ namespace conf {
 
     extern std::filesystem::path ACCESS_LOG_FILE;
     extern std::filesystem::path ERROR_LOG_FILE;
+
+    extern bool USE_TLS;
+    extern port_t TLS_PORT;
 
     extern std::ofstream accessLogHandle;
     extern std::ofstream errorLogHandle;

@@ -2,32 +2,32 @@
 
 namespace HTTP {
 
-    Server::Server(const std::string& host, const port_t port, const u_short maxBacklog, const u_int maxBufferSize)
-                : host(host), port(port), maxBacklog(maxBacklog), maxBufferSize(maxBufferSize) {
+    Server::Server(const std::string& host, const port_t port, const u_short maxBacklog, const u_int maxBufferSize, const bool useTLS)
+                : host(host), port(port), maxBacklog(maxBacklog), maxBufferSize(maxBufferSize), useTLS(useTLS) {
         // Create request buffer
         this->readBuffer = new char[this->maxBufferSize];
     };
 
     void Server::kill() {
         // Close sockets
-        #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-            #define close_socket closesocket
-        #else
-            #define close_socket close
-        #endif
-
-        if (this->c_sock != -1 && !close_socket(this->c_sock)) {
+        if (this->c_sock != -1 && !this->closeSocket(this->c_sock)) {
             ACCESS_LOG << "Client socket closed." << '\n';
             this->c_sock = -1;
         }
 
-        if (this->sock != -1 && !close_socket(this->sock)) {
+        if (this->sock != -1 && !this->closeSocket(this->sock)) {
             ACCESS_LOG << "Socket closed." << '\n';
             this->sock = -1;
         }
 
         // Free read buffer
         delete[] this->readBuffer;
+
+        // Free SSL ptrs
+        #if __linux__
+            if (this->useTLS)
+                SSL_CTX_free(this->pSSL_CTX);
+        #endif
     }
 
     // Initialize the socket
@@ -72,12 +72,56 @@ namespace HTTP {
 
         // Listen to socket
         if (listen(this->sock, this->maxBacklog) < 0) {
-            ERROR_LOG << "Failed to listen to socket (errno: " << errno << ')' << '\n';
+            ERROR_LOG << "Failed to listen to socket (errno: " << errno;
+
+            // Improve error handling for errno 13 (need sudo to listen to port)
+            if (errno == 13)
+                ERROR_LOG << ", do you have sudo perms?";
+
+            ERROR_LOG << ')' << '\n';
             return LISTEN_FAILURE;
         }
 
+        // Init TLS
+        #if __linux__
+            if (this->useTLS) {
+                this->pSSL_CTX = initTLSContext();
+
+                if (this->pSSL_CTX == nullptr) {
+                    ERROR_LOG << "Failed to init an SSL context.\n";
+                    return BIND_FAILURE;
+                }
+            }
+        #endif
+
         ACCESS_LOG << "Listening to " << this->host << " on port " << this->port << '.' << '\n';
         return 0;
+    }
+
+    size_t Server::readClientSock() {
+        #if __linux__
+            if (this->useTLS)
+                return SSL_read(this->pSSL, this->readBuffer, this->maxBufferSize);
+        #endif
+        return recv(this->c_sock, this->readBuffer, this->maxBufferSize, 0);
+    }
+
+    void Server::writeClientSock(const char* pBuffer, const size_t bufferSize) {
+        if (this->useTLS) {
+            #if __linux__
+                SSL_write(this->pSSL, pBuffer, bufferSize);
+            #endif
+        } else {
+            send(this->c_sock, pBuffer, bufferSize, 0);
+        }
+    }
+
+    int Server::closeSocket(const int sock) {
+        #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+            return closesocket(sock);
+        #else
+            return close(sock);
+        #endif
     }
 
     void Server::handleReqs() {
@@ -91,8 +135,21 @@ namespace HTTP {
             // Clear buffer
             this->clearBuffer();
 
+            #if __linux__
+                if (this->useTLS) {
+                    this->pSSL = SSL_new(this->pSSL_CTX);
+                    SSL_set_fd(this->pSSL, this->c_sock);
+
+                    if (SSL_accept(this->pSSL) <= 0) {
+                        SSL_free(this->pSSL);
+                        this->closeSocket(this->c_sock);
+                        continue;
+                    }
+                }
+            #endif
+
             // Read buffer
-            size_t bytesReceived = recv(this->c_sock, this->readBuffer, this->maxBufferSize, 0);
+            size_t bytesReceived = this->readClientSock();
             clientIP = ((struct sockaddr_in*)&clientAddr)->sin_addr;
 
             #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
@@ -111,13 +168,15 @@ namespace HTTP {
             // Return response
             std::string resBuffer;
             this->genResponse(resBuffer, req);
-            send(this->c_sock, resBuffer.c_str(), resBuffer.size(), 0);
+            this->writeClientSock(resBuffer.c_str(), resBuffer.size());
 
             // Close client socket
-            #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-                closesocket(this->c_sock);
-            #else
-                close(this->c_sock);
+            this->closeSocket(this->c_sock);
+
+            // Cleanup TLS
+            #if __linux__
+                if (this->useTLS)
+                    SSL_free(this->pSSL);
             #endif
         }
     }

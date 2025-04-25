@@ -15,6 +15,9 @@ namespace conf {
     std::filesystem::path ACCESS_LOG_FILE;
     std::filesystem::path ERROR_LOG_FILE;
 
+    bool USE_TLS;
+    port_t TLS_PORT;
+
     std::ofstream accessLogHandle;
     std::ofstream errorLogHandle;
 
@@ -170,6 +173,20 @@ int loadConfig() {
         std::cerr << "Failed to parse config file, invalid Error Log File.\n";
         return CONF_FAILURE;
     }
+
+    /************************** Load TLS **************************/
+    pugi::xml_node tlsPortNode = root.child("TLSPort");
+    if (!tlsPortNode) {
+        std::cerr << "Failed to parse config file, missing TLSPort node.\n";
+        return CONF_FAILURE;
+    }
+
+    std::string tlsPortRaw = tlsPortNode.text().as_string();
+    trimString(tlsPortRaw);
+    
+    // If TLS is enabled, grab the port
+    USE_TLS = tlsPortRaw != "off";
+    TLS_PORT = USE_TLS ? std::stoull(tlsPortRaw) : 0;
 
     /************************** Load known MIMES **************************/
     if (loadMIMES() == CONF_FAILURE)

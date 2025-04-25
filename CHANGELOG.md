@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.0
+- Add OpenSSL support for Linux builds
+    - See conf/ssl/cert.pem and conf/ssl/key.pem
+
 ## v0.2.8
 - Switch to static build for Linux
 

@@ -1,10 +1,12 @@
 #include <signal.h>
 #include <string>
+#include <thread>
 
 #include "http/server.hpp"
 #include "util/toolbox.hpp"
 
 HTTP::Server* pServer = nullptr;
+HTTP::Server* pTLSServer = nullptr;
 
 void m_exit(); // Fwd declaration
 void catchSig(int s) {
@@ -45,6 +47,11 @@ void m_exit() {
         pServer = nullptr;
     }
 
+    if (pTLSServer != nullptr) {
+        delete pTLSServer;
+        pTLSServer = nullptr;
+    }
+
     #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
         WSACleanup();
     #endif
@@ -76,7 +83,12 @@ int main() {
     }
 
     // Init server
-    pServer = new HTTP::Server(conf::HOST, conf::PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER);
+    pServer = new HTTP::Server(conf::HOST, conf::PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, false);
+
+    #if __linux__
+        if (conf::USE_TLS)
+            pTLSServer = new HTTP::Server(conf::HOST, conf::TLS_PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, true);
+    #endif
 
     // Print welcome banner
     printWelcomeBanner();
@@ -86,9 +98,24 @@ int main() {
         return 1;
     }
 
+    #if __linux__
+        if (pTLSServer != nullptr && pTLSServer->init() < 0) {
+            m_exit();
+            return 1;
+        }
+    #endif
+
     // Accept client responses (blocks main thread)
-    if (pServer != nullptr)
-        pServer->handleReqs();
+    std::thread t1([&]() { pServer->handleReqs(); });
+
+    #if __linux__
+        if (conf::USE_TLS) {
+            std::thread t2([&]() { pTLSServer->handleReqs(); });
+            t2.join();
+        }
+    #endif
+
+    t1.join();
 
     // Clean up
     m_exit();
