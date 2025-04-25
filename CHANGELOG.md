@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.1
+- Add default config
+
 ## v0.3.0
 - Add OpenSSL support for Linux builds
     - See conf/ssl/cert.pem and conf/ssl/key.pem
