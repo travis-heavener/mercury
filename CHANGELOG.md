@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.2
+- Consolidate response handling into Response class (similar to Request)
+- Update build info w/ SSL
+
 ## v0.3.1
 - Add default config
 

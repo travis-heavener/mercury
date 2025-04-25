@@ -24,9 +24,13 @@ Currently, Mercury is available on Linux and Windows.
 Linux builds are tested on Ubuntu 22 LTS via WSL, thus I assume most other Debian flavors should compile as well.
 
 To build for Linux, zlib must be installed.
-
 1. Install zlib via `sudo apt-get install zlib1g-dev`.
-2. `cd` into the directory of this repository clone and run `make linux`.
+
+Linux builds also support OpenSSL for self-signed TLS 1.3 certs!
+2. Install libssl via `sudo apt install libssl-dev`.
+
+Now, build the Linux copy of Mercury.
+3. `cd` into the directory of this repository clone and run `make linux`.
 
 ### Windows
 

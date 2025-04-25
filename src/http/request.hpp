@@ -27,6 +27,7 @@ namespace HTTP {
             const std::string& getMethodStr() const { return methodStr; };
             const std::string& getPathStr() const { return pathStr; };
             const std::string& getBody() const { return body; };
+            const std::string& getVersion() const { return httpVersionStr; };
 
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;

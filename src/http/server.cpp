@@ -162,12 +162,14 @@ namespace HTTP {
             if (bytesReceived == 0) continue;
 
             // Parse request
-            Request req( this->readBuffer, clientIPStr );
-            ACCESS_LOG << req.getMethodStr() << ' ' << req.getIPStr() << ' ' << req.getPathStr() << std::endl; // Flush w/ endl vs newline
+            Request request( this->readBuffer, clientIPStr );
+            ACCESS_LOG << request.getMethodStr() << ' ' << request.getIPStr() << ' ' << request.getPathStr() << std::endl; // Flush w/ endl vs newline
 
             // Return response
+            Response response(request.getVersion());
             std::string resBuffer;
-            this->genResponse(resBuffer, req);
+            this->genResponse(request, response);
+            response.loadToBuffer(resBuffer);
             this->writeClientSock(resBuffer.c_str(), resBuffer.size());
 
             // Close client socket
@@ -181,25 +183,17 @@ namespace HTTP {
         }
     }
 
-    void Server::genResponse(std::string& buffer, const Request& req) {
-        std::string statusLine, body;
-        std::unordered_map<std::string, std::string> resHeaders;
-
-        // Load preset headers
-        loadConfHeaders(resHeaders);
-
+    void Server::genResponse(const Request& request, Response& response) {
         // Switch on method
-        switch (req.getMethod()) {
+        switch (request.getMethod()) {
             case METHOD::GET: {
-                const std::string rawPath = req.getPathStr();
+                const std::string rawPath = request.getPathStr();
                 if (rawPath.size() == 0 || rawPath[0] != '/') {
-                    statusLine = "HTTP/1.1 400 Bad Request";
-                    resHeaders.insert({"ALLOW", ALLOWED_METHODS});
-
                     // If the request allows HTML, return an HTML display
-                    if (req.isMIMEAccepted("text/html")) {
-                        resHeaders.insert({"CONTENT-TYPE", "text/html"});
-                        loadErrorDoc(400, "Bad Request", body);
+                    response.setHeader("Allow", ALLOWED_METHODS);
+                    if (request.isMIMEAccepted("text/html")) {
+                        response.setContentType("text/html");
+                        response.loadBodyFromErrorDoc(400);
                     }
                     break;
                 }
@@ -208,88 +202,71 @@ namespace HTTP {
                 File file(rawPath);
 
                 if (!file.exists) {
-                    // Update body to error document
-                    statusLine = "HTTP/1.1 404 Not Found";
-
                     // If the request allows HTML, return an HTML display
-                    if (req.isMIMEAccepted("text/html")) {
-                        resHeaders.insert({"CONTENT-TYPE", "text/html"});
-                        loadErrorDoc(404, "Not Found", body);
+                    if (request.isMIMEAccepted("text/html")) {
+                        response.setContentType("text/html");
+                        response.loadBodyFromErrorDoc(404);
                     }
                     break;
                 }
 
                 // Check accepted MIMES
-                if (!req.isMIMEAccepted(file.MIME)) {
-                    // File does not match requested MIME
-                    statusLine = "HTTP/1.1 406 Not Acceptable";
-
+                if (!request.isMIMEAccepted(file.MIME)) {
                     // If the request allows HTML, return an HTML display
-                    if (req.isMIMEAccepted("text/html")) {
-                        resHeaders.insert({"CONTENT-TYPE", "text/html"});
-                        loadErrorDoc(406, "Not Acceptable", body);
+                    if (request.isMIMEAccepted("text/html")) {
+                        response.setContentType("text/html");
+                        response.loadBodyFromErrorDoc(406);
                     }
                     break;
                 }
 
                 // Attempt to buffer resource
-                if (file.loadToBuffer(body) == IO_FAILURE) {
-                    statusLine = "HTTP/1.1 500 Internal Server Error";
-
-                    if (req.isMIMEAccepted("text/html")) {
-                        resHeaders.insert({"CONTENT-TYPE", "text/html"});
-                        loadErrorDoc(500, "Internal Server Error", body);
+                if (response.loadBodyFromFile(file) == IO_FAILURE) {
+                    if (request.isMIMEAccepted("text/html")) {
+                        response.setContentType("text/html");
+                        response.loadBodyFromErrorDoc(500);
                     }
                     break;
                 }
 
                 // Otherwise, body loaded successfully
-                statusLine = "HTTP/1.1 200 OK";
-                resHeaders.insert({"CONTENT-TYPE", file.MIME});
+                response.setStatus(200);
+                response.setHeader("Content-Type", file.MIME);
 
                 // Load additional headers for body loading
                 for (conf::Match* pMatch : conf::matchConfigs) {
                     if (std::regex_match(file.path, pMatch->getPattern())) {
                         // Apply headers
                         for (auto [name, value] : pMatch->getHeaders()) {
-                            resHeaders.insert({name, value});
+                            response.setHeader(name, value);
                         }
                     }
                 }
                 break;
             }
             default: {
-                statusLine = "HTTP/1.1 405 Method Not Allowed";
-                resHeaders.insert({"ALLOW", ALLOWED_METHODS});
-
                 // If the request allows HTML, return an HTML display
-                if (req.isMIMEAccepted("text/html")) {
-                    resHeaders.insert({"CONTENT-TYPE", "text/html"});
-                    loadErrorDoc(405, "Method Not Allowed", body);
+                response.setHeader("Allow", ALLOWED_METHODS);
+                if (request.isMIMEAccepted("text/html")) {
+                    response.setContentType("text/html");
+                    response.loadBodyFromErrorDoc(405);
                 }
                 break;
             }
         }
 
         // Handle compression
-        auto contentTypeHeader = resHeaders.find("CONTENT-TYPE");
-        if (contentTypeHeader != resHeaders.end() && (contentTypeHeader->second.find("text/") == 0 || contentTypeHeader->second == "application/json")) {
+        const std::string contentType = response.getContentType();
+        if (contentType.find("text/") == 0 || contentType == "application/json") {
             // Determine compression method
-            if (req.isEncodingAccepted("gzip")) {
-                if (compressText(body, COMPRESS_GZIP) == IO_SUCCESS)
-                    resHeaders.insert({"CONTENT-ENCODING", "gzip"});
-            } else if (req.isEncodingAccepted("deflate")) {
-                if (compressText(body, COMPRESS_DEFLATE) == IO_SUCCESS)
-                    resHeaders.insert({"CONTENT-ENCODING", "deflate"});
+            if (request.isEncodingAccepted("gzip")) {
+                if (response.compressBody(COMPRESS_GZIP) == IO_SUCCESS)
+                    response.setHeader("Content-Encoding", "gzip");
+            } else if (request.isEncodingAccepted("deflate")) {
+                if (response.compressBody(COMPRESS_DEFLATE) == IO_SUCCESS)
+                    response.setHeader("Content-Encoding", "deflate");
             }
         }
-
-        // Compile output buffer
-        resHeaders.insert({"CONTENT-LENGTH", std::to_string(body.size())});
-        std::string headers = "";
-        for (auto [headerName, value] : resHeaders)
-            headers += headerName + ": " + value + '\n';
-        buffer = statusLine + '\n' + headers + "\n" + body;
     }
 
     void Server::clearBuffer() {

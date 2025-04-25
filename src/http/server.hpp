@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include "request.hpp"
+#include "response.hpp"
 #include "../util/toolbox.hpp"
 #include "../util/file.hpp"
 
@@ -43,7 +44,7 @@ namespace HTTP {
             int init();
             void handleReqs();
             void kill();
-            void genResponse(std::string&, const Request&);
+            void genResponse(const Request&, Response&);
         private:
             void clearBuffer();
             size_t readClientSock();
