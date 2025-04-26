@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.3
+- Fix errno 13 additional error text
+
 ## v0.3.2
 - Consolidate response handling into Response class (similar to Request)
 - Update build info w/ SSL

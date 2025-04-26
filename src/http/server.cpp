@@ -66,19 +66,17 @@ namespace HTTP {
         addr.sin_addr.s_addr = inet_addr(this->host.c_str());
 
         if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            ERROR_LOG << "Failed to bind socket (errno: " << errno << ')' << '\n';
+            if (errno == 13) { // Improve error handling for errno 13 (need sudo to listen to port)
+                ERROR_LOG << "Failed to bind socket (errno: " << errno << ", do you have sudo perms?)\n";
+            } else {
+                ERROR_LOG << "Failed to bind socket (errno: " << errno << ')' << '\n';
+            }
             return BIND_FAILURE;
         }
 
         // Listen to socket
         if (listen(this->sock, this->maxBacklog) < 0) {
-            ERROR_LOG << "Failed to listen to socket (errno: " << errno;
-
-            // Improve error handling for errno 13 (need sudo to listen to port)
-            if (errno == 13)
-                ERROR_LOG << ", do you have sudo perms?";
-
-            ERROR_LOG << ')' << '\n';
+            ERROR_LOG << "Failed to listen to socket (errno: " << errno << ')' << '\n';
             return LISTEN_FAILURE;
         }
 
