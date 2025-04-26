@@ -33,6 +33,9 @@ namespace HTTP {
     }
 
     int Response::compressBody(const int compressionType) {
+        // Ignore if empty body
+        if (this->body.size() == 0) return IO_SUCCESS;
+
         const int status = compressText(this->body, compressionType);
 
         if (status == IO_SUCCESS) {

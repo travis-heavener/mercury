@@ -99,6 +99,23 @@ namespace HTTP {
                     break;
                 }
 
+                // Check if previously cached
+                const auto pLastModTS = this->getHeader("IF-MODIFIED-SINCE");
+                if (pLastModTS != nullptr) {
+                    // Compare timestamps
+                    try {
+                        const std::time_t serverTime = getFileModTimeT(file.path);
+                        const std::time_t clientTime = getTimeTFromGMT(*pLastModTS);
+
+                        if (serverTime <= clientTime) { // Send 304
+                            response.setStatus(304); // Not Modified
+                            break;
+                        }
+                    } catch (...) {
+                        // Comparison failed, re-send content as if updated
+                    }
+                }
+
                 // Attempt to buffer resource
                 if (response.loadBodyFromFile(file) == IO_FAILURE) {
                     if (this->isMIMEAccepted("text/html"))

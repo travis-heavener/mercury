@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.5.1
+- Add support for If-Modified-Since headers and 304 Not Modified responses
+
 ## v0.5.0
 - Add HEAD verb support
 - Add OPTIONS verb support

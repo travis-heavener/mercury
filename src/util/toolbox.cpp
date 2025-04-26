@@ -153,11 +153,33 @@ int loadDirectoryListing(std::string& buffer, const std::string& path, const std
     return IO_SUCCESS;
 }
 
-std::string getFileModGMTString(const std::string& filePath) {
+std::time_t getTimeTFromGMT(const std::string& gmtString) {
+    std::tm tm = {};
+    #if __linux__
+        if (strptime(gmtString.c_str(), "%a, %d %b %Y %H:%M:%S GMT", &tm) == nullptr)
+            return -1;
+        return timegm(&tm);
+    #else
+        std::istringstream ss(gmtString);
+        ss.imbue(std::locale("C"));
+        ss >> std::get_time(&tm, "%a, %d %b %Y %H:%M:%S GMT");
+
+        if (ss.fail())
+            return -1;
+
+        return _mkgmtime(&tm);
+    #endif
+}
+
+std::time_t getFileModTimeT(const std::string& filePath) {
     // Get the last write time
     auto lastWriteTime = std::filesystem::last_write_time(std::filesystem::path(filePath));
     auto systemTime = std::chrono::system_clock::now() + (lastWriteTime - std::filesystem::file_time_type::clock::now());
-    std::time_t time = std::chrono::system_clock::to_time_t(systemTime);
+    return std::chrono::system_clock::to_time_t(systemTime);
+}
+
+std::string getFileModGMTString(const std::string& filePath) {
+    std::time_t time = getFileModTimeT(filePath);
 
     // Format as GMT string
     std::tm* gmtTime = std::gmtime(&time);
