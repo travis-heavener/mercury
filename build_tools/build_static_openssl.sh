@@ -28,7 +28,15 @@ make -j$(nproc)
 # Install binaries
 make install_sw
 
+# Reset for Windows build
+cd ..
+rm -rf openssl-3.5.0
+
 # ==== Windows Build ====
+
+# Unpack tar
+tar -xvzf openssl-3.5.0.tar.gz
+cd openssl-3.5.0
 
 # Reconfigure for Windows build
 ./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix=$HOME/openssl-static/windows
@@ -36,3 +44,8 @@ make install_sw
 # Build OpenSSL static for Windows
 make -j$(nproc)
 make install_sw
+
+# ==== Clean Up ====
+
+rm -rf ~/openssl-3.5.0
+rm -f ~/openssl-3.5.0.tar.gz
