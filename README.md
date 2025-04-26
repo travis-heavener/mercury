@@ -27,21 +27,15 @@ XML parsing by [PugiXML](https://github.com/zeux/pugixml).
 
 Linux builds are tested on Ubuntu 22 LTS via WSL, thus I assume most other Debian flavors should compile as well.
 
-To build for Linux, zlib must be installed.
+Self-signed TLS 1.3 certs available for Linux builds via libssl.
 
-1. Install zlib via `sudo apt-get install zlib1g-dev`.
+To build for Linux, zlib, libssl, and libbrotli must be installed.
 
-Linux builds also support OpenSSL for self-signed TLS 1.3 certs!
+1. Install deps via `sudo apt-get install zlib1g-dev libssl-dev libbrotli-dev -y`.
 
-2. Install libssl via `sudo apt install libssl-dev`.
+Now, build the dynamic Linux binary.
 
-For Brotli compression, install libbrotli.
-
-3. Install libbrotli via `sudo apt-get install libbrotli-dev`.
-
-Now, build the Linux copy of Mercury.
-
-4. `cd` into the directory of this repository clone and run `make linux`.
+2. `cd` into the directory of this repository clone and run `make linux`.
 
 ### Windows
 
