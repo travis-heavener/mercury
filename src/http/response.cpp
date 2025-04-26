@@ -26,7 +26,7 @@ namespace HTTP {
         return file.loadToBuffer(this->body);
     }
 
-    int Response::compressBody(int compressionType) {
+    int Response::compressBody(const int compressionType) {
         return compressText(this->body, compressionType);
     }
 

@@ -19,6 +19,10 @@ Currently, Mercury is available on Linux and Windows.
 
 ## Build Info
 
+Brotli compression by [Brotli-CPP](https://github.com/CHN-beta/brotli-cpp).
+
+XML parsing by [PugiXML](https://github.com/zeux/pugixml).
+
 ### Linux
 
 Linux builds are tested on Ubuntu 22 LTS via WSL, thus I assume most other Debian flavors should compile as well.
@@ -31,9 +35,13 @@ Linux builds also support OpenSSL for self-signed TLS 1.3 certs!
 
 2. Install libssl via `sudo apt install libssl-dev`.
 
+For Brotli compression, install libbrotli.
+
+3. Install libbrotli via `sudo apt-get install libbrotli-dev`.
+
 Now, build the Linux copy of Mercury.
 
-3. `cd` into the directory of this repository clone and run `make linux`.
+4. `cd` into the directory of this repository clone and run `make linux`.
 
 ### Windows
 

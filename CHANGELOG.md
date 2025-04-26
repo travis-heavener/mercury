@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.0
+- Add support for Brotli compression
+- Enabled compression for non-text MIMEs
+- Revert Linux static build (resolves OpenSSL errors)
+
 ## v0.3.3
 - Fix errno 13 additional error text
 

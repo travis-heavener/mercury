@@ -13,6 +13,7 @@
 
 #define COMPRESS_DEFLATE 0
 #define COMPRESS_GZIP 1
+#define COMPRESS_BROTLI 2
 
 void strToUpper(std::string&);
 void splitStringUnique(std::unordered_set<std::string>&, std::string&, char, bool);

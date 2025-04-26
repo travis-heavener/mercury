@@ -1,5 +1,9 @@
 #include "string_tools.hpp"
 
+#if __linux__
+    #include "../../lib/brotli-cpp.hpp"
+#endif
+
 void strToUpper(std::string& str) {
     std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 }
@@ -53,35 +57,40 @@ void decodeURI(std::string& str) {
 }
 
 int compressText(std::string& buffer, const int method) {
-    // Handle deflate compression
-    const size_t sourceLen = buffer.size();
-    z_stream zs;
-    zs.zalloc = Z_NULL;
-    zs.zfree = Z_NULL;
-    zs.opaque = Z_NULL;
+    if (method == COMPRESS_BROTLI) {
+        #if __linux__
+            buffer = brotli::compress(buffer);
+        #endif
+    } else {
+        // Handle deflate compression
+        const size_t sourceLen = buffer.size();
+        z_stream zs;
+        zs.zalloc = Z_NULL;
+        zs.zfree = Z_NULL;
+        zs.opaque = Z_NULL;
 
-    const int windowBits = method == COMPRESS_GZIP ? (15 | 16) : 15; 
-    if (deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, windowBits, 8, Z_DEFAULT_STRATEGY) != Z_OK)
-        return IO_FAILURE;
+        const int windowBits = method == COMPRESS_GZIP ? (15 | 16) : 15; 
+        if (deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, windowBits, 8, Z_DEFAULT_STRATEGY) != Z_OK)
+            return IO_FAILURE;
 
-    // Determine output size
-    const size_t outputLen = deflateBound(&zs, sourceLen);
-    char* pBuffer = new char[outputLen];
+        // Determine output size
+        const size_t outputLen = deflateBound(&zs, sourceLen);
+        char* pBuffer = new char[outputLen];
 
-    zs.avail_in = (uInt)sourceLen;
-    zs.avail_out = (uInt)outputLen;
-    zs.next_in = (Bytef*)buffer.c_str();
-    zs.next_out = (Bytef*)pBuffer;
+        zs.avail_in = (uInt)sourceLen;
+        zs.avail_out = (uInt)outputLen;
+        zs.next_in = (Bytef*)buffer.c_str();
+        zs.next_out = (Bytef*)pBuffer;
 
-    // Deflate
-    deflate(&zs, Z_FINISH);
-    deflateEnd(&zs);
+        // Deflate
+        deflate(&zs, Z_FINISH);
+        deflateEnd(&zs);
 
-    // Copy buffer
-    buffer.clear();
-    for (size_t i = 0; i < zs.total_out; ++i)
-        buffer.push_back(pBuffer[i]);
-    delete[] pBuffer;
-
+        // Copy buffer
+        buffer.clear();
+        for (size_t i = 0; i < zs.total_out; ++i)
+            buffer.push_back(pBuffer[i]);
+        delete[] pBuffer;
+    }
     return IO_SUCCESS;
 }

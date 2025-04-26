@@ -255,15 +255,17 @@ namespace HTTP {
 
         // Handle compression
         const std::string contentType = response.getContentType();
-        if (contentType.find("text/") == 0 || contentType == "application/json") {
-            // Determine compression method
-            if (request.isEncodingAccepted("gzip")) {
-                if (response.compressBody(COMPRESS_GZIP) == IO_SUCCESS)
-                    response.setHeader("Content-Encoding", "gzip");
-            } else if (request.isEncodingAccepted("deflate")) {
-                if (response.compressBody(COMPRESS_DEFLATE) == IO_SUCCESS)
-                    response.setHeader("Content-Encoding", "deflate");
-            }
+
+        // Determine compression method
+        if (this->useTLS && request.isEncodingAccepted("br")) {
+            if (response.compressBody(COMPRESS_BROTLI) == IO_SUCCESS)
+                response.setHeader("Content-Encoding", "br");
+        } else if (request.isEncodingAccepted("gzip")) {
+            if (response.compressBody(COMPRESS_GZIP) == IO_SUCCESS)
+                response.setHeader("Content-Encoding", "gzip");
+        } else if (request.isEncodingAccepted("deflate")) {
+            if (response.compressBody(COMPRESS_DEFLATE) == IO_SUCCESS)
+                response.setHeader("Content-Encoding", "deflate");
         }
     }
 

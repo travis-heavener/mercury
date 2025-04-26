@@ -19,7 +19,7 @@ namespace HTTP {
 
             void loadBodyFromErrorDoc(const uint16_t statusCode);
             int loadBodyFromFile(File& file);
-            int compressBody(int compressionType);
+            int compressBody(const int compressionType);
 
             void setContentType(const std::string&);
             const std::string getContentType() const;
