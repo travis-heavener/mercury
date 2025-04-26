@@ -62,7 +62,7 @@ namespace HTTP {
         return type->second;
     }
 
-    void Response::loadToBuffer(std::string& buffer) {
+    void Response::loadToBuffer(std::string& buffer, const bool omitBody) {
         // Determine Content-Length
         const std::string contentLen = std::to_string(this->body.size());
         this->setHeader("Content-Length", contentLen);
@@ -76,7 +76,10 @@ namespace HTTP {
             headers += name + ':' + value + '\n';
 
         // Write to buffer
-        buffer = httpVersion + ' ' + std::to_string(statusCode) + ' '  + getReasonFromStatusCode(statusCode) + '\n' + headers + '\n' + body;
+        buffer = httpVersion + ' ' + std::to_string(statusCode) + ' '  + getReasonFromStatusCode(statusCode) + '\n' + headers + '\n';
+
+        // Omit the body from HEAD requests
+        if (!omitBody) buffer += body;
     }
 
 };

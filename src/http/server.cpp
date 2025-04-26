@@ -163,15 +163,18 @@ namespace HTTP {
             Request request( this->readBuffer, clientIPStr );
             ACCESS_LOG << request.getMethodStr() << ' ' << request.getIPStr() << ' ' << request.getPathStr() << std::endl; // Flush w/ endl vs newline
 
-            // Return response
+            // Generate response
             Response response(request.getVersion());
-            std::string resBuffer;
             this->genResponse(request, response);
-            response.loadToBuffer(resBuffer);
-            this->writeClientSock(resBuffer.c_str(), resBuffer.size());
 
-            // Close client socket
-            this->closeSocket(this->c_sock);
+            // Load response to buffer
+            const bool omitBody = request.getMethod() == HTTP::METHOD::HEAD;
+            std::string resBuffer;
+            response.loadToBuffer(resBuffer, omitBody);
+
+            // Send response & close connection
+            this->writeClientSock(resBuffer.c_str(), resBuffer.size());
+            this->closeSocket(this->c_sock); // Close client socket
 
             // Cleanup TLS
             #if __linux__

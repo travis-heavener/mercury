@@ -27,7 +27,10 @@ namespace HTTP {
         decodeURI(this->pathStr);
 
         // Determine method
-        if (this->methodStr == "GET") this->method = METHOD::GET;
+        if (this->methodStr == "GET")
+            this->method = METHOD::GET;
+        else if (this->methodStr == "HEAD")
+            this->method = METHOD::HEAD;
 
         // Read headers from buffer
         while (std::getline(buffer, line)) {
@@ -66,6 +69,7 @@ namespace HTTP {
     void Request::loadResponse(Response& response) const {
         // Switch on method
         switch (this->method) {
+            case METHOD::HEAD:
             case METHOD::GET: {
                 if (pathStr.size() == 0 || pathStr[0] != '/') {
                     // If the request allows HTML, return an HTML display

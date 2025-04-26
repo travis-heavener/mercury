@@ -10,12 +10,14 @@
 #include "response.hpp"
 #include "../util/toolbox.hpp"
 
-#define ALLOWED_METHODS "GET"
+// Used by Allow headers, just simplified to one macro-def here
+#define ALLOWED_METHODS "HEAD GET"
 
 namespace HTTP {
 
     enum METHOD {
-        GET = 0
+        GET = 0,
+        HEAD = 1
     };
 
     class Request {

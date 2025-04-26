@@ -24,7 +24,7 @@ namespace HTTP {
             void setContentType(const std::string&);
             const std::string getContentType() const;
 
-            void loadToBuffer(std::string& buffer);
+            void loadToBuffer(std::string& buffer, const bool omitBody);
         private:
             std::string httpVersion;
             uint16_t statusCode;
