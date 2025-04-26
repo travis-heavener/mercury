@@ -62,3 +62,7 @@ int File::loadToBuffer(std::string& buffer) {
 
     return IO_SUCCESS;
 }
+
+std::string File::getLastModifiedGMT() const {
+    return getFileModGMTString(this->path);
+}

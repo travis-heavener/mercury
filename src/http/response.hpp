@@ -17,7 +17,7 @@ namespace HTTP {
             void setStatus(const uint16_t statusCode);
             void setHeader(std::string name, const std::string& value);
 
-            void loadBodyFromErrorDoc(const uint16_t statusCode);
+            int loadBodyFromErrorDoc(const uint16_t statusCode);
             int loadBodyFromFile(File& file);
             int compressBody(const int compressionType);
 

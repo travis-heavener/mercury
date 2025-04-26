@@ -17,13 +17,19 @@ namespace HTTP {
         this->headers.insert({name, value});
     }
 
-    void Response::loadBodyFromErrorDoc(const uint16_t statusCode) {
+    int Response::loadBodyFromErrorDoc(const uint16_t statusCode) {
         this->setStatus(statusCode);
-        loadErrorDoc(statusCode, this->body);
+        return loadErrorDoc(statusCode, this->body);
     }
 
     int Response::loadBodyFromFile(File& file) {
-        return file.loadToBuffer(this->body);
+        const int bodyStatus = file.loadToBuffer(this->body);
+
+        // Get last modified GMT string
+        if (bodyStatus == IO_SUCCESS)
+            this->setHeader("Last-Modified", file.getLastModifiedGMT());
+
+        return bodyStatus;
     }
 
     int Response::compressBody(const int compressionType) {

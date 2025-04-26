@@ -37,7 +37,6 @@ int loadErrorDoc(const int status, std::string& buffer) {
 
 int loadConfHeaders(std::unordered_map<std::string, std::string>& buffer) {
     // Load preset headers
-    buffer.insert({"CONNECTION", "close"});
     buffer.insert({"SERVER", VERSION});
 
     // Base case, return success
@@ -151,6 +150,19 @@ int loadDirectoryListing(std::string& buffer, const std::string& path, const std
 
     // Base case, return success
     return IO_SUCCESS;
+}
+
+std::string getFileModGMTString(const std::string& filePath) {
+    // Get the last write time
+    auto lastWriteTime = std::filesystem::last_write_time(std::filesystem::path(filePath));
+    auto systemTime = std::chrono::system_clock::now() + (lastWriteTime - std::filesystem::file_time_type::clock::now());
+    std::time_t time = std::chrono::system_clock::to_time_t(systemTime);
+
+    // Format as GMT string
+    std::tm* gmtTime = std::gmtime(&time);
+    std::stringstream ss;
+    ss << std::put_time(gmtTime, "%a, %d %b %Y %H:%M:%S GMT");
+    return ss.str();
 }
 
 std::string getReasonFromStatusCode(uint16_t code) {

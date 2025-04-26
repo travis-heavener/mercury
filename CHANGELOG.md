@@ -1,7 +1,10 @@
 # Changelog
 
+## v0.4.1
+- Add Last-Modified header built-in support for GET requests
+
 ## v0.4.0
-- Add support for Brotli compression
+- Add support for Brotli compression (only over HTTPS)
 - Enabled compression for non-text MIMEs
 - Revert Linux static build (resolves OpenSSL errors)
 

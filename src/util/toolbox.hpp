@@ -20,6 +20,8 @@ void formatDate(const std::chrono::system_clock::duration, std::string&);
 
 int loadDirectoryListing(std::string&, const std::string&, const std::string&);
 
+std::string getFileModGMTString(const std::string&);
+
 std::string getReasonFromStatusCode(uint16_t);
 
 // Debug profiling

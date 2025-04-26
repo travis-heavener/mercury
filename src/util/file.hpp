@@ -12,6 +12,7 @@ class File {
         File(const std::string&);
 
         int loadToBuffer(std::string&);
+        std::string getLastModifiedGMT() const;
         bool exists = false;
         bool isDirectory = false;
 
