@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.0
+- Add IPv6 support (fixes additional overhead from localhost resolution in Chrome)
+- Increase max request backlog size from 25 to 100
+- Fix error log buffer not flushing
+- Remove Host node from config file
+
 ## v0.5.1
 - Add support for If-Modified-Since headers and 304 Not Modified responses
 

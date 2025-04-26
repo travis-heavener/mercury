@@ -30,31 +30,30 @@ namespace HTTP {
         #endif
     }
 
-    // Initialize the socket
-    int Server::init() {
+    int Server::bindSocket() {
         // Open the socket
         this->sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
         if (this->sock < 0) {
-            ERROR_LOG << "Failed to open socket on port " << this->port << '\n';
+            ERROR_LOG << "Failed to open socket on port " << this->port << std::endl;
             return SOCKET_FAILURE;
         }
 
         // Init socket opts
         const int optFlag = 1;
         if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set socket opt SO_REUSEADDR." << '\n';
+            ERROR_LOG << "Failed to set socket opt SO_REUSEADDR." << std::endl;
             return SOCKET_FAILURE;
         }
 
         if (setsockopt(this->sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set socket opt TCP_NODELAY." << '\n';
+            ERROR_LOG << "Failed to set socket opt TCP_NODELAY." << std::endl;
             return SOCKET_FAILURE;
         }
 
         #if __linux__
             if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&optFlag, sizeof(int)) < 0) {
-                ERROR_LOG << "Failed to set socket opt SO_REUSEPORT." << '\n';
+                ERROR_LOG << "Failed to set socket opt SO_REUSEPORT." << std::endl;
                 return SOCKET_FAILURE;
             }
         #endif
@@ -66,13 +65,29 @@ namespace HTTP {
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
         if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            if (errno == 13) { // Improve error handling for errno 13 (need sudo to listen to port)
-                ERROR_LOG << "Failed to bind socket (errno: " << errno << ", do you have sudo perms?)\n";
+            const int err = 
+            #ifdef __linux__
+                errno;
+            #else
+                WSAGetLastError();
+            #endif
+
+            if (err == 13) { // Improve error handling for errno 13 (need sudo to listen to port)
+                ERROR_LOG << "Failed to bind socket (errno: " << err << ", do you have sudo perms?)" << std::endl;
             } else {
-                ERROR_LOG << "Failed to bind socket (errno: " << errno << ')' << '\n';
+                ERROR_LOG << "Failed to bind socket (errno: " << err << ')' << std::endl;
             }
             return BIND_FAILURE;
         }
+
+        return 0;
+    }
+
+    // Initialize the socket
+    int Server::init() {
+        // Bind socket
+        const int bindStatus = this->bindSocket();
+        if (bindStatus != 0) return bindStatus;
 
         // Listen to socket
         if (listen(this->sock, this->maxBacklog) < 0) {
@@ -83,9 +98,7 @@ namespace HTTP {
         // Init TLS
         #if __linux__
             if (this->useTLS) {
-                this->pSSL_CTX = initTLSContext();
-
-                if (this->pSSL_CTX == nullptr) {
+                if ((this->pSSL_CTX = initTLSContext()) == nullptr) {
                     ERROR_LOG << "Failed to init an SSL context.\n";
                     return BIND_FAILURE;
                 }
@@ -122,12 +135,32 @@ namespace HTTP {
         #endif
     }
 
+    void extractClientIP(struct sockaddr_storage& clientAddr, char* clientIPStr) {
+        void* addrPtr = nullptr;
+        int afType = ((struct sockaddr*)&clientAddr)->sa_family;
+
+        if (afType == AF_INET6) {
+            addrPtr = &(((struct sockaddr_in6*)&clientAddr)->sin6_addr);
+        } else {
+            addrPtr = &(((struct sockaddr_in*)&clientAddr)->sin_addr);
+        }
+
+        #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+            if (afType == AF_INET) {
+                strcpy(clientIPStr, inet_ntoa(*(struct in_addr*)addrPtr));
+            } else {
+                inet_ntop(AF_INET6, addrPtr, clientIPStr, sizeof(clientIPStr));
+            }
+        #else
+            inet_ntop(afType, addrPtr, clientIPStr, afType == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN);
+        #endif
+    }
+
     void Server::handleReqs() {
         // Accept requests from clients
-        struct sockaddr_in clientAddr;
-        struct in_addr clientIP;
+        struct sockaddr_storage clientAddr;
         socklen_t clientLen = sizeof(clientAddr);
-        char clientIPStr[INET_ADDRSTRLEN];
+        char clientIPStr[INET6_ADDRSTRLEN];
 
         while ( (this->c_sock = accept(this->sock, (struct sockaddr*)&clientAddr, &clientLen)) >= 0 ) {
             // Clear buffer
@@ -148,13 +181,7 @@ namespace HTTP {
 
             // Read buffer
             size_t bytesReceived = this->readClientSock();
-            clientIP = ((struct sockaddr_in*)&clientAddr)->sin_addr;
-
-            #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-                strcpy(clientIPStr, inet_ntoa( clientIP ));
-            #else
-                inet_ntop( AF_INET, &clientIP, clientIPStr, INET_ADDRSTRLEN );
-            #endif
+            extractClientIP(clientAddr, clientIPStr);
 
             // Skip empty packets
             if (bytesReceived == 0) continue;

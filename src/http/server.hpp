@@ -14,6 +14,14 @@
 #include <zlib.h>
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+    // Fix inet_ntop unavailable
+    #ifndef _WIN32_WINNT
+        #define _WIN32_WINNT 0x0600
+    #elif _WIN32_WINNT < 0x0600
+        #undef _WIN32_WINNT
+        #define _WIN32_WINNT 0x0600
+    #endif
+
     #include <winsock2.h>
     #include <ws2tcpip.h>
 #else
@@ -39,13 +47,16 @@ namespace HTTP {
     class Server {
         public:
             Server(const port_t port, const u_short maxBacklog, const u_int maxBufferSize, const bool useTLS);
-            ~Server() { this->kill(); };
+            virtual ~Server() { this->kill(); };
+
+            // Overridden by IPv6 servers
+            virtual int bindSocket();
 
             int init();
             void handleReqs();
             void kill();
             void genResponse(const Request&, Response&);
-        private:
+        protected:
             void clearBuffer();
             size_t readClientSock();
             void writeClientSock(const char*, const size_t);
