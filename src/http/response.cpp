@@ -4,7 +4,6 @@ namespace HTTP {
 
     Response::Response(const std::string& httpVersion) {
         this->httpVersion = httpVersion;
-        loadConfHeaders(this->headers);
     }
 
     void Response::setStatus(const uint16_t statusCode) {
@@ -67,6 +66,9 @@ namespace HTTP {
         // Determine Content-Length
         const std::string contentLen = std::to_string(this->body.size());
         this->setHeader("Content-Length", contentLen);
+
+        // Load config headers last to overwrite any dupes that have been previously set
+        loadConfHeaders(this->headers);
 
         // Stringify headers
         std::string headers;

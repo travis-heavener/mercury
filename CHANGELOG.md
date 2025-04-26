@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.3
+- Add Date header to outgoing requests
+
 ## v0.4.2
 - Fix RFC2616 compliance by enforcing Host header on requests
 

@@ -38,6 +38,7 @@ int loadErrorDoc(const int status, std::string& buffer) {
 int loadConfHeaders(std::unordered_map<std::string, std::string>& buffer) {
     // Load preset headers
     buffer.insert({"SERVER", VERSION});
+    buffer.insert({"DATE", getCurrentGMTString()});
 
     // Base case, return success
     return IO_SUCCESS;
@@ -157,6 +158,16 @@ std::string getFileModGMTString(const std::string& filePath) {
     auto lastWriteTime = std::filesystem::last_write_time(std::filesystem::path(filePath));
     auto systemTime = std::chrono::system_clock::now() + (lastWriteTime - std::filesystem::file_time_type::clock::now());
     std::time_t time = std::chrono::system_clock::to_time_t(systemTime);
+
+    // Format as GMT string
+    std::tm* gmtTime = std::gmtime(&time);
+    std::stringstream ss;
+    ss << std::put_time(gmtTime, "%a, %d %b %Y %H:%M:%S GMT");
+    return ss.str();
+}
+
+std::string getCurrentGMTString() {
+    std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
     // Format as GMT string
     std::tm* gmtTime = std::gmtime(&time);
