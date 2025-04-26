@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.2
+- Fix RFC2616 compliance by enforcing Host header on requests
+
 ## v0.4.1
 - Add Last-Modified header built-in support for GET requests
 

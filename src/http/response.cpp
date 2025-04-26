@@ -19,6 +19,7 @@ namespace HTTP {
 
     int Response::loadBodyFromErrorDoc(const uint16_t statusCode) {
         this->setStatus(statusCode);
+        this->setContentType("text/html");
         return loadErrorDoc(statusCode, this->body);
     }
 
@@ -33,7 +34,23 @@ namespace HTTP {
     }
 
     int Response::compressBody(const int compressionType) {
-        return compressText(this->body, compressionType);
+        const int status = compressText(this->body, compressionType);
+
+        if (status == IO_SUCCESS) {
+            switch (compressionType) {
+                case COMPRESS_BROTLI:
+                    this->setHeader("Content-Encoding", "br");
+                    break;
+                case COMPRESS_GZIP:
+                    this->setHeader("Content-Encoding", "gzip");
+                    break;
+                case COMPRESS_DEFLATE:
+                    this->setHeader("Content-Encoding", "deflate");
+                    break;
+            }
+        }
+
+        return status;
     }
 
     void Response::setContentType(const std::string& type) {

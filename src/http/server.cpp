@@ -182,75 +182,14 @@ namespace HTTP {
     }
 
     void Server::genResponse(const Request& request, Response& response) {
-        // Switch on method
-        switch (request.getMethod()) {
-            case METHOD::GET: {
-                const std::string rawPath = request.getPathStr();
-                if (rawPath.size() == 0 || rawPath[0] != '/') {
-                    // If the request allows HTML, return an HTML display
-                    response.setHeader("Allow", ALLOWED_METHODS);
-                    if (request.isMIMEAccepted("text/html")) {
-                        response.setContentType("text/html");
-                        response.loadBodyFromErrorDoc(400);
-                    }
-                    break;
-                }
-
-                // Lookup file
-                File file(rawPath);
-
-                if (!file.exists) {
-                    // If the request allows HTML, return an HTML display
-                    if (request.isMIMEAccepted("text/html")) {
-                        response.setContentType("text/html");
-                        response.loadBodyFromErrorDoc(404);
-                    }
-                    break;
-                }
-
-                // Check accepted MIMES
-                if (!request.isMIMEAccepted(file.MIME)) {
-                    // If the request allows HTML, return an HTML display
-                    if (request.isMIMEAccepted("text/html")) {
-                        response.setContentType("text/html");
-                        response.loadBodyFromErrorDoc(406);
-                    }
-                    break;
-                }
-
-                // Attempt to buffer resource
-                if (response.loadBodyFromFile(file) == IO_FAILURE) {
-                    if (request.isMIMEAccepted("text/html")) {
-                        response.setContentType("text/html");
-                        response.loadBodyFromErrorDoc(500);
-                    }
-                    break;
-                }
-
-                // Otherwise, body loaded successfully
-                response.setStatus(200);
-                response.setHeader("Content-Type", file.MIME);
-
-                // Load additional headers for body loading
-                for (conf::Match* pMatch : conf::matchConfigs) {
-                    if (std::regex_match(file.path, pMatch->getPattern())) {
-                        // Apply headers
-                        for (auto [name, value] : pMatch->getHeaders()) {
-                            response.setHeader(name, value);
-                        }
-                    }
-                }
-                break;
-            }
-            default: {
-                // If the request allows HTML, return an HTML display
-                response.setHeader("Allow", ALLOWED_METHODS);
-                if (request.isMIMEAccepted("text/html")) {
-                    response.setContentType("text/html");
-                    response.loadBodyFromErrorDoc(405);
-                }
-                break;
-            }
+        // Verify Host header is present (RFC2616)
+        if (request.getHeader("HOST") == nullptr) {
+            // If the request allows HTML, return an HTML display
+            if (request.isMIMEAccepted("text/html"))
+                response.loadBodyFromErrorDoc(400);
+        } else {
+            // Load the response as normal, switching on the verb used
+            request.loadResponse(response);
         }
 
         // Handle compression
@@ -258,14 +197,11 @@ namespace HTTP {
 
         // Determine compression method
         if (this->useTLS && request.isEncodingAccepted("br")) {
-            if (response.compressBody(COMPRESS_BROTLI) == IO_SUCCESS)
-                response.setHeader("Content-Encoding", "br");
+            response.compressBody(COMPRESS_BROTLI);
         } else if (request.isEncodingAccepted("gzip")) {
-            if (response.compressBody(COMPRESS_GZIP) == IO_SUCCESS)
-                response.setHeader("Content-Encoding", "gzip");
+            response.compressBody(COMPRESS_GZIP);
         } else if (request.isEncodingAccepted("deflate")) {
-            if (response.compressBody(COMPRESS_DEFLATE) == IO_SUCCESS)
-                response.setHeader("Content-Encoding", "deflate");
+            response.compressBody(COMPRESS_DEFLATE);
         }
     }
 

@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "response.hpp"
 #include "../util/toolbox.hpp"
 
 #define ALLOWED_METHODS "GET"
@@ -28,6 +29,8 @@ namespace HTTP {
             const std::string& getPathStr() const { return pathStr; };
             const std::string& getBody() const { return body; };
             const std::string& getVersion() const { return httpVersionStr; };
+
+            void loadResponse(Response&) const;
 
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;

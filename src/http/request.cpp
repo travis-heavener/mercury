@@ -63,6 +63,66 @@ namespace HTTP {
         return (result != this->headers.end()) ? &result->second : nullptr;
     }
 
+    void Request::loadResponse(Response& response) const {
+        // Switch on method
+        switch (this->method) {
+            case METHOD::GET: {
+                if (pathStr.size() == 0 || pathStr[0] != '/') {
+                    // If the request allows HTML, return an HTML display
+                    response.setHeader("Allow", ALLOWED_METHODS);
+                    if (this->isMIMEAccepted("text/html"))
+                        response.loadBodyFromErrorDoc(400);
+                    break;
+                }
+
+                // Lookup file
+                File file(pathStr);
+
+                if (!file.exists) {
+                    if (this->isMIMEAccepted("text/html")) // If the request allows HTML, return an HTML display
+                        response.loadBodyFromErrorDoc(404);
+                    break;
+                }
+
+                // Check accepted MIMES
+                if (!this->isMIMEAccepted(file.MIME)) {
+                    if (this->isMIMEAccepted("text/html")) // If the request allows HTML, return an HTML display
+                        response.loadBodyFromErrorDoc(406);
+                    break;
+                }
+
+                // Attempt to buffer resource
+                if (response.loadBodyFromFile(file) == IO_FAILURE) {
+                    if (this->isMIMEAccepted("text/html"))
+                        response.loadBodyFromErrorDoc(500);
+                    break;
+                }
+
+                // Otherwise, body loaded successfully
+                response.setStatus(200);
+                response.setHeader("Content-Type", file.MIME);
+
+                // Load additional headers for body loading
+                for (conf::Match* pMatch : conf::matchConfigs) {
+                    if (std::regex_match(file.path, pMatch->getPattern())) {
+                        // Apply headers
+                        for (auto [name, value] : pMatch->getHeaders()) {
+                            response.setHeader(name, value);
+                        }
+                    }
+                }
+                break;
+            }
+            default: {
+                // If the request allows HTML, return an HTML display
+                response.setHeader("Allow", ALLOWED_METHODS);
+                if (this->isMIMEAccepted("text/html"))
+                    response.loadBodyFromErrorDoc(405);
+                break;
+            }
+        }
+    }
+
     // Returns true if the MIME type is accepted by the request OR if there aren't any present
     bool Request::isMIMEAccepted(const std::string& MIME) const {
         if (!acceptedMIMETypes.size()) return true;
