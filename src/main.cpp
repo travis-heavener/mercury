@@ -83,11 +83,11 @@ int main() {
     }
 
     // Init server
-    pServer = new HTTP::Server(conf::HOST, conf::PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, false);
+    pServer = new HTTP::Server(conf::PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, false);
 
     #if __linux__
         if (conf::USE_TLS)
-            pTLSServer = new HTTP::Server(conf::HOST, conf::TLS_PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, true);
+            pTLSServer = new HTTP::Server(conf::TLS_PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, true);
     #endif
 
     // Print welcome banner

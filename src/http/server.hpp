@@ -38,7 +38,7 @@ namespace HTTP {
 
     class Server {
         public:
-            Server(const std::string& host, const port_t port, const u_short maxBacklog, const u_int maxBufferSize, const bool useTLS);
+            Server(const port_t port, const u_short maxBacklog, const u_int maxBufferSize, const bool useTLS);
             ~Server() { this->kill(); };
 
             int init();
@@ -51,7 +51,6 @@ namespace HTTP {
             void writeClientSock(const char*, const size_t);
             int closeSocket(const int);
 
-            const std::string host;
             const port_t port;
             int sock = -1;
             int c_sock = -1;

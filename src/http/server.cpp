@@ -2,8 +2,8 @@
 
 namespace HTTP {
 
-    Server::Server(const std::string& host, const port_t port, const u_short maxBacklog, const u_int maxBufferSize, const bool useTLS)
-                : host(host), port(port), maxBacklog(maxBacklog), maxBufferSize(maxBufferSize), useTLS(useTLS) {
+    Server::Server(const port_t port, const u_short maxBacklog, const u_int maxBufferSize, const bool useTLS)
+                : port(port), maxBacklog(maxBacklog), maxBufferSize(maxBufferSize), useTLS(useTLS) {
         // Create request buffer
         this->readBuffer = new char[this->maxBufferSize];
     };
@@ -63,7 +63,7 @@ namespace HTTP {
         struct sockaddr_in addr;
         addr.sin_family = AF_INET;
         addr.sin_port = htons(this->port);
-        addr.sin_addr.s_addr = inet_addr(this->host.c_str());
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
         if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
             if (errno == 13) { // Improve error handling for errno 13 (need sudo to listen to port)
@@ -92,7 +92,7 @@ namespace HTTP {
             }
         #endif
 
-        ACCESS_LOG << "Listening to " << this->host << " on port " << this->port << '.' << '\n';
+        ACCESS_LOG << "Listening to traffic on port " << this->port << '.' << '\n';
         return 0;
     }
 

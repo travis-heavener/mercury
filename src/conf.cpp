@@ -5,7 +5,6 @@
 namespace conf {
 
     std::filesystem::path DOCUMENT_ROOT;
-    std::string HOST;
     port_t PORT;
     unsigned short MAX_REQUEST_BACKLOG;
     unsigned int MAX_REQUEST_BUFFER;
@@ -100,16 +99,7 @@ int loadConfig() {
         return CONF_FAILURE;
     }
 
-    /************************** Extract DocumentRoot **************************/
-    pugi::xml_node hostNode = root.child("Host");
-    if (!hostNode) {
-        std::cerr << "Failed to parse config file, missing Host node.\n";
-        return CONF_FAILURE;
-    }
-
-    HOST = hostNode.text().as_string();
-    trimString(HOST);
-
+    /************************** Extract Matches **************************/
     // Load all Matches
     pugi::xml_object_range matchNodes = root.children("Match");
 
