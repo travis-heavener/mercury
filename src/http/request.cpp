@@ -31,6 +31,8 @@ namespace HTTP {
             this->method = METHOD::GET;
         else if (this->methodStr == "HEAD")
             this->method = METHOD::HEAD;
+        else if (this->methodStr == "OPTIONS")
+            this->method = METHOD::OPTIONS;
 
         // Read headers from buffer
         while (std::getline(buffer, line)) {
@@ -115,6 +117,11 @@ namespace HTTP {
                         }
                     }
                 }
+                break;
+            }
+            case METHOD::OPTIONS: {
+                response.setHeader("Allow", ALLOWED_METHODS);
+                response.setStatus(200);
                 break;
             }
             default: {

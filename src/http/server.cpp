@@ -199,12 +199,14 @@ namespace HTTP {
         const std::string contentType = response.getContentType();
 
         // Determine compression method
-        if (this->useTLS && request.isEncodingAccepted("br")) {
-            response.compressBody(COMPRESS_BROTLI);
-        } else if (request.isEncodingAccepted("gzip")) {
-            response.compressBody(COMPRESS_GZIP);
-        } else if (request.isEncodingAccepted("deflate")) {
-            response.compressBody(COMPRESS_DEFLATE);
+        if (request.getMethod() != HTTP::METHOD::OPTIONS) {
+            if (this->useTLS && request.isEncodingAccepted("br")) {
+                response.compressBody(COMPRESS_BROTLI);
+            } else if (request.isEncodingAccepted("gzip")) {
+                response.compressBody(COMPRESS_GZIP);
+            } else if (request.isEncodingAccepted("deflate")) {
+                response.compressBody(COMPRESS_DEFLATE);
+            }
         }
     }
 
