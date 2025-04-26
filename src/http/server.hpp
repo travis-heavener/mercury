@@ -1,18 +1,6 @@
 #ifndef __HTTP_SERVER_HPP
 #define __HTTP_SERVER_HPP
 
-#include <cstring>
-#include <iostream>
-#include <string>
-#include <unordered_map>
-
-#include "request.hpp"
-#include "response.hpp"
-#include "../util/toolbox.hpp"
-#include "../util/file.hpp"
-
-#include <zlib.h>
-
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
     // Fix inet_ntop unavailable
     #ifndef _WIN32_WINNT
@@ -22,10 +10,10 @@
         #define _WIN32_WINNT 0x0600
     #endif
 
-    #define poll WSAPoll
-
     #include <winsock2.h>
     #include <ws2tcpip.h>
+
+    #define poll WSAPoll
 #else
     #include <sys/socket.h>
     #include <arpa/inet.h>
@@ -33,10 +21,20 @@
     #include <netinet/tcp.h>
     #include <unistd.h>
     #include <poll.h>
-
-    // SSL only supported on Linux builds
-    #include "tls.hpp"
 #endif
+
+#include <cstring>
+#include <iostream>
+#include <string>
+#include <unordered_map>
+
+#include "request.hpp"
+#include "response.hpp"
+#include "tls.hpp"
+#include "../util/toolbox.hpp"
+#include "../util/file.hpp"
+
+#include <zlib.h>
 
 #define SOCKET_FAILURE 1
 #define BIND_FAILURE 2
@@ -79,10 +77,8 @@ namespace HTTP {
 
             // OpenSSL
             bool useTLS;
-            #if __linux__
-                SSL* pSSL = nullptr;
-                SSL_CTX* pSSL_CTX = nullptr;
-            #endif
+            SSL* pSSL = nullptr;
+            SSL_CTX* pSSL_CTX = nullptr;
     };
 
 }

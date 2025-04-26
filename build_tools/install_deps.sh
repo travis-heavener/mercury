@@ -2,4 +2,6 @@
 
 # Installs *all* deps needed to rebuild Mercury
 sudo apt update
-sudo apt install upx build-essential perl wget
+sudo apt install upx \
+    build-essential perl wget \
+    mingw-w64 nasm

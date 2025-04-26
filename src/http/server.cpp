@@ -24,10 +24,8 @@ namespace HTTP {
         delete[] this->readBuffer;
 
         // Free SSL ptrs
-        #if __linux__
-            if (this->useTLS)
-                SSL_CTX_free(this->pSSL_CTX);
-        #endif
+        if (this->useTLS)
+            SSL_CTX_free(this->pSSL_CTX);
     }
 
     int Server::bindSocket() {
@@ -96,50 +94,43 @@ namespace HTTP {
         }
 
         // Init TLS
-        #if __linux__
-            if (this->useTLS) {
-                if ((this->pSSL_CTX = initTLSContext()) == nullptr) {
-                    ERROR_LOG << "Failed to init an SSL context.\n";
-                    return BIND_FAILURE;
-                }
+        if (this->useTLS) {
+            if ((this->pSSL_CTX = initTLSContext()) == nullptr) {
+                ERROR_LOG << "Failed to init an SSL context.\n";
+                return BIND_FAILURE;
             }
-        #endif
+        }
 
         ACCESS_LOG << "Listening to traffic on port " << this->port << '.' << '\n';
         return 0;
     }
 
     size_t Server::readClientSock() {
-        #if __linux__
-            if (this->useTLS)
-                return SSL_read(this->pSSL, this->readBuffer, this->maxBufferSize);
-            else
-                return recv(this->c_sock, this->readBuffer, this->maxBufferSize, 0);
-        #else
+        if (this->useTLS)
+            return SSL_read(this->pSSL, this->readBuffer, this->maxBufferSize);
+        else
             return recv(this->c_sock, this->readBuffer, this->maxBufferSize, 0);
-        #endif
     }
 
     void Server::writeClientSock(const char* pBuffer, const size_t bufferSize) {
         if (this->useTLS) {
-            #if __linux__
-                SSL_write(this->pSSL, pBuffer, bufferSize);
-            #endif
+            SSL_write(this->pSSL, pBuffer, bufferSize);
         } else {
             send(this->c_sock, pBuffer, bufferSize, 0);
         }
     }
 
     int Server::closeSocket(const int sock) {
+        // Cleanup TLS
+        if (this->useTLS && this->pSSL != nullptr) {
+            SSL_free(this->pSSL);
+            this->pSSL = nullptr;
+        }
+
         #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
             shutdown(sock, SD_BOTH);
             return closesocket(sock);
         #else
-            // Cleanup TLS
-            if (this->useTLS && this->pSSL != nullptr) {
-                SSL_free(this->pSSL);
-                this->pSSL = nullptr;
-            }
             return close(sock);
         #endif
     }
@@ -195,17 +186,15 @@ namespace HTTP {
             // Clear buffer
             this->clearBuffer();
 
-            #if __linux__
-                if (this->useTLS) {
-                    this->pSSL = SSL_new(this->pSSL_CTX);
-                    SSL_set_fd(this->pSSL, this->c_sock);
+            if (this->useTLS) {
+                this->pSSL = SSL_new(this->pSSL_CTX);
+                SSL_set_fd(this->pSSL, this->c_sock);
 
-                    if (SSL_accept(this->pSSL) <= 0) {
-                        this->closeSocket(this->c_sock);
-                        continue;
-                    }
+                if (SSL_accept(this->pSSL) <= 0) {
+                    this->closeSocket(this->c_sock);
+                    continue;
                 }
-            #endif
+            }
 
             // Read buffer
             size_t bytesReceived = this->readClientSock();
@@ -251,10 +240,13 @@ namespace HTTP {
 
         // Determine compression method
         if (request.getMethod() == HTTP::METHOD::OPTIONS) return;
-        
-        if (this->useTLS && request.isEncodingAccepted("br"))
-            response.compressBody(COMPRESS_BROTLI);
-        else if (request.isEncodingAccepted("gzip"))
+
+        #if __linux__
+            if (this->useTLS && request.isEncodingAccepted("br"))
+                response.compressBody(COMPRESS_BROTLI);
+            else
+        #endif
+        if (request.isEncodingAccepted("gzip"))
             response.compressBody(COMPRESS_GZIP);
         else if (request.isEncodingAccepted("deflate"))
             response.compressBody(COMPRESS_DEFLATE);

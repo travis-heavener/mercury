@@ -84,50 +84,31 @@ int main() {
     pServer = new HTTP::Server(conf::PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, false);
     pServerV6 = new HTTP::ServerV6(conf::PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, false);
 
-    #if __linux__
-        if (conf::USE_TLS) {
-            pTLSServer = new HTTP::Server(conf::TLS_PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, true);
-            pTLSServerV6 = new HTTP::ServerV6(conf::TLS_PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, true);
-        }
-    #endif
+    if (conf::USE_TLS) {
+        pTLSServer = new HTTP::Server(conf::TLS_PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, true);
+        pTLSServerV6 = new HTTP::ServerV6(conf::TLS_PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, true);
+    }
 
     // Print welcome banner
     printWelcomeBanner();
 
-    if (pServer != nullptr && pServer->init() < 0) {
-        m_exit();
-        return 1;
-    }
+    #define m_ret { m_exit(); return 1; }
+    if (pServer != nullptr && pServer->init() < 0) m_ret;
+    if (pServerV6 != nullptr && pServerV6->init() < 0) m_ret;
 
-    if (pServerV6 != nullptr && pServerV6->init() < 0) {
-        m_exit();
-        return 1;
-    }
-
-    #if __linux__
-        if (pTLSServer != nullptr && pTLSServer->init() < 0) {
-            m_exit();
-            return 1;
-        }
-
-        if (pTLSServerV6 != nullptr && pTLSServerV6->init() < 0) {
-            m_exit();
-            return 1;
-        }
-    #endif
+    if (pTLSServer != nullptr && pTLSServer->init() < 0) m_ret;
+    if (pTLSServerV6 != nullptr && pTLSServerV6->init() < 0) m_ret;
 
     // Accept client responses (blocks main thread)
     std::thread t_ipv4([&]() { pServer->handleReqs(); });
     std::thread t_ipv6([&]() { pServerV6->handleReqs(); });
 
-    #if __linux__
-        if (conf::USE_TLS) {
-            std::thread t_ipv4TLS([&]() { pTLSServer->handleReqs(); });
-            std::thread t_ipv6TLS([&]() { pTLSServerV6->handleReqs(); });
-            t_ipv4TLS.join();
-            t_ipv6TLS.join();
-        }
-    #endif
+    if (conf::USE_TLS) {
+        std::thread t_ipv4TLS([&]() { pTLSServer->handleReqs(); });
+        std::thread t_ipv6TLS([&]() { pTLSServerV6->handleReqs(); });
+        t_ipv4TLS.join();
+        t_ipv6TLS.join();
+    }
 
     t_ipv6.join();
     t_ipv4.join();

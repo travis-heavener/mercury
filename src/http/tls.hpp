@@ -3,16 +3,14 @@
 
 #include <string>
 
-#if __linux__
-    #include <openssl/ssl.h>
+#include <openssl/ssl.h>
 
-    #include "../conf.hpp"
-    #include "../util/toolbox.hpp"
+#include "../conf.hpp"
+#include "../util/toolbox.hpp"
 
-    #define CERT_PATH "conf/ssl/cert.pem"
-    #define KEY_PATH "conf/ssl/key.pem"
+#define CERT_PATH "conf/ssl/cert.pem"
+#define KEY_PATH "conf/ssl/key.pem"
 
-    SSL_CTX* initTLSContext();
-#endif
+SSL_CTX* initTLSContext();
 
 #endif

@@ -20,18 +20,17 @@ Currently, Mercury is available on Linux and Windows.
 
 ## Build Info
 
+Self-signed TLS 1.3 certs available for Linux & Windows builds via OpenSSL.
+
+See `/build_tools/` for shell scripts on building static binaries.
+
 ### Linux
 
-Linux builds are tested on Ubuntu 22 LTS via WSL, thus I assume most other Debian flavors should compile as well.
-
-Self-signed TLS 1.3 certs available for Linux builds via libssl.
+Linux builds are tested on Ubuntu 22 LTS via WSL.
 
 To build for Linux, zlib, libssl, and libbrotli must be installed.
 
 1. Install deps via `sudo apt-get install zlib1g-dev libssl-dev libbrotli-dev -y`.
-
-Now, build the dynamic Linux binary.
-
 2. `cd` into the directory of this repository clone and run `make linux`.
 
 ### Windows

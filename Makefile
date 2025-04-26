@@ -1,5 +1,6 @@
 GPP_FLAGS = -Wall -Wextra
 OPENSSL_DIR = $(HOME)/openssl-static
+OPENSSL_WIN_DIR = $(OPENSSL_DIR)/windows
 
 STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -std=c++17
 
@@ -20,9 +21,13 @@ $(TARGET): $(DEPS)
 		-L$(OPENSSL_DIR)/lib64 -lssl -lcrypto \
 		-L/usr/lib/x86_64-linux-gnu -lbrotlienc -lbrotlidec -lbrotlicommon
 	@upx $(TARGET) -qqq
-	@echo "Done."
+	@echo "✅ Done."
 
 $(TARGET_WIN): $(DEPS)
 	@echo -n "Building port for Windows... "
-	@x86_64-w64-mingw32-g++-posix $(SRCS) -o $(TARGET_WIN) $(STATIC_FLAGS) -lws2_32 -lz $(GPP_FLAGS)
-	@echo "Done."
+	@x86_64-w64-mingw32-g++-posix $(SRCS) -o $(TARGET_WIN) \
+		$(STATIC_FLAGS) $(GPP_FLAGS) \
+		-lz -lpthread -I$(OPENSSL_WIN_DIR)/include \
+		-L$(OPENSSL_WIN_DIR)/lib64 -lssl -lcrypto -lcrypt32 -lbcrypt -lws2_32 
+	@upx $(TARGET_WIN) -qqq
+	@echo "✅ Done."
