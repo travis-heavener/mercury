@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Installs *all* deps needed to rebuild Mercury
+sudo apt update
+sudo apt install upx build-essential perl wget
