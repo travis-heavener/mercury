@@ -10,6 +10,7 @@
     - [Linux](#linux)
     - [Windows](#windows)
 - [Changelog](CHANGELOG.md)
+- [Credits](CREDITS.md)
 
 ## About
 
@@ -18,10 +19,6 @@ Mercury is an HTTP server designed in C++ using the C-socket paradigm.
 Currently, Mercury is available on Linux and Windows.
 
 ## Build Info
-
-Brotli compression by [Brotli-CPP](https://github.com/CHN-beta/brotli-cpp).
-
-XML parsing by [PugiXML](https://github.com/zeux/pugixml).
 
 ### Linux
 
