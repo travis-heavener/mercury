@@ -22,6 +22,8 @@
         #define _WIN32_WINNT 0x0600
     #endif
 
+    #define poll WSAPoll
+
     #include <winsock2.h>
     #include <ws2tcpip.h>
 #else
@@ -30,6 +32,7 @@
     #include <netinet/in.h>
     #include <netinet/tcp.h>
     #include <unistd.h>
+    #include <poll.h>
 
     // SSL only supported on Linux builds
     #include "tls.hpp"
@@ -61,6 +64,10 @@ namespace HTTP {
             size_t readClientSock();
             void writeClientSock(const char*, const size_t);
             int closeSocket(const int);
+
+            void extractClientIP(struct sockaddr_storage&, char*) const;
+            bool waitForClientData(const int);
+            int acceptConnection(struct sockaddr_storage&, socklen_t&);
 
             const port_t port;
             int sock = -1;

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.1
+- Fix connections hanging on Windows port & handling of client sockets closing
+    - Now polls client sockets for incoming data
+
 ## v0.6.0
 - Add IPv6 support (fixes additional overhead from localhost resolution in Chrome)
 - Increase max request backlog size from 25 to 100
