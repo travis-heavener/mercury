@@ -33,6 +33,8 @@ namespace HTTP {
             this->method = METHOD::HEAD;
         else if (this->methodStr == "OPTIONS")
             this->method = METHOD::OPTIONS;
+        else
+            this->method = METHOD::UNKNOWN;
 
         // Read headers from buffer
         while (std::getline(buffer, line)) {

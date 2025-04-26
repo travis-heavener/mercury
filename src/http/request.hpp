@@ -18,7 +18,8 @@ namespace HTTP {
     enum METHOD {
         GET = 0,
         HEAD = 1,
-        OPTIONS = 2
+        OPTIONS = 2,
+        UNKNOWN = 999
     };
 
     class Request {

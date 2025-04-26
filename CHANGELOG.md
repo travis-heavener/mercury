@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.5.0
+- Add HEAD verb support
+- Add OPTIONS verb support
+- Fix handling of invalid methods (405 status code)
+
 ## v0.4.3
 - Add Date header to outgoing requests
 
