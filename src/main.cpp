@@ -35,13 +35,20 @@ void initSigHandler() {
     #endif
 }
 
+void printCenteredVersion() {
+    const int leftPadding = (34 - conf::VERSION.length()) / 2;
+    const int rightPadding = 34 - conf::VERSION.length() - leftPadding;
+
+    std::cout << '|' << std::string(leftPadding, ' ') << conf::VERSION << std::string(rightPadding, ' ') << '|' << '\n';
+}
+
 void printWelcomeBanner() {
-    std::cout << "------------------------------------\n"
-                 "|          "  VERSION   "          |\n"
-                 "|           ...........            |\n"
+    std::cout << "------------------------------------\n";
+    printCenteredVersion();
+    std::cout << "|           ...........            |\n"
                  "|         Ctrl+C to close.         |\n"
                  "------------------------------------\n";
-    ACCESS_LOG << VERSION " started successfully." << std::endl;
+    ACCESS_LOG << conf::VERSION << " started successfully." << std::endl;
 }
 
 void m_exit() {

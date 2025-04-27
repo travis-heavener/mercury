@@ -4,6 +4,8 @@
 
 namespace conf {
 
+    std::string VERSION;
+
     std::filesystem::path DOCUMENT_ROOT;
     port_t PORT;
     unsigned short MAX_REQUEST_BACKLOG;
@@ -43,6 +45,13 @@ int loadConfig() {
         std::cerr << "Failed to open config file.\n";
         return CONF_FAILURE;
     }
+
+    // Load version
+    std::ifstream versionHandle( VERSION_FILE );
+    std::getline(versionHandle, VERSION);
+    if (VERSION.back() == '\n') VERSION.pop_back();
+    if (VERSION.back() == '\r') VERSION.pop_back();
+    versionHandle.close();
 
     // Extract root node
     pugi::xml_node root = doc.child("Mercury");

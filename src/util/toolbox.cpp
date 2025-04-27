@@ -37,7 +37,7 @@ int loadErrorDoc(const int status, std::string& buffer) {
 
 int loadConfHeaders(std::unordered_map<std::string, std::string>& buffer) {
     // Load preset headers
-    buffer.insert({"SERVER", VERSION});
+    buffer.insert({"SERVER", conf::VERSION});
     buffer.insert({"DATE", getCurrentGMTString()});
     buffer.insert({"CONNECTION", "close"});
 

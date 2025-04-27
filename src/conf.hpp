@@ -16,15 +16,17 @@
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1
 
-#define VERSION "Mercury v0.6.2"
 #define CONF_FILE "../conf/mercury.conf"
 #define MIMES_FILE "../conf/mimes.conf"
+#define VERSION_FILE "../version.txt"
 
 typedef unsigned short port_t;
 
 /****** EXTERNAL FIELDS ******/
 
 namespace conf {
+
+    extern std::string VERSION;
 
     extern std::filesystem::path DOCUMENT_ROOT;
     extern port_t PORT;
