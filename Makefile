@@ -6,6 +6,7 @@ BROTLI_DIR = $(HOME)/brotli-static
 BROTLI_WIN_DIR = $(BROTLI_DIR)/windows
 
 STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -std=c++17
+BROTLI_FLAGS = -lbrotlienc -lbrotlidec -lbrotlicommon
 
 TARGET = bin/main.o
 TARGET_WIN = bin/main.exe
@@ -24,7 +25,7 @@ $(TARGET): $(DEPS)
 		-I$(OPENSSL_DIR)/include -I$(BROTLI_DIR)/include \
 		-L$(OPENSSL_DIR)/lib64 -L$(BROTLI_DIR)/lib \
 		-lssl -lcrypto \
-		-lbrotlienc -lbrotlidec -lbrotlicommon
+		$(BROTLI_FLAGS)
 	@upx $(TARGET) -qqq
 	@echo "✅ Done."
 
@@ -36,7 +37,7 @@ $(TARGET_WIN): $(DEPS)
 		-I$(OPENSSL_WIN_DIR)/include -I$(BROTLI_WIN_DIR)/include \
 		-L$(OPENSSL_WIN_DIR)/lib64 -L$(BROTLI_WIN_DIR)/lib \
 		-lssl -lcrypto \
-		-lbrotlienc -lbrotlidec -lbrotlicommon \
+		$(BROTLI_FLAGS) \
 		-lcrypt32 -lbcrypt -lws2_32
 	@upx $(TARGET_WIN) -qqq
 	@echo "✅ Done."
