@@ -38,6 +38,7 @@ cp ../README.md .
 cp ../SECURITY.md .
 cp ../CREDITS.md .
 cp ../CHANGELOG.md .
+cp ../LICENSE.txt .
 
 # Create binary folder
 mkdir bin
