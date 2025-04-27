@@ -7,47 +7,54 @@
 - [Table of Contents](#table-of-contents)
 - [About](#about)
 - [Build Info](#build-info)
-    - [Linux](#linux)
-    - [Windows](#windows)
+    - [Linux & Windows Builds](#linux--windows-builds)
+    - [Windows Only](#windows-only)
 - [Changelog](CHANGELOG.md)
 - [Credits](CREDITS.md)
 
 ## About
 
-Mercury is an HTTP server designed in C++ using the C-socket paradigm.
+Mercury is an HTTP server designed in C++ using the C-socket paradigm, and is available for both Linux and Windows.
 
-Currently, Mercury is available on Linux and Windows.
+Self-signed TLS 1.3 certs are now available with OpenSSL.
 
 ## Build Info
 
-Self-signed TLS 1.3 certs available for Linux & Windows builds via OpenSSL.
+The `/build_tools/` directory contains all necessary shell scripts for building static binaries.
 
-See `/build_tools/` for shell scripts on building static binaries.
+Binaries are placed in the `/bin/` directory, `main.o` for Linux and `main.exe` for Windows.
 
-### Linux
+**Note: Mercury binaries must be run from within the `/bin/` directory as resources & config files are loaded relative to the working directory.**
 
-Linux builds are tested on Ubuntu 22 LTS via WSL.
+### Linux & Windows Builds
 
-To build for Linux, zlib must be installed.
+1. Install all necessary dependencies.
 
-1. Install deps via `sudo apt-get install zlib1g-dev -y`.
-2. `cd` into the directory of this repository clone and run `make linux`.
+    `./build_tools/install_deps.sh`.
 
-### Windows
+2. Build the static OpenSSL binaries.
 
-Windows builds are compiled in the same Linux environment as mentioned above (see [Linux](#linux)).
+    `./build_tools/build_static_openssl.sh`.
 
-To build for Windows, zlib must be installed.
+3. Build the static Brotli binaries.
 
-1. Clone the official zlib repository (https://github.com/luvit/zlib)
-2. `cd` into the repository
-3. Edit win32/Makefile.gcc. Search for "PREFIX" and set it equal to `x86_64-w64-mingw32-`. On the next line, edit "CC" to be equal to `$(PREFIX)gcc-win32`.
-4. Locate the install location of x86_64-w64-mingw32 on your system (try /usr/x86_64-w64-mingw32). With this location, replace `<dir>` with the install location of x86_64-w64-mingw32 and run:
+    `./build_tools/build_static_brotli.sh`.
+
+4. **If building for Linux**, run `make linux`.
+
+    **If building for Windows**, go to step 5.
+
+### Windows Only
+
+5. Clone the official zlib repository (https://github.com/luvit/zlib)
+6. `cd` into the repository
+7. Edit win32/Makefile.gcc. Search for "PREFIX" and set it equal to `x86_64-w64-mingw32-`. On the next line, edit "CC" to be equal to `$(PREFIX)gcc-win32`.
+8. Locate the install location of x86_64-w64-mingw32 on your system (try /usr/x86_64-w64-mingw32). With this location, replace `<dir>` with the install location of x86_64-w64-mingw32 and run:
 
     `sudo BINARY_PATH=<dir>/bin INCLUDE_PATH=<dir>/include LIBRARY_PATH=<dir>/lib make -B -f win32/Makefile.gcc`.
 
-5. Run the same command with the additional "install" at the end:
+9. Run the same command with the additional "install" at the end:
 
     `sudo BINARY_PATH=<dir>/bin INCLUDE_PATH=<dir>/include LIBRARY_PATH=<dir>/lib make -B -f win32/Makefile.gcc install`.
 
-6. *Now*, `cd` back into the directory of this repository and run `make windows`.
+10. *Now*, `cd` back into the directory of this repository and run `make windows`.
