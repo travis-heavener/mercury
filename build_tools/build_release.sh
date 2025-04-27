@@ -11,7 +11,11 @@ fi
 # Read version
 VERSION=$(cat version.txt)
 RELEASE_NAME="${VERSION// /_}"
-ARCHIVE_NAME="$RELEASE_NAME.tar.gz"
+RELEASE_NAME="${RELEASE_NAME//./_}"
+RELEASE_NAME="${RELEASE_NAME//Mercury_/}"
+
+LINUX_ARCHIVE="../releases/Linux_$RELEASE_NAME.tar.gz"
+WIN_ARCHIVE="../releases/Windows_$RELEASE_NAME.zip"
 
 # Prepare contents
 mkdir temp_release && cd temp_release
@@ -44,28 +48,26 @@ mkdir bin
 cp ../bin/main.o bin
 
 # Create tar.gz archive
-if [ -f "../releases/$ARCHIVE_NAME" ]; then
-    rm -f ../releases/$ARCHIVE_NAME
+if [ -f "$LINUX_ARCHIVE" ]; then
+    rm -f $LINUX_ARCHIVE
 fi
-tar -czvf ../releases/$ARCHIVE_NAME *
+tar -czvf $LINUX_ARCHIVE *
 
-echo "✅ Linux release archive created: releases/$ARCHIVE_NAME"
+echo "✅ Linux release archive created: $LINUX_ARCHIVE"
 
 # ==== Windows Build ====
-
-ARCHIVE_NAME="$RELEASE_NAME.zip"
 
 # Replace binary
 rm bin/main.o
 cp ../bin/main.exe bin
 
 # Create zip archive
-if [ -f "../releases/$ARCHIVE_NAME" ]; then
-    rm -f ../releases/$ARCHIVE_NAME
+if [ -f "$WIN_ARCHIVE" ]; then
+    rm -f $WIN_ARCHIVE
 fi
-zip -r ../releases/$ARCHIVE_NAME *
+zip -r $WIN_ARCHIVE *
 
-echo "✅ Windows release archive created: releases/$ARCHIVE_NAME"
+echo "✅ Windows release archive created: $WIN_ARCHIVE"
 
 # ==== Clean Up ====
 
