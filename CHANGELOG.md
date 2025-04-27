@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.6.3
+- Add MIT license
+
 ## v0.6.2
 - Fully migrated to static Linux binaries
 - Port OpenSSL for Windows (now allows TLS certs)
