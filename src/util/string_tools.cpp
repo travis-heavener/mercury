@@ -1,8 +1,6 @@
 #include "string_tools.hpp"
 
-#if __linux__
-    #include "../../lib/brotli-cpp.hpp"
-#endif
+#include "../../lib/brotli-cpp.hpp"
 
 void strToUpper(std::string& str) {
     std::transform(str.begin(), str.end(), str.begin(), ::toupper);
@@ -58,9 +56,7 @@ void decodeURI(std::string& str) {
 
 int compressText(std::string& buffer, const int method) {
     if (method == COMPRESS_BROTLI) {
-        #if __linux__
-            buffer = brotli::compress(buffer);
-        #endif
+        buffer = brotli::compress(buffer);
     } else {
         // Handle deflate compression
         const size_t sourceLen = buffer.size();

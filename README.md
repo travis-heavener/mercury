@@ -28,9 +28,9 @@ See `/build_tools/` for shell scripts on building static binaries.
 
 Linux builds are tested on Ubuntu 22 LTS via WSL.
 
-To build for Linux, zlib, libssl, and libbrotli must be installed.
+To build for Linux, zlib must be installed.
 
-1. Install deps via `sudo apt-get install zlib1g-dev libssl-dev libbrotli-dev -y`.
+1. Install deps via `sudo apt-get install zlib1g-dev -y`.
 2. `cd` into the directory of this repository clone and run `make linux`.
 
 ### Windows

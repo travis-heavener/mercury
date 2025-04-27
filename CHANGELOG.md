@@ -4,6 +4,7 @@
 - Fully migrated to static Linux binaries
 - Added shell scripts for rebuilding static binaries
 - Port OpenSSL for Windows (now allows TLS certs)
+- Port Brotli for Windows (now allows Brotli compression)
 
 ## v0.6.1
 - Fix connections hanging on Windows port & handling of client sockets closing

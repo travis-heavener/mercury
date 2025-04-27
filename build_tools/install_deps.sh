@@ -4,4 +4,6 @@
 sudo apt update
 sudo apt install upx \
     build-essential perl wget \
-    mingw-w64 nasm
+    mingw-w64 nasm \
+    cmake \
+    zlib1g-dev

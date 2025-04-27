@@ -241,12 +241,9 @@ namespace HTTP {
         // Determine compression method
         if (request.getMethod() == HTTP::METHOD::OPTIONS) return;
 
-        #if __linux__
-            if (this->useTLS && request.isEncodingAccepted("br"))
-                response.compressBody(COMPRESS_BROTLI);
-            else
-        #endif
-        if (request.isEncodingAccepted("gzip"))
+        if (this->useTLS && request.isEncodingAccepted("br"))
+            response.compressBody(COMPRESS_BROTLI);
+        else if (request.isEncodingAccepted("gzip"))
             response.compressBody(COMPRESS_GZIP);
         else if (request.isEncodingAccepted("deflate"))
             response.compressBody(COMPRESS_DEFLATE);
