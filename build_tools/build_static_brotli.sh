@@ -65,3 +65,5 @@ mv ~/brotli-repo/c/include ~/brotli-static/windows/include
 # ==== Clean Up ====
 cd ~
 rm -rf ~/brotli-repo
+
+echo "✅ Successfully built static Brotli binaries."

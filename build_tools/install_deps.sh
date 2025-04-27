@@ -7,3 +7,5 @@ sudo apt install upx \
     mingw-w64 nasm \
     cmake \
     zlib1g-dev
+
+echo "✅ Successfully installed dependencies."

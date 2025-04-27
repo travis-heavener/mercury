@@ -49,3 +49,5 @@ make install_sw
 
 rm -rf ~/openssl-3.5.0
 rm -f ~/openssl-3.5.0.tar.gz
+
+echo "✅ Successfully built static OpenSSL binaries."

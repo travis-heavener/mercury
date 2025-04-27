@@ -46,15 +46,10 @@ Binaries are placed in the `/bin/` directory, `main.o` for Linux and `main.exe` 
 
 ### Windows Only
 
-5. Clone the official zlib repository (https://github.com/luvit/zlib)
-6. `cd` into the repository
-7. Edit win32/Makefile.gcc. Search for "PREFIX" and set it equal to `x86_64-w64-mingw32-`. On the next line, edit "CC" to be equal to `$(PREFIX)gcc-win32`.
-8. Locate the install location of x86_64-w64-mingw32 on your system (try /usr/x86_64-w64-mingw32). With this location, replace `<dir>` with the install location of x86_64-w64-mingw32 and run:
+5. Build the static zlib binaries.
 
-    `sudo BINARY_PATH=<dir>/bin INCLUDE_PATH=<dir>/include LIBRARY_PATH=<dir>/lib make -B -f win32/Makefile.gcc`.
+    `./build_tools/build_static_zlib.sh`.
 
-9. Run the same command with the additional "install" at the end:
+6. Now, build for Windows.
 
-    `sudo BINARY_PATH=<dir>/bin INCLUDE_PATH=<dir>/include LIBRARY_PATH=<dir>/lib make -B -f win32/Makefile.gcc install`.
-
-10. *Now*, `cd` back into the directory of this repository and run `make windows`.
+    `make windows`.
