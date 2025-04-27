@@ -1,23 +1,48 @@
 name: Build
 
 on:
+    workflow_dispatch:
     push:
         branches: ["main"]
+        paths:
+            - "src/**"
+            - "lib/**"
     pull_request:
         branches: ["main"]
+        paths:
+            - "src/**"
+            - "lib/**"
 
 jobs:
-    validate:
-        runs-on: ubuntu-latest
+    Build:
+        runs-on: ubuntu-22.04
         steps:
             - uses: actions/checkout@v4
 
+            - name: Cache APT packages
+              uses: actions/cache@v4
+              with:
+                path: |
+                    /var/cache/apt/archives
+                    /var/lib/apt/lists
+                key: ${{ runner.os }}-apt-${{ hashFiles('**/build_tools/install_deps.sh') }}
+
+            # Make executables
+            - name: Make executable shell scripts
+              run: sudo chmod +x ./build_tools/*.sh
+
             # Install deps
-            - run: ./build_tools/install_deps.sh
-            - run: sudo apt-get install g++ mingw-w64 -y
-            - run: ./build_tools/build_static_openssl.sh
-            - run: ./build_tools/build_static_brotli.sh
-            - run: ./build_tools/build_static_zlib.sh
+            - name: Install dependencies
+              run: sudo ./build_tools/install_deps.sh
+
+            # Build static libraries
+            - name: Build static OpenSSL
+              run: sudo ./build_tools/build_static_openssl.sh
+            - name: Build static Brotli
+              run: sudo ./build_tools/build_static_brotli.sh
+            - name: Build static zlib
+              run: sudo ./build_tools/build_static_zlib.sh
 
             # Build
-            - run: make -B
+            - name: Build Mercury Binaries
+              run: sudo make -B

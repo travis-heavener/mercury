@@ -2,6 +2,8 @@
 
 ### A project by Travis Heavener
 
+[![Build](https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg)](https://github.com/travis-heavener/mercury/actions/workflows/build.yml)
+
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
