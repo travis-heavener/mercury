@@ -1,0 +1,23 @@
+name: Build
+
+on:
+    push:
+        branches: ["main"]
+    pull_request:
+        branches: ["main"]
+
+jobs:
+    validate:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            # Install deps
+            - run: ./build_tools/install_deps.sh
+            - run: sudo apt-get install g++ mingw-w64 -y
+            - run: ./build_tools/build_static_openssl.sh
+            - run: ./build_tools/build_static_brotli.sh
+            - run: ./build_tools/build_static_zlib.sh
+
+            # Build
+            - run: make -B
