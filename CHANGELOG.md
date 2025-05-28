@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.0
+- Fixed major path injection bug
+- Added explicit support for forward slashes in document roots
+- Fixed status code handling when text/html isn't accepted as a MIME
+- Improved support with Windows-style directory separators '\'
+
 ## v0.6.4
 - Refactored executable names (main -> mercury)
 

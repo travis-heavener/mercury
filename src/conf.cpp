@@ -70,16 +70,25 @@ int loadConfig() {
     std::string documentRootStr( documentRootNode.text().as_string() );
     trimString(documentRootStr);
 
-    if (documentRootStr.find("./") == 0) // Relative paths
-        DOCUMENT_ROOT = CWD / documentRootStr.substr(2);
+    if (documentRootStr.find(".") == 0) // Relative paths
+        DOCUMENT_ROOT = CWD / documentRootStr;
     else // Absolute paths
         DOCUMENT_ROOT = documentRootStr;
 
-    // Affix trailing slash
-    if (DOCUMENT_ROOT.string().size() && DOCUMENT_ROOT.string().back() != '/')
-        DOCUMENT_ROOT = DOCUMENT_ROOT.string() + '/';
+    // Resolve as absolute path
+    try {
+        DOCUMENT_ROOT = std::filesystem::canonical(DOCUMENT_ROOT);
 
-    if (!DOCUMENT_ROOT.string().size() || !std::filesystem::exists(DOCUMENT_ROOT) || !std::filesystem::is_directory(DOCUMENT_ROOT)) {
+        // Affix trailing slash
+        if (DOCUMENT_ROOT.string().size() > 0 && DOCUMENT_ROOT.string().back() != '/')
+            DOCUMENT_ROOT = DOCUMENT_ROOT.string() + '/';
+
+        if (DOCUMENT_ROOT.string().size() == 0 || !std::filesystem::exists(DOCUMENT_ROOT) || !std::filesystem::is_directory(DOCUMENT_ROOT)) {
+            std::cerr << "Failed to parse config file, DocumentRoot points to invalid/nonexistant directory.\n";
+            return CONF_FAILURE;
+        }
+    } catch (std::filesystem::filesystem_error&) {
+        // Handle std::filesystem::canonical failure
         std::cerr << "Failed to parse config file, DocumentRoot points to invalid/nonexistant directory.\n";
         return CONF_FAILURE;
     }

@@ -1,18 +1,31 @@
 #include "file.hpp"
 
 File::File(const std::string& rawPath) {
-    // Format path
-    const std::string path = (conf::DOCUMENT_ROOT / rawPath.substr(1)).string();
     this->rawPath = rawPath;
 
-    // Handle query string
-    size_t queryIndex = path.find('?');
-    if (queryIndex == std::string::npos) {
-        this->path = path;
+    // Update the actual path
+    size_t queryIndex = rawPath.find('?');
+    if ((rawPath.size() == 1 || rawPath[1] == '?') && rawPath[0] == '/') {
+        this->path = conf::DOCUMENT_ROOT.string();
     } else {
-        this->path = path.substr(0, queryIndex);
-        this->queryStr = path.substr(queryIndex);
-        this->rawPath = this->rawPath.substr(0, this->rawPath.find('?'));
+        try {
+            this->path = std::filesystem::canonical( // Canonicalize
+                conf::DOCUMENT_ROOT / rawPath.substr(1, queryIndex-1) // Prepend document root
+            ).string();
+        } catch (std::filesystem::filesystem_error&) {
+            this->exists = false;
+            return;
+        }
+
+        // Re-append slash if directory
+        if (doesDirectoryExist(this->path, true)) this->path += '/';
+    }
+
+    // Handle query string
+    if (queryIndex != std::string::npos) {
+        // Remove query string from raw path
+        this->rawPath = rawPath.substr(0, queryIndex);
+        this->queryStr = rawPath.substr(queryIndex);
     }
 
     // Check for index file

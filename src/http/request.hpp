@@ -51,6 +51,7 @@ namespace HTTP {
             std::string methodStr;
 
             std::string pathStr;
+            std::string rawPathStr; // The path BEFORE URI decoding
 
             std::string httpVersionStr;
 

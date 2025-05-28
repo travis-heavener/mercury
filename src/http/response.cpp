@@ -4,6 +4,8 @@ namespace HTTP {
 
     Response::Response(const std::string& httpVersion) {
         this->httpVersion = httpVersion;
+
+        // TODO -- verify HTTP version is valid
     }
 
     void Response::setStatus(const uint16_t statusCode) {

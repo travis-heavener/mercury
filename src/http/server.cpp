@@ -224,7 +224,7 @@ namespace HTTP {
         }
     }
 
-    void Server::genResponse(const Request& request, Response& response) {
+    void Server::genResponse(Request& request, Response& response) {
         // Verify Host header is present (RFC2616)
         if (request.getHeader("HOST") == nullptr) {
             // If the request allows HTML, return an HTML display

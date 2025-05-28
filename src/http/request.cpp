@@ -20,8 +20,12 @@ namespace HTTP {
         size_t secondSpaceIndex = line.find(" ", firstSpaceIndex+1);
 
         this->methodStr = line.substr(0, firstSpaceIndex);
-        this->pathStr = line.substr(firstSpaceIndex + 1, secondSpaceIndex - firstSpaceIndex - 1);
+        this->rawPathStr = this->pathStr = line.substr(firstSpaceIndex + 1, secondSpaceIndex - firstSpaceIndex - 1);
         this->httpVersionStr = line.substr(secondSpaceIndex + 1);
+
+        // Replace backslash w/ fwd slash
+        std::replace( this->rawPathStr.begin(), this->rawPathStr.end(), '\\', '/');
+        std::replace( this->pathStr.begin(), this->pathStr.end(), '\\', '/');
 
         // Decode URI
         decodeURI(this->pathStr);
@@ -71,6 +75,19 @@ namespace HTTP {
     }
 
     void Request::loadResponse(Response& response) const {
+        // Decode URI after removing query string
+        std::string querylessPath = this->rawPathStr.substr(0, this->rawPathStr.find("?"));
+        decodeURI(querylessPath);
+
+        // Prevent lookups to files outside of the document root
+        if (this->pathStr.size() == 0 || querylessPath.find("..") != std::string::npos || this->pathStr[0] != '/') {
+            response.setHeader("Allow", ALLOWED_METHODS);
+            response.setStatus(400);
+            if (this->isMIMEAccepted("text/html"))
+                response.loadBodyFromErrorDoc(400);
+            return;
+        }
+
         // Switch on method
         switch (this->method) {
             case METHOD::HEAD:
@@ -78,6 +95,7 @@ namespace HTTP {
                 if (pathStr.size() == 0 || pathStr[0] != '/') {
                     // If the request allows HTML, return an HTML display
                     response.setHeader("Allow", ALLOWED_METHODS);
+                    response.setStatus(400);
                     if (this->isMIMEAccepted("text/html"))
                         response.loadBodyFromErrorDoc(400);
                     break;
@@ -87,6 +105,7 @@ namespace HTTP {
                 File file(pathStr);
 
                 if (!file.exists) {
+                    response.setStatus(404);
                     if (this->isMIMEAccepted("text/html")) // If the request allows HTML, return an HTML display
                         response.loadBodyFromErrorDoc(404);
                     break;
@@ -94,6 +113,7 @@ namespace HTTP {
 
                 // Check accepted MIMES
                 if (!this->isMIMEAccepted(file.MIME)) {
+                    response.setStatus(406);
                     if (this->isMIMEAccepted("text/html")) // If the request allows HTML, return an HTML display
                         response.loadBodyFromErrorDoc(406);
                     break;
@@ -118,6 +138,7 @@ namespace HTTP {
 
                 // Attempt to buffer resource
                 if (response.loadBodyFromFile(file) == IO_FAILURE) {
+                    response.setStatus(500);
                     if (this->isMIMEAccepted("text/html"))
                         response.loadBodyFromErrorDoc(500);
                     break;
@@ -146,6 +167,7 @@ namespace HTTP {
             default: {
                 // If the request allows HTML, return an HTML display
                 response.setHeader("Allow", ALLOWED_METHODS);
+                response.setStatus(405);
                 if (this->isMIMEAccepted("text/html"))
                     response.loadBodyFromErrorDoc(405);
                 break;

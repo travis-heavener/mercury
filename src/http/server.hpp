@@ -56,7 +56,7 @@ namespace HTTP {
             int init();
             void handleReqs();
             void kill();
-            void genResponse(const Request&, Response&);
+            void genResponse(Request&, Response&);
         protected:
             void clearBuffer();
             size_t readClientSock();
