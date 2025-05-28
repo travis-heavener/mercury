@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.6.4
+- Refactored executable names (main -> mercury)
+
 ## v0.6.3
 - Add MIT license
 

@@ -8,8 +8,8 @@ BROTLI_WIN_DIR = $(BROTLI_DIR)/windows
 STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -std=c++17
 BROTLI_FLAGS = -lbrotlienc -lbrotlidec -lbrotlicommon
 
-TARGET = bin/main.o
-TARGET_WIN = bin/main.exe
+TARGET = bin/mercury
+TARGET_WIN = bin/mercury.exe
 SRCS = src/*.cpp src/http/*.cpp src/util/*.cpp lib/*.cpp
 DEPS = src/*.hpp src/http/*.hpp src/util/*.hpp lib/*.hpp $(SRCS)
 

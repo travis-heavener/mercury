@@ -46,7 +46,7 @@ mkdir bin
 # ==== Linux Build ====
 
 # Copy binary
-cp ../bin/main.o bin
+cp ../bin/mercury bin
 
 # Create tar.gz archive
 if [ -f "$LINUX_ARCHIVE" ]; then
@@ -59,8 +59,8 @@ echo "✅ Linux release archive created: $LINUX_ARCHIVE"
 # ==== Windows Build ====
 
 # Replace binary
-rm bin/main.o
-cp ../bin/main.exe bin
+rm bin/mercury
+cp ../bin/mercury.exe bin
 
 # Create zip archive
 if [ -f "$WIN_ARCHIVE" ]; then
