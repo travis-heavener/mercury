@@ -5,6 +5,7 @@
 - Added explicit support for forward slashes in document roots
 - Fixed status code handling when text/html isn't accepted as a MIME
 - Improved support with Windows-style directory separators '\'
+- Now enforces HTTP/1.1 and returns 505 status when there's a version mismatch
 
 ## v0.6.4
 - Refactored executable names (main -> mercury)

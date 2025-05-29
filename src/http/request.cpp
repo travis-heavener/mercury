@@ -75,6 +75,14 @@ namespace HTTP {
     }
 
     void Request::loadResponse(Response& response) const {
+        // Handle invalid HTTP version
+        if (this->httpVersionStr != "HTTP/1.1") {
+            response.setStatus(505);
+            if (this->isMIMEAccepted("text/html"))
+                response.loadBodyFromErrorDoc(505);
+            return;
+        }
+
         // Decode URI after removing query string
         std::string querylessPath = this->rawPathStr.substr(0, this->rawPathStr.find("?"));
         decodeURI(querylessPath);

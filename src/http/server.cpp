@@ -207,7 +207,7 @@ namespace HTTP {
                 ACCESS_LOG << request.getMethodStr() << ' ' << request.getIPStr() << ' ' << request.getPathStr() << std::endl; // Flush w/ endl vs newline
 
                 // Generate response
-                Response response(request.getVersion());
+                Response response;
                 this->genResponse(request, response);
 
                 // Load response to buffer

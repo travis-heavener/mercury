@@ -2,10 +2,8 @@
 
 namespace HTTP {
 
-    Response::Response(const std::string& httpVersion) {
-        this->httpVersion = httpVersion;
-
-        // TODO -- verify HTTP version is valid
+    Response::Response() {
+        this->httpVersion = "HTTP/1.1";
     }
 
     void Response::setStatus(const uint16_t statusCode) {

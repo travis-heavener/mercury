@@ -12,7 +12,7 @@ namespace HTTP {
 
     class Response {
         public:
-            Response(const std::string& httpVersion);
+            Response();
 
             void setStatus(const uint16_t statusCode);
             void setHeader(std::string name, const std::string& value);
