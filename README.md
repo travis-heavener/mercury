@@ -24,7 +24,7 @@ Self-signed TLS 1.3 certs are now available with OpenSSL.
 
 The `/build_tools/` directory contains all necessary shell scripts for building static binaries.
 
-Binaries are placed in the `/bin/` directory, `main.o` for Linux and `main.exe` for Windows.
+Binaries are placed in the `/bin/` directory, `mercury` for Linux and `mercury.exe` for Windows.
 
 **Note: Mercury binaries must be run from within the `/bin/` directory as resources & config files are loaded relative to the working directory.**
 
