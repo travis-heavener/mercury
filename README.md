@@ -11,8 +11,8 @@
 - [Build Info](#build-info)
     - [Linux & Windows Builds](#linux--windows-builds)
     - [Windows Only](#windows-only)
-- [Changelog](CHANGELOG.md)
-- [Credits](CREDITS.md)
+- [Changelog](#changelog)
+- [Credits](#credits)
 
 ## About
 
@@ -55,3 +55,9 @@ Binaries are placed in the `/bin/` directory, `mercury` for Linux and `mercury.e
 6. Now, build for Windows.
 
     `make windows`.
+
+## Changelog
+See [CHANGELOG.md](CHANGELOG.md)
+
+## Credits
+See [CREDITS.md](CREDITS.md)
