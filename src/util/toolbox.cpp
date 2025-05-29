@@ -2,14 +2,19 @@
 
 bool doesFileExist(const std::string& path, const bool forceInDocumentRoot) {
     const bool isFile = std::filesystem::is_regular_file(path);
-    return isFile && (!forceInDocumentRoot || path.find(conf::DOCUMENT_ROOT.string()) == 0);
+    std::string docRootStr = conf::DOCUMENT_ROOT.string();
+    std::replace( docRootStr.begin(), docRootStr.end(), '\\', '/' );
+    return isFile && (!forceInDocumentRoot || path.find(docRootStr) == 0);
 }
 
 bool doesDirectoryExist(const std::string& path, const bool forceInDocumentRoot) {
-    if (!forceInDocumentRoot)
+    if (!forceInDocumentRoot) {
         return std::filesystem::is_directory(path);
-    else // Match document root at start of filename
-        return std::filesystem::is_directory(path) && path.find(conf::DOCUMENT_ROOT.string()) == 0;
+    } else { // Match document root at start of filename
+        std::string docRootStr = conf::DOCUMENT_ROOT.string();
+        std::replace( docRootStr.begin(), docRootStr.end(), '\\', '/' );
+        return std::filesystem::is_directory(path) && path.find(docRootStr) == 0;
+    }
 }
 
 int loadErrorDoc(const int status, std::string& buffer) {
