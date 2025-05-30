@@ -1,6 +1,9 @@
+from datetime import datetime, timezone
 import socket
 
 READ_BUF_SIZE = 1024 * 16 # Read buffer size for recv
+
+gmt_now = lambda: datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
 
 class TestCase:
     def __init__(self, method: str, path: str, expected_status: int,
@@ -77,6 +80,7 @@ cases = [
     TestCase(method="HEAD", path="/",           expected_status=200),
     TestCase(method="HEAD", path="/?q=12",      expected_status=200),
     TestCase(method="HEAD", path="/index.html", expected_status=200),
+    TestCase(method="HEAD", path="/index.html", expected_status=304, headers={"IF-MODIFIED-SINCE": gmt_now()}),
 
     # Misc. statuses
     TestCase(method="HEAD", path="/foobar",     expected_status=404),
