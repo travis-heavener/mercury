@@ -1,4 +1,4 @@
 .vscode/*
 logs/*
 temp_release/*
-__pycache__/*
+__pycache__/
