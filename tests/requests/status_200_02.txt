@@ -1,2 +1,0 @@
-HEAD /?asdf=12 HTTP/1.1
-Host: Mercury Test Agent

@@ -1,2 +1,0 @@
-GET %252e%252e%255c HTTP/1.1
-Host: Mercury Test Agent
