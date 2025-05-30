@@ -5,8 +5,15 @@ cd "$(dirname "$0")"
 
 # Iterate over each potential HTTP request over HTTP
 for file in "./requests"/*; do
+    # Find the matching results file
+    expected_result_file="./expected/requests/"$(basename $file)
+    if [ ! -f $expected_result_file ]; then
+        echo "Missing result file: $expected_result_file"
+        continue
+    fi
+
     # Determine the expected code
-    expected_code=$(cat "./expected/requests/"$(basename $file))
+    expected_code=$(cat $expected_result_file)
 
     # Invoke each HTTP request
     status_code=$(cat "$file" | ncat 127.0.0.1 80 \
