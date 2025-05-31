@@ -76,6 +76,10 @@ cases = [
     TestCase(method="HEAD", path="%252e%252e%255c", expected_status=400),
     TestCase(method="HEAD", path="..%255c",         expected_status=400),
 
+    # CRLF injection test cases
+    TestCase(method="HEAD", path="/%0D%0A",                 expected_status=404),
+    TestCase(method="HEAD", path="/index.html?q=%0D%0A",    expected_status=200),
+
     # Success cases
     TestCase(method="HEAD", path="/",           expected_status=200),
     TestCase(method="HEAD", path="/?q=12",      expected_status=200),
