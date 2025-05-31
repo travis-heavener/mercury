@@ -22,15 +22,19 @@ namespace HTTP {
         size_t secondSpaceIndex = line.find(" ", firstSpaceIndex+1);
 
         this->methodStr = line.substr(0, firstSpaceIndex);
-        this->rawPathStr = this->pathStr = line.substr(firstSpaceIndex + 1, secondSpaceIndex - firstSpaceIndex - 1);
+        this->pathStr = line.substr(firstSpaceIndex + 1, secondSpaceIndex - firstSpaceIndex - 1);
         this->httpVersionStr = line.substr(secondSpaceIndex + 1);
 
         // Replace backslash w/ fwd slash
-        std::replace( this->rawPathStr.begin(), this->rawPathStr.end(), '\\', '/');
         std::replace( this->pathStr.begin(), this->pathStr.end(), '\\', '/');
+        this->rawPathStr = this->pathStr;
 
         // Decode URI
-        decodeURI(this->pathStr);
+        try {
+            decodeURI(this->pathStr);
+        } catch (std::invalid_argument&) {
+            this->hasBadURI = true;
+        }
 
         // Determine method
         if (this->methodStr == "GET")
@@ -96,7 +100,7 @@ namespace HTTP {
 
         // Decode URI after removing query string
         std::string querylessPath = this->rawPathStr.substr(0, this->rawPathStr.find("?"));
-        decodeURI(querylessPath);
+        decodeURI(querylessPath); // Doesn't need try-catch since it's already checked in constructor
 
         // Prevent lookups to files outside of the document root
         if (this->pathStr.size() == 0 || querylessPath.find("..") != std::string::npos || this->pathStr[0] != '/') {

@@ -40,6 +40,7 @@ namespace HTTP {
 
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
+            bool isURIBad() const { return hasBadURI; };
         private:
             std::unordered_map<std::string, std::string> headers;
 
@@ -53,6 +54,7 @@ namespace HTTP {
 
             std::string pathStr;
             std::string rawPathStr; // The path BEFORE URI decoding
+            bool hasBadURI = false; // Set to true if the decodeURI method fails, handled by Response object
 
             std::string httpVersionStr;
 

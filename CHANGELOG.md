@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.2
+- Fixed bug where invalid/incomplete query strings would cause fatal crash
+
 ## v0.7.1
 - Improved support against CRLF injection
 - Force CRLF for request & response
