@@ -75,6 +75,37 @@ echo "=================== SHA-256 ==================="
 echo "  Linux: $(sha256sum $LINUX_ARCHIVE | grep -Po "[^ ]+" | head -1)"
 echo "Windows: $(sha256sum $WIN_ARCHIVE | grep -Po "[^ ]+" | head -1)"
 
+# ==== Generate SUMMARY.md ====
+
+SUMMARY_FILE="../releases/SUMMARY_$RELEASE_NAME.md"
+
+# Create summary file
+if [ -f "$SUMMARY_FILE" ]; then
+    rm -f $SUMMARY_FILE
+fi
+touch $SUMMARY_FILE
+
+# Write anchor to full changelog
+echo -e "### [Read Full Changelog](https://github.com/travis-heavener/mercury/blob/main/CHANGELOG.md)\n" > $SUMMARY_FILE
+
+# Copy most recent 5 changelog entries
+
+awk '
+  /^## v[0-9]+\.[0-9]+\.[0-9]+/ {
+    if (count == 5) exit
+    if (entry) print entry
+    entry = $0
+    count++
+    next
+  }
+  {
+    if (entry) entry = entry "\n" $0
+  }
+  END {
+    if (entry && count <= 5) print entry
+  }
+' CHANGELOG.md | head -n -1 >> $SUMMARY_FILE
+
 # ==== Clean Up ====
 
 cd ../
