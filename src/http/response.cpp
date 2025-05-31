@@ -1,5 +1,7 @@
 #include "response.hpp"
 
+#define CRLF "\r\n"
+
 namespace HTTP {
 
     Response::Response() {
@@ -76,10 +78,10 @@ namespace HTTP {
         // Stringify headers
         std::string headers;
         for (auto [name, value] : this->headers)
-            headers += name + ':' + value + '\n';
+            headers += name + ':' + value + CRLF;
 
         // Write to buffer
-        buffer = httpVersion + ' ' + std::to_string(statusCode) + ' '  + getReasonFromStatusCode(statusCode) + '\n' + headers + '\n';
+        buffer = httpVersion + ' ' + std::to_string(statusCode) + ' '  + getReasonFromStatusCode(statusCode) + CRLF + headers + CRLF;
 
         // Omit the body from HEAD requests
         if (!omitBody) buffer += body;

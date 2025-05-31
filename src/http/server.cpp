@@ -201,22 +201,26 @@ namespace HTTP {
             this->extractClientIP(clientAddr, clientIPStr);
 
             // Skip empty packets
-            if (bytesReceived > 0) {
-                // Parse request
-                Request request( this->readBuffer, clientIPStr );
-                ACCESS_LOG << request.getMethodStr() << ' ' << request.getIPStr() << ' ' << request.getPathStr() << std::endl; // Flush w/ endl vs newline
+            try {
+                if (bytesReceived > 0) {
+                    // Parse request
+                    Request request( this->readBuffer, clientIPStr );
+                    ACCESS_LOG << request.getMethodStr() << ' ' << request.getIPStr() << ' ' << request.getPathStr() << std::endl; // Flush w/ endl vs newline
 
-                // Generate response
-                Response response;
-                this->genResponse(request, response);
+                    // Generate response
+                    Response response;
+                    this->genResponse(request, response);
 
-                // Load response to buffer
-                const bool omitBody = request.getMethod() == HTTP::METHOD::HEAD;
-                std::string resBuffer;
-                response.loadToBuffer(resBuffer, omitBody);
+                    // Load response to buffer
+                    const bool omitBody = request.getMethod() == HTTP::METHOD::HEAD;
+                    std::string resBuffer;
+                    response.loadToBuffer(resBuffer, omitBody);
 
-                // Send response & close connection
-                this->writeClientSock(resBuffer.c_str(), resBuffer.size());
+                    // Send response & close connection
+                    this->writeClientSock(resBuffer.c_str(), resBuffer.size());
+                }
+            } catch (http::Exception&) {
+                // Handles invalid requests syntax (ie. non-CRLF)
             }
 
             // Close client socket & cleanup TLS
