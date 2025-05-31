@@ -1,3 +1,4 @@
+# Changelog
 ### [Read Full Changelog](https://github.com/travis-heavener/mercury/blob/main/CHANGELOG.md)
 
 ## v0.7.2
@@ -19,3 +20,9 @@
 
 ## v0.6.3
 - Add MIT license
+
+# SHA-256 Hashes
+| System | SHA-256 Hash Digest |
+|--------|---------------------|
+| Linux | `afbc4364cc44a104e0cc4f7adb13463a9c19f4ddf8e2d2228e7f77f3d09d76df` |
+| Windows | `1fb4cbd29c1280de19489ff17d73af0eedbc216ff3205ed33131b4d5c335ca85` |

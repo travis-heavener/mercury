@@ -60,12 +60,6 @@ zip -r $WIN_ARCHIVE * &> /dev/null
 
 echo "✅ Windows release archive created: $WIN_ARCHIVE"
 
-# ==== Generate SHA-256 hash digests ====
-
-echo "=================== SHA-256 ==================="
-echo "  Linux: $(sha256sum $LINUX_ARCHIVE | grep -Po "[^ ]+" | head -1)"
-echo "Windows: $(sha256sum $WIN_ARCHIVE | grep -Po "[^ ]+" | head -1)"
-
 # ==== Generate SUMMARY.md ====
 
 SUMMARY_FILE="../releases/SUMMARY_$RELEASE_NAME.md"
@@ -74,7 +68,7 @@ SUMMARY_FILE="../releases/SUMMARY_$RELEASE_NAME.md"
 touch $SUMMARY_FILE
 
 # Write anchor to full changelog
-echo -e "### [Read Full Changelog](https://github.com/travis-heavener/mercury/blob/main/CHANGELOG.md)\n" > $SUMMARY_FILE
+echo -e "# Changelog\n### [Read Full Changelog](https://github.com/travis-heavener/mercury/blob/main/CHANGELOG.md)\n" > $SUMMARY_FILE
 
 # Copy most recent 5 changelog entries
 
@@ -91,7 +85,15 @@ awk '
   } END {
     if (entry && count <= 5) print entry
   }
-' CHANGELOG.md | head -n -1 >> $SUMMARY_FILE
+' CHANGELOG.md >> $SUMMARY_FILE
+
+# Generate SHA-256 hash digests
+
+echo "# SHA-256 Hashes" >> $SUMMARY_FILE
+echo "| System | SHA-256 Hash Digest |" >> $SUMMARY_FILE
+echo "|--------|---------------------|" >> $SUMMARY_FILE
+echo -e "| Linux | \`$(sha256sum $LINUX_ARCHIVE | grep -Po "[^ ]+" | head -1)\` |" >> $SUMMARY_FILE
+echo -n "| Windows | \`$(sha256sum $WIN_ARCHIVE | grep -Po "[^ ]+" | head -1)\` |" >> $SUMMARY_FILE
 
 # ==== Clean Up ====
 
