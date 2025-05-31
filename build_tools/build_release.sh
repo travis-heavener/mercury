@@ -24,7 +24,6 @@ mkdir temp_release && cd temp_release
 mkdir logs
 touch logs/access.log
 touch logs/error.log
-ls -la
 
 # Copy default config
 cp -r ../conf .
@@ -52,7 +51,7 @@ cp ../bin/mercury bin
 if [ -f "$LINUX_ARCHIVE" ]; then
     rm -f $LINUX_ARCHIVE
 fi
-tar -czvf $LINUX_ARCHIVE *
+tar -czvf $LINUX_ARCHIVE * &> /dev/null
 
 echo "✅ Linux release archive created: $LINUX_ARCHIVE"
 
@@ -66,9 +65,15 @@ cp ../bin/mercury.exe bin
 if [ -f "$WIN_ARCHIVE" ]; then
     rm -f $WIN_ARCHIVE
 fi
-zip -r $WIN_ARCHIVE *
+zip -r $WIN_ARCHIVE * &> /dev/null
 
 echo "✅ Windows release archive created: $WIN_ARCHIVE"
+
+# ==== Generate SHA-256 hash digests ====
+
+echo "=================== SHA-256 ==================="
+echo "  Linux: $(sha256sum $LINUX_ARCHIVE | grep -Po "[^ ]+" | head -1)"
+echo "Windows: $(sha256sum $WIN_ARCHIVE | grep -Po "[^ ]+" | head -1)"
 
 # ==== Clean Up ====
 
