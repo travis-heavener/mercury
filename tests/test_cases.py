@@ -56,6 +56,7 @@ class TestCase:
     def __str__(self) -> str:
         s = f"{self.method} {self.path} {self.http_ver}\r\n"
         s += "\r\n".join(f"{k}: {v}" for k, v in self.headers.items())
+        s += "\r\n"
         return s
 
 cases = [
