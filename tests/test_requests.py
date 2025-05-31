@@ -27,7 +27,7 @@ if __name__ == "__main__":
                     num_passing += 1
         num_total += len(cases)
     except:
-        print("[Note]: IPv6 connection failure")
+        print("[Note]: IPv4 connection failure")
 
     # Run IPv6 test cases
     try:
