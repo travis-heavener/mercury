@@ -8,6 +8,9 @@ if [ -d "temp_release" ]; then
     rm -rf temp_release
 fi
 
+# Clear releases directory
+rm -rf ./releases/*
+
 # Read version
 VERSION=$(cat version.txt)
 RELEASE_NAME="${VERSION// /_}"
@@ -30,14 +33,8 @@ cp -r ../conf .
 cp -f ../conf/default/* conf
 
 # Copy license, public files, & extras
-cp -r ../public .
-cp -r ../licenses .
-cp ../version.txt .
-cp ../README.md .
-cp ../SECURITY.md .
-cp ../CREDITS.md .
-cp ../CHANGELOG.md .
-cp ../LICENSE.txt .
+cp ../{version.txt,README.md,SECURITY.md,CREDITS.md,CHANGELOG.md,LICENSE.txt} .
+cp -r ../{public,licenses} .
 
 # Create binary folder
 mkdir bin
@@ -48,9 +45,6 @@ mkdir bin
 cp ../bin/mercury bin
 
 # Create tar.gz archive
-if [ -f "$LINUX_ARCHIVE" ]; then
-    rm -f $LINUX_ARCHIVE
-fi
 tar -czvf $LINUX_ARCHIVE * &> /dev/null
 
 echo "✅ Linux release archive created: $LINUX_ARCHIVE"
@@ -62,9 +56,6 @@ rm bin/mercury
 cp ../bin/mercury.exe bin
 
 # Create zip archive
-if [ -f "$WIN_ARCHIVE" ]; then
-    rm -f $WIN_ARCHIVE
-fi
 zip -r $WIN_ARCHIVE * &> /dev/null
 
 echo "✅ Windows release archive created: $WIN_ARCHIVE"
@@ -80,9 +71,6 @@ echo "Windows: $(sha256sum $WIN_ARCHIVE | grep -Po "[^ ]+" | head -1)"
 SUMMARY_FILE="../releases/SUMMARY_$RELEASE_NAME.md"
 
 # Create summary file
-if [ -f "$SUMMARY_FILE" ]; then
-    rm -f $SUMMARY_FILE
-fi
 touch $SUMMARY_FILE
 
 # Write anchor to full changelog
@@ -100,8 +88,7 @@ awk '
   }
   {
     if (entry) entry = entry "\n" $0
-  }
-  END {
+  } END {
     if (entry && count <= 5) print entry
   }
 ' CHANGELOG.md | head -n -1 >> $SUMMARY_FILE
