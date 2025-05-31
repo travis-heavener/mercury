@@ -201,25 +201,28 @@ namespace HTTP {
             this->extractClientIP(clientAddr, clientIPStr);
 
             // Skip empty packets
+            if (bytesReceived == 0) {
+                this->closeSocket(this->c_sock);
+                continue;
+            }
+
             try {
-                if (bytesReceived > 0) {
-                    // Parse request
-                    Request request( this->readBuffer, clientIPStr );
-                    ACCESS_LOG << request.getMethodStr() << ' ' << request.getIPStr() << ' ' << request.getPathStr() << std::endl; // Flush w/ endl vs newline
+                // Parse request
+                Request request = Request( this->readBuffer, clientIPStr );
+                ACCESS_LOG << request.getMethodStr() << ' ' << request.getIPStr() << ' ' << request.getPathStr() << std::endl; // Flush w/ endl vs newline
 
-                    // Generate response
-                    Response response;
-                    this->genResponse(request, response);
+                // Generate response
+                Response response;
+                this->genResponse(request, response);
 
-                    // Load response to buffer
-                    const bool omitBody = request.getMethod() == HTTP::METHOD::HEAD;
-                    std::string resBuffer;
-                    response.loadToBuffer(resBuffer, omitBody);
+                // Load response to buffer
+                const bool omitBody = request.getMethod() == HTTP::METHOD::HEAD;
+                std::string resBuffer;
+                response.loadToBuffer(resBuffer, omitBody);
 
-                    // Send response & close connection
-                    this->writeClientSock(resBuffer.c_str(), resBuffer.size());
-                }
-            } catch (http::Exception&) {
+                // Send response & close connection
+                this->writeClientSock(resBuffer.c_str(), resBuffer.size());
+            } catch (http::Exception& e) {
                 // Handles invalid requests syntax (ie. non-CRLF)
             }
 
@@ -229,8 +232,11 @@ namespace HTTP {
     }
 
     void Server::genResponse(Request& request, Response& response) {
-        // Verify Host header is present (RFC2616)
-        if (request.getHeader("HOST") == nullptr) {
+        // Verify request is valid
+        if (
+            request.getHeader("HOST") == nullptr || // Verify Host header is present (RFC 2616)
+            request.isURIBad() // Verify URI isn't malformed
+        ) {
             // If the request allows HTML, return an HTML display
             if (request.isMIMEAccepted("text/html"))
                 response.loadBodyFromErrorDoc(400);

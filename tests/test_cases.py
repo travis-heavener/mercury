@@ -91,5 +91,8 @@ cases = [
     TestCase(method="HEAD", path="/foobar",     expected_status=404),
     TestCase(method="POST", path="/",           expected_status=405),
     TestCase(method="HEAD", path="/",           expected_status=406, headers={"Accept": "text/plain"}),
-    TestCase(method="HEAD", path="/",           expected_status=505, http_ver="HTTP/2.0")
+    TestCase(method="HEAD", path="/",           expected_status=505, http_ver="HTTP/2.0"),
+
+    # Invalid query string
+    TestCase(method="HEAD", path="/index.html%", expected_status=400)
 ]
