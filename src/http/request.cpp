@@ -13,8 +13,10 @@ namespace HTTP {
         // Read verb, path, & protocol version
         std::getline(buffer, line);
 
-        if (line.size() && line.back() == '\r') // remove carriage return
-            line.pop_back();
+        // Check for invalid status line
+        if (line.size() == 0 || line.back() != '\r')
+            throw http::Exception();
+        line.pop_back();
 
         size_t firstSpaceIndex = line.find(" ");
         size_t secondSpaceIndex = line.find(" ", firstSpaceIndex+1);
@@ -44,6 +46,11 @@ namespace HTTP {
         while (std::getline(buffer, line)) {
             if (line.size() == 0) break; // Parse body
 
+            // Check for invalid line format
+            if (line.back() != '\r')
+                throw http::Exception();
+            line.pop_back();
+
             // Find first colon-space delimiter
             firstSpaceIndex = line.find(": ");
             if (firstSpaceIndex != std::string::npos) {
@@ -55,10 +62,14 @@ namespace HTTP {
         }
 
         // Read remaining body
-        if (buffer.tellg() != -1)
-            this->body = buffer.str().substr(buffer.tellg());
-        else
-            this->body.clear();
+        this->body.clear();
+        while (std::getline(buffer, line)) {
+            // Check for invalid line format
+            if (line.back() != '\r')
+                throw http::Exception();
+            line.pop_back();
+            this->body += line;
+        }
 
         // Extract accepted MIME types
         if (headers.find("ACCEPT") != headers.end())

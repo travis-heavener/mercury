@@ -9,6 +9,7 @@
 #include <unordered_set>
 
 #include "response.hpp"
+#include "exception.hpp"
 #include "../util/toolbox.hpp"
 
 // Used by Allow headers, just simplified to one macro-def here

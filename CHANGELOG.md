@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.1
+- Improved support against CRLF injection
+- Force CRLF for request & response
+
 ## v0.7.0
 - Fixed major path injection bug
 - Added explicit support for forward slashes in document roots
