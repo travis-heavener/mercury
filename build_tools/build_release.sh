@@ -4,6 +4,9 @@ set -e
 # CD into project directory
 cd "$(dirname "$0")/../"
 
+# Rebuild binaries
+make -B
+
 if [ -d "temp_release" ]; then
     rm -rf temp_release
 fi
