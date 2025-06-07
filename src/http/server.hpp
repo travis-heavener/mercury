@@ -52,7 +52,8 @@ namespace HTTP {
 
     class Server {
         public:
-            Server(const port_t port, const u_short maxBacklog, const u_int maxBufferSize, const bool useTLS);
+            Server(const port_t port, const u_short maxBacklog, const u_int maxBufferSize, const bool useTLS)
+                : port(port), maxBacklog(maxBacklog), maxBufferSize(maxBufferSize), useTLS(useTLS) {};
             virtual ~Server() { this->kill(); };
 
             // Overridden by IPv6 servers
@@ -64,8 +65,8 @@ namespace HTTP {
             void kill();
             void genResponse(Request&, Response&);
         protected:
-            void clearBuffer();
-            ssize_t readClientSock(const int, SSL*);
+            void clearBuffer(char*);
+            ssize_t readClientSock(char*, const int, SSL*);
             ssize_t writeClientSock(const int, SSL*, std::string&);
             int closeSocket(const int);
             int closeClientSocket(const int, SSL*);
@@ -83,7 +84,6 @@ namespace HTTP {
 
             const u_short maxBacklog;
             const u_int maxBufferSize;
-            char* readBuffer;
 
             // OpenSSL
             bool useTLS;

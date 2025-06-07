@@ -2,12 +2,6 @@
 
 namespace HTTP {
 
-    Server::Server(const port_t port, const u_short maxBacklog, const u_int maxBufferSize, const bool useTLS)
-                : port(port), maxBacklog(maxBacklog), maxBufferSize(maxBufferSize), useTLS(useTLS) {
-        // Create request buffer
-        this->readBuffer = new char[this->maxBufferSize];
-    };
-
     void Server::kill() {
         // Close sockets
         for (const int c_sock : this->clientSocks) {
@@ -20,9 +14,6 @@ namespace HTTP {
             ACCESS_LOG << "Socket closed." << '\n';
             this->sock = -1;
         }
-
-        // Free read buffer
-        delete[] this->readBuffer;
 
         // Free SSL ptrs
         if (this->useTLS)
@@ -106,11 +97,11 @@ namespace HTTP {
         return 0;
     }
 
-    ssize_t Server::readClientSock(const int client, SSL* pSSL) {
+    ssize_t Server::readClientSock(char* readBuffer, const int client, SSL* pSSL) {
         if (this->useTLS)
-            return SSL_read(pSSL, this->readBuffer, this->maxBufferSize);
+            return SSL_read(pSSL, readBuffer, this->maxBufferSize);
         else
-            return recv(client, this->readBuffer, this->maxBufferSize, 0);
+            return recv(client, readBuffer, this->maxBufferSize, 0);
     }
 
     ssize_t Server::writeClientSock(const int client, SSL* pSSL, std::string& resBuffer) {
@@ -213,6 +204,10 @@ namespace HTTP {
             }
         }
 
+        // Create read buffer
+        char* readBuffer = new char[this->maxBufferSize];
+        this->clearBuffer(readBuffer);
+
         // Track keep-alive requests for a given connection
         int keepAliveReqsLeft = KEEP_ALIVE_MAX_REQ;
         while (keepAliveReqsLeft > 0) {
@@ -231,14 +226,14 @@ namespace HTTP {
             if (!(pfd.revents & POLLIN)) continue;
 
             // Read buffer
-            this->clearBuffer(); // Clear read buffer
-            const ssize_t bytesReceived = this->readClientSock(client, pSSL);
+            this->clearBuffer(readBuffer); // Clear read buffer
+            const ssize_t bytesReceived = this->readClientSock(readBuffer, client, pSSL);
             if (bytesReceived == 0) // Connection closed by client
                 break;
 
             try {
                 // Parse request
-                Request request(this->readBuffer, clientIPStr.c_str());
+                Request request(readBuffer, clientIPStr.c_str());
                 ACCESS_LOG << request.getMethodStr() << ' '  << request.getIPStr() << ' '
                         << request.getPathStr() << std::endl; // Flush w/ endl vs newline
 
@@ -280,6 +275,9 @@ namespace HTTP {
 
         // Close client socket & cleanup TLS
         this->closeClientSocket(client, pSSL);
+
+        // Free read buffer
+        delete[] readBuffer;
     }
 
     void Server::genResponse(Request& request, Response& response) {
@@ -310,9 +308,9 @@ namespace HTTP {
             response.compressBody(COMPRESS_DEFLATE);
     }
 
-    void Server::clearBuffer() {
+    void Server::clearBuffer(char* readBuffer) {
         for (u_int i = 0; i < this->maxBufferSize; ++i)
-            this->readBuffer[i] = 0;
+            readBuffer[i] = 0;
     }
 
 }
