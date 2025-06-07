@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$0")/../"
 
 # Rebuild binaries
-make -B
+make
 
 if [ -d "temp_release" ]; then
     rm -rf temp_release
