@@ -23,10 +23,12 @@
     #include <poll.h>
 #endif
 
+#include <algorithm>
 #include <cstring>
 #include <iostream>
 #include <string>
-#include <unordered_map>
+#include <thread>
+#include <unordered_set>
 
 #include "request.hpp"
 #include "response.hpp"
@@ -39,6 +41,9 @@
 #define SOCKET_FAILURE 1
 #define BIND_FAILURE 2
 #define LISTEN_FAILURE 3
+
+#define KEEP_ALIVE_TIMEOUT_MS 5000
+#define KEEP_ALIVE_MAX_REQ 100
 
 typedef unsigned short u_short;
 typedef unsigned int u_int;
@@ -54,22 +59,27 @@ namespace HTTP {
             virtual int bindSocket();
 
             int init();
-            void handleReqs();
+            void acceptLoop();
+            void handleReqs(const int, const std::string);
             void kill();
             void genResponse(Request&, Response&);
         protected:
             void clearBuffer();
-            size_t readClientSock();
-            void writeClientSock(const char*, const size_t);
+            ssize_t readClientSock(const int, SSL*);
+            ssize_t writeClientSock(const int, SSL*, std::string&);
             int closeSocket(const int);
+            int closeClientSocket(const int, SSL*);
 
             void extractClientIP(struct sockaddr_storage&, char*) const;
-            bool waitForClientData(const int);
+            ssize_t waitForClientData(struct pollfd&, const int);
             int acceptConnection(struct sockaddr_storage&, socklen_t&);
+
+            void trackClient(const int);
+            void untrackClient(const int);
 
             const port_t port;
             int sock = -1;
-            int c_sock = -1;
+            std::unordered_set<int> clientSocks;
 
             const u_short maxBacklog;
             const u_int maxBufferSize;
@@ -77,7 +87,6 @@ namespace HTTP {
 
             // OpenSSL
             bool useTLS;
-            SSL* pSSL = nullptr;
             SSL_CTX* pSSL_CTX = nullptr;
     };
 

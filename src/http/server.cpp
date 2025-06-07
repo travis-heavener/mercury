@@ -10,9 +10,10 @@ namespace HTTP {
 
     void Server::kill() {
         // Close sockets
-        if (this->c_sock != -1 && !this->closeSocket(this->c_sock)) {
-            ACCESS_LOG << "Client socket closed." << '\n';
-            this->c_sock = -1;
+        for (const int c_sock : this->clientSocks) {
+            if (c_sock != -1 && !this->closeSocket(c_sock)) {
+                ACCESS_LOG << "Client socket closed." << '\n';
+            }
         }
 
         if (this->sock != -1 && !this->closeSocket(this->sock)) {
@@ -105,34 +106,39 @@ namespace HTTP {
         return 0;
     }
 
-    size_t Server::readClientSock() {
+    ssize_t Server::readClientSock(const int client, SSL* pSSL) {
         if (this->useTLS)
-            return SSL_read(this->pSSL, this->readBuffer, this->maxBufferSize);
+            return SSL_read(pSSL, this->readBuffer, this->maxBufferSize);
         else
-            return recv(this->c_sock, this->readBuffer, this->maxBufferSize, 0);
+            return recv(client, this->readBuffer, this->maxBufferSize, 0);
     }
 
-    void Server::writeClientSock(const char* pBuffer, const size_t bufferSize) {
+    ssize_t Server::writeClientSock(const int client, SSL* pSSL, std::string& resBuffer) {
         if (this->useTLS) {
-            SSL_write(this->pSSL, pBuffer, bufferSize);
+            return SSL_write(pSSL, resBuffer.c_str(), resBuffer.size());
         } else {
-            send(this->c_sock, pBuffer, bufferSize, 0);
+            return send(client, resBuffer.c_str(), resBuffer.size(), 0);
         }
     }
 
     int Server::closeSocket(const int sock) {
-        // Cleanup TLS
-        if (this->useTLS && this->pSSL != nullptr) {
-            SSL_free(this->pSSL);
-            this->pSSL = nullptr;
-        }
-
         #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
             shutdown(sock, SD_BOTH);
             return closesocket(sock);
         #else
             return close(sock);
         #endif
+    }
+
+    int Server::closeClientSocket(const int sock, SSL* pSSL) {
+        const int status = this->closeSocket(sock);
+        this->untrackClient(sock);
+
+        // Cleanup TLS
+        if (this->useTLS)
+            SSL_free(pSSL);
+
+        return status;
     }
 
     void Server::extractClientIP(struct sockaddr_storage& clientAddr, char* clientIPStr) const {
@@ -156,64 +162,105 @@ namespace HTTP {
         #endif
     }
 
-    bool Server::waitForClientData(const int timeoutMS) {
-        struct pollfd pfd;
-        pfd.fd = this->c_sock;
+    ssize_t Server::waitForClientData(struct pollfd& pfd, const int timeoutMS) {
         pfd.events = POLLIN;
+        pfd.revents = 0;
+        return poll(&pfd, 1, timeoutMS);
+    }
 
-        const int status = poll(&pfd, 1, timeoutMS);
-        return (status > 0 && (pfd.revents & POLLIN));
+    void Server::trackClient(const int client) {
+        this->clientSocks.insert(client);
+    }
+
+    void Server::untrackClient(const int client) {
+        this->clientSocks.erase(client);
     }
 
     int Server::acceptConnection(struct sockaddr_storage& clientAddr, socklen_t& clientLen) {
-        return this->c_sock = accept(this->sock, (struct sockaddr*)&clientAddr, &clientLen);
+        return accept(this->sock, (struct sockaddr*)&clientAddr, &clientLen);
     }
 
-    void Server::handleReqs() {
-        // Accept requests from clients
-        struct sockaddr_storage clientAddr;
-        socklen_t clientLen = sizeof(clientAddr);
-        char clientIPStr[INET6_ADDRSTRLEN];
+    void Server::acceptLoop() {
+        while (true) {
+            struct sockaddr_storage clientAddr;
+            socklen_t clientLen = sizeof(clientAddr);
+            char clientIPStr[INET6_ADDRSTRLEN];
 
-        while ( this->acceptConnection(clientAddr, clientLen) >= 0 ) {
-            // Wait for data
-            if (!this->waitForClientData(75)) {
-                // Close client socket & cleanup TLS
-                this->closeSocket(this->c_sock);
-                continue;
+            // Accept connections
+            const int client = this->acceptConnection(clientAddr, clientLen);
+            if (client < 0) continue;
+
+            // Otherwise, handle the client request
+            this->trackClient(client);
+            this->extractClientIP(clientAddr, clientIPStr); // Read client IP
+
+            // Detach new thread
+            std::thread(&Server::handleReqs, this, client, std::string(clientIPStr)).detach();
+        }
+    }
+
+    // Accept requests from clients
+    void Server::handleReqs(const int client, const std::string clientIPStr) {
+        // Create SSL context
+        SSL* pSSL = nullptr;
+        if (this->useTLS) {
+            pSSL = SSL_new(this->pSSL_CTX);
+            SSL_set_fd(pSSL, client);
+
+            if (SSL_accept(pSSL) <= 0) {
+                this->closeClientSocket(client, pSSL);
+                return;
+            }
+        }
+
+        // Track keep-alive requests for a given connection
+        int keepAliveReqsLeft = KEEP_ALIVE_MAX_REQ;
+        while (keepAliveReqsLeft > 0) {
+            // Poll for data
+            struct pollfd pfd;
+            pfd.fd = client;
+            const ssize_t pollStatus = this->waitForClientData(pfd, KEEP_ALIVE_TIMEOUT_MS);
+            if (pollStatus < 0) {
+                ERROR_LOG << "poll() error: " << strerror(errno) << '\n';
+                break;
+            } else if (pollStatus == 0 || (pfd.revents & (POLLHUP | POLLERR))) {
+                break; // Time out, hang up, or fatal error
             }
 
-            // Clear buffer
-            this->clearBuffer();
-
-            if (this->useTLS) {
-                this->pSSL = SSL_new(this->pSSL_CTX);
-                SSL_set_fd(this->pSSL, this->c_sock);
-
-                if (SSL_accept(this->pSSL) <= 0) {
-                    this->closeSocket(this->c_sock);
-                    continue;
-                }
-            }
+            // Check for POLLIN event
+            if (!(pfd.revents & POLLIN)) continue;
 
             // Read buffer
-            size_t bytesReceived = this->readClientSock();
-            this->extractClientIP(clientAddr, clientIPStr);
-
-            // Skip empty packets
-            if (bytesReceived == 0) {
-                this->closeSocket(this->c_sock);
-                continue;
-            }
+            this->clearBuffer(); // Clear read buffer
+            const ssize_t bytesReceived = this->readClientSock(client, pSSL);
+            if (bytesReceived == 0) // Connection closed by client
+                break;
 
             try {
                 // Parse request
-                Request request = Request( this->readBuffer, clientIPStr );
-                ACCESS_LOG << request.getMethodStr() << ' ' << request.getIPStr() << ' ' << request.getPathStr() << std::endl; // Flush w/ endl vs newline
+                Request request(this->readBuffer, clientIPStr.c_str());
+                ACCESS_LOG << request.getMethodStr() << ' '  << request.getIPStr() << ' '
+                        << request.getPathStr() << std::endl; // Flush w/ endl vs newline
 
                 // Generate response
                 Response response;
                 this->genResponse(request, response);
+
+                // Handle keep-alive requests
+                const std::string* pConnHeader = request.getHeader("Connection");
+                std::string connHeader = (pConnHeader != nullptr) ? *pConnHeader : ""; // Copy string
+                strToLower(connHeader); // Format copied string
+                if (connHeader == "keep-alive" || (connHeader == "" && request.getVersion() == "HTTP/1.1")) {
+                    // HTTP/1.1 defaults to keep-alive
+                    response.setHeader("Connection", "keep-alive");
+                    response.setHeader("Keep-Alive",
+                                "timeout=" + std::to_string(KEEP_ALIVE_TIMEOUT_MS/1000) +
+                                ", max=" + std::to_string(KEEP_ALIVE_MAX_REQ));
+                    --keepAliveReqsLeft;
+                } else { // Close connection
+                    response.setHeader("Connection", "close");
+                    keepAliveReqsLeft = 0;
+                }
 
                 // Load response to buffer
                 const bool omitBody = request.getMethod() == HTTP::METHOD::HEAD;
@@ -221,14 +268,18 @@ namespace HTTP {
                 response.loadToBuffer(resBuffer, omitBody);
 
                 // Send response & close connection
-                this->writeClientSock(resBuffer.c_str(), resBuffer.size());
+                ssize_t bytesSent = this->writeClientSock(client, pSSL, resBuffer);
+                if (bytesSent < 0) {
+                    ERROR_LOG << "writeClientSock error: " << strerror(errno) << '\n';
+                    break;
+                }
             } catch (http::Exception& e) {
-                // Handles invalid requests syntax (ie. non-CRLF)
+                break; // Handles invalid requests syntax (ie. non-CRLF)
             }
-
-            // Close client socket & cleanup TLS
-            this->closeSocket(this->c_sock);
         }
+
+        // Close client socket & cleanup TLS
+        this->closeClientSocket(client, pSSL);
     }
 
     void Server::genResponse(Request& request, Response& response) {
