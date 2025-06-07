@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.3
+- Added Keep-Alive connection support
+- Now detaches threads for each accepted client connection (vastly improves support for Keep-Alive connections)
+
 ## v0.7.2
 - Fixed bug where invalid/incomplete query strings would cause fatal crash
 

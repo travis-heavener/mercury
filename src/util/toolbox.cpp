@@ -44,7 +44,6 @@ int loadConfHeaders(std::unordered_map<std::string, std::string>& buffer) {
     // Load preset headers
     buffer.insert({"SERVER", conf::VERSION});
     buffer.insert({"DATE", getCurrentGMTString()});
-    buffer.insert({"CONNECTION", "close"});
 
     // Base case, return success
     return IO_SUCCESS;

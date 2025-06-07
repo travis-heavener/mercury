@@ -107,12 +107,12 @@ int main() {
     if (pTLSServerV6 != nullptr && pTLSServerV6->init() < 0) m_ret;
 
     // Accept client responses (blocks main thread)
-    std::thread t_ipv4([&]() { pServer->handleReqs(); });
-    std::thread t_ipv6([&]() { pServerV6->handleReqs(); });
+    std::thread t_ipv4([&]() { pServer->acceptLoop(); });
+    std::thread t_ipv6([&]() { pServerV6->acceptLoop(); });
 
     if (conf::USE_TLS) {
-        std::thread t_ipv4TLS([&]() { pTLSServer->handleReqs(); });
-        std::thread t_ipv6TLS([&]() { pTLSServerV6->handleReqs(); });
+        std::thread t_ipv4TLS([&]() { pTLSServer->acceptLoop(); });
+        std::thread t_ipv6TLS([&]() { pTLSServerV6->acceptLoop(); });
         t_ipv4TLS.join();
         t_ipv6TLS.join();
     }
