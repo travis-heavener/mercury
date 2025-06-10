@@ -17,8 +17,6 @@
 
 Mercury is an HTTP server designed in C++ using C socket programming, and is available for both Linux and Windows.
 
-Self-signed TLS 1.3 certs are now available with OpenSSL.
-
 ## Build Info
 
 The `/build_tools/` directory contains all necessary shell scripts for building static binaries.
@@ -36,6 +34,14 @@ Binaries are placed in the `/bin/` directory, `mercury` for Linux and `mercury.e
 2. **If building for Linux**, run `make linux`.
 
     **If building for Windows**, run `make windows`.
+
+### TLS Certs
+
+Self-signed TLS 1.3 certs are now available with OpenSSL.
+
+- Replace `/conf/ssl/cert.pem` with your own certificate; and,
+
+- Replace `/conf/ssl/key.pem` with your own private key.
 
 ## Changelog
 See [CHANGELOG.md](CHANGELOG.md)
