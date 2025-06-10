@@ -1,18 +1,25 @@
 #!/bin/bash
 
-# CD to user home
-cd ~
+# CD into project directory
+cd "$(dirname "$0")/../"
+
+if [ ! -d "static_libs" ]; then
+    mkdir static_libs
+fi
+
+cd static_libs
+LIB_PATH=$(pwd)
 
 # Clean existing
 if [ -d "openssl-3.5.0" ]; then
     rm -rf openssl-3.5.0
 fi
 
-if [ -d "openssl-static" ]; then
-    rm -rf openssl-static
+if [ -d "openssl" ]; then
+    rm -rf openssl
 fi
 
-if [ -f "~/openssl-3.5.0.tar.gz" ]; then
+if [ -f "openssl-3.5.0.tar.gz" ]; then
     rm -f openssl-3.5.0.tar.gz
 fi
 
@@ -28,7 +35,8 @@ echo "Extracted archive."
 cd openssl-3.5.0
 
 # Configure static build
-./Configure linux-x86_64 no-shared no-dso no-ssl3 no-comp --prefix=$HOME/openssl-static 1> /dev/null
+echo "Configuring build... This may take a minute."
+./Configure linux-x86_64 no-shared no-dso no-ssl3 no-comp --prefix=$LIB_PATH/openssl/linux 1> /dev/null
 
 # Build static
 make -j$(nproc) 1> /dev/null
@@ -49,7 +57,8 @@ echo "Extracted archive."
 cd openssl-3.5.0
 
 # Reconfigure for Windows build
-./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix=$HOME/openssl-static/windows 1> /dev/null
+echo "Configuring build... This may take a minute."
+./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix=$LIB_PATH/openssl/windows 1> /dev/null
 
 # Build OpenSSL static for Windows
 make -j$(nproc) 1> /dev/null
@@ -58,7 +67,7 @@ echo "Built Windows binaries."
 
 # ==== Clean Up ====
 
-rm -rf ~/openssl-3.5.0
-rm -f ~/openssl-3.5.0.tar.gz
+rm -rf $LIB_PATH/openssl-3.5.0
+rm -f $LIB_PATH/openssl-3.5.0.tar.gz
 
 echo "✅ Successfully built static OpenSSL binaries."
