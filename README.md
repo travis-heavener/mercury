@@ -10,6 +10,7 @@
 - [About](#about)
 - [Build Info](#build-info)
     - [Linux & Windows Builds](#linux--windows-builds)
+    - [TLS Certs](#tls-certs)
 - [Changelog](#changelog)
 - [Credits](#credits)
 
