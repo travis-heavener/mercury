@@ -10,15 +10,12 @@
 - [About](#about)
 - [Build Info](#build-info)
     - [Linux & Windows Builds](#linux--windows-builds)
-    - [Windows Only](#windows-only)
 - [Changelog](#changelog)
 - [Credits](#credits)
 
 ## About
 
-Mercury is an HTTP server designed in C++ using the C-socket paradigm, and is available for both Linux and Windows.
-
-Self-signed TLS 1.3 certs are now available with OpenSSL.
+Mercury is an HTTP server designed in C++ using C socket programming, and is available for both Linux and Windows.
 
 ## Build Info
 
@@ -30,31 +27,21 @@ Binaries are placed in the `/bin/` directory, `mercury` for Linux and `mercury.e
 
 ### Linux & Windows Builds
 
-1. Install all necessary dependencies.
+1. Install all necessary dependencies & extract static libraries.
 
-    `./build_tools/install_deps.sh`.
+    `make libs`.
 
-2. Build the static OpenSSL binaries.
+2. **If building for Linux**, run `make linux`.
 
-    `./build_tools/build_static_openssl.sh`.
+    **If building for Windows**, run `make windows`.
 
-3. Build the static Brotli binaries.
+### TLS Certs
 
-    `./build_tools/build_static_brotli.sh`.
+Self-signed TLS 1.3 certs are now available with OpenSSL.
 
-4. **If building for Linux**, run `make linux`.
+- Replace `/conf/ssl/cert.pem` with your own certificate; and,
 
-    **If building for Windows**, go to step 5.
-
-### Windows Only
-
-5. Build the static zlib binaries.
-
-    `./build_tools/build_static_zlib.sh`.
-
-6. Now, build for Windows.
-
-    `make windows`.
+- Replace `/conf/ssl/key.pem` with your own private key.
 
 ## Changelog
 See [CHANGELOG.md](CHANGELOG.md)

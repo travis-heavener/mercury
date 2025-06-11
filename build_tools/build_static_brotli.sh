@@ -1,7 +1,14 @@
 #!/bin/bash
 
-# CD to user home
-cd ~
+# CD into project directory
+cd "$(dirname "$0")/../"
+
+if [ ! -d "static_libs" ]; then
+    mkdir static_libs
+fi
+
+cd static_libs
+LIB_PATH=$(pwd)
 
 # Clean existing
 if [ -d "brotli-static" ]; then
@@ -29,12 +36,10 @@ cmake .. \
 make
 
 # Extract resources
-mkdir ~/brotli-static
-mkdir ~/brotli-static/lib
+mkdir $LIB_PATH/brotli $LIB_PATH/brotli/linux $LIB_PATH/brotli/linux/lib
 
-mv *.a ~/brotli-static/lib
-ls -la
-cp -r ~/brotli-repo/c/include ~/brotli-static/include
+mv *.a $LIB_PATH/brotli/linux/lib
+cp -r $LIB_PATH/brotli-repo/c/include $LIB_PATH/brotli/linux/include
 
 # ==== Windows Build ====
 
@@ -56,14 +61,13 @@ cmake .. \
 make
 
 # Extract headers & linker files
-mkdir ~/brotli-static/windows
-mkdir ~/brotli-static/windows/lib
+mkdir $LIB_PATH/brotli/windows $LIB_PATH/brotli/windows/lib
 
-mv *.a ~/brotli-static/windows/lib
-mv ~/brotli-repo/c/include ~/brotli-static/windows/include
+mv *.a $LIB_PATH/brotli/windows/lib
+mv $LIB_PATH/brotli-repo/c/include $LIB_PATH/brotli/windows/include
 
 # ==== Clean Up ====
-cd ~
-rm -rf ~/brotli-repo
+cd $LIB_PATH
+rm -rf $LIB_PATH/brotli-repo
 
 echo "✅ Successfully built static Brotli binaries."
