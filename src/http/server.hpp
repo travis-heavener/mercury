@@ -35,6 +35,7 @@
 #include "tls.hpp"
 #include "../util/toolbox.hpp"
 #include "../util/file.hpp"
+#include "../logs/logger.hpp"
 
 #include <zlib.h>
 

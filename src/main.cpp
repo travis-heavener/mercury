@@ -5,6 +5,7 @@
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
 #include "util/toolbox.hpp"
+#include "logs/logger.hpp"
 
 HTTP::Server* pServer = nullptr;
 HTTP::ServerV6* pServerV6 = nullptr;

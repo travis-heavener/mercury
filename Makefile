@@ -9,8 +9,8 @@ BROTLI_FLAGS = -lbrotlienc -lbrotlidec -lbrotlicommon
 
 TARGET = bin/mercury
 TARGET_WIN = bin/mercury.exe
-SRCS = src/*.cpp src/http/*.cpp src/util/*.cpp lib/*.cpp
-DEPS = src/*.hpp src/http/*.hpp src/util/*.hpp lib/*.hpp $(SRCS)
+SRCS = src/*.cpp src/http/*.cpp src/util/*.cpp src/logs/*.cpp lib/*.cpp
+DEPS = src/*.hpp src/http/*.hpp src/util/*.hpp src/logs/*.hpp lib/*.hpp $(SRCS)
 
 all: $(TARGET) $(TARGET_WIN)
 linux: $(TARGET)

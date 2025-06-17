@@ -54,12 +54,4 @@ namespace conf {
 int loadConfig();
 void cleanupConfig();
 
-#define ACCESS_LOG conf::accessLogHandle <<   __LogTimestamp()
-#define ERROR_LOG conf::errorLogHandle << __LogTimestamp()
-
-class __LogTimestamp {
-    public:
-        friend std::ofstream& operator<<(std::ofstream&, const __LogTimestamp&);
-};
-
 #endif
