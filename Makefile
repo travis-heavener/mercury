@@ -56,3 +56,6 @@ static_openssl:
 
 static_zlib:
 	@./build_tools/build_static_zlib.sh
+
+release:
+	@./build_tools/build_release.sh
