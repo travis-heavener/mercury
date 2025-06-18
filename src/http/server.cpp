@@ -216,7 +216,8 @@ namespace HTTP {
             pfd.fd = client;
             const ssize_t pollStatus = this->waitForClientData(pfd, KEEP_ALIVE_TIMEOUT_MS);
             if (pollStatus < 0) {
-                ERROR_LOG << "poll() error: " << strerror(errno) << std::endl;
+                if (errno != 0)
+                    ERROR_LOG << "poll() error: " << strerror(errno) << std::endl;
                 break;
             } else if (pollStatus == 0 || (pfd.revents & (POLLHUP | POLLERR))) {
                 break; // Time out, hang up, or fatal error
