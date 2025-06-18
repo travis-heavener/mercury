@@ -25,5 +25,5 @@
 # SHA-256 Hashes
 | System | SHA-256 Hash Digest |
 |--------|---------------------|
-| Linux | `3b2999752ee1b83efbe9183dd2a9a0e887967c202d213ac30aa076dce3d00b3a` |
-| Windows | `7933aaf92fbdf3a6131388d156747974a768dd8682fde03b0a0862e69d59fcc5` |
+| Linux | `2b0b9dba88ee35abef3379526e8dc738d38431db1652b55789742fcfe8fb9b15` |
+| Windows | `9dd84c7aa41190885f2fb8d9f2c17ea4ef1b666de693a8d22032c9437f4a9f72` |

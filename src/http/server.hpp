@@ -14,6 +14,7 @@
     #include <ws2tcpip.h>
 
     #define poll WSAPoll
+    #define ssize_t SSIZE_T
 #else
     #include <sys/socket.h>
     #include <arpa/inet.h>

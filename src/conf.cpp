@@ -245,11 +245,4 @@ void cleanupConfig() {
         delete pMatch;
 
     conf::matchConfigs.clear();
-
-    // Close log file handles
-    if (conf::accessLogHandle.is_open())
-        conf::accessLogHandle.close();
-
-    if (conf::errorLogHandle.is_open())
-        conf::errorLogHandle.close();
 }
