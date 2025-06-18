@@ -253,13 +253,3 @@ void cleanupConfig() {
     if (conf::errorLogHandle.is_open())
         conf::errorLogHandle.close();
 }
-
-std::ofstream& operator<<(std::ofstream& os, const __LogTimestamp&) {
-    // Cast timestamp
-    using namespace std::chrono;
-    auto tp = system_clock::to_time_t(system_clock::now());
-
-    // Write to output stream
-    os << std::put_time(std::localtime(&tp), "[%m/%d/%y, %I:%M:%S %p] ");
-    return os;
-}

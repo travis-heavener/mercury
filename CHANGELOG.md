@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.4
+- Replaced existing logger w/ dedicated, thread-safe Logger class
+
 ## v0.7.3
 - Added Keep-Alive connection support
 - Now detaches threads for each accepted client connection (vastly improves support for Keep-Alive connections)
