@@ -15,7 +15,6 @@ HTTP::ServerV6* pTLSServerV6 = nullptr;
 void m_exit(); // Fwd declaration
 void catchSig(int s) {
     std::cout << "\nIntercepted exit signal " << s << ", closing...\n";
-    ACCESS_LOG << "Intercepted exit signal " << s << ", closing..." << '\n'; // No endl bc flush happens async w/ signals
     m_exit();
     exit(0);
 }
@@ -63,7 +62,7 @@ void m_exit() {
     #endif
 
     // Log process closure
-    ACCESS_LOG << "Process killed successfully." << '\n';
+    ACCESS_LOG << "Process killed successfully." << std::endl;
 
     // Cleanup config resources
     cleanupConfig();

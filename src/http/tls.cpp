@@ -5,7 +5,7 @@ SSL_CTX* initTLSContext() {
 
     SSL_CTX* ctx = SSL_CTX_new( TLS_server_method() );
     if ( !ctx ) {
-        ERROR_LOG << "Failed to create SSL context.\n";
+        ERROR_LOG << "Failed to create SSL context." << std::endl;
         return nullptr;
     }
 
@@ -14,12 +14,12 @@ SSL_CTX* initTLSContext() {
     const std::string keyPath = (conf::CWD / KEY_PATH).string();
 
     if ( SSL_CTX_use_certificate_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM) <= 0) {
-        ERROR_LOG << "Failed to load ./conf/ssl/cert.pem\n";
+        ERROR_LOG << "Failed to load ./conf/ssl/cert.pem" << std::endl;
         return nullptr;
     }
 
     if ( SSL_CTX_use_PrivateKey_file(ctx, keyPath.c_str(), SSL_FILETYPE_PEM) <= 0) {
-        ERROR_LOG << "Failed to load ./conf/ssl/key.pem\n";
+        ERROR_LOG << "Failed to load ./conf/ssl/key.pem" << std::endl;
         return nullptr;
     }
 

@@ -6,12 +6,12 @@ namespace HTTP {
         // Close sockets
         for (const int c_sock : this->clientSocks) {
             if (c_sock != -1 && !this->closeSocket(c_sock)) {
-                ACCESS_LOG << "Client socket closed." << '\n';
+                ACCESS_LOG << "Client socket closed." << std::endl;
             }
         }
 
         if (this->sock != -1 && !this->closeSocket(this->sock)) {
-            ACCESS_LOG << "Socket closed." << '\n';
+            ACCESS_LOG << "Socket closed." << std::endl;
             this->sock = -1;
         }
 
@@ -81,19 +81,19 @@ namespace HTTP {
 
         // Listen to socket
         if (listen(this->sock, this->maxBacklog) < 0) {
-            ERROR_LOG << "Failed to listen to socket (errno: " << errno << ')' << '\n';
+            ERROR_LOG << "Failed to listen to socket (errno: " << errno << ')' << std::endl;
             return LISTEN_FAILURE;
         }
 
         // Init TLS
         if (this->useTLS) {
             if ((this->pSSL_CTX = initTLSContext()) == nullptr) {
-                ERROR_LOG << "Failed to init an SSL context.\n";
+                ERROR_LOG << "Failed to init an SSL context." << std::endl;
                 return BIND_FAILURE;
             }
         }
 
-        ACCESS_LOG << "Listening to traffic on port " << this->port << '.' << '\n';
+        ACCESS_LOG << "Listening on port " << this->port << '.' << std::endl;
         return 0;
     }
 
@@ -216,7 +216,7 @@ namespace HTTP {
             pfd.fd = client;
             const ssize_t pollStatus = this->waitForClientData(pfd, KEEP_ALIVE_TIMEOUT_MS);
             if (pollStatus < 0) {
-                ERROR_LOG << "poll() error: " << strerror(errno) << '\n';
+                ERROR_LOG << "poll() error: " << strerror(errno) << std::endl;
                 break;
             } else if (pollStatus == 0 || (pfd.revents & (POLLHUP | POLLERR))) {
                 break; // Time out, hang up, or fatal error
@@ -265,7 +265,7 @@ namespace HTTP {
                 // Send response & close connection
                 ssize_t bytesSent = this->writeClientSock(client, pSSL, resBuffer);
                 if (bytesSent < 0) {
-                    ERROR_LOG << "writeClientSock error: " << strerror(errno) << '\n';
+                    ERROR_LOG << "writeClientSock error: " << strerror(errno) << std::endl;
                     break;
                 }
             } catch (http::Exception& e) {

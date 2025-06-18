@@ -17,6 +17,13 @@ Logger::~Logger() {
 
     if (thread.joinable())
         thread.join();
+
+    // Close log file handles
+    if (conf::accessLogHandle.is_open())
+        conf::accessLogHandle.close();
+
+    if (conf::errorLogHandle.is_open())
+        conf::errorLogHandle.close();
 }
 
 LoggerStream Logger::operator()(const bool isAccess) {
