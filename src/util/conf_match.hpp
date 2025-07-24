@@ -20,9 +20,12 @@ namespace conf {
             const std::unordered_map<std::string, std::string>& getHeaders() const { return headers; };
 
             const std::regex& getPattern() const { return pattern; };
+            bool showDirectoryIndexes() const { return _showDirectoryIndexes; };
+            void setShowDirectoryIndexes(const bool b) { _showDirectoryIndexes = b; };
         private:
             std::regex pattern;
             std::unordered_map<std::string, std::string> headers;
+            bool _showDirectoryIndexes;
     };
 
     Match* loadMatch(pugi::xml_node&);

@@ -127,6 +127,26 @@ namespace HTTP {
                 // Lookup file
                 File file(pathStr);
 
+                // Handle directory listing
+                if (file.isDirectory) {
+                    bool isDirectoryIndexDisabled = false;
+                    for (conf::Match* pMatch : conf::matchConfigs) {
+                        if (!pMatch->showDirectoryIndexes() && std::regex_match(file.path, pMatch->getPattern())) {
+                            // Hide the directory index
+                            response.setStatus(403);
+                            if (this->isMIMEAccepted("text/html")) // If the request allows HTML, return an HTML display
+                                response.loadBodyFromErrorDoc(403);
+
+                            // Indicate to break outer switch statement
+                            isDirectoryIndexDisabled = true;
+                            break;
+                        }
+                    }
+
+                    // Break if status was set
+                    if (isDirectoryIndexDisabled) break;
+                }
+
                 if (!file.exists) {
                     response.setStatus(404);
                     if (this->isMIMEAccepted("text/html")) // If the request allows HTML, return an HTML display
