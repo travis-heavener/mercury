@@ -40,15 +40,6 @@ int loadErrorDoc(const int status, std::string& buffer) {
     return IO_SUCCESS;
 }
 
-int loadConfHeaders(std::unordered_map<std::string, std::string>& buffer) {
-    // Load preset headers
-    buffer.insert({"SERVER", conf::VERSION});
-    buffer.insert({"DATE", getCurrentGMTString()});
-
-    // Base case, return success
-    return IO_SUCCESS;
-}
-
 void formatFileSize(size_t fileSize, std::string& buffer) {
     long double truncatedSize;
     std::stringstream ss;

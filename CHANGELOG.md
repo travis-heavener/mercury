@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.5
+- Add support for HTTP/1.0 ([#16](https://github.com/travis-heavener/mercury/issues/16))
+- Normalized response header plaintext formatting (ex. cOntENt-LeNGTh --> Content-Length)
+
 ## v0.7.4
 - Replaced existing logger w/ dedicated, thread-safe Logger class
 

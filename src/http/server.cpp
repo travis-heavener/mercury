@@ -239,7 +239,7 @@ namespace HTTP {
                         << request.getPathStr() << std::endl; // Flush w/ endl vs newline
 
                 // Generate response
-                Response response;
+                Response response(request.getVersion());
                 this->genResponse(request, response);
 
                 // Handle keep-alive requests
@@ -282,11 +282,12 @@ namespace HTTP {
     }
 
     void Server::genResponse(Request& request, Response& response) {
-        // Verify request is valid
-        if (
-            request.getHeader("HOST") == nullptr || // Verify Host header is present (RFC 2616)
-            request.isURIBad() // Verify URI isn't malformed
-        ) {
+        // Verify Host header is present for HTTP/1.1+ (RFC 2616)
+        const bool isHostRequiredAndPresent = request.getHeader("HOST") == nullptr &&
+            request.getVersion() != "HTTP/1.0" && request.getVersion() != "HTTP/0.9";
+
+        // Verify request is valid & URI isn't malformed
+        if ( isHostRequiredAndPresent || request.isURIBad() ) {
             // If the request allows HTML, return an HTML display
             if (request.isMIMEAccepted("text/html"))
                 response.loadBodyFromErrorDoc(400);

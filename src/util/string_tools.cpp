@@ -58,6 +58,18 @@ void decodeURI(std::string& str) {
     }
 }
 
+void formatHeaderCasing(std::string& header) {
+    bool isNextCharCapital = true;
+    for (size_t i = 0; i < header.size(); ++i) {
+        if (header[i] == '-') {
+            isNextCharCapital = true;
+        } else {
+            header[i] = isNextCharCapital ? ::toupper(header[i]) : ::tolower(header[i]);
+            isNextCharCapital = false;
+        }
+    }
+}
+
 int compressText(std::string& buffer, const int method) {
     if (method == COMPRESS_BROTLI) {
         buffer = brotli::compress(buffer);
