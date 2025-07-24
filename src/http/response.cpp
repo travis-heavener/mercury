@@ -4,8 +4,8 @@
 
 namespace HTTP {
 
-    Response::Response() {
-        this->httpVersion = "HTTP/1.1";
+    Response::Response(const std::string& httpVersion) {
+        this->httpVersion = httpVersion;
     }
 
     void Response::setStatus(const uint16_t statusCode) {
@@ -13,8 +13,8 @@ namespace HTTP {
     }
 
     void Response::setHeader(std::string name, const std::string& value) {
-        // Force string to be uppercase
-        std::transform(name.begin(), name.end(), name.begin(), ::toupper);
+        // Update header casing (ex. cOntENt-LeNGTh --> Content-Length)
+        formatHeaderCasing(name);
         this->headers.insert({name, value});
     }
 
@@ -62,7 +62,7 @@ namespace HTTP {
     }
 
     const std::string Response::getContentType() const {
-        auto type = this->headers.find("CONTENT-TYPE");
+        auto type = this->headers.find("Content-Type");
         if (type == this->headers.end()) return "";
         return type->second;
     }
@@ -73,11 +73,12 @@ namespace HTTP {
         this->setHeader("Content-Length", contentLen);
 
         // Load config headers last to overwrite any dupes that have been previously set
-        loadConfHeaders(this->headers);
+        this->setHeader("Server", conf::VERSION);
+        this->setHeader("Date", getCurrentGMTString());
 
         // Stringify headers
         std::string headers;
-        for (auto [name, value] : this->headers)
+        for (auto& [name, value] : this->headers)
             headers += name + ':' + value + CRLF;
 
         // Write to buffer

@@ -21,6 +21,7 @@ void splitStringUnique(std::unordered_set<std::string>&, std::string&, char, boo
 void stringReplaceAll(std::string&, const std::string&, const std::string&);
 void trimString(std::string&);
 void decodeURI(std::string&);
+void formatHeaderCasing(std::string&);
 
 int compressText(std::string&, const int);
 

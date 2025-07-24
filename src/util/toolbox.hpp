@@ -13,7 +13,6 @@
 bool doesFileExist(const std::string&, const bool);
 bool doesDirectoryExist(const std::string&, const bool);
 int loadErrorDoc(const int, std::string&);
-int loadConfHeaders(std::unordered_map<std::string, std::string>&);
 
 void formatFileSize(size_t, std::string&);
 void formatDate(const std::chrono::system_clock::duration, std::string&);

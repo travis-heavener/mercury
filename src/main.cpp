@@ -1,6 +1,7 @@
 #include <signal.h>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
@@ -88,10 +89,12 @@ int main() {
     }
 
     // Init server
+    int totalSockets = 2;
     pServer = new HTTP::Server(conf::PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, false);
     pServerV6 = new HTTP::ServerV6(conf::PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, false);
 
     if (conf::USE_TLS) {
+        totalSockets += 2;
         pTLSServer = new HTTP::Server(conf::TLS_PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, true);
         pTLSServerV6 = new HTTP::ServerV6(conf::TLS_PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, true);
     }
@@ -99,26 +102,50 @@ int main() {
     // Print welcome banner
     printWelcomeBanner();
 
-    #define m_ret { m_exit(); return 1; }
-    if (pServer != nullptr && pServer->init() < 0) m_ret;
-    if (pServerV6 != nullptr && pServerV6->init() < 0) m_ret;
-
-    if (pTLSServer != nullptr && pTLSServer->init() < 0) m_ret;
-    if (pTLSServerV6 != nullptr && pTLSServerV6->init() < 0) m_ret;
-
-    // Accept client responses (blocks main thread)
-    std::thread t_ipv4([&]() { pServer->acceptLoop(); });
-    std::thread t_ipv6([&]() { pServerV6->acceptLoop(); });
-
-    if (conf::USE_TLS) {
-        std::thread t_ipv4TLS([&]() { pTLSServer->acceptLoop(); });
-        std::thread t_ipv6TLS([&]() { pTLSServerV6->acceptLoop(); });
-        t_ipv4TLS.join();
-        t_ipv6TLS.join();
+    // Track how many servers fail to start
+    int serversFailed = 0;
+    if (pServer != nullptr && pServer->init() > 0) {
+        ++serversFailed;
+        pServer = nullptr;
     }
 
-    t_ipv6.join();
-    t_ipv4.join();
+    if (pServerV6 != nullptr && pServerV6->init() > 0) {
+        ++serversFailed;
+        pServerV6 = nullptr;
+    }
+
+    if (pTLSServer != nullptr && pTLSServer->init() > 0) {
+        ++serversFailed;
+        pTLSServer = nullptr;
+    }
+
+    if (pTLSServerV6 != nullptr && pTLSServerV6->init() > 0) {
+        ++serversFailed;
+        pTLSServerV6 = nullptr;
+    }
+
+    if (serversFailed == totalSockets) { // All failed to start, exit
+        m_exit();
+        return 1;
+    }
+
+    // Accept client responses (blocks main thread)
+    std::vector<std::thread> threads;
+    if (pServer != nullptr)
+        threads.push_back( std::thread([p = pServer]() { p->acceptLoop(); }) );
+
+    if (pServerV6 != nullptr)
+        threads.push_back( std::thread([p = pServerV6]() { p->acceptLoop(); }) );
+
+    if (pTLSServer != nullptr)
+        threads.push_back( std::thread([p = pTLSServer]() { p->acceptLoop(); }) );
+
+    if (pTLSServerV6 != nullptr)
+        threads.push_back( std::thread([p = pTLSServerV6]() { p->acceptLoop(); }) );
+
+    // Join all threads
+    for (std::thread& t : threads)
+        t.join();
 
     // Clean up
     m_exit();
