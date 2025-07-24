@@ -1,7 +1,8 @@
 # Changelog
 
 ## v0.7.6
-- Add support for toggling directory index listings in Match nodes
+- Add support for toggling directory index listings in config file Match nodes
+- Can now toggle IPv4 & IPv6 independently in config file
 
 ## v0.7.5
 - Add support for HTTP/1.0 ([#16](https://github.com/travis-heavener/mercury/issues/16))

@@ -30,6 +30,8 @@ namespace conf {
 
     extern std::filesystem::path DOCUMENT_ROOT;
     extern port_t PORT;
+    extern bool IS_IPV4_ENABLED;
+    extern bool IS_IPV6_ENABLED;
     extern unsigned short MAX_REQUEST_BACKLOG;
     extern unsigned int MAX_REQUEST_BUFFER;
     extern std::vector<conf::Match*> matchConfigs;

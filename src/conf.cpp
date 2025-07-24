@@ -8,6 +8,8 @@ namespace conf {
 
     std::filesystem::path DOCUMENT_ROOT;
     port_t PORT;
+    bool IS_IPV4_ENABLED;
+    bool IS_IPV6_ENABLED;
     unsigned short MAX_REQUEST_BACKLOG;
     unsigned int MAX_REQUEST_BUFFER;
     std::vector<conf::Match*> matchConfigs;
@@ -101,6 +103,47 @@ int loadConfig() {
     }
 
     PORT = portNode.text().as_uint();
+
+    /************************** Extract IPv4 toggle **************************/
+    pugi::xml_node ipv4Node = root.child("EnableIPv4");
+    if (!ipv4Node) {
+        std::cerr << "Failed to parse config file, missing EnableIPv4 node.\n";
+        return CONF_FAILURE;
+    }
+
+    std::string ipv4StatusStr = ipv4Node.text().as_string();
+    trimString(ipv4StatusStr);
+
+    // Verify valid value provided
+    if (ipv4StatusStr != "on" && ipv4StatusStr != "off") {
+        std::cerr << "Failed to parse config file, invalid value for EnableIPv4.\n";
+        return CONF_FAILURE;
+    }
+
+    IS_IPV4_ENABLED = ipv4StatusStr == "on";
+
+    /************************** Extract IPv6 toggle **************************/
+    pugi::xml_node ipv6Node = root.child("EnableIPv6");
+    if (!ipv6Node) {
+        std::cerr << "Failed to parse config file, missing EnableIPv6 node.\n";
+        return CONF_FAILURE;
+    }
+
+    std::string ipv6StatusStr = ipv6Node.text().as_string();
+    trimString(ipv6StatusStr);
+
+    // Verify valid value provided
+    if (ipv6StatusStr != "on" && ipv6StatusStr != "off") {
+        std::cerr << "Failed to parse config file, invalid value for EnableIPv6.\n";
+        return CONF_FAILURE;
+    }
+
+    IS_IPV6_ENABLED = ipv6StatusStr == "on";
+
+    if (!IS_IPV4_ENABLED && !IS_IPV6_ENABLED) {
+        std::cerr << "Either IPv4 or IPv6 must be enabled in the config file!\n";
+        return CONF_FAILURE;
+    }
 
     /************************** Extract IndexFile **************************/
     pugi::xml_node indexFileNode = root.child("IndexFile");
