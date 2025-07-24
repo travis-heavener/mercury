@@ -4,6 +4,8 @@
 ## v0.7.5
 - Add support for HTTP/1.0 ([#16](https://github.com/travis-heavener/mercury/issues/16))
 - Normalized response header plaintext formatting (ex. cOntENt-LeNGTh --> Content-Length)
+- Fix socket init failure handling (now properly exits if all sockets fail)
+- Improved handling of individual main threads for each socket
 
 ## v0.7.4
 - Replaced existing logger w/ dedicated, thread-safe Logger class
@@ -22,5 +24,5 @@
 # SHA-256 Hashes
 | System | SHA-256 Hash Digest |
 |--------|---------------------|
-| Linux | `a37e73e4791f9058b96fd379cdea8c251fa0da6d3e560bdb16feacb9b2850f5d` |
-| Windows | `4a5e7d2cdc6de7548be10473649aabbb0912c96b73634926439dc609dda5b2ae` |
+| Linux | `a51a67e3f5c0d409e2c1f4a903c752f12547fd8dc0f214daf738874f669725e1` |
+| Windows | `b66477bc7b48f2cf3d6e80c81ae28d591ed1184a4991165ef75b123f1b92a656` |
