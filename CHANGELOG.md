@@ -3,6 +3,9 @@
 ## v0.7.6
 - Add support for toggling directory index listings in config file Match nodes
 - Can now toggle IPv4 & IPv6 independently in config file
+- Now explicitly rejects accessing symlinked content
+    - Symlinking the document root itself is still allowed
+    - Note than an Internal Server Error (500) may occur if attempting to access Linux symlinks on Windows
 
 ## v0.7.5
 - Add support for HTTP/1.0 ([#16](https://github.com/travis-heavener/mercury/issues/16))

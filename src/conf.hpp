@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "util/string_tools.hpp"
+#include "util/file_tools.hpp"
 #include "util/conf_match.hpp"
 
 #include "../lib/pugixml.hpp"

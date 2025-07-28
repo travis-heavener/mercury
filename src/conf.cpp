@@ -79,7 +79,7 @@ int loadConfig() {
 
     // Resolve as absolute path
     try {
-        DOCUMENT_ROOT = std::filesystem::canonical(DOCUMENT_ROOT);
+        DOCUMENT_ROOT = resolveCanonicalPath(DOCUMENT_ROOT);
 
         // Affix trailing slash
         if (DOCUMENT_ROOT.string().size() > 0 && DOCUMENT_ROOT.string().back() != '/')

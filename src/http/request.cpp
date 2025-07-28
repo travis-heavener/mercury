@@ -127,6 +127,24 @@ namespace HTTP {
                 // Lookup file
                 File file(pathStr);
 
+                // Catch early caught IO failure
+                if (file.ioFailure) {
+                    // Internal server error from IO
+                    response.setStatus(500);
+                    if (this->isMIMEAccepted("text/html"))
+                        response.loadBodyFromErrorDoc(500);
+                    break;
+                }
+
+                // Verify not a symlink or hardlink
+                if (file.isLinked) {
+                    // If the request allows HTML, return an HTML display
+                    response.setStatus(403);
+                    if (this->isMIMEAccepted("text/html"))
+                        response.loadBodyFromErrorDoc(403);
+                    break;
+                }
+
                 // Handle directory listing
                 if (file.isDirectory) {
                     bool isDirectoryIndexDisabled = false;
