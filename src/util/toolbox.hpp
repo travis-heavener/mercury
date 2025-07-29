@@ -7,11 +7,22 @@
 #include <string>
 #include <unordered_map>
 
+#ifdef _WIN32
+    #include <windows.h>
+#endif
+
 #include "string_tools.hpp"
+#include "file_tools.hpp"
 #include "../conf.hpp"
+
+#define NOT_SYMLINK 0
+#define IS_SYMLINK 1
+#define FILE_NOT_EXIST 2
+#define INTERNAL_ERROR 3
 
 bool doesFileExist(const std::string&, const bool);
 bool doesDirectoryExist(const std::string&, const bool);
+int isSymlinked(const std::filesystem::path&);
 int loadErrorDoc(const int, std::string&);
 
 void formatFileSize(size_t, std::string&);

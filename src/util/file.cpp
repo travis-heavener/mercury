@@ -2,9 +2,9 @@
 
 File::File(const std::string& rawPath) {
     this->rawPath = rawPath;
+    size_t queryIndex = rawPath.find('?');
 
     // Update the actual path
-    size_t queryIndex = rawPath.find('?');
     if ((rawPath.size() == 1 || rawPath[1] == '?') && rawPath[0] == '/') {
         this->path = conf::DOCUMENT_ROOT.string();
 
@@ -12,11 +12,14 @@ File::File(const std::string& rawPath) {
         std::replace( this->path.begin(), this->path.end(), '\\', '/' );
     } else {
         try {
-            this->path = std::filesystem::canonical( // Canonicalize
+            this->path = resolveCanonicalPath( // Canonicalize
                 conf::DOCUMENT_ROOT / rawPath.substr(1, queryIndex-1) // Prepend document root
             ).string();
         } catch (std::filesystem::filesystem_error&) {
             this->exists = false;
+            return;
+        } catch (std::runtime_error&) {
+            this->ioFailure = true;
             return;
         }
 
@@ -36,11 +39,13 @@ File::File(const std::string& rawPath) {
 
     // Check for index file
     if (this->path.back() == '/' && std::filesystem::exists(this->path + conf::INDEX_FILE) &&
-        !std::filesystem::is_directory(this->path + conf::INDEX_FILE))
+        !std::filesystem::is_directory(this->path + conf::INDEX_FILE)) {
         this->path += conf::INDEX_FILE;
+    }
 
     // Handle the MIME type if this is a directory
     if (doesDirectoryExist(this->path, true)) {
+        // Prepare directory index listing
         this->MIME = "text/html";
         this->exists = true;
         this->isDirectory = true;
@@ -50,6 +55,19 @@ File::File(const std::string& rawPath) {
         if (ext.size()) ext = ext.substr(1); // Remove leading period
         this->MIME = conf::MIMES.find(ext) != conf::MIMES.end() ? conf::MIMES[ext] : "";
         this->exists = doesFileExist(this->path, true);
+    }
+
+    // Reject symlinks or hardlinks
+    const int linkStatus = isSymlinked( this->path );
+    if (linkStatus == INTERNAL_ERROR) {
+        this->ioFailure = true;
+        return;
+    } else if (linkStatus == IS_SYMLINK) {
+        this->isLinked = true;
+        return;
+    } else if (linkStatus == FILE_NOT_EXIST) {
+        this->exists = false;
+        return;
     }
 }
 

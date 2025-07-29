@@ -19,7 +19,8 @@ namespace conf {
             return nullptr;
         }
 
-        // Extract all Headers
+        /***************************** Extract all Headers *****************************/
+
         pugi::xml_object_range headerNodes = root.children("Header");
 
         for (pugi::xml_node& headerNode : headerNodes) {
@@ -38,6 +39,27 @@ namespace conf {
             // Append header
             pMatch->addHeader(name, value);
         }
+
+        /***************************** Extract ShowDirectoryIndexes *****************************/
+        pugi::xml_node showDirectoryIndexNode = root.child("ShowDirectoryIndexes");
+
+        if (!showDirectoryIndexNode) {
+            std::cerr << "Failed to parse config file, missing ShowDirectoryIndexes node in Match.\n";
+            delete pMatch;
+            return nullptr;
+        }
+
+        std::string showDirectoryIndexStr = showDirectoryIndexNode.text().as_string();
+        trimString(showDirectoryIndexStr);
+
+        // Verify valid value provided
+        if (showDirectoryIndexStr != "on" && showDirectoryIndexStr != "off") {
+            std::cerr << "Failed to parse config file, invalid value for ShowDirectoryIndexes node in Match.\n";
+            delete pMatch;
+            return nullptr;
+        }
+
+        pMatch->setShowDirectoryIndexes( showDirectoryIndexStr == "on" );
 
         // Return Match ptr
         return pMatch;

@@ -54,8 +54,9 @@ namespace HTTP {
 
     class Server {
         public:
-            Server(const port_t port, const u_short maxBacklog, const u_int maxBufferSize, const bool useTLS)
-                : port(port), maxBacklog(maxBacklog), maxBufferSize(maxBufferSize), useTLS(useTLS) {};
+            Server(const port_t port, const bool useTLS) :
+                port(port), maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::MAX_REQUEST_BUFFER),
+                useTLS(useTLS) {};
             virtual ~Server() { this->kill(); };
 
             // Overridden by IPv6 servers

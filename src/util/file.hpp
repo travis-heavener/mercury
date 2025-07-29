@@ -14,7 +14,9 @@ class File {
         int loadToBuffer(std::string&);
         std::string getLastModifiedGMT() const;
         bool exists = false;
+        bool isLinked = false; // True if symlink or hardlink
         bool isDirectory = false;
+        bool ioFailure = false; // True if an IO failure occured
 
         std::string MIME;
         std::string path;

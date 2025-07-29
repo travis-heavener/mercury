@@ -89,14 +89,27 @@ int main() {
     }
 
     // Init server
-    int totalSockets = 2;
-    pServer = new HTTP::Server(conf::PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, false);
-    pServerV6 = new HTTP::ServerV6(conf::PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, false);
+    int totalSockets = 0;
+    if (conf::IS_IPV4_ENABLED) {
+        ++totalSockets;
+        pServer = new HTTP::Server(conf::PORT, false);
+    }
+
+    if (conf::IS_IPV6_ENABLED) {
+        ++totalSockets;
+        pServerV6 = new HTTP::ServerV6(conf::PORT, false);
+    }
 
     if (conf::USE_TLS) {
-        totalSockets += 2;
-        pTLSServer = new HTTP::Server(conf::TLS_PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, true);
-        pTLSServerV6 = new HTTP::ServerV6(conf::TLS_PORT, conf::MAX_REQUEST_BACKLOG, conf::MAX_REQUEST_BUFFER, true);
+        if (conf::IS_IPV4_ENABLED) {
+            ++totalSockets;
+            pTLSServer = new HTTP::Server(conf::TLS_PORT, true);
+        }
+
+        if (conf::IS_IPV6_ENABLED) {
+            ++totalSockets;
+            pTLSServerV6 = new HTTP::ServerV6(conf::TLS_PORT, true);
+        }
     }
 
     // Print welcome banner
