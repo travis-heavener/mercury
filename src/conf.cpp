@@ -93,6 +93,10 @@ int loadConfig() {
         // Handle std::filesystem::canonical failure
         std::cerr << "Failed to parse config file, DocumentRoot points to invalid/nonexistant directory.\n";
         return CONF_FAILURE;
+    } catch (std::runtime_error&) {
+        // Handle canonical failure from IO error
+        std::cerr << "Failed to parse config file, DocumentRoot points to invalid/nonexistant directory.\n";
+        return CONF_FAILURE;
     }
 
     /************************** Extract Port **************************/
