@@ -15,6 +15,7 @@ namespace HTTP {
             Response(const std::string&);
 
             void setStatus(const uint16_t statusCode);
+            uint16_t getStatus() const { return statusCode; };
             void setHeader(std::string name, const std::string& value);
 
             int loadBodyFromErrorDoc(const uint16_t statusCode);

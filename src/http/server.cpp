@@ -235,12 +235,18 @@ namespace HTTP {
             try {
                 // Parse request
                 Request request(readBuffer, clientIPStr.c_str());
-                ACCESS_LOG << request.getMethodStr() << ' '  << request.getIPStr() << ' '
-                        << request.getPathStr() << std::endl; // Flush w/ endl vs newline
 
                 // Generate response
                 Response response(request.getVersion());
                 this->genResponse(request, response);
+
+                // GET ::1 [200]
+                ACCESS_LOG << request.getMethodStr() << ' '
+                        << request.getIPStr() << ' '
+                        << request.getPathStr()
+                        << " -- (" << response.getStatus() << ") ["
+                        << request.getVersion() << ']'
+                        << std::endl; // Flush w/ endl vs newline
 
                 // Handle keep-alive requests
                 const std::string* pConnHeader = request.getHeader("Connection");
