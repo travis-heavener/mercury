@@ -215,13 +215,8 @@ namespace HTTP {
             struct pollfd pfd;
             pfd.fd = client;
             const ssize_t pollStatus = this->waitForClientData(pfd, KEEP_ALIVE_TIMEOUT_MS);
-            if (pollStatus < 0) {
-                if (errno != 0)
-                    ERROR_LOG << "poll() error: " << strerror(errno) << std::endl;
-                break;
-            } else if (pollStatus == 0 || (pfd.revents & (POLLHUP | POLLERR))) {
+            if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR)))
                 break; // Time out, hang up, or fatal error
-            }
 
             // Check for POLLIN event
             if (!(pfd.revents & POLLIN)) continue;
@@ -265,10 +260,7 @@ namespace HTTP {
 
                 // Send response & close connection
                 ssize_t bytesSent = this->writeClientSock(client, pSSL, resBuffer);
-                if (bytesSent < 0) {
-                    ERROR_LOG << "writeClientSock error: " << strerror(errno) << std::endl;
-                    break;
-                }
+                if (bytesSent < 0) break;
             } catch (http::Exception& e) {
                 break; // Handles invalid requests syntax (ie. non-CRLF)
             }
