@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.7
+- Reduce excessive error logging
+- Improved clarity of socket error & init logs (now includes TLS status & IPv4/IPv6 mode)
+- Now writes access logs after processing the request, not before
+    - Added request HTTP version
+    - Added response status
+
 ## v0.7.6
 - Add support for toggling directory index listings in config file Match nodes
 - Can now toggle IPv4 & IPv6 independently in config file

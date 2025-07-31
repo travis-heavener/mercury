@@ -7,30 +7,30 @@ namespace HTTP {
         this->sock = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 
         if (this->sock < 0) {
-            ERROR_LOG << "Failed to open IPv6 socket on port " << this->port << std::endl;
+            ERROR_LOG << "Failed to open socket (" << this->getDetailsStr() << ") on port " << this->port << std::endl;
             return SOCKET_FAILURE;
         }
 
         // Init socket opts
         const int optFlag = 1;
         if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set IPv6 socket opt SO_REUSEADDR." << std::endl;
+            ERROR_LOG << "Failed to set IPv6 socket opt SO_REUSEADDR (" << this->getDetailsStr() << ")." << std::endl;
             return SOCKET_FAILURE;
         }
 
         if (setsockopt(this->sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set IPv6 socket opt TCP_NODELAY." << std::endl;
+            ERROR_LOG << "Failed to set IPv6 socket opt TCP_NODELAY (" << this->getDetailsStr() << ")." << std::endl;
             return SOCKET_FAILURE;
         }
 
         if (setsockopt(this->sock, IPPROTO_IPV6, IPV6_V6ONLY, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set IPv6 socket opt IPV6_V6ONLY." << std::endl;
+            ERROR_LOG << "Failed to set IPv6 socket opt IPV6_V6ONLY (" << this->getDetailsStr() << ")." << std::endl;
             return SOCKET_FAILURE;
         }
 
         #if __linux__
             if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&optFlag, sizeof(int)) < 0) {
-                ERROR_LOG << "Failed to set IPv6 socket opt SO_REUSEPORT." << std::endl;
+                ERROR_LOG << "Failed to set IPv6 socket opt SO_REUSEPORT (" << this->getDetailsStr() << ")." << std::endl;
                 return SOCKET_FAILURE;
             }
         #endif
@@ -50,9 +50,9 @@ namespace HTTP {
             #endif
 
             if (err == 13) { // Improve error handling for errno 13 (need sudo to listen to port)
-                ERROR_LOG << "Failed to bind IPv6 socket (errno: " << err << ", do you have sudo perms?)" << std::endl;
+                ERROR_LOG << "Failed to bind socket (" << this->getDetailsStr() << "), errno: " << err << ", do you have sudo perms?" << std::endl;
             } else {
-                ERROR_LOG << "Failed to bind IPv6 socket (errno: " << err << ')' << std::endl;
+                ERROR_LOG << "Failed to bind socket (" << this->getDetailsStr() << "), errno: " << err << std::endl;
             }
             return BIND_FAILURE;
         }
