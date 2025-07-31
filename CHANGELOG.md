@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.7
+- Reduce excessive error logging
+- Now writes access logs after processing the request, not before
+- Improved logging for blocked access requests
+- Extended information in access logs (status, HTTP version)
+
 ## v0.7.6
 - Add support for toggling directory index listings in config file Match nodes
 - Can now toggle IPv4 & IPv6 independently in config file
