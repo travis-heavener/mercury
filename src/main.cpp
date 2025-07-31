@@ -8,10 +8,7 @@
 #include "util/toolbox.hpp"
 #include "logs/logger.hpp"
 
-HTTP::Server* pServer = nullptr;
-HTTP::ServerV6* pServerV6 = nullptr;
-HTTP::Server* pTLSServer = nullptr;
-HTTP::ServerV6* pTLSServerV6 = nullptr;
+std::vector<HTTP::Server*> serversVec;
 
 void m_exit(); // Fwd declaration
 void catchSig(int s) {
@@ -53,10 +50,10 @@ void printWelcomeBanner() {
 }
 
 void m_exit() {
-    if (pServer != nullptr) delete pServer;
-    if (pTLSServer != nullptr) delete pTLSServer;
-    if (pServerV6 != nullptr) delete pServerV6;
-    if (pTLSServerV6 != nullptr) delete pTLSServerV6;
+    for (HTTP::Server* pServer : serversVec) {
+        pServer->kill(); // Kill the server
+        delete pServer;
+    }
 
     #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
         WSACleanup();
@@ -89,72 +86,46 @@ int main() {
     }
 
     // Init server
-    int totalSockets = 0;
-    if (conf::IS_IPV4_ENABLED) {
-        ++totalSockets;
-        pServer = new HTTP::Server(conf::PORT, false);
-    }
+    if (conf::IS_IPV4_ENABLED)
+        serversVec.push_back(new HTTP::Server(conf::PORT, false));
 
-    if (conf::IS_IPV6_ENABLED) {
-        ++totalSockets;
-        pServerV6 = new HTTP::ServerV6(conf::PORT, false);
-    }
+    if (conf::IS_IPV6_ENABLED)
+        serversVec.push_back(new HTTP::ServerV6(conf::PORT, false));
 
     if (conf::USE_TLS) {
-        if (conf::IS_IPV4_ENABLED) {
-            ++totalSockets;
-            pTLSServer = new HTTP::Server(conf::TLS_PORT, true);
-        }
+        if (conf::IS_IPV4_ENABLED)
+            serversVec.push_back(new HTTP::Server(conf::TLS_PORT, true));
 
-        if (conf::IS_IPV6_ENABLED) {
-            ++totalSockets;
-            pTLSServerV6 = new HTTP::ServerV6(conf::TLS_PORT, true);
-        }
+        if (conf::IS_IPV6_ENABLED)
+            serversVec.push_back(new HTTP::ServerV6(conf::TLS_PORT, true));
     }
 
     // Print welcome banner
     printWelcomeBanner();
 
-    // Track how many servers fail to start
-    int serversFailed = 0;
-    if (pServer != nullptr && pServer->init() > 0) {
-        ++serversFailed;
-        pServer = nullptr;
+    // Remove servers that fail to start
+    for (auto itr = serversVec.begin(); itr != serversVec.end(); (void)itr) {
+        if ((*itr)->init() > 0) {
+            // Free server
+            (*itr)->kill(); // Kill the server
+            delete *itr;
+
+            // Erase from vector
+            itr = serversVec.erase( itr );
+            continue; // Skip increment
+        }
+        ++itr; // Base case, increment as usual
     }
 
-    if (pServerV6 != nullptr && pServerV6->init() > 0) {
-        ++serversFailed;
-        pServerV6 = nullptr;
-    }
-
-    if (pTLSServer != nullptr && pTLSServer->init() > 0) {
-        ++serversFailed;
-        pTLSServer = nullptr;
-    }
-
-    if (pTLSServerV6 != nullptr && pTLSServerV6->init() > 0) {
-        ++serversFailed;
-        pTLSServerV6 = nullptr;
-    }
-
-    if (serversFailed == totalSockets) { // All failed to start, exit
+    if (serversVec.size() == 0) { // All failed to start, exit
         m_exit();
         return 1;
     }
 
     // Accept client responses (blocks main thread)
     std::vector<std::thread> threads;
-    if (pServer != nullptr)
+    for (HTTP::Server* pServer : serversVec)
         threads.push_back( std::thread([p = pServer]() { p->acceptLoop(); }) );
-
-    if (pServerV6 != nullptr)
-        threads.push_back( std::thread([p = pServerV6]() { p->acceptLoop(); }) );
-
-    if (pTLSServer != nullptr)
-        threads.push_back( std::thread([p = pTLSServer]() { p->acceptLoop(); }) );
-
-    if (pTLSServerV6 != nullptr)
-        threads.push_back( std::thread([p = pTLSServerV6]() { p->acceptLoop(); }) );
 
     // Join all threads
     for (std::thread& t : threads)

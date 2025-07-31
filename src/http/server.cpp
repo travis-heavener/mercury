@@ -5,14 +5,14 @@ namespace HTTP {
     void Server::kill() {
         // Close sockets
         for (const int c_sock : this->clientSocks) {
-            if (c_sock != -1 && !this->closeSocket(c_sock)) {
-                ACCESS_LOG << "Client socket closed." << std::endl;
+            if (c_sock != SOCKET_UNSET) {
+                this->closeSocket(c_sock);
             }
         }
 
-        if (this->sock != -1 && !this->closeSocket(this->sock)) {
-            ACCESS_LOG << "Socket closed." << std::endl;
-            this->sock = -1;
+        if (this->sock != SOCKET_UNSET && !this->closeSocket(this->sock)) {
+            ACCESS_LOG << "Server socket closed (" << this->getDetailsStr() << ")." << std::endl;
+            this->sock = SOCKET_UNSET;
         }
 
         // Free SSL ptrs
@@ -25,25 +25,25 @@ namespace HTTP {
         this->sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
         if (this->sock < 0) {
-            ERROR_LOG << "Failed to open socket on port " << this->port << std::endl;
+            ERROR_LOG << "Failed to open socket (" << this->getDetailsStr() << ") on port " << this->port << std::endl;
             return SOCKET_FAILURE;
         }
 
         // Init socket opts
         const int optFlag = 1;
         if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set socket opt SO_REUSEADDR." << std::endl;
+            ERROR_LOG << "Failed to set socket opt SO_REUSEADDR (" << this->getDetailsStr() << ")." << std::endl;
             return SOCKET_FAILURE;
         }
 
         if (setsockopt(this->sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set socket opt TCP_NODELAY." << std::endl;
+            ERROR_LOG << "Failed to set socket opt TCP_NODELAY (" << this->getDetailsStr() << ")." << std::endl;
             return SOCKET_FAILURE;
         }
 
         #if __linux__
             if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&optFlag, sizeof(int)) < 0) {
-                ERROR_LOG << "Failed to set socket opt SO_REUSEPORT." << std::endl;
+                ERROR_LOG << "Failed to set socket opt SO_REUSEPORT (" << this->getDetailsStr() << ")." << std::endl;
                 return SOCKET_FAILURE;
             }
         #endif
@@ -55,17 +55,16 @@ namespace HTTP {
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
         if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            const int err = 
             #ifdef __linux__
-                errno;
+                const int err = errno;
             #else
-                WSAGetLastError();
+                const int err = WSAGetLastError();
             #endif
 
             if (err == 13) { // Improve error handling for errno 13 (need sudo to listen to port)
-                ERROR_LOG << "Failed to bind socket (errno: " << err << ", do you have sudo perms?)" << std::endl;
+                ERROR_LOG << "Failed to bind socket (" << this->getDetailsStr() << "), errno: " << err << ", do you have sudo perms?" << std::endl;
             } else {
-                ERROR_LOG << "Failed to bind socket (errno: " << err << ')' << std::endl;
+                ERROR_LOG << "Failed to bind socket (" << this->getDetailsStr() << "), errno: " << err << std::endl;
             }
             return BIND_FAILURE;
         }
@@ -81,19 +80,19 @@ namespace HTTP {
 
         // Listen to socket
         if (listen(this->sock, this->maxBacklog) < 0) {
-            ERROR_LOG << "Failed to listen to socket (errno: " << errno << ')' << std::endl;
+            ERROR_LOG << "Failed to listen to socket (" << this->getDetailsStr() << "), errno: " << errno << std::endl;
             return LISTEN_FAILURE;
         }
 
         // Init TLS
         if (this->useTLS) {
             if ((this->pSSL_CTX = initTLSContext()) == nullptr) {
-                ERROR_LOG << "Failed to init an SSL context." << std::endl;
+                ERROR_LOG << "Failed to init an SSL context (" << this->getDetailsStr() << ")." << std::endl;
                 return BIND_FAILURE;
             }
         }
 
-        ACCESS_LOG << "Listening on port " << this->port << '.' << std::endl;
+        ACCESS_LOG << "Listening on port " << this->port << " (" << this->getDetailsStr() << ")." << std::endl;
         return 0;
     }
 
@@ -105,11 +104,10 @@ namespace HTTP {
     }
 
     ssize_t Server::writeClientSock(const int client, SSL* pSSL, std::string& resBuffer) {
-        if (this->useTLS) {
+        if (this->useTLS)
             return SSL_write(pSSL, resBuffer.c_str(), resBuffer.size());
-        } else {
+        else
             return send(client, resBuffer.c_str(), resBuffer.size(), 0);
-        }
     }
 
     int Server::closeSocket(const int sock) {
@@ -165,6 +163,13 @@ namespace HTTP {
 
     void Server::untrackClient(const int client) {
         this->clientSocks.erase(client);
+    }
+
+    std::string Server::getDetailsStr() const {
+        std::stringstream ss;
+        ss << "IPv" << (this->isIPv4() ? "4" : "6");
+        if (this->useTLS) ss << " w/ TLS";
+        return ss.str();
     }
 
     int Server::acceptConnection(struct sockaddr_storage& clientAddr, socklen_t& clientLen) {

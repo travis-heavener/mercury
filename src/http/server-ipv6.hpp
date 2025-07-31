@@ -12,6 +12,7 @@ namespace HTTP {
 
             // Overridden by IPv6 servers
             int bindSocket();
+            bool isIPv4() const { return false; };
         private:
     };
 

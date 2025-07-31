@@ -40,6 +40,8 @@
 
 #include <zlib.h>
 
+#define SOCKET_UNSET -1
+
 #define SOCKET_FAILURE 1
 #define BIND_FAILURE 2
 #define LISTEN_FAILURE 3
@@ -57,10 +59,11 @@ namespace HTTP {
             Server(const port_t port, const bool useTLS) :
                 port(port), maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::MAX_REQUEST_BUFFER),
                 useTLS(useTLS) {};
-            virtual ~Server() { this->kill(); };
+            virtual ~Server() = default;
 
             // Overridden by IPv6 servers
             virtual int bindSocket();
+            virtual bool isIPv4() const { return true; };
 
             int init();
             void acceptLoop();
@@ -68,21 +71,27 @@ namespace HTTP {
             void kill();
             void genResponse(Request&, Response&);
         protected:
+            // Socket methods
             void clearBuffer(char*);
             ssize_t readClientSock(char*, const int, SSL*);
             ssize_t writeClientSock(const int, SSL*, std::string&);
             int closeSocket(const int);
             int closeClientSocket(const int, SSL*);
 
+            // Request loop helper methods
             void extractClientIP(struct sockaddr_storage&, char*) const;
             ssize_t waitForClientData(struct pollfd&, const int);
             int acceptConnection(struct sockaddr_storage&, socklen_t&);
 
+            // Client socket tracking methods
             void trackClient(const int);
             void untrackClient(const int);
 
+            std::string getDetailsStr() const;
+
+            // Protected fields
             const port_t port;
-            int sock = -1;
+            int sock = SOCKET_UNSET;
             std::unordered_set<int> clientSocks;
 
             const u_short maxBacklog;
