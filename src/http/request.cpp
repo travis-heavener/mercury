@@ -221,6 +221,13 @@ namespace HTTP {
                 break;
             }
             case METHOD::OPTIONS: {
+                // Verify version is valid
+                if (this->httpVersionStr == "HTTP/1.0") {
+                    // OPTIONS introduced in HTTP/1.1
+                    response.setStatus(405);
+                    break;
+                }
+
                 response.setHeader("Allow", ALLOWED_METHODS);
                 response.setStatus(200);
                 break;
