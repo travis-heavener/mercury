@@ -10,10 +10,12 @@
 
 std::vector<HTTP::Server*> serversVec;
 
-void m_exit(); // Fwd declaration
+/******************** SIGNAL HANDLERS & CLEANUP ********************/
+
+void cleanExit(); // Fwd declaration
 void catchSig(int s) {
     std::cout << "\nIntercepted exit signal " << s << ", closing...\n";
-    m_exit();
+    cleanExit();
     exit(0);
 }
 
@@ -33,23 +35,7 @@ void initSigHandler() {
     #endif
 }
 
-void printCenteredVersion() {
-    const int leftPadding = (34 - conf::VERSION.length()) / 2;
-    const int rightPadding = 34 - conf::VERSION.length() - leftPadding;
-
-    std::cout << '|' << std::string(leftPadding, ' ') << conf::VERSION << std::string(rightPadding, ' ') << '|' << '\n';
-}
-
-void printWelcomeBanner() {
-    std::cout << "------------------------------------\n";
-    printCenteredVersion();
-    std::cout << "|           ...........            |\n"
-                 "|         Ctrl+C to close.         |\n"
-                 "------------------------------------\n";
-    ACCESS_LOG << conf::VERSION << " started successfully." << std::endl;
-}
-
-void m_exit() {
+void cleanExit() {
     for (HTTP::Server* pServer : serversVec) {
         pServer->kill(); // Kill the server
         delete pServer;
@@ -66,6 +52,26 @@ void m_exit() {
     cleanupConfig();
 }
 
+/******************** WELCOME BANNER METHODS ********************/
+
+void printCenteredVersion() {
+    const int leftPadding = (34 - conf::VERSION.length()) / 2;
+    const int rightPadding = 34 - conf::VERSION.length() - leftPadding;
+
+    std::cout << '|' << std::string(leftPadding, ' ') << conf::VERSION << std::string(rightPadding, ' ') << '|' << '\n';
+}
+
+void printWelcomeBanner() {
+    std::cout << "------------------------------------\n";
+    printCenteredVersion();
+    std::cout << "|           ...........            |\n"
+                 "|         Ctrl+C to close.         |\n"
+                 "------------------------------------\n";
+    ACCESS_LOG << conf::VERSION << " started successfully." << std::endl;
+}
+
+/******************** ENTRY POINT ********************/
+
 int main() {
     // Initialize Winsock API
     #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
@@ -81,7 +87,7 @@ int main() {
 
     // Load config files
     if (loadConfig() == CONF_FAILURE) {
-        m_exit();
+        cleanExit();
         return 1;
     }
 
@@ -118,7 +124,7 @@ int main() {
     }
 
     if (serversVec.size() == 0) { // All failed to start, exit
-        m_exit();
+        cleanExit();
         return 1;
     }
 
@@ -132,6 +138,6 @@ int main() {
         t.join();
 
     // Clean up
-    m_exit();
+    cleanExit();
     return 0;
 }
