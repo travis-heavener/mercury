@@ -43,7 +43,12 @@ jobs:
               run: |
                 sudo apt install python3
                 cd tests
-                py run.py |
+                OUTPUT=$(python3 run.py)
+                if echo "$OUTPUT" | tail -n 1 | grep -q "❌"; then
+                  kill -INT $(cat pid.txt)
+                  sleep 5
+                  exit 1
+                fi
 
             # Kill the server
             - name: Kill Server
