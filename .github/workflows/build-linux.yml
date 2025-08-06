@@ -1,0 +1,53 @@
+name: Build (Linux)
+
+on:
+    workflow_dispatch:
+    push:
+        branches: ["main"]
+        paths:
+            - "src/**"
+            - "lib/**"
+    pull_request:
+        branches: ["main"]
+        paths:
+            - "src/**"
+            - "lib/**"
+
+jobs:
+    Build:
+        runs-on: ubuntu-22.04
+        steps:
+            - uses: actions/checkout@v4
+
+            # # Fix executables
+            # - name: Make executable shell scripts
+            #   run: sudo chmod +x ./build_tools/*.sh
+
+            # # Build libraries
+            # - name: Make Libraries
+            #   run: make libs
+
+            # # Build binary
+            # - name: Build Mercury Binary
+            #   run: sudo make linux -B
+
+            # Start Mercury
+            - name: Start Mercury
+              run: |
+                cd bin
+                chmod +x ./mercury
+                sudo ./mercury
+                echo $! > pid.txt  # save the PID
+
+            # Run Python test cases
+            - name: Python Test Runner
+              run: |
+                sudo apt install python3
+                cd tests
+                py run.py |
+
+            # Kill the server
+            - name: Kill Server
+              run: |
+                kill -SIGTERM $(cat pid.txt)
+                sleep 5 # Allow time to shutdown
