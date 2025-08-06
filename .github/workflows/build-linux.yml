@@ -36,8 +36,7 @@ jobs:
               run: |
                 cd bin
                 chmod +x ./mercury
-                sudo ./mercury
-                echo $! > pid.txt  # save the PID
+                sudo ./mercury & echo $! > pid.txt
 
             # Run Python test cases
             - name: Python Test Runner
@@ -49,5 +48,5 @@ jobs:
             # Kill the server
             - name: Kill Server
               run: |
-                kill -SIGTERM $(cat pid.txt)
+                kill -INT $(cat pid.txt)
                 sleep 5 # Allow time to shutdown
