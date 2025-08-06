@@ -31,12 +31,16 @@ jobs:
             # - name: Build Mercury Binary
             #   run: sudo make linux -B
 
+            # Make log files
+            - name: Make Log Files
+              run: sudo mkdir logs
+
             # Start Mercury
             - name: Start Mercury
               run: |
                 cd bin
                 chmod +x ./mercury
-                sudo ./mercury & echo $! > pid.txt
+                sudo ./mercury & echo $! > ../pid.txt
 
             # Run Python test cases
             - name: Python Test Runner
@@ -44,8 +48,9 @@ jobs:
                 sudo apt install python3
                 cd tests
                 OUTPUT=$(python3 run.py)
+                echo "$OUTPUT"
                 if echo "$OUTPUT" | tail -n 1 | grep -q "❌"; then
-                  kill -INT $(cat pid.txt)
+                  kill -INT $(cat ../pid.txt)
                   sleep 5
                   exit 1
                 fi
