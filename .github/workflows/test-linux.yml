@@ -19,6 +19,22 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
+            - name: Configure Ports & Enable IPv4 & IPv6
+              run: |
+                port=8081
+                sslPort=8082
+
+                # Update conf/mercury.conf
+                sed -i "s|<DocumentRoot>[[:space:]]*.*[[:space:]]*</DocumentRoot>|<DocumentRoot> $docRoot </DocumentRoot>|" conf/mercury.conf
+                sed -i "s|<Port>[[:space:]]*[0-9]\+[[:space:]]*</Port>|<Port> $port </Port>|" conf/mercury.conf
+                sed -i "s|<TLSPort>[[:space:]]*.*[[:space:]]*</TLSPort>|<TLSPort> $sslPort </TLSPort>|" conf/mercury.conf
+                sed -i "s|<EnableIPv4>[[:space:]]*off[[:space:]]*</EnableIPv4>|<EnableIPv4> on </EnableIPv4>|" conf/mercury.conf
+                sed -i "s|<EnableIPv6>[[:space:]]*off[[:space:]]*</EnableIPv6>|<EnableIPv6> on </EnableIPv6>|" conf/mercury.conf
+
+                # Update tests/run.py
+                sed -i "s|port[[:space:]]*=[[:space:]]*.*|port = $port|" tests/run.py
+                sed -i "s|ssl_port[[:space:]]*=[[:space:]]*.*|ssl_port = $sslPort|" tests/run.py
+
             # Make log files
             - name: Make Log Files
               run: sudo mkdir logs
