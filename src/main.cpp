@@ -110,7 +110,7 @@ int main() {
 
     // Remove servers that fail to start
     for (auto itr = serversVec.begin(); itr != serversVec.end(); (void)itr) {
-        if ((*itr)->init() > 0) {
+        if ((*itr)->init() != 0) {
             // Free server
             (*itr)->kill(); // Kill the server
 

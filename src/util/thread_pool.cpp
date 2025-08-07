@@ -1,5 +1,5 @@
 #include "thread_pool.hpp"
-#include <iostream>
+
 ThreadPool::ThreadPool(const int threadCount) {
     for (int i = 0; i < threadCount; ++i)
         workers.emplace_back([this] { this->workerLoop(); });
@@ -54,10 +54,11 @@ void ThreadPool::stop() {
     // Join all threads
     while (workers.size() > 0) {
         std::thread& t = workers.back();
-        workers.pop_back();
 
         // Join thread
         if (t.joinable())
             t.join();
+
+        workers.pop_back();
     }
 }
