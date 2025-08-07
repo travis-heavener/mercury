@@ -11,6 +11,7 @@
 - [Build Info](#build-info)
     - [Linux & Windows Builds](#linux--windows-builds)
     - [TLS Certs](#tls-certs)
+- [Testing Suite](#testing-suite)
 - [Changelog](#changelog)
 - [Credits](#credits)
 
@@ -43,6 +44,13 @@ Self-signed TLS 1.3 certs are now available with OpenSSL.
 - Replace `/conf/ssl/cert.pem` with your own certificate; and,
 
 - Replace `/conf/ssl/key.pem` with your own private key.
+
+## Testing Suite
+
+This project has its own Python test runner complete with passes for IPv4 & IPv6 traffic with and without TLS enabled.
+The test runner is available in the `tests` directory.
+
+With Python installed, fire up the Mercury server, cd into the tests directory, and use the `run.py` file to run a number of tests against the server.
 
 ## Changelog
 See [CHANGELOG.md](CHANGELOG.md)
