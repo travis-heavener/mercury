@@ -91,7 +91,7 @@ namespace HTTP {
 
     void Request::loadResponse(Response& response) const {
         // Handle invalid HTTP version
-        if (this->httpVersionStr != "HTTP/1.1" && this->httpVersionStr != "HTTP/1.0") {
+        if (!this->isVersionSupported()) {
             response.setStatus(505);
             if (this->isMIMEAccepted("text/html"))
                 response.loadBodyFromErrorDoc(505);
@@ -104,7 +104,7 @@ namespace HTTP {
 
         // Prevent lookups to files outside of the document root
         if (this->pathStr.size() == 0 || querylessPath.find("..") != std::string::npos || this->pathStr[0] != '/') {
-            response.setHeader("Allow", ALLOWED_METHODS);
+            response.setHeader("Allow", this->getAllowedMethods());
             response.setStatus(400);
             if (this->isMIMEAccepted("text/html"))
                 response.loadBodyFromErrorDoc(400);
@@ -114,7 +114,7 @@ namespace HTTP {
         // Validate path string
         if (pathStr.size() == 0 || pathStr[0] != '/') {
             // If the request allows HTML, return an HTML display
-            response.setHeader("Allow", ALLOWED_METHODS);
+            response.setHeader("Allow", this->getAllowedMethods());
             response.setStatus(400);
             if (this->isMIMEAccepted("text/html"))
                 response.loadBodyFromErrorDoc(400);
@@ -223,13 +223,13 @@ namespace HTTP {
                     break;
                 }
 
-                response.setHeader("Allow", ALLOWED_METHODS);
+                response.setHeader("Allow", this->getAllowedMethods());
                 response.setStatus(200);
                 break;
             }
             default: {
                 // If the request allows HTML, return an HTML display
-                response.setHeader("Allow", ALLOWED_METHODS);
+                response.setHeader("Allow", this->getAllowedMethods());
                 response.setStatus(405); // Method Not Allowed
                 if (this->isMIMEAccepted("text/html"))
                     response.loadBodyFromErrorDoc(405);
@@ -270,6 +270,21 @@ namespace HTTP {
         // Format split buffer
         for (std::string& mime : splitBuf)
             splitVec.insert(mime.substr(0, mime.find(';')));
+    }
+
+    bool Request::isVersionSupported() const {
+        return this->httpVersionStr == "HTTP/1.1" || this->httpVersionStr == "HTTP/1.0";
+    }
+
+    std::string Request::getAllowedMethods() const {
+        // Return the allowed methods for the particular version
+        if (this->httpVersionStr == "HTTP/1.1") {
+            return "GET, HEAD, OPTIONS";
+        } else if (this->httpVersionStr == "HTTP/1.0") {
+            return "GET, HEAD";
+        } else {
+            throw std::runtime_error("Invalid HTTP version passed to Request::getAllowedMethods");
+        }
     }
 
 }

@@ -12,9 +12,6 @@
 #include "exception.hpp"
 #include "../util/toolbox.hpp"
 
-// Used by Allow headers, just simplified to one macro-def here
-#define ALLOWED_METHODS "GET, HEAD, OPTIONS"
-
 namespace HTTP {
 
     enum METHOD {
@@ -42,6 +39,9 @@ namespace HTTP {
             bool isEncodingAccepted(const std::string&) const;
             bool isURIBad() const { return hasBadURI; };
         private:
+            bool isVersionSupported() const;
+            std::string getAllowedMethods() const;
+
             std::unordered_map<std::string, std::string> headers;
 
             std::unordered_set<std::string> acceptedMIMETypes;
