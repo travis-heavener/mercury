@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "../../lib/brotli-cpp.hpp"
 #include <zlib.h>
 
 #define IO_SUCCESS 0

@@ -3,6 +3,7 @@
 #include <thread>
 #include <vector>
 
+#include "conf/conf.hpp"
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
 #include "util/toolbox.hpp"
@@ -20,7 +21,7 @@ void catchSig(int s) {
 }
 
 void initSigHandler() {
-    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+    #ifdef _WIN32
         signal(SIGINT, catchSig);
         signal(SIGABRT, catchSig);
         signal(SIGTERM, catchSig);

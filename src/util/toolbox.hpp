@@ -8,12 +8,12 @@
 #include <unordered_map>
 
 #ifdef _WIN32
-    #include <windows.h>
+    #include "../winheader.hpp"
 #endif
 
 #include "string_tools.hpp"
-#include "file_tools.hpp"
-#include "../conf.hpp"
+#include "../io/file_tools.hpp"
+#include "../conf/conf.hpp"
 
 #define NOT_SYMLINK 0
 #define IS_SYMLINK 1

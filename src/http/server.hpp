@@ -1,20 +1,8 @@
 #ifndef __HTTP_SERVER_HPP
 #define __HTTP_SERVER_HPP
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-    // Fix inet_ntop unavailable
-    #ifndef _WIN32_WINNT
-        #define _WIN32_WINNT 0x0600
-    #elif _WIN32_WINNT < 0x0600
-        #undef _WIN32_WINNT
-        #define _WIN32_WINNT 0x0600
-    #endif
-
-    #include <winsock2.h>
-    #include <ws2tcpip.h>
-
-    #define poll WSAPoll
-    #define ssize_t SSIZE_T
+#ifdef _WIN32
+    #include "../winheader.hpp"
 #else
     #include <sys/socket.h>
     #include <arpa/inet.h>
@@ -35,7 +23,7 @@
 #include "request.hpp"
 #include "response.hpp"
 #include "tls.hpp"
-#include "../util/file.hpp"
+#include "../io/file.hpp"
 #include "../util/toolbox.hpp"
 #include "../util/thread_pool.hpp"
 #include "../logs/logger.hpp"

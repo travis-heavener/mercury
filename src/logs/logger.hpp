@@ -11,7 +11,7 @@
 #include <string>
 #include <thread>
 
-#include "../conf.hpp"
+#include "../conf/conf.hpp"
 
 #define ACCESS_LOG Logger::getInstance()(true) << genTimestamp()
 #define ERROR_LOG Logger::getInstance()(false) << genTimestamp()

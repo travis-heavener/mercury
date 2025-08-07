@@ -1,7 +1,5 @@
 #include "string_tools.hpp"
 
-#include "../../lib/brotli-cpp.hpp"
-
 void strToUpper(std::string& str) {
     std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 }
