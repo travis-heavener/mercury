@@ -303,10 +303,3 @@ std::string getReasonFromStatusCode(uint16_t code) {
         default: return "Unknown";
     }
 }
-
-// Debug profiling
-long long debug_getTimestamp() {
-    using namespace std::chrono;
-    milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-    return ms.count();
-}

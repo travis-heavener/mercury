@@ -37,7 +37,4 @@ std::string getCurrentGMTString();
 
 std::string getReasonFromStatusCode(uint16_t);
 
-// Debug profiling
-long long debug_getTimestamp();
-
 #endif
