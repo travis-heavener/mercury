@@ -21,6 +21,7 @@ jobs:
 
             - name: Configure Ports & Enable IPv4 & IPv6
               run: |
+                docRoot="./public/"
                 port=8081
                 sslPort=8082
 
