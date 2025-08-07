@@ -39,9 +39,6 @@
 #define KEEP_ALIVE_TIMEOUT_MS 3000
 #define KEEP_ALIVE_MAX_REQ 100
 
-typedef unsigned short u_short;
-typedef unsigned int u_int;
-
 namespace HTTP {
 
     // Fwd dec
@@ -100,8 +97,8 @@ namespace HTTP {
             int sock = SOCKET_UNSET;
             std::unordered_set<int> clientSocks;
 
-            const u_short maxBacklog;
-            const u_int maxBufferSize;
+            const unsigned short maxBacklog;
+            const unsigned int maxBufferSize;
 
             // For multithreading
             std::shared_mutex clientsMutex;

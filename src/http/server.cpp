@@ -320,7 +320,7 @@ namespace HTTP {
     }
 
     void Server::clearBuffer(char* readBuffer) {
-        for (u_int i = 0; i < this->maxBufferSize; ++i)
+        for (unsigned int i = 0; i < this->maxBufferSize; ++i)
             readBuffer[i] = 0;
     }
 
