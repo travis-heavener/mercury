@@ -1,4 +1,4 @@
-name: Build (Linux)
+name: Test Runner (Linux)
 
 on:
     workflow_dispatch:
@@ -19,18 +19,6 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
-            # # Fix executables
-            # - name: Make executable shell scripts
-            #   run: sudo chmod +x ./build_tools/*.sh
-
-            # # Build libraries
-            # - name: Make Libraries
-            #   run: make libs
-
-            # # Build binary
-            # - name: Build Mercury Binary
-            #   run: sudo make linux -B
-
             # Make log files
             - name: Make Log Files
               run: sudo mkdir logs
@@ -49,7 +37,7 @@ jobs:
                 cd tests
                 OUTPUT=$(python3 run.py)
                 echo "$OUTPUT"
-                if echo "$OUTPUT" | tail -n 1 | grep -q "❌"; then
+                if echo "$OUTPUT" | tail -n 2 | grep -q "Failure"; then
                   kill -INT $(cat ../pid.txt)
                   sleep 5
                   exit 1
