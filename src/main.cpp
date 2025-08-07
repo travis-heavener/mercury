@@ -6,7 +6,6 @@
 #include "conf/conf.hpp"
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
-#include "util/toolbox.hpp"
 #include "logs/logger.hpp"
 
 std::vector<std::shared_ptr<HTTP::Server>> serversVec;
@@ -41,7 +40,7 @@ void cleanExit() {
         pServer->kill(); // Kill the server
     }
 
-    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+    #ifdef _WIN32
         WSACleanup();
     #endif
 

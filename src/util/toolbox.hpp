@@ -12,7 +12,6 @@
 #endif
 
 #include "string_tools.hpp"
-#include "../io/file_tools.hpp"
 #include "../conf/conf.hpp"
 
 void formatFileSize(size_t, std::string&);
