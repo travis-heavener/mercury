@@ -5,6 +5,7 @@
 
 import socket
 import ssl
+import sys
 from test_cases import cases
 
 host = "127.0.0.1"
@@ -37,8 +38,8 @@ if __name__ == "__main__":
                 else:
                     num_passing += 1
         num_total += len(cases)
-    except:
-        print("[Note]: IPv4 connection failure")
+    except Exception as e:
+        print("[Note]: IPv4 connection failure", e)
 
     # Run IPv4 SSL test cases
     try:
@@ -52,8 +53,8 @@ if __name__ == "__main__":
                     else:
                         num_passing += 1
         num_total += len(cases)
-    except:
-        print("[Note]: IPv4 SSL connection failure")
+    except Exception as e:
+        print("[Note]: IPv4 SSL connection failure", e)
 
     # Run IPv6 test cases
     try:
@@ -68,8 +69,8 @@ if __name__ == "__main__":
                 else:
                     num_passing += 1
         num_total += len(cases)
-    except:
-        print("[Note]: IPv6 connection failure")
+    except Exception as e:
+        print("[Note]: IPv6 connection failure", e)
 
     # Run IPv6 SSL test cases
     try:
@@ -83,9 +84,10 @@ if __name__ == "__main__":
                     else:
                         num_passing += 1
         num_total += len(cases)
-    except:
-        print("[Note]: IPv6 SSL connection failure")
+    except Exception as e:
+        print("[Note]: IPv6 SSL connection failure", e)
 
     # Print result
-    print("✅" if num_passing == num_total else "❌", end=" ")
+    sys.stdout.reconfigure(encoding="utf-8")
+    print("Success ✅" if num_passing == num_total else "Failure ❌")
     print(f"Passing: {num_passing}/{num_total}")
