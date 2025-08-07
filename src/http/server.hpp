@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <cstring>
 #include <iostream>
+#include <shared_mutex>
 #include <string>
 #include <thread>
 #include <unordered_set>
@@ -34,8 +35,9 @@
 #include "request.hpp"
 #include "response.hpp"
 #include "tls.hpp"
-#include "../util/toolbox.hpp"
 #include "../util/file.hpp"
+#include "../util/toolbox.hpp"
+#include "../util/thread_pool.hpp"
 #include "../logs/logger.hpp"
 
 #include <zlib.h>
@@ -46,7 +48,7 @@
 #define BIND_FAILURE 2
 #define LISTEN_FAILURE 3
 
-#define KEEP_ALIVE_TIMEOUT_MS 5000
+#define KEEP_ALIVE_TIMEOUT_MS 3000
 #define KEEP_ALIVE_MAX_REQ 100
 
 typedef unsigned short u_short;
@@ -54,10 +56,25 @@ typedef unsigned int u_int;
 
 namespace HTTP {
 
-    class Server {
+    // Fwd dec
+    class Server;
+
+    // RAII client tracker class (eliminates need for mutex when tracking client sockets)
+    class ClientTracker {
+        public:
+            ClientTracker(Server& server, int clientSock) : server(server), clientSock(clientSock) {};
+            ~ClientTracker() {};
+            void release() { isAlive = false; };
+        private:
+            Server& server;
+            int clientSock;
+            bool isAlive;
+    };
+
+    class Server : public std::enable_shared_from_this<Server> {
         public:
             Server(const port_t port, const bool useTLS) :
-                port(port), maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::MAX_REQUEST_BUFFER),
+                port(port), maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::MAX_REQUEST_BUFFER), threadPool(conf::THREADS_PER_CHILD),
                 useTLS(useTLS) {};
             virtual ~Server() = default;
 
@@ -87,6 +104,7 @@ namespace HTTP {
             void trackClient(const int);
             void untrackClient(const int);
 
+            // For logs
             std::string getDetailsStr() const;
 
             // Protected fields
@@ -96,6 +114,10 @@ namespace HTTP {
 
             const u_short maxBacklog;
             const u_int maxBufferSize;
+
+            // For multithreading
+            std::shared_mutex clientsMutex;
+            ThreadPool threadPool;
 
             // OpenSSL
             bool useTLS;

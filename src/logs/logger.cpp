@@ -8,7 +8,7 @@ Logger::Logger() : isExited(false) {
 Logger::~Logger() {
     // Join & close thread
     {
-        std::lock_guard<std::mutex> lock(queueMutex);
+        std::lock_guard<std::mutex> lock(writeMutex);
         isExited = true;
     }
 
@@ -32,12 +32,14 @@ LoggerStream Logger::operator()(const bool isAccess) {
 
 // Queues access logs
 void Logger::queueAccessLog(const std::string& log) {
+    std::lock_guard<std::mutex> lock(accessQueueMutex);
     accessQueue.push(log);
     cv.notify_one();
 }
 
 // Queues error logs
 void Logger::queueErrorLog(const std::string& log) {
+    std::lock_guard<std::mutex> lock(errorQueueMutex);
     errorQueue.push(log);
     cv.notify_one();
 }
@@ -45,7 +47,7 @@ void Logger::queueErrorLog(const std::string& log) {
 // Writes from each queue to log files
 void Logger::threadWrite() {
     while (true) {
-        std::unique_lock<std::mutex> lock(queueMutex);
+        std::unique_lock<std::mutex> lock(writeMutex);
         cv.wait(lock, [this]() {
             return !accessQueue.empty() || !errorQueue.empty() || isExited;
         });

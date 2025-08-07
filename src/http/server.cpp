@@ -158,10 +158,12 @@ namespace HTTP {
     }
 
     void Server::trackClient(const int client) {
+        std::unique_lock lock(clientsMutex);
         this->clientSocks.insert(client);
     }
 
     void Server::untrackClient(const int client) {
+        std::unique_lock lock(clientsMutex);
         this->clientSocks.erase(client);
     }
 
@@ -191,7 +193,12 @@ namespace HTTP {
             this->extractClientIP(clientAddr, clientIPStr); // Read client IP
 
             // Detach new thread
-            std::thread(&Server::handleReqs, this, client, std::string(clientIPStr)).detach();
+            auto self = shared_from_this();  // must inherit from enable_shared_from_this
+            std::string ipCopy = clientIPStr;
+
+            threadPool.enqueue([self, client, ip = std::move(ipCopy)]() mutable {
+                self->handleReqs(client, std::move(ip));
+            });
         }
     }
 
@@ -234,13 +241,12 @@ namespace HTTP {
 
             try {
                 // Parse request
-                Request request(readBuffer, clientIPStr.c_str());
+                Request request(readBuffer, clientIPStr);
 
                 // Generate response
                 Response response(request.getVersion());
                 this->genResponse(request, response);
 
-                // GET ::1 [200]
                 ACCESS_LOG << request.getMethodStr() << ' '
                         << request.getIPStr() << ' '
                         << request.getPathStr()

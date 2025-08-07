@@ -45,7 +45,11 @@ class Logger {
 
         std::atomic<bool> isExited;
         std::condition_variable cv;
-        std::mutex queueMutex;
+
+        std::mutex accessQueueMutex;
+        std::mutex errorQueueMutex;
+        std::mutex writeMutex;
+
         std::thread thread;
 };
 

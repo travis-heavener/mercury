@@ -26,7 +26,7 @@ namespace HTTP {
 
     class Request {
         public:
-            Request(const char*, const char*);
+            Request(const char*, std::string);
 
             const std::string* getHeader(const std::string&) const;
             const std::string getIPStr() const { return ipStr; };

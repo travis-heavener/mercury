@@ -8,7 +8,7 @@
 #include "util/toolbox.hpp"
 #include "logs/logger.hpp"
 
-std::vector<HTTP::Server*> serversVec;
+std::vector<std::shared_ptr<HTTP::Server>> serversVec;
 
 void m_exit(); // Fwd declaration
 void catchSig(int s) {
@@ -50,9 +50,8 @@ void printWelcomeBanner() {
 }
 
 void m_exit() {
-    for (HTTP::Server* pServer : serversVec) {
+    for (auto pServer : serversVec) {
         pServer->kill(); // Kill the server
-        delete pServer;
     }
 
     #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
@@ -87,17 +86,17 @@ int main() {
 
     // Init server
     if (conf::IS_IPV4_ENABLED)
-        serversVec.push_back(new HTTP::Server(conf::PORT, false));
+        serversVec.emplace_back(std::make_shared<HTTP::Server>(conf::PORT, false));
 
     if (conf::IS_IPV6_ENABLED)
-        serversVec.push_back(new HTTP::ServerV6(conf::PORT, false));
+        serversVec.emplace_back(std::make_shared<HTTP::ServerV6>(conf::PORT, false));
 
     if (conf::USE_TLS) {
         if (conf::IS_IPV4_ENABLED)
-            serversVec.push_back(new HTTP::Server(conf::TLS_PORT, true));
+            serversVec.emplace_back(std::make_shared<HTTP::Server>(conf::TLS_PORT, true));
 
         if (conf::IS_IPV6_ENABLED)
-            serversVec.push_back(new HTTP::ServerV6(conf::TLS_PORT, true));
+            serversVec.emplace_back(std::make_shared<HTTP::ServerV6>(conf::TLS_PORT, true));
     }
 
     // Print welcome banner
@@ -108,7 +107,6 @@ int main() {
         if ((*itr)->init() > 0) {
             // Free server
             (*itr)->kill(); // Kill the server
-            delete *itr;
 
             // Erase from vector
             itr = serversVec.erase( itr );
@@ -122,10 +120,10 @@ int main() {
         return 1;
     }
 
-    // Accept client responses (blocks main thread)
+    // Accept client responses
     std::vector<std::thread> threads;
-    for (HTTP::Server* pServer : serversVec)
-        threads.push_back( std::thread([p = pServer]() { p->acceptLoop(); }) );
+    for (auto& server : serversVec)
+        threads.emplace_back(std::thread([server]() { server->acceptLoop(); }));
 
     // Join all threads
     for (std::thread& t : threads)

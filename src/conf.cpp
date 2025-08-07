@@ -12,6 +12,7 @@ namespace conf {
     bool IS_IPV6_ENABLED;
     unsigned short MAX_REQUEST_BACKLOG;
     unsigned int MAX_REQUEST_BUFFER;
+    unsigned int THREADS_PER_CHILD;
     std::vector<conf::Match*> matchConfigs;
     std::string INDEX_FILE;
 
@@ -192,6 +193,15 @@ int loadConfig() {
     }
 
     MAX_REQUEST_BUFFER = reqBufferNode.text().as_uint();
+
+    /************************** Extract ThreadsPerChild **************************/
+    pugi::xml_node threadsPerChildNode = root.child("ThreadsPerChild");
+    if (!threadsPerChildNode) {
+        std::cerr << "Failed to parse config file, missing ThreadsPerChild node.\n";
+        return CONF_FAILURE;
+    }
+
+    THREADS_PER_CHILD = threadsPerChildNode.text().as_uint();
 
     /************************** Extract AccessLogFile **************************/
     pugi::xml_node accessLogNode = root.child("AccessLogFile");
