@@ -1,4 +1,4 @@
-name: Build (Windows)
+name: Test Runner (Windows)
 
 on:
     workflow_dispatch:
