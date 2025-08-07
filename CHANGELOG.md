@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.0
+- Fix cross-platform segmentation fault (#42)
+    - Resulted from race condition when concurrently modifying STL structures (unordered_set, queue) across threads
+- Implemented ThreadPool to prevent thread explosion
+- Minor performance improvements
+
 ## v0.7.8
 - Remove OPTIONS method support from HTTP/1.0 (#40)
 - Fix path checking logic before checking for invalid methods (#41)

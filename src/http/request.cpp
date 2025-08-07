@@ -4,7 +4,7 @@ namespace HTTP {
 
     void parseAcceptHeader(std::unordered_set<std::string>&, std::string&);
 
-    Request::Request(const char* raw, const char* clientIP) {
+    Request::Request(const char* raw, std::string clientIP) {
         this->ipStr = clientIP;
 
         std::stringstream buffer( raw );

@@ -35,6 +35,7 @@ namespace conf {
     extern bool IS_IPV6_ENABLED;
     extern unsigned short MAX_REQUEST_BACKLOG;
     extern unsigned int MAX_REQUEST_BUFFER;
+    extern unsigned int THREADS_PER_CHILD;
     extern std::vector<conf::Match*> matchConfigs;
     extern std::string INDEX_FILE;
 
