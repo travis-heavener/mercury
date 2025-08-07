@@ -257,8 +257,8 @@ namespace HTTP {
                 // Handle keep-alive requests
                 const std::string* pConnHeader = request.getHeader("Connection");
                 std::string connHeader = (pConnHeader != nullptr) ? *pConnHeader : ""; // Copy string
-                strToLower(connHeader); // Format copied string
-                if (connHeader == "keep-alive" || (connHeader == "" && request.getVersion() == "HTTP/1.1")) {
+                strToUpper(connHeader); // Format copied string
+                if (connHeader == "KEEP-ALIVE" || (connHeader == "" && request.getVersion() == "HTTP/1.1")) {
                     // HTTP/1.1 defaults to keep-alive
                     response.setHeader("Connection", "keep-alive");
                     response.setHeader("Keep-Alive",

@@ -1,5 +1,66 @@
 #include "file_tools.hpp"
 
+bool doesFileExist(const std::string& path, const bool forceInDocumentRoot) {
+    const bool isFile = std::filesystem::is_regular_file(path);
+    std::string docRootStr = conf::DOCUMENT_ROOT.string();
+    std::replace( docRootStr.begin(), docRootStr.end(), '\\', '/' );
+    return isFile && (!forceInDocumentRoot || path.find(docRootStr) == 0);
+}
+
+bool doesDirectoryExist(const std::string& path, const bool forceInDocumentRoot) {
+    if (!forceInDocumentRoot) {
+        return std::filesystem::is_directory(path);
+    } else { // Match document root at start of filename
+        std::string docRootStr = conf::DOCUMENT_ROOT.string();
+        std::replace( docRootStr.begin(), docRootStr.end(), '\\', '/' );
+        return std::filesystem::is_directory(path) && path.find(docRootStr) == 0;
+    }
+}
+
+int isSymlinked(const std::filesystem::path& path) {
+    namespace fs = std::filesystem; // Make my life EASIER
+
+    // Resolve canonical paths
+    const fs::path canonicalRoot = conf::DOCUMENT_ROOT;
+    fs::path absolutePath;
+    try {
+        absolutePath = resolveCanonicalPath(path);
+    } catch (std::filesystem::filesystem_error&) {
+        return FILE_NOT_EXIST; // Invalid path, handles as 404
+    } catch (std::runtime_error&) {
+        return INTERNAL_ERROR; // Manually thrown by IO failure
+    }
+
+    // Verify canonical path is within document root (could escape via symlink)
+    std::string rootStr = canonicalRoot.string();
+    std::string absStr = absolutePath.string();
+    std::replace( rootStr.begin(), rootStr.end(), '\\', '/' );
+    std::replace( absStr.begin(), absStr.end(), '\\', '/' );
+
+    if (rootStr.back() == '/') rootStr.pop_back();
+    if (absStr.find(rootStr) != 0)
+        return IS_SYMLINK;
+
+    // Walk from document root to path, checking for symlinks & reparse points
+    const fs::path relativeToRoot = fs::relative(absolutePath, canonicalRoot);
+    fs::path currentParts = canonicalRoot;
+    for (const auto& part : relativeToRoot) {
+        // Check if individual part is a symlink
+        currentParts /= part;
+        #ifdef _WIN32
+            const DWORD attrs = GetFileAttributesW(currentParts.wstring().c_str());
+            if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT))
+                return IS_SYMLINK;
+        #else
+            if (fs::is_symlink(fs::symlink_status(currentParts)))
+                return IS_SYMLINK;
+        #endif
+    }
+
+    // Base case, this is NOT a symlink
+    return NOT_SYMLINK;
+}
+
 std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path) {
     // Note: ChatGPT helped me a bit with this part because WinAPI sucks :p
     // and I'm doing this to learn socket programming, NOT the Windows API
