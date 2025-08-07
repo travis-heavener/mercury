@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 GPP_FLAGS = -Wall -Wextra
 
 STATIC_LIBS_DIR = static_libs
@@ -24,7 +26,8 @@ $(TARGET): $(DEPS)
 		-I$(OPENSSL_DIR)/linux/include -I$(BROTLI_DIR)/linux/include \
 		-L$(OPENSSL_DIR)/linux/lib64 -L$(BROTLI_DIR)/linux/lib \
 		-lssl -lcrypto \
-		$(BROTLI_FLAGS)
+		$(BROTLI_FLAGS) \
+		2> >(grep -v -E "BIO_lookup_ex|getaddrinfo|gethostbyname")
 	@upx $(TARGET) -qqq
 	@echo "✅ Done."
 
