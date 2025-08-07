@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.8
+- Remove OPTIONS method support from HTTP/1.0 (#40)
+- Fix path checking logic before checking for invalid methods (#41)
+
 ## v0.7.7
 - Reduce excessive error logging
 - Improved clarity of socket error & init logs (now includes TLS status & IPv4/IPv6 mode)

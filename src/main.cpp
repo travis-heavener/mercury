@@ -10,10 +10,12 @@
 
 std::vector<std::shared_ptr<HTTP::Server>> serversVec;
 
-void m_exit(); // Fwd declaration
+/******************** SIGNAL HANDLERS & CLEANUP ********************/
+
+void cleanExit(); // Fwd declaration
 void catchSig(int s) {
     std::cout << "\nIntercepted exit signal " << s << ", closing...\n";
-    m_exit();
+    cleanExit();
     exit(0);
 }
 
@@ -33,6 +35,24 @@ void initSigHandler() {
     #endif
 }
 
+void cleanExit() {
+    for (auto pServer : serversVec) {
+        pServer->kill(); // Kill the server
+    }
+
+    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+        WSACleanup();
+    #endif
+
+    // Log process closure
+    ACCESS_LOG << "Process killed successfully." << std::endl;
+
+    // Cleanup config resources
+    cleanupConfig();
+}
+
+/******************** WELCOME BANNER METHODS ********************/
+
 void printCenteredVersion() {
     const int leftPadding = (34 - conf::VERSION.length()) / 2;
     const int rightPadding = 34 - conf::VERSION.length() - leftPadding;
@@ -49,21 +69,7 @@ void printWelcomeBanner() {
     ACCESS_LOG << conf::VERSION << " started successfully." << std::endl;
 }
 
-void m_exit() {
-    for (auto pServer : serversVec) {
-        pServer->kill(); // Kill the server
-    }
-
-    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-        WSACleanup();
-    #endif
-
-    // Log process closure
-    ACCESS_LOG << "Process killed successfully." << std::endl;
-
-    // Cleanup config resources
-    cleanupConfig();
-}
+/******************** ENTRY POINT ********************/
 
 int main() {
     // Initialize Winsock API
@@ -80,7 +86,7 @@ int main() {
 
     // Load config files
     if (loadConfig() == CONF_FAILURE) {
-        m_exit();
+        cleanExit();
         return 1;
     }
 
@@ -116,7 +122,7 @@ int main() {
     }
 
     if (serversVec.size() == 0) { // All failed to start, exit
-        m_exit();
+        cleanExit();
         return 1;
     }
 
@@ -130,6 +136,6 @@ int main() {
         t.join();
 
     // Clean up
-    m_exit();
+    cleanExit();
     return 0;
 }
