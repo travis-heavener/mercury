@@ -28,20 +28,12 @@ jobs:
                 key: ${{ runner.os }}-apt-${{ hashFiles('**/build_tools/install_deps.sh') }}
 
             # Make executables
-            - name: Make executable shell scripts
+            - name: Make Executable Shell Ccripts
               run: sudo chmod +x ./build_tools/*.sh
 
-            # Install deps
-            - name: Install dependencies
-              run: sudo ./build_tools/install_deps.sh
-
-            # Build static libraries
-            - name: Build static OpenSSL
-              run: sudo ./build_tools/build_static_openssl.sh
-            - name: Build static Brotli
-              run: sudo ./build_tools/build_static_brotli.sh
-            - name: Build static zlib
-              run: sudo ./build_tools/build_static_zlib.sh
+            # Install deps & build static binaries
+            - name: Install Deps & Build Libs
+              run: make libs
 
             # Build
             - name: Build Mercury Binaries
