@@ -37,26 +37,9 @@
 
 namespace HTTP {
 
-    // Fwd dec
-    class Server;
-
-    // RAII client tracker class (eliminates need for mutex when tracking client sockets)
-    class ClientTracker {
-        public:
-            ClientTracker(Server& server, int clientSock) : server(server), clientSock(clientSock) {};
-            ~ClientTracker() {};
-            void release() { isAlive = false; };
-        private:
-            Server& server;
-            int clientSock;
-            bool isAlive;
-    };
-
     class Server : public std::enable_shared_from_this<Server> {
         public:
-            Server(const port_t port, const bool useTLS) :
-                port(port), maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::MAX_REQUEST_BUFFER), threadPool(conf::THREADS_PER_CHILD),
-                useTLS(useTLS) {};
+            Server(const port_t port, const bool useTLS);
             virtual ~Server() = default;
 
             // Overridden by IPv6 servers

@@ -2,6 +2,10 @@
 
 namespace HTTP {
 
+    Server::Server(const port_t port, const bool useTLS) : port(port),
+        maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::MAX_REQUEST_BUFFER),
+        threadPool(conf::THREADS_PER_CHILD), useTLS(useTLS) {};
+
     void Server::kill() {
         // Close sockets
         for (const int c_sock : this->clientSocks) {

@@ -2,6 +2,31 @@
 
 namespace conf {
 
+    Match::Match(const std::string& pattern) {
+        this->pattern = std::regex(pattern);
+    }
+
+    void Match::addHeader(const std::string& k, const std::string& v) {
+        headers.insert({k, v});
+    }
+
+    const std::unordered_map<std::string, std::string>& Match::getHeaders() const {
+        return headers;
+    }
+
+    const std::regex& Match::getPattern() const {
+        return pattern;
+    }
+
+    bool Match::showDirectoryIndexes() const {
+        return _showDirectoryIndexes;
+    }
+
+    void Match::setShowDirectoryIndexes(const bool b) {
+        _showDirectoryIndexes = b;
+    }
+
+
     Match* loadMatch(pugi::xml_node& root) {
         // Extract regex
         pugi::xml_attribute patternAttr = root.attribute("pattern");
