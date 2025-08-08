@@ -18,7 +18,7 @@ DEPS = src/conf/*.hpp src/http/*.hpp src/util/*.hpp src/io/*.hpp src/logs/*.hpp 
 
 all: pch_linux $(TARGET) pch_windows $(TARGET_WIN)
 linux: pch_linux $(TARGET)
-windows: pch_win $(TARGET_WIN)
+windows: pch_windows $(TARGET_WIN)
 
 $(TARGET): $(DEPS)
 	@echo -n "Building for Linux... "
