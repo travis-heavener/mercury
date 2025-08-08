@@ -3,6 +3,7 @@
 ## v0.8.1
 - Now returns proper Allow header methods per the server's HTTP version (not hard-coded as a macrodef)
 - Global codebase refactor
+- Added precompiled headers to reduce compilation overhead (#37)
 
 ## v0.8.0
 - Fix cross-platform segmentation fault (#42)

@@ -1,10 +1,7 @@
 #ifndef __FILE_HPP
 #define __FILE_HPP
 
-#include <fstream>
-#include <sstream>
-#include <string>
-
+#include "../pch/common.hpp"
 #include "../util/toolbox.hpp"
 
 class File {

@@ -2,10 +2,8 @@
 #define __HTTP_REQUEST_HPP
 
 #include <chrono>
-#include <sstream>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
+
+#include "../pch/common.hpp"
 
 #include "response.hpp"
 #include "exception.hpp"

@@ -5,9 +5,8 @@
 #include <condition_variable>
 #include <functional>
 #include <mutex>
-#include <queue>
-#include <thread>
-#include <vector>
+
+#include "../pch/common.hpp"
 
 class ThreadPool {
     public:

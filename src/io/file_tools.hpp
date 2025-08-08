@@ -1,8 +1,7 @@
 #ifndef __FILE_TOOLS_HPP
 #define __FILE_TOOLS_HPP
 
-#include <filesystem>
-#include <string>
+#include "../pch/common.hpp"
 
 #ifdef _WIN32
     #include "../winheader.hpp"

@@ -1,13 +1,9 @@
 #ifndef __CONF_HPP
 #define __CONF_HPP
 
-#include <filesystem>
-#include <fstream>
 #include <iostream>
-#include <string>
-#include <vector>
-#include <unordered_map>
 
+#include "../pch/common.hpp"
 #include "../io/file_tools.hpp"
 #include "../util/string_tools.hpp"
 #include "conf_match.hpp"

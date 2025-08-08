@@ -2,9 +2,8 @@
 #define __HTTP_RESPONSE_HPP
 
 #include <algorithm>
-#include <string>
-#include <unordered_map>
 
+#include "../pch/common.hpp"
 #include "../io/file.hpp"
 #include "../util/toolbox.hpp"
 
