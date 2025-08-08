@@ -36,7 +36,10 @@ namespace HTTP {
             bool isEncodingAccepted(const std::string&) const;
             bool isURIBad() const { return hasBadURI; };
         private:
-            bool isVersionSupported() const;
+            bool isFileValid(Response& response, const File& file) const;
+            void setStatusMaybeErrorDoc(Response& response, const int status) const;
+
+            inline bool isVersionSupported() const;
             std::string getAllowedMethods() const;
 
             std::unordered_map<std::string, std::string> headers;

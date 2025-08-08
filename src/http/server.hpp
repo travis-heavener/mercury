@@ -62,11 +62,11 @@ namespace HTTP {
             // Request loop helper methods
             void extractClientIP(struct sockaddr_storage&, char*) const;
             ssize_t waitForClientData(struct pollfd&, const int);
-            int acceptConnection(struct sockaddr_storage&, socklen_t&);
+            inline int acceptConnection(struct sockaddr_storage&, socklen_t&);
 
             // Client socket tracking methods
-            void trackClient(const int);
-            void untrackClient(const int);
+            inline void trackClient(const int);
+            inline void untrackClient(const int);
 
             // For logs
             std::string getDetailsStr() const;

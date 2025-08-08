@@ -144,7 +144,7 @@ namespace HTTP {
             addrPtr = &(((struct sockaddr_in*)&clientAddr)->sin_addr);
         }
 
-        #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+        #ifdef _WIN32
             if (afType == AF_INET) {
                 strcpy(clientIPStr, inet_ntoa(*(struct in_addr*)addrPtr));
             } else {
@@ -295,19 +295,8 @@ namespace HTTP {
     }
 
     void Server::genResponse(Request& request, Response& response) {
-        // Verify Host header is present for HTTP/1.1+ (RFC 2616)
-        const bool isHostRequiredAndPresent = request.getHeader("HOST") == nullptr &&
-            request.getVersion() != "HTTP/1.0" && request.getVersion() != "HTTP/0.9";
-
-        // Verify request is valid & URI isn't malformed
-        if ( isHostRequiredAndPresent || request.isURIBad() ) {
-            // If the request allows HTML, return an HTML display
-            if (request.isMIMEAccepted("text/html"))
-                response.loadBodyFromErrorDoc(400);
-        } else {
-            // Load the response as normal, switching on the verb used
-            request.loadResponse(response);
-        }
+        // Load the response from the request
+        request.loadResponse(response);
 
         // Handle compression
         const std::string contentType = response.getContentType();
