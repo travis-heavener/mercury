@@ -97,3 +97,15 @@ static_zlib:
 
 release:
 	@./build_tools/build_release.sh
+
+############################ TLS CERTS ############################
+
+# Create a 365-day self-signed TLS 1.3 cert
+cert:
+	@openssl req -x509 \
+		-newkey rsa:4096 \
+		-keyout conf/ssl/key.pem \
+		-out conf/ssl/cert.pem \
+		-sha256 \
+		-days 365 \
+		-nodes
