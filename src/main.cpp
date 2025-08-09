@@ -103,9 +103,6 @@ int main() {
             serversVec.emplace_back(std::make_shared<HTTP::ServerV6>(conf::TLS_PORT, true));
     }
 
-    // Print welcome banner
-    printWelcomeBanner();
-
     // Remove servers that fail to start
     for (auto itr = serversVec.begin(); itr != serversVec.end(); (void)itr) {
         if ((*itr)->init() != 0) {
@@ -123,6 +120,9 @@ int main() {
         cleanExit();
         return 1;
     }
+
+    // Print welcome banner
+    printWelcomeBanner();
 
     // Accept client responses
     std::vector<std::thread> threads;
