@@ -14,7 +14,7 @@ LIB_FLAGS = -lz -lpthread -lssl -lcrypto
 TARGET = bin/mercury
 TARGET_WIN = bin/mercury.exe
 SRCS = src/conf/*.cpp src/*.cpp src/http/*.cpp src/util/*.cpp src/io/*.cpp src/logs/*.cpp lib/*.cpp
-DEPS = src/conf/*.hpp src/http/*.hpp src/util/*.hpp src/io/*.hpp src/logs/*.hpp lib/*.hpp $(SRCS)
+DEPS = src/conf/*.hpp src/http/*.hpp src/util/*.hpp src/io/*.hpp src/logs/*.hpp lib/*.hpp src/pch/*.hpp $(SRCS)
 
 all: pch_linux $(TARGET) pch_windows $(TARGET_WIN)
 linux: pch_linux $(TARGET)

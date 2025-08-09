@@ -41,7 +41,16 @@ namespace HTTP {
         addr.sin6_port = htons(this->port);
         addr.sin6_addr = in6addr_any;
 
-        if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        int bindStatus = bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr));
+
+        // Retry 5 times to bind if failed
+        int bindAttempts = 0;
+        while (bindStatus < 0 && ++bindAttempts < 5) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            bindStatus = bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr));
+        }
+
+        if (bindStatus < 0) {
             const int err = 
             #ifdef __linux__
                 errno;

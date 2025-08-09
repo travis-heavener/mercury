@@ -1,6 +1,7 @@
 # Changelog
 
-## v0.8.1
+## v0.9.0
+- Fixed IPv6 for Windows (#57)
 - Now returns proper Allow header methods per the server's HTTP version (not hard-coded as a macrodef)
 - Global codebase refactor
 - Added precompiled headers to reduce compilation overhead (#37)
