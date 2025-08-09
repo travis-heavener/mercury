@@ -79,7 +79,7 @@ The following sentence describes the thought process that should go into opening
 
 > Each issue and pull request should contain enough information to understand its purpose and goal.
 
-That's really all there is to it. I (Travis Heavener) will not actively police the formatting of issues and/or PRs. However, including certain Markdown headers such as `## About` and `## Screenshots` are a practice that I use myself and would encourage on this project. Additionally, include something like `[Bug]`, `[Feature]`, or `[Question]` at the beginning of the issue or pull request title to more easily distinguish different issue categories (aside from labels).
+That's really all there is to it. I ([Travis Heavener](https://github.com/travis-heavener)) will not actively police the formatting of issues and/or PRs. However, including certain Markdown headers such as `## About` and `## Screenshots` are a practice that I use myself and would encourage on this project. Additionally, include something like `[Bug]`, `[Feature]`, or `[Question]` at the beginning of the issue or pull request title to more easily distinguish different issue categories (aside from labels).
 
 Please make use of available labels for issues and pull requests, they are there for a reason.
 
