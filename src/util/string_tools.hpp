@@ -16,7 +16,10 @@
 #define COMPRESS_GZIP 1
 #define COMPRESS_BROTLI 2
 
-void strToUpper(std::string&);
+inline void strToUpper(std::string& str) {
+    std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+}
+
 void splitStringUnique(std::unordered_set<std::string>&, std::string&, char, bool);
 void stringReplaceAll(std::string&, const std::string&, const std::string&);
 void trimString(std::string&);

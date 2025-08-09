@@ -57,10 +57,6 @@ namespace HTTP {
         return status;
     }
 
-    void Response::setContentType(const std::string& type) {
-        this->setHeader("Content-Type", type);
-    }
-
     const std::string Response::getContentType() const {
         auto type = this->headers.find("Content-Type");
         if (type == this->headers.end()) return "";

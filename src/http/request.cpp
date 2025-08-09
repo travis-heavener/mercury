@@ -266,10 +266,6 @@ namespace HTTP {
             splitVec.insert(mime.substr(0, mime.find(';')));
     }
 
-    bool Request::isVersionSupported() const {
-        return this->httpVersionStr == "HTTP/1.1" || this->httpVersionStr == "HTTP/1.0";
-    }
-
     std::string Request::getAllowedMethods() const {
         // Return the allowed methods for the particular version
         if (this->httpVersionStr == "HTTP/1.1") {
