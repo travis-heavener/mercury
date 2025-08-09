@@ -15,7 +15,7 @@ namespace HTTP {
         }
 
         if (this->sock != SOCKET_UNSET && !this->closeSocket(this->sock)) {
-            ACCESS_LOG << "Server socket closed (" << this->getDetailsStr() << ")." << std::endl;
+            ACCESS_LOG << "Server socket closed (" << *this << ")." << std::endl;
             this->sock = SOCKET_UNSET;
         }
 
@@ -29,25 +29,25 @@ namespace HTTP {
         this->sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
         if (this->sock < 0) {
-            ERROR_LOG << "Failed to open socket (" << this->getDetailsStr() << ") on port " << this->port << std::endl;
+            ERROR_LOG << "Failed to open socket (" << *this << ") on port " << this->port << std::endl;
             return SOCKET_FAILURE;
         }
 
         // Init socket opts
         const int optFlag = 1;
         if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set socket opt SO_REUSEADDR (" << this->getDetailsStr() << ")." << std::endl;
+            ERROR_LOG << "Failed to set socket opt SO_REUSEADDR (" << *this << ")." << std::endl;
             return SOCKET_FAILURE;
         }
 
         if (setsockopt(this->sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set socket opt TCP_NODELAY (" << this->getDetailsStr() << ")." << std::endl;
+            ERROR_LOG << "Failed to set socket opt TCP_NODELAY (" << *this << ")." << std::endl;
             return SOCKET_FAILURE;
         }
 
         #if __linux__
             if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&optFlag, sizeof(int)) < 0) {
-                ERROR_LOG << "Failed to set socket opt SO_REUSEPORT (" << this->getDetailsStr() << ")." << std::endl;
+                ERROR_LOG << "Failed to set socket opt SO_REUSEPORT (" << *this << ")." << std::endl;
                 return SOCKET_FAILURE;
             }
         #endif
@@ -66,9 +66,9 @@ namespace HTTP {
             #endif
 
             if (err == 13) { // Improve error handling for errno 13 (need sudo to listen to port)
-                ERROR_LOG << "Failed to bind socket (" << this->getDetailsStr() << "), errno: " << err << ", do you have sudo perms?" << std::endl;
+                ERROR_LOG << "Failed to bind socket (" << *this << "), errno: " << err << ", do you have sudo perms?" << std::endl;
             } else {
-                ERROR_LOG << "Failed to bind socket (" << this->getDetailsStr() << "), errno: " << err << std::endl;
+                ERROR_LOG << "Failed to bind socket (" << *this << "), errno: " << err << std::endl;
             }
             return BIND_FAILURE;
         }
@@ -84,19 +84,19 @@ namespace HTTP {
 
         // Listen to socket
         if (listen(this->sock, this->maxBacklog) < 0) {
-            ERROR_LOG << "Failed to listen to socket (" << this->getDetailsStr() << "), errno: " << errno << std::endl;
+            ERROR_LOG << "Failed to listen to socket (" << *this << "), errno: " << errno << std::endl;
             return LISTEN_FAILURE;
         }
 
         // Init TLS
         if (this->useTLS) {
             if ((this->pSSL_CTX = initTLSContext()) == nullptr) {
-                ERROR_LOG << "Failed to init an SSL context (" << this->getDetailsStr() << ")." << std::endl;
+                ERROR_LOG << "Failed to init an SSL context (" << *this << ")." << std::endl;
                 return BIND_FAILURE;
             }
         }
 
-        ACCESS_LOG << "Listening on port " << this->port << " (" << this->getDetailsStr() << ")." << std::endl;
+        ACCESS_LOG << "Listening on port " << this->port << " (" << *this << ")." << std::endl;
         return 0;
     }
 
@@ -171,13 +171,6 @@ namespace HTTP {
         this->clientSocks.erase(client);
     }
 
-    std::string Server::getDetailsStr() const {
-        std::stringstream ss;
-        ss << "IPv" << (this->isIPv4() ? "4" : "6");
-        if (this->useTLS) ss << " w/ TLS";
-        return ss.str();
-    }
-
     int Server::acceptConnection(struct sockaddr_storage& clientAddr, socklen_t& clientLen) {
         return accept(this->sock, (struct sockaddr*)&clientAddr, &clientLen);
     }
@@ -198,9 +191,7 @@ namespace HTTP {
 
             // Detach new thread
             auto self = shared_from_this();  // must inherit from enable_shared_from_this
-            std::string ipCopy = clientIPStr;
-
-            threadPool.enqueue([self, client, ip = std::move(ipCopy)]() mutable {
+            threadPool.enqueue([self, client, ip = std::move(clientIPStr)]() mutable {
                 self->handleReqs(client, std::move(ip));
             });
         }
@@ -315,6 +306,12 @@ namespace HTTP {
     void Server::clearBuffer(char* readBuffer) {
         for (unsigned int i = 0; i < this->maxBufferSize; ++i)
             readBuffer[i] = 0;
+    }
+
+    std::ostream& operator<<(std::ostream& os, const Server& server) {
+        os << "IPv" << (server.isIPv4() ? "4" : "6");
+        if (server.usesTLS()) os << " w/ TLS";
+        return os;
     }
 
 }

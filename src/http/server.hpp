@@ -44,7 +44,8 @@ namespace HTTP {
 
             // Overridden by IPv6 servers
             virtual int bindSocket();
-            virtual bool isIPv4() const { return true; };
+            inline virtual bool isIPv4() const { return true; };
+            inline bool usesTLS() const { return useTLS; };
 
             int init();
             void acceptLoop();
@@ -53,7 +54,7 @@ namespace HTTP {
             void genResponse(Request&, Response&);
         protected:
             // Socket methods
-            void clearBuffer(char*);
+            inline void clearBuffer(char*);
             ssize_t readClientSock(char*, const int, SSL*);
             ssize_t writeClientSock(const int, SSL*, std::string&);
             int closeSocket(const int);
@@ -67,9 +68,6 @@ namespace HTTP {
             // Client socket tracking methods
             inline void trackClient(const int);
             inline void untrackClient(const int);
-
-            // For logs
-            std::string getDetailsStr() const;
 
             // Protected fields
             const port_t port;
@@ -87,6 +85,9 @@ namespace HTTP {
             bool useTLS;
             SSL_CTX* pSSL_CTX = nullptr;
     };
+
+    // For logs
+    std::ostream& operator<<(std::ostream& os, const Server& server);
 
 }
 
