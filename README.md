@@ -13,6 +13,7 @@
 - [Build Info](#build-info)
     - [Linux & Windows Builds](#linux--windows-builds)
     - [TLS Certs](#tls-certs)
+    - [Compatibility](#compatibility)
 - [Testing Suite](#testing-suite)
 - [Changelog](#changelog)
 - [Credits](#credits)
@@ -31,6 +32,8 @@ Binaries are placed in the `/bin/` directory, `mercury` for Linux and `mercury.e
 
 ### Linux & Windows Builds
 
+See compatibility
+
 1. Install all necessary dependencies & extract static libraries.
 
     `make libs`.
@@ -46,6 +49,19 @@ Self-signed TLS 1.3 certs are now available with OpenSSL.
 - Replace `/conf/ssl/cert.pem` with your own certificate; and,
 
 - Replace `/conf/ssl/key.pem` with your own private key.
+
+
+### Compatibility
+
+The following table contains known compatible versions of important software used to build Mercury.
+Older mingw-w64 versions have introduced issues when binding IPv6 sockets with WinAPI.
+The g++ version restriction is much looser, as initially version 11.x.x was in use and was only upgraded as a side effect of an OS upgrade (from 22.04 LTS).
+
+| Name      | Version        |
+|-----------|----------------|
+| Ubuntu    | 24.04 LTS      |
+| g++       | 13.3.0         |
+| mingw-w64 | 11.0.1-3build1 |
 
 ## Testing Suite
 
