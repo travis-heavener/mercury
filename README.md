@@ -15,6 +15,7 @@
     - [TLS Certs](#tls-certs)
     - [Compatibility](#compatibility)
 - [Testing Suite](#testing-suite)
+- [Contributing](#contributing)
 - [Changelog](#changelog)
 - [Credits](#credits)
 
@@ -50,7 +51,6 @@ Self-signed TLS 1.3 certs are now available with OpenSSL.
 
 - Replace `/conf/ssl/key.pem` with your own private key.
 
-
 ### Compatibility
 
 The following table contains known compatible versions of important software used to build Mercury.
@@ -69,6 +69,30 @@ This project has its own Python test runner complete with passes for IPv4 & IPv6
 The test runner is available in the `tests` directory.
 
 With Python installed, fire up the Mercury server, cd into the tests directory, and use the `run.py` file to run a number of tests against the server.
+
+## Contributing
+Contributions to the Mercury project are always welcome and appreciated.
+Embracing help is crucial to maintaining a project and a healthy development community.
+
+### Creating Issues & Pull Requests
+The following sentence describes the thought process that should go into opening a new issue or pull request and is intentionally written subjectively:
+
+> Each issue and pull request should contain enough information to understand its purpose and goal.
+
+That's really all there is to it. I (Travis Heavener) will not actively police the formatting of issues and/or PRs. However, including certain Markdown headers such as `## About` and `## Screenshots` are a practice that I use myself and would encourage on this project.
+
+Please make use of available tags for issues and pull requests, they are there for a reason.
+
+### Creating Issues for Bugs
+Creating issues for bugs are a bit more specific. It's best to include details about the environment to help recreate the conditions in which a bug has occured. But fear not, if you forget something in your issue, nobody is perfect. Just edit the issue. :)
+
+### Branch Cleanup
+When closing a pull request, it is encouraged that you delete your branch from the remote (GitHub). While this isn't a hard *requirement*, it is strongly encouraged as it improves the clarity of what branches are open or not.
+
+Committing directly to main is disabled, so you must create a pull request for every change you'd like to make to main.
+
+### Reviewing Pull Requests
+In general 
 
 ## Changelog
 See [CHANGELOG.md](CHANGELOG.md)
