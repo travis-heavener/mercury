@@ -79,9 +79,9 @@ The following sentence describes the thought process that should go into opening
 
 > Each issue and pull request should contain enough information to understand its purpose and goal.
 
-That's really all there is to it. I (Travis Heavener) will not actively police the formatting of issues and/or PRs. However, including certain Markdown headers such as `## About` and `## Screenshots` are a practice that I use myself and would encourage on this project.
+That's really all there is to it. I (Travis Heavener) will not actively police the formatting of issues and/or PRs. However, including certain Markdown headers such as `## About` and `## Screenshots` are a practice that I use myself and would encourage on this project. Additionally, include something like `[Bug]`, `[Feature]`, or `[Question]` at the beginning of the issue or pull request title to more easily distinguish different issue categories (aside from labels).
 
-Please make use of available tags for issues and pull requests, they are there for a reason.
+Please make use of available labels for issues and pull requests, they are there for a reason.
 
 ### Creating Issues for Bugs
 Creating issues for bugs are a bit more specific. It's best to include details about the environment to help recreate the conditions in which a bug has occured. But fear not, if you forget something in your issue, nobody is perfect. Just edit the issue. :)
@@ -92,7 +92,7 @@ When closing a pull request, it is encouraged that you delete your branch from t
 Committing directly to main is disabled, so you must create a pull request for every change you'd like to make to main.
 
 ### Reviewing Pull Requests
-In general 
+In general, pull requests must pass all tests that are applicable. For example, a PR that changes documentation will likely have no GitHub Actions available for it, but one that changes something in the source code will be subject to build tests and cross-platform test cases. Each PR should ideally be reviewed by a third-party, unless approved by [@travis-heavener](https://github.com/travis-heavener). Like issues, the proper labels should be applied.
 
 ## Changelog
 See [CHANGELOG.md](CHANGELOG.md)
