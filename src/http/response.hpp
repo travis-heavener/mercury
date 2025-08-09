@@ -2,10 +2,9 @@
 #define __HTTP_RESPONSE_HPP
 
 #include <algorithm>
-#include <string>
-#include <unordered_map>
 
-#include "../util/file.hpp"
+#include "../pch/common.hpp"
+#include "../io/file.hpp"
 #include "../util/toolbox.hpp"
 
 namespace HTTP {
@@ -15,14 +14,16 @@ namespace HTTP {
             Response(const std::string&);
 
             void setStatus(const uint16_t statusCode);
-            uint16_t getStatus() const { return statusCode; };
+            inline uint16_t getStatus() const { return statusCode; };
             void setHeader(std::string name, const std::string& value);
 
             int loadBodyFromErrorDoc(const uint16_t statusCode);
             int loadBodyFromFile(File& file);
             int compressBody(const int compressionType);
 
-            void setContentType(const std::string&);
+            inline void setContentType(const std::string& type) {
+                this->setHeader("Content-Type", type);
+            }
             const std::string getContentType() const;
 
             void loadToBuffer(std::string& buffer, const bool omitBody);

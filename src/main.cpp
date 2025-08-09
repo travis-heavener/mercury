@@ -1,11 +1,9 @@
 #include <signal.h>
-#include <string>
-#include <thread>
-#include <vector>
 
+#include "pch/common.hpp"
+#include "conf/conf.hpp"
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
-#include "util/toolbox.hpp"
 #include "logs/logger.hpp"
 
 std::vector<std::shared_ptr<HTTP::Server>> serversVec;
@@ -20,7 +18,7 @@ void catchSig(int s) {
 }
 
 void initSigHandler() {
-    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+    #ifdef _WIN32
         signal(SIGINT, catchSig);
         signal(SIGABRT, catchSig);
         signal(SIGTERM, catchSig);
@@ -40,7 +38,7 @@ void cleanExit() {
         pServer->kill(); // Kill the server
     }
 
-    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+    #ifdef _WIN32
         WSACleanup();
     #endif
 
@@ -105,9 +103,6 @@ int main() {
             serversVec.emplace_back(std::make_shared<HTTP::ServerV6>(conf::TLS_PORT, true));
     }
 
-    // Print welcome banner
-    printWelcomeBanner();
-
     // Remove servers that fail to start
     for (auto itr = serversVec.begin(); itr != serversVec.end(); (void)itr) {
         if ((*itr)->init() != 0) {
@@ -125,6 +120,9 @@ int main() {
         cleanExit();
         return 1;
     }
+
+    // Print welcome banner
+    printWelcomeBanner();
 
     // Accept client responses
     std::vector<std::thread> threads;

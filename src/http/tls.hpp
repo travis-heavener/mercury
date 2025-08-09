@@ -5,9 +5,8 @@
 
 #include <openssl/ssl.h>
 
-#include "../conf.hpp"
+#include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
-#include "../util/toolbox.hpp"
 
 #define CERT_PATH "conf/ssl/cert.pem"
 #define KEY_PATH "conf/ssl/key.pem"

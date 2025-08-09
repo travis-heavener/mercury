@@ -2,8 +2,9 @@
 #define __STRING_TOOLS_HPP
 
 #include <algorithm>
-#include <string>
-#include <unordered_set>
+
+#include "../pch/common.hpp"
+#include "../../lib/brotli-cpp.hpp"
 
 #include <zlib.h>
 
@@ -15,8 +16,10 @@
 #define COMPRESS_GZIP 1
 #define COMPRESS_BROTLI 2
 
-void strToUpper(std::string&);
-void strToLower(std::string&);
+inline void strToUpper(std::string& str) {
+    std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+}
+
 void splitStringUnique(std::unordered_set<std::string>&, std::string&, char, bool);
 void stringReplaceAll(std::string&, const std::string&, const std::string&);
 void trimString(std::string&);

@@ -1,20 +1,8 @@
 #ifndef __HTTP_SERVER_HPP
 #define __HTTP_SERVER_HPP
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-    // Fix inet_ntop unavailable
-    #ifndef _WIN32_WINNT
-        #define _WIN32_WINNT 0x0600
-    #elif _WIN32_WINNT < 0x0600
-        #undef _WIN32_WINNT
-        #define _WIN32_WINNT 0x0600
-    #endif
-
-    #include <winsock2.h>
-    #include <ws2tcpip.h>
-
-    #define poll WSAPoll
-    #define ssize_t SSIZE_T
+#ifdef _WIN32
+    #include "../winheader.hpp"
 #else
     #include <sys/socket.h>
     #include <arpa/inet.h>
@@ -24,18 +12,14 @@
     #include <poll.h>
 #endif
 
-#include <algorithm>
-#include <cstring>
-#include <iostream>
 #include <shared_mutex>
-#include <string>
-#include <thread>
-#include <unordered_set>
+
+#include "../pch/common.hpp"
 
 #include "request.hpp"
 #include "response.hpp"
 #include "tls.hpp"
-#include "../util/file.hpp"
+#include "../io/file.hpp"
 #include "../util/toolbox.hpp"
 #include "../util/thread_pool.hpp"
 #include "../logs/logger.hpp"
@@ -51,36 +35,17 @@
 #define KEEP_ALIVE_TIMEOUT_MS 3000
 #define KEEP_ALIVE_MAX_REQ 100
 
-typedef unsigned short u_short;
-typedef unsigned int u_int;
-
 namespace HTTP {
-
-    // Fwd dec
-    class Server;
-
-    // RAII client tracker class (eliminates need for mutex when tracking client sockets)
-    class ClientTracker {
-        public:
-            ClientTracker(Server& server, int clientSock) : server(server), clientSock(clientSock) {};
-            ~ClientTracker() {};
-            void release() { isAlive = false; };
-        private:
-            Server& server;
-            int clientSock;
-            bool isAlive;
-    };
 
     class Server : public std::enable_shared_from_this<Server> {
         public:
-            Server(const port_t port, const bool useTLS) :
-                port(port), maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::MAX_REQUEST_BUFFER), threadPool(conf::THREADS_PER_CHILD),
-                useTLS(useTLS) {};
+            Server(const port_t port, const bool useTLS);
             virtual ~Server() = default;
 
             // Overridden by IPv6 servers
             virtual int bindSocket();
-            virtual bool isIPv4() const { return true; };
+            inline virtual bool isIPv4() const { return true; };
+            inline bool usesTLS() const { return useTLS; };
 
             int init();
             void acceptLoop();
@@ -89,7 +54,7 @@ namespace HTTP {
             void genResponse(Request&, Response&);
         protected:
             // Socket methods
-            void clearBuffer(char*);
+            inline void clearBuffer(char*);
             ssize_t readClientSock(char*, const int, SSL*);
             ssize_t writeClientSock(const int, SSL*, std::string&);
             int closeSocket(const int);
@@ -98,22 +63,19 @@ namespace HTTP {
             // Request loop helper methods
             void extractClientIP(struct sockaddr_storage&, char*) const;
             ssize_t waitForClientData(struct pollfd&, const int);
-            int acceptConnection(struct sockaddr_storage&, socklen_t&);
+            inline int acceptConnection(struct sockaddr_storage&, socklen_t&);
 
             // Client socket tracking methods
-            void trackClient(const int);
-            void untrackClient(const int);
-
-            // For logs
-            std::string getDetailsStr() const;
+            inline void trackClient(const int);
+            inline void untrackClient(const int);
 
             // Protected fields
             const port_t port;
             int sock = SOCKET_UNSET;
             std::unordered_set<int> clientSocks;
 
-            const u_short maxBacklog;
-            const u_int maxBufferSize;
+            const unsigned short maxBacklog;
+            const unsigned int maxBufferSize;
 
             // For multithreading
             std::shared_mutex clientsMutex;
@@ -123,6 +85,9 @@ namespace HTTP {
             bool useTLS;
             SSL_CTX* pSSL_CTX = nullptr;
     };
+
+    // For logs
+    std::ostream& operator<<(std::ostream& os, const Server& server);
 
 }
 

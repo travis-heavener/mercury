@@ -38,8 +38,8 @@ if __name__ == "__main__":
                 else:
                     num_passing += 1
         num_total += len(cases)
-    except Exception as e:
-        print("[Note]: IPv4 connection failure", e)
+    except:
+        print("[Note]: IPv4 connection failure")
 
     # Run IPv4 SSL test cases
     try:
@@ -53,8 +53,8 @@ if __name__ == "__main__":
                     else:
                         num_passing += 1
         num_total += len(cases)
-    except Exception as e:
-        print("[Note]: IPv4 SSL connection failure", e)
+    except:
+        print("[Note]: IPv4 SSL connection failure")
 
     # Run IPv6 test cases
     try:
@@ -69,8 +69,8 @@ if __name__ == "__main__":
                 else:
                     num_passing += 1
         num_total += len(cases)
-    except Exception as e:
-        print("[Note]: IPv6 connection failure", e)
+    except:
+        print("[Note]: IPv6 connection failure")
 
     # Run IPv6 SSL test cases
     try:
@@ -84,8 +84,8 @@ if __name__ == "__main__":
                     else:
                         num_passing += 1
         num_total += len(cases)
-    except Exception as e:
-        print("[Note]: IPv6 SSL connection failure", e)
+    except:
+        print("[Note]: IPv6 SSL connection failure")
 
     # Print result
     sys.stdout.reconfigure(encoding="utf-8")

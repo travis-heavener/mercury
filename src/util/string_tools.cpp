@@ -1,15 +1,5 @@
 #include "string_tools.hpp"
 
-#include "../../lib/brotli-cpp.hpp"
-
-void strToUpper(std::string& str) {
-    std::transform(str.begin(), str.end(), str.begin(), ::toupper);
-}
-
-void strToLower(std::string& str) {
-    std::transform(str.begin(), str.end(), str.begin(), ::tolower);
-}
-
 void splitStringUnique(std::unordered_set<std::string>& splitVec, std::string& string, char delimiter, bool stripWhitespace) {
     size_t startIndex = 0;
     for (size_t i = 0; i < string.size(); i++) {

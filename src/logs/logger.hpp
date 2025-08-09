@@ -6,15 +6,12 @@
 #include <iomanip>
 #include <mutex>
 #include <ostream>
-#include <queue>
-#include <sstream>
-#include <string>
-#include <thread>
 
-#include "../conf.hpp"
+#include "../pch/common.hpp"
+#include "../conf/conf.hpp"
 
-#define ACCESS_LOG Logger::getInstance()(true) << genTimestamp()
-#define ERROR_LOG Logger::getInstance()(false) << genTimestamp()
+#define ACCESS_LOG Logger::getInstance()(true)
+#define ERROR_LOG Logger::getInstance()(false)
 
 // Fwd dec.
 class LoggerStream;

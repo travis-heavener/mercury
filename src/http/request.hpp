@@ -1,19 +1,13 @@
 #ifndef __HTTP_REQUEST_HPP
 #define __HTTP_REQUEST_HPP
 
-#include <algorithm>
 #include <chrono>
-#include <sstream>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
+
+#include "../pch/common.hpp"
 
 #include "response.hpp"
 #include "exception.hpp"
 #include "../util/toolbox.hpp"
-
-// Used by Allow headers, just simplified to one macro-def here
-#define ALLOWED_METHODS "GET, HEAD, OPTIONS"
 
 namespace HTTP {
 
@@ -29,19 +23,27 @@ namespace HTTP {
             Request(const char*, std::string);
 
             const std::string* getHeader(const std::string&) const;
-            const std::string getIPStr() const { return ipStr; };
-            METHOD getMethod() const { return method; };
-            const std::string& getMethodStr() const { return methodStr; };
-            const std::string& getPathStr() const { return pathStr; };
-            const std::string& getBody() const { return body; };
-            const std::string& getVersion() const { return httpVersionStr; };
+            inline const std::string getIPStr() const { return ipStr; };
+            inline METHOD getMethod() const { return method; };
+            inline const std::string& getMethodStr() const { return methodStr; };
+            inline const std::string& getPathStr() const { return pathStr; };
+            inline const std::string& getBody() const { return body; };
+            inline const std::string& getVersion() const { return httpVersionStr; };
 
             void loadResponse(Response&) const;
 
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
-            bool isURIBad() const { return hasBadURI; };
+            inline bool isURIBad() const { return hasBadURI; };
         private:
+            bool isFileValid(Response& response, const File& file) const;
+            void setStatusMaybeErrorDoc(Response& response, const int status) const;
+
+            std::string getAllowedMethods() const;
+            inline bool isVersionSupported() const {
+                return httpVersionStr == "HTTP/1.1" || httpVersionStr == "HTTP/1.0";
+            }
+
             std::unordered_map<std::string, std::string> headers;
 
             std::unordered_set<std::string> acceptedMIMETypes;

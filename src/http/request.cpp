@@ -90,78 +90,37 @@ namespace HTTP {
     }
 
     void Request::loadResponse(Response& response) const {
+        // Verify Host header is present for HTTP/1.1+ (RFC 2616)
+        const bool isHostRequiredAndPresent = getHeader("HOST") == nullptr &&
+            httpVersionStr != "HTTP/1.0" && httpVersionStr != "HTTP/0.9";
+
+        // Verify request is valid & URI isn't malformed
+        if ( isHostRequiredAndPresent || hasBadURI ) {
+            this->setStatusMaybeErrorDoc(response, 400);
+            return;
+        }
+
         // Handle invalid HTTP version
-        if (this->httpVersionStr != "HTTP/1.1" && this->httpVersionStr != "HTTP/1.0") {
-            response.setStatus(505);
-            if (this->isMIMEAccepted("text/html"))
-                response.loadBodyFromErrorDoc(505);
+        if (!this->isVersionSupported()) {
+            this->setStatusMaybeErrorDoc(response, 505);
             return;
         }
 
         // Decode URI after removing query string
-        std::string querylessPath = this->rawPathStr.substr(0, this->rawPathStr.find("?"));
+        std::string querylessPath = rawPathStr.substr(0, this->rawPathStr.find("?"));
         decodeURI(querylessPath); // Doesn't need try-catch since it's already checked in constructor
 
         // Prevent lookups to files outside of the document root
-        if (this->pathStr.size() == 0 || querylessPath.find("..") != std::string::npos || this->pathStr[0] != '/') {
-            response.setHeader("Allow", ALLOWED_METHODS);
-            response.setStatus(400);
-            if (this->isMIMEAccepted("text/html"))
-                response.loadBodyFromErrorDoc(400);
+        if (pathStr.size() == 0 || pathStr[0] != '/' || querylessPath.find("..") != std::string::npos) {
+            response.setHeader("Allow", this->getAllowedMethods());
+            this->setStatusMaybeErrorDoc(response, 400);
             return;
         }
 
-        // Validate path string
-        if (pathStr.size() == 0 || pathStr[0] != '/') {
-            // If the request allows HTML, return an HTML display
-            response.setHeader("Allow", ALLOWED_METHODS);
-            response.setStatus(400);
-            if (this->isMIMEAccepted("text/html"))
-                response.loadBodyFromErrorDoc(400);
-            return;
-        }
-
-        // Lookup file
+        // Lookup file & validate it doesn't have anything wrong with it
         File file(pathStr);
-
-        // Catch early caught IO failure
-        if (file.ioFailure) {
-            // Internal server error from IO
-            response.setStatus(500);
-            if (this->isMIMEAccepted("text/html"))
-                response.loadBodyFromErrorDoc(500);
+        if (!this->isFileValid(response, file))
             return;
-        }
-
-        // Verify not a symlink or hardlink
-        if (file.isLinked) {
-            // If the request allows HTML, return an HTML display
-            response.setStatus(403);
-            if (this->isMIMEAccepted("text/html"))
-                response.loadBodyFromErrorDoc(403);
-            return;
-        }
-
-        // Handle directory listings
-        if (file.isDirectory) {
-            for (conf::Match* pMatch : conf::matchConfigs) {
-                if (!pMatch->showDirectoryIndexes() && std::regex_match(file.path, pMatch->getPattern())) {
-                    // Hide the directory index
-                    response.setStatus(403);
-                    if (this->isMIMEAccepted("text/html")) // If the request allows HTML, return an HTML display
-                        response.loadBodyFromErrorDoc(403);
-                    return;
-                }
-            }
-        }
-
-        // Verify file exists
-        if (!file.exists) {
-            response.setStatus(404);
-            if (this->isMIMEAccepted("text/html")) // If the request allows HTML, return an HTML display
-                response.loadBodyFromErrorDoc(404);
-            return;
-        }
 
         // Switch on method
         switch (this->method) {
@@ -169,9 +128,7 @@ namespace HTTP {
             case METHOD::GET: {
                 // Check accepted MIMES
                 if (!this->isMIMEAccepted(file.MIME)) {
-                    response.setStatus(406);
-                    if (this->isMIMEAccepted("text/html")) // If the request allows HTML, return an HTML display
-                        response.loadBodyFromErrorDoc(406);
+                    this->setStatusMaybeErrorDoc(response, 406);
                     break;
                 }
 
@@ -194,9 +151,7 @@ namespace HTTP {
 
                 // Attempt to buffer resource
                 if (response.loadBodyFromFile(file) == IO_FAILURE) {
-                    response.setStatus(500);
-                    if (this->isMIMEAccepted("text/html"))
-                        response.loadBodyFromErrorDoc(500);
+                    this->setStatusMaybeErrorDoc(response, 500);
                     break;
                 }
 
@@ -216,26 +171,65 @@ namespace HTTP {
                 break;
             }
             case METHOD::OPTIONS: {
-                // Verify version is valid
+                // OPTIONS introduced in HTTP/1.1
                 if (this->httpVersionStr == "HTTP/1.0") {
-                    // OPTIONS introduced in HTTP/1.1
                     response.setStatus(405);
                     break;
                 }
 
-                response.setHeader("Allow", ALLOWED_METHODS);
+                response.setHeader("Allow", this->getAllowedMethods());
                 response.setStatus(200);
                 break;
             }
             default: {
                 // If the request allows HTML, return an HTML display
-                response.setHeader("Allow", ALLOWED_METHODS);
-                response.setStatus(405); // Method Not Allowed
-                if (this->isMIMEAccepted("text/html"))
-                    response.loadBodyFromErrorDoc(405);
+                response.setHeader("Allow", this->getAllowedMethods());
+                this->setStatusMaybeErrorDoc(response, 405);
                 break;
             }
         }
+    }
+
+    // Sets the status and loads an error doc, if applicable
+    void Request::setStatusMaybeErrorDoc(Response& response, const int status) const {
+        response.setStatus(status);
+        if (isMIMEAccepted("text/html"))
+            response.loadBodyFromErrorDoc(status);
+    }
+
+    bool Request::isFileValid(Response& response, const File& file) const {
+        // Catch early caught IO failure
+        if (file.ioFailure) {
+            this->setStatusMaybeErrorDoc(response, 500);
+            return false;
+        }
+
+        // Verify not a symlink or hardlink
+        if (file.isLinked) {
+            this->setStatusMaybeErrorDoc(response, 403);
+            return false;
+        }
+
+        // Handle directory listings
+        if (file.isDirectory) {
+            for (conf::Match* pMatch : conf::matchConfigs) {
+                if (!pMatch->showDirectoryIndexes() &&
+                    std::regex_match(file.path, pMatch->getPattern())) {
+                    // Hide the directory index
+                    this->setStatusMaybeErrorDoc(response, 403);
+                    return false;
+                }
+            }
+        }
+
+        // Verify file exists
+        if (!file.exists) {
+            this->setStatusMaybeErrorDoc(response, 404);
+            return false;
+        }
+
+        // Base case, file is valid
+        return true;
     }
 
     // Returns true if the MIME type is accepted by the request OR if there aren't any present
@@ -260,7 +254,7 @@ namespace HTTP {
             }
         }
 
-        // append last snippet
+        // Append last snippet
         if (startIndex < string.size()) {
             std::string substr = string.substr(startIndex);
             trimString(substr);
@@ -270,6 +264,17 @@ namespace HTTP {
         // Format split buffer
         for (std::string& mime : splitBuf)
             splitVec.insert(mime.substr(0, mime.find(';')));
+    }
+
+    std::string Request::getAllowedMethods() const {
+        // Return the allowed methods for the particular version
+        if (this->httpVersionStr == "HTTP/1.1") {
+            return "GET, HEAD, OPTIONS";
+        } else if (this->httpVersionStr == "HTTP/1.0") {
+            return "GET, HEAD";
+        } else {
+            throw std::runtime_error("Invalid HTTP version passed to Request::getAllowedMethods");
+        }
     }
 
 }
