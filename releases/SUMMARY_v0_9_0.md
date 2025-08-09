@@ -4,9 +4,9 @@
 ## v0.9.0
 - Fixed IPv6 for Windows (#57)
 - Now returns proper Allow header methods per the server's HTTP version (not hard-coded as a macrodef)
-- Global codebase refactor
+- Global codebase refactor (#51)
 - Added precompiled headers to reduce compilation overhead (#37)
-- Minor performance improvements
+- Minor performance improvements (#51)
 
 ## v0.8.0
 - Fix cross-platform segmentation fault (#42)
@@ -35,5 +35,5 @@
 # SHA-256 Hashes
 | System | SHA-256 Hash Digest |
 |--------|---------------------|
-| Linux | `ccbeaea173dd8633649e0be343abfd7f29558892f549038198c28f88f1cb7229` |
-| Windows | `28cffb722947e0c6ba75b2b67ff59864c59fe8443bd86020a6f35219c5dbe6bf` |
+| Linux | `aa6c92c0d104f7a2423312cad20658dd85afa0096de0353a803f3b4db04f4d86` |
+| Windows | `68b4ac683660dc2f0f1714aeb387e6a9130927a0bccbaeeb1073cbfb9130a7e3` |

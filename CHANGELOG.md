@@ -3,9 +3,9 @@
 ## v0.9.0
 - Fixed IPv6 for Windows (#57)
 - Now returns proper Allow header methods per the server's HTTP version (not hard-coded as a macrodef)
-- Global codebase refactor
+- Global codebase refactor (#51)
 - Added precompiled headers to reduce compilation overhead (#37)
-- Minor performance improvements
+- Minor performance improvements (#51)
 
 ## v0.8.0
 - Fix cross-platform segmentation fault (#42)
