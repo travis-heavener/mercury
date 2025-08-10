@@ -3,6 +3,8 @@
 
 #include "server.hpp"
 
+#define MAX_IPV6_BIND_ATTEMPTS 5 
+
 namespace HTTP {
 
     class ServerV6 : public Server {
