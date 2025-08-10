@@ -49,6 +49,10 @@ jobs:
             - name: Make Log Files
               run: mkdir logs
 
+            # Make TLS cert
+            - name: Make TLS Cert
+              run: make runner_cert
+
             # Start Mercury
             - name: Start Mercury
               run: |

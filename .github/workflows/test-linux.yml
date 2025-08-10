@@ -40,6 +40,10 @@ jobs:
             - name: Make Log Files
               run: sudo mkdir logs
 
+            # Make TLS cert
+            - name: Make TLS Cert
+              run: make runner_cert
+
             # Start Mercury
             - name: Start Mercury
               run: |
