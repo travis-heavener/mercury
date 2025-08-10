@@ -1,6 +1,11 @@
 # Changelog
 ### [Read Full Changelog](https://github.com/travis-heavener/mercury/blob/main/CHANGELOG.md)
 
+## v0.9.1
+- Fixed IPv6 for Windows (again)
+    - Now zeroes out sockaddr_in6 which could sometimes fail by using garbage data as an invalid socket
+- Now properly closes an IPv6 socket while trying to rebind in startup loop
+
 ## v0.9.0
 - Fixed IPv6 for Windows (#57)
 - Now returns proper Allow header methods per the server's HTTP version (not hard-coded as a macrodef)
@@ -25,15 +30,8 @@
     - Added request HTTP version
     - Added response status
 
-## v0.7.6
-- Add support for toggling directory index listings in config file Match nodes
-- Can now toggle IPv4 & IPv6 independently in config file
-- Now explicitly rejects accessing symlinked content
-    - Symlinking the document root itself is still allowed
-    - Note than an Internal Server Error (500) may occur if attempting to access Linux symlinks on Windows
-
 # SHA-256 Hashes
 | System | SHA-256 Hash Digest |
 |--------|---------------------|
-| Linux | `aa6c92c0d104f7a2423312cad20658dd85afa0096de0353a803f3b4db04f4d86` |
-| Windows | `68b4ac683660dc2f0f1714aeb387e6a9130927a0bccbaeeb1073cbfb9130a7e3` |
+| Linux | `428b55d9fd1d98bd1628398fa1ac77aae72e5ccee1a5091b16ed368396d9a588` |
+| Windows | `9dde0576c8a23bceb335bd97e450137fd2705c253aa2ecf3665947b32445ed8a` |
