@@ -102,6 +102,7 @@ release:
 
 # Create a 365-day self-signed TLS 1.3 cert
 cert:
+	@mkdir -p conf/ssl
 	@openssl req -x509 \
 		-newkey rsa:4096 \
 		-keyout conf/ssl/key.pem \
