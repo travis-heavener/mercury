@@ -5,3 +5,4 @@ __pycache__/
 static_libs/*
 *.gch
 *.pem
+releases/*
