@@ -4,3 +4,4 @@ temp_release/*
 __pycache__/
 static_libs/*
 *.gch
+*.pem
