@@ -46,6 +46,7 @@ namespace HTTP {
             virtual int bindSocket();
             inline virtual bool isIPv4() const { return true; };
             inline bool usesTLS() const { return useTLS; };
+            inline port_t getPort() const { return port; };
 
             int init();
             void acceptLoop();
