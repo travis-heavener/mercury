@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.9.1
+- Fixed IPv6 for Windows (again)
+    - Now zeroes out sockaddr_in6 which could sometimes fail by using garbage data as an invalid socket
+- Now properly closes an IPv6 socket while trying to rebind in startup loop
+
 ## v0.9.0
 - Fixed IPv6 for Windows (#57)
 - Now returns proper Allow header methods per the server's HTTP version (not hard-coded as a macrodef)
