@@ -47,9 +47,9 @@ See compatibility
 
 Self-signed TLS 1.3 certs are now available with OpenSSL.
 
-- Replace `/conf/ssl/cert.pem` with your own certificate; and,
+Use `make cert` in the root directory of this project and enter your information to automatically create a new certificate pair.
+Your certificate will be located at `/conf/ssl/cert.pem` and your private key at `/conf/ssl/key.pem`.
 
-- Replace `/conf/ssl/key.pem` with your own private key.
 
 ### Compatibility
 
