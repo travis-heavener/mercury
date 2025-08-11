@@ -12,7 +12,10 @@ if [ -d "temp_release" ]; then
 fi
 
 # Clear releases directory
-rm -rf ./releases/*
+if [ -d "releases" ]; then
+    rm -rf releases
+fi
+mkdir releases
 
 # Read version
 VERSION=$(cat version.txt)
