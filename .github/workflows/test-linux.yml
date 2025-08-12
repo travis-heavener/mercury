@@ -1,6 +1,7 @@
 name: Test Runner (Linux)
 
 on:
+  workflow_dispatch:
   workflow_run:
     workflows: ["Build"]
     types:
