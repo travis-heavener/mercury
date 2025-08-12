@@ -8,6 +8,7 @@ sudo apt install upx \
     cmake \
     zlib1g-dev \
     g++ \
-    zip -y
+    zip \
+    python3 -y
 
 echo "✅ Successfully installed dependencies."

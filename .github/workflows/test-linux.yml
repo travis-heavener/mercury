@@ -86,7 +86,6 @@ jobs:
             # Run Python test cases
             - name: Python Test Runner
               run: |
-                sudo apt install python3
                 cd tests
                 OUTPUT=$(python3 run.py)
                 echo "$OUTPUT"
