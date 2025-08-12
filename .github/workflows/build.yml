@@ -39,6 +39,9 @@ jobs:
                   make libs
                 fi
 
+                # Build static zlib anyways (can't cache, takes < 10 sec)
+                make static_zlib
+
             # Build
             - name: Build Mercury Binaries
               run: sudo make -B
