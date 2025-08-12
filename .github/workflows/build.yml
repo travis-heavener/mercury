@@ -24,7 +24,7 @@ jobs:
               uses: actions/cache@v4
               with:
                 path: ./static_libs
-                key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/install_deps.sh') }}
+                key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/**') }}
 
             # Make executables
             - name: Make Executable Shell Ccripts
