@@ -3,6 +3,18 @@
 # CD into project directory
 cd "$(dirname "$0")/../"
 
+# Update artifacts.lock
+version="1.3.1"
+if [ ! -e "artifacts.lock" ]; then
+    touch artifacts.lock
+fi
+
+if grep -q "^zlib=" artifacts.lock; then
+    sed -i "s/^zlib=.*$/zlib=$version/" artifacts.lock
+else
+    { echo "zlib=$version"; cat artifacts.lock; } > temp && mv temp artifacts.lock
+fi
+
 if [ ! -d "static_libs" ]; then
     mkdir static_libs
 fi
@@ -11,18 +23,16 @@ cd static_libs
 LIB_PATH=$(pwd)
 
 # ==== Config ====
-ZLIB_REPO="https://github.com/luvit/zlib"
 ZLIB_DIR="$LIB_PATH/zlib-repo"
 MINGW_DIR="/usr/x86_64-w64-mingw32"
 
-# ==== Clean old stuff ====
-rm -rf "$ZLIB_DIR"
-mkdir -p "$ZLIB_DIR"
+wget -q --no-check-certificate https://zlib.net/zlib-$version.tar.gz
+tar -xzf zlib-$version.tar.gz
+echo "Extracted archive."
 
-# ==== Clone zlib ====
-echo "Cloning zlib repo."
-git clone --q "$ZLIB_REPO" "$ZLIB_DIR"
-cd "$ZLIB_DIR"
+# Remove tarball & rename
+rm zlib-$version.tar.gz
+mv zlib-$version "$ZLIB_DIR" && cd "$ZLIB_DIR"
 
 # ==== Patch Makefile.gcc ====
 MAKEFILE_PATH="win32/Makefile.gcc"

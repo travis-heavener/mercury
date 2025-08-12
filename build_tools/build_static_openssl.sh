@@ -3,14 +3,28 @@
 # CD into project directory
 cd "$(dirname "$0")/../"
 
+# Update artifacts.lock
+version="3.5.2"
+if [ ! -e "artifacts.lock" ]; then
+    touch artifacts.lock
+fi
+
+if grep -q "^openssl=" artifacts.lock; then
+    sed -i "s/^openssl=.*$/openssl=$version/" artifacts.lock
+else
+    { echo "openssl=$version"; cat artifacts.lock; } > temp && mv temp artifacts.lock
+fi
+
+if [ -d "openssl" ]; then
+    rm -rf openssl
+fi
+
 if [ ! -d "static_libs" ]; then
     mkdir static_libs
 fi
 
 cd static_libs
 LIB_PATH=$(pwd)
-
-version="3.5.2"
 
 # Clean existing
 if [ -d "openssl-$version" ]; then
@@ -27,48 +41,44 @@ echo "Fetched OpenSSL archive."
 
 # ==== Linux Build ====
 
-if [ -z "$1" ] || [ "$1" == "linux" ]; then
-    # Unpack tar
-    tar -xzf openssl-$version.tar.gz
-    echo "Extracted archive."
-    cd openssl-$version
+# Unpack tar
+tar -xzf openssl-$version.tar.gz
+echo "Extracted archive."
+cd openssl-$version
 
-    # Configure static build
-    echo "Configuring build... This may take a minute."
-    ./Configure linux-x86_64 no-shared no-dso no-ssl3 no-comp --prefix=$LIB_PATH/openssl/linux 1> /dev/null
+# Configure static build
+echo "Configuring build... This may take a minute."
+./Configure linux-x86_64 no-shared no-dso no-ssl3 no-comp --prefix=$LIB_PATH/openssl/linux 1> /dev/null
 
-    # Build static
-    make -j$(nproc) 1> /dev/null
+# Build static
+make -j$(nproc) 1> /dev/null
 
-    # Install binaries
-    make install_sw 1> /dev/null
-    echo "Built Linux binaries."
+# Install binaries
+make install_sw 1> /dev/null
+echo "Built Linux binaries."
 
-    # Reset for Windows build
-    cd ..
-    rm -rf openssl-$version
-fi
+# Reset for Windows build
+cd ..
+rm -rf openssl-$version
 
 # ==== Windows Build ====
 
-if [ -z "$1" ] || [ "$1" == "windows" ]; then
-    # Unpack tar
-    tar -xzf openssl-$version.tar.gz
-    echo "Extracted archive."
-    cd openssl-$version
+# Unpack tar
+tar -xzf openssl-$version.tar.gz
+echo "Extracted archive."
+cd openssl-$version
 
-    # Reconfigure for Windows build
-    echo "Configuring build... This may take a minute."
-    ./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix=$LIB_PATH/openssl/windows 1> /dev/null
+# Reconfigure for Windows build
+echo "Configuring build... This may take a minute."
+./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix=$LIB_PATH/openssl/windows 1> /dev/null
 
-    # Build OpenSSL static for Windows
-    make -j$(nproc) 1> /dev/null
-    make install_sw 1> /dev/null
-    echo "Built Windows binaries."
+# Build OpenSSL static for Windows
+make -j$(nproc) 1> /dev/null
+make install_sw 1> /dev/null
+echo "Built Windows binaries."
 
-    cd ..
-    rm -rf openssl-$version
-fi
+cd ..
+rm -rf openssl-$version
 
 # ==== Clean Up ====
 

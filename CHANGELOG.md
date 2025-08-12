@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.9.2
+- Bump Brotli to v1.1.0
+- Bump OpenSSL to v3.5.2
+- Bump zlib to v1.3.1
+
 ## v0.9.1
 - Fixed IPv6 for Windows (again)
     - Now zeroes out sockaddr_in6 which could sometimes fail by using garbage data as an invalid socket
