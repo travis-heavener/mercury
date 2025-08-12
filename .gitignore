@@ -6,3 +6,4 @@ static_libs/*
 *.gch
 *.pem
 releases/*
+bin/*
