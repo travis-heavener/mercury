@@ -1,4 +1,4 @@
-name: Build
+name: Build & Test
 
 on:
     workflow_dispatch:
@@ -15,17 +15,16 @@ on:
 
 jobs:
     Build:
-        runs-on: ubuntu-22.04
+        runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
 
-            - name: Cache APT packages
+            # Mark artifacts for caching
+            - name: Cache Library Artifacts
               uses: actions/cache@v4
               with:
-                path: |
-                    /var/cache/apt/archives
-                    /var/lib/apt/lists
-                key: ${{ runner.os }}-apt-${{ hashFiles('**/build_tools/install_deps.sh') }}
+                path: ./static_libs
+                key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/build_static_brotli.sh', '**/build_tools/build_static_openssl.sh') }}
 
             # Make executables
             - name: Make Executable Shell Ccripts
@@ -33,8 +32,36 @@ jobs:
 
             # Install deps & build static binaries
             - name: Install Deps & Build Libs
-              run: make libs
+              run: |
+                # Run w/o make (not installed yet)
+                sudo ./build_tools/install_deps.sh
+                if [ ! -d static_libs ] || [ -z "$(ls -A static_libs)" ]; then
+                  make static_brotli
+                  make static_openssl
+                fi
+
+                # Build static zlib anyways (can't cache, takes < 10 sec)
+                make static_zlib
 
             # Build
             - name: Build Mercury Binaries
               run: sudo make -B
+
+            # Upload build artifacts
+            - name: Upload Build Artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                name: mercury-binaries
+                path: ./bin
+
+    Run-Linux-Tests:
+      needs: Build
+      uses: ./.github/workflows/test-linux.yml
+      with:
+        artifact-name: mercury-binaries
+
+    Run-Windows-Tests:
+      needs: Build
+      uses: ./.github/workflows/test-windows.yml
+      with:
+        artifact-name: mercury-binaries

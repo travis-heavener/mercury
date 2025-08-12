@@ -3,8 +3,6 @@
 ### A project by Travis Heavener
 
 [![Build](https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg)](https://github.com/travis-heavener/mercury/actions/workflows/build.yml)
-[![Test Runner (Linux)](https://github.com/travis-heavener/mercury/actions/workflows/test-linux.yml/badge.svg)](https://github.com/travis-heavener/mercury/actions/workflows/test-linux.yml)
-[![Test Runner (Windows)](https://github.com/travis-heavener/mercury/actions/workflows/test-windows.yml/badge.svg)](https://github.com/travis-heavener/mercury/actions/workflows/test-windows.yml)
 
 ## Table of Contents
 

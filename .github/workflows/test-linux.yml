@@ -1,23 +1,23 @@
 name: Test Runner (Linux)
 
 on:
-    workflow_dispatch:
-    push:
-        branches: ["main"]
-        paths:
-            - "src/**"
-            - "lib/**"
-    pull_request:
-        branches: ["main"]
-        paths:
-            - "src/**"
-            - "lib/**"
+  workflow_call:
+    inputs:
+      artifact-name:
+        required: true
+        type: string
 
 jobs:
-    Build:
-        runs-on: ubuntu-22.04
+    Test-Linux:
+        runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
+
+            # Download binaries
+            - uses: actions/download-artifact@v4
+              with:
+                name: mercury-binaries
+                path: ./bin
 
             - name: Configure Ports & Enable IPv4 & IPv6
               run: |
@@ -57,13 +57,12 @@ jobs:
             - name: Start Mercury
               run: |
                 cd bin
-                chmod +x ./mercury
+                sudo chmod +x ./mercury
                 sudo ./mercury & echo $! > ../pid.txt
 
             # Run Python test cases
             - name: Python Test Runner
               run: |
-                sudo apt install python3
                 cd tests
                 OUTPUT=$(python3 run.py)
                 echo "$OUTPUT"
