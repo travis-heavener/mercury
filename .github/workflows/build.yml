@@ -24,7 +24,7 @@ jobs:
               uses: actions/cache@v4
               with:
                 path: ./static_libs
-                key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/**') }}
+                key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/build_static_brotli.sh', '**/build_tools/build_static_openssl.sh') }}
 
             # Make executables
             - name: Make Executable Shell Ccripts

@@ -8,7 +8,7 @@ on:
         type: string
 
 jobs:
-    Build:
+    Test-Windows:
         runs-on: windows-latest
         steps:
             - uses: actions/checkout@v4
