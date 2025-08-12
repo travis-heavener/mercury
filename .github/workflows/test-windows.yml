@@ -1,11 +1,11 @@
 name: Test Runner (Windows)
 
 on:
-  workflow_dispatch:
-  workflow_run:
-    workflows: ["Build"]
-    types:
-      - completed
+  workflow_call:
+    inputs:
+      artifact-name:
+        required: true
+        type: string
 
 jobs:
     Build:

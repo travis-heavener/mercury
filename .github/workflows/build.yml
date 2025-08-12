@@ -49,3 +49,15 @@ jobs:
               with:
                 name: mercury-binaries
                 path: ./bin
+
+    Run-Linux-Tests:
+      needs: Build
+      uses: ./.github/workflows/test-linux.yml
+      with:
+        artifact-name: mercury-binaries
+
+    Run-Windows-Tests:
+      needs: Build
+      uses: ./.github/workflows/test-windows.yml
+      with:
+        artifact-name: mercury-binaries
