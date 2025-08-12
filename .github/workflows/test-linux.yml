@@ -15,9 +15,32 @@ on:
 
 jobs:
     Build:
-        runs-on: ubuntu-22.04
+        runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+
+            # Mark artifacts for caching
+            - name: Cache Library Artifacts
+              uses: actions/cache@v4
+              with:
+                path: ./static_libs
+                key: ${{ runner.os }}-artifacts-linux-${{ hashFiles('**/build_tools/install_deps.sh') }}
+
+            # Make executables
+            - name: Make Executable Shell Ccripts
+              run: sudo chmod +x ./build_tools/*.sh
+
+            # Install deps & build static binaries
+            - name: Install Deps & Build Libs
+              run: |
+                make static_deps
+                if [ ! -d static_libs ] || [ -z "$(ls -A static_libs)" ]; then
+                  make runners_libs_linux
+                fi
+
+            # Build
+            - name: Build Mercury Binaries
+              run: sudo make linux -B
 
             - name: Configure Ports & Enable IPv4 & IPv6
               run: |
@@ -57,7 +80,7 @@ jobs:
             - name: Start Mercury
               run: |
                 cd bin
-                chmod +x ./mercury
+                sudo chmod +x ./mercury
                 sudo ./mercury & echo $! > ../pid.txt
 
             # Run Python test cases
