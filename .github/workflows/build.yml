@@ -34,9 +34,10 @@ jobs:
             - name: Install Deps & Build Libs
               run: |
                 # Run w/o make (not installed yet)
-                sudo apt-get install make
+                sudo ./build_tools/install_deps.sh
                 if [ ! -d static_libs ] || [ -z "$(ls -A static_libs)" ]; then
-                  make libs
+                  make static_brotli
+                  make static_openssl
                 fi
 
                 # Build static zlib anyways (can't cache, takes < 10 sec)
