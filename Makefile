@@ -98,19 +98,6 @@ static_zlib:
 release:
 	@./build_tools/build_release.sh
 
-#### TARGETS ONLY FOR GITHUB ACTIONS RUNNERS
-
-runners_libs_win:
-	@./build_tools/install_deps.sh
-	@./build_tools/build_static_brotli.sh "windows"
-	@./build_tools/build_static_openssl.sh "windows"
-	@./build_tools/build_static_zlib.sh
-
-runners_libs_linux:
-	@./build_tools/install_deps.sh
-	@./build_tools/build_static_brotli.sh "linux"
-	@./build_tools/build_static_openssl.sh "linux"
-
 ############################ TLS CERTS ############################
 
 # Create a 365-day self-signed TLS 1.3 cert
