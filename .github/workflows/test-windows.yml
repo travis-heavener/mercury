@@ -19,6 +19,8 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: Vampire/setup-wsl@v6
+              with:
+                distribution: Ubuntu-24.04
 
             # Mark artifacts for caching
             - name: Cache Library Artifacts
