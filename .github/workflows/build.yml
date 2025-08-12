@@ -34,7 +34,7 @@ jobs:
             - name: Install Deps & Build Libs
               run: |
                 # Run w/o make (not installed yet)
-                sudo ./build_tools/install_deps.sh
+                sudo apt-get install make
                 if [ ! -d static_libs ] || [ -z "$(ls -A static_libs)" ]; then
                   make libs
                 fi
