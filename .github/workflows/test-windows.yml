@@ -21,6 +21,7 @@ jobs:
             - uses: Vampire/setup-wsl@v6
               with:
                 distribution: Ubuntu-24.04
+                use-cache: 'true'
 
             # Mark artifacts for caching
             - name: Cache Library Artifacts
