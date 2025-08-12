@@ -80,7 +80,7 @@ jobs:
             - name: Start Mercury
               run: |
                 cd bin
-                chmod +x ./mercury
+                sudo chmod +x ./mercury
                 sudo ./mercury & echo $! > ../pid.txt
 
             # Run Python test cases
