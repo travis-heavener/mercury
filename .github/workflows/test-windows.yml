@@ -36,7 +36,8 @@ jobs:
             - name: Install Deps & Build Libs
               shell: wsl-bash {0}
               run: |
-                make static_deps
+                # Run w/o make (not installed yet)
+                sudo ./build_tools/install_deps.sh
                 if [ ! -d static_libs ] || [ -z "$(ls -A static_libs)" ]; then
                   make runners_libs_win
                 fi
