@@ -8,7 +8,6 @@ sudo apt install upx \
     cmake \
     zlib1g-dev \
     g++ \
-    zip \
-    mingw-w64 -y
+    zip -y
 
 echo "✅ Successfully installed dependencies."
