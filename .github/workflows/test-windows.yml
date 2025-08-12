@@ -18,6 +18,33 @@ jobs:
         runs-on: windows-latest
         steps:
             - uses: actions/checkout@v4
+            - uses: Vampire/setup-wsl@v6
+
+            # Mark artifacts for caching
+            - name: Cache Library Artifacts
+              uses: actions/cache@v4
+              with:
+                path: ./static_libs
+                key: ${{ runner.os }}-artifacts-windows-${{ hashFiles('**/build_tools/install_deps.sh') }}
+
+            # Make executables
+            - name: Make Executable Shell Ccripts
+              shell: wsl-bash {0}
+              run: sudo chmod +x ./build_tools/*.sh
+
+            # Install deps & build static binaries
+            - name: Install Deps & Build Libs
+              shell: wsl-bash {0}
+              run: |
+                make static_deps
+                if [ ! -d static_libs ] || [ -z "$(ls -A static_libs)" ]; then
+                  make runners_libs_win
+                fi
+
+            # Build
+            - name: Build Mercury Binaries
+              shell: wsl-bash {0}
+              run: sudo make windows -B
 
             - name: Configure Ports & Enable IPv4 & IPv6
               run: |
