@@ -7,3 +7,4 @@ static_libs/*
 *.pem
 releases/*
 bin/*
+artifacts.lock
