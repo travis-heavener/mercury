@@ -49,5 +49,3 @@ jobs:
               with:
                 name: mercury-binaries
                 path: ./bin
-
-            # TODO - start Linux & Windows workflows
