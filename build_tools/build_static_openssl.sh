@@ -10,26 +10,28 @@ fi
 cd static_libs
 LIB_PATH=$(pwd)
 
+version="3.5.2"
+
 # Clean existing
-if [ -d "openssl-3.5.0" ]; then
-    rm -rf openssl-3.5.0
+if [ -d "openssl-$version" ]; then
+    rm -rf openssl-$version
 fi
 
-if [ -f "openssl-3.5.0.tar.gz" ]; then
-    rm -f openssl-3.5.0.tar.gz
+if [ -f "openssl-$version.tar.gz" ]; then
+    rm -f openssl-$version.tar.gz
 fi
 
 # Get OpenSSL source
-wget -q --no-check-certificate https://www.openssl.org/source/openssl-3.5.0.tar.gz
+wget -q --no-check-certificate https://www.openssl.org/source/openssl-$version.tar.gz
 echo "Fetched OpenSSL archive."
 
 # ==== Linux Build ====
 
 if [ -z "$1" ] || [ "$1" == "linux" ]; then
     # Unpack tar
-    tar -xzf openssl-3.5.0.tar.gz
+    tar -xzf openssl-$version.tar.gz
     echo "Extracted archive."
-    cd openssl-3.5.0
+    cd openssl-$version
 
     # Configure static build
     echo "Configuring build... This may take a minute."
@@ -44,16 +46,16 @@ if [ -z "$1" ] || [ "$1" == "linux" ]; then
 
     # Reset for Windows build
     cd ..
-    rm -rf openssl-3.5.0
+    rm -rf openssl-$version
 fi
 
 # ==== Windows Build ====
 
 if [ -z "$1" ] || [ "$1" == "windows" ]; then
     # Unpack tar
-    tar -xzf openssl-3.5.0.tar.gz
+    tar -xzf openssl-$version.tar.gz
     echo "Extracted archive."
-    cd openssl-3.5.0
+    cd openssl-$version
 
     # Reconfigure for Windows build
     echo "Configuring build... This may take a minute."
@@ -65,11 +67,11 @@ if [ -z "$1" ] || [ "$1" == "windows" ]; then
     echo "Built Windows binaries."
 
     cd ..
-    rm -rf openssl-3.5.0
+    rm -rf openssl-$version
 fi
 
 # ==== Clean Up ====
 
-rm -f $LIB_PATH/openssl-3.5.0.tar.gz
+rm -f $LIB_PATH/openssl-$version.tar.gz
 
 echo "✅ Successfully built static OpenSSL binaries."
