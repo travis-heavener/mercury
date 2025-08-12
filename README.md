@@ -19,7 +19,7 @@
 
 ## About
 
-Mercury is an HTTP server designed in C++ using C socket programming, and is available for both Linux and Windows.
+Mercury is a lightweight, configurable, static content HTTP server designed with C++ socket programming, available for Linux and Windows systems.
 
 ## Build Info
 
