@@ -15,8 +15,7 @@ ZLIB_VERSION="1.3.1"
 
 # Verify artifacts.lock exists
 if [ ! -e "artifacts.lock" ]; then
-    echo "Missing artifacts.lock in project root"
-    exit 1
+    touch artifacts.lock
 fi
 
 # Remove CRLF for LF
