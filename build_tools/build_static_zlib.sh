@@ -3,6 +3,13 @@
 # CD into project directory
 cd "$(dirname "$0")/../"
 
+if [ ! -d "static_libs" ]; then
+    mkdir static_libs
+fi
+
+cd static_libs
+LIB_PATH=$(pwd)
+
 # Update artifacts.lock
 version="1.3.1"
 if [ ! -e "artifacts.lock" ]; then
@@ -14,13 +21,6 @@ if grep -q "^zlib=" artifacts.lock; then
 else
     { echo "zlib=$version"; cat artifacts.lock; } > temp && mv temp artifacts.lock
 fi
-
-if [ ! -d "static_libs" ]; then
-    mkdir static_libs
-fi
-
-cd static_libs
-LIB_PATH=$(pwd)
 
 # ==== Config ====
 ZLIB_DIR="$LIB_PATH/zlib-repo"

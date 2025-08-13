@@ -9,6 +9,13 @@
 # CD into project directory
 cd "$(dirname "$0")/../"
 
+if [ ! -d "static_libs" ]; then
+    mkdir static_libs
+fi
+
+cd static_libs
+
+# Declare versions
 BROTLI_VERSION="1.1.0"
 OPENSSL_VERSION="3.5.2"
 ZLIB_VERSION="1.3.1"

@@ -3,6 +3,17 @@
 # CD into project directory
 cd "$(dirname "$0")/../"
 
+if [ -d "openssl" ]; then
+    rm -rf openssl
+fi
+
+if [ ! -d "static_libs" ]; then
+    mkdir static_libs
+fi
+
+cd static_libs
+LIB_PATH=$(pwd)
+
 # Update artifacts.lock
 version="3.5.2"
 if [ ! -e "artifacts.lock" ]; then
@@ -14,17 +25,6 @@ if grep -q "^openssl=" artifacts.lock; then
 else
     { echo "openssl=$version"; cat artifacts.lock; } > temp && mv temp artifacts.lock
 fi
-
-if [ -d "openssl" ]; then
-    rm -rf openssl
-fi
-
-if [ ! -d "static_libs" ]; then
-    mkdir static_libs
-fi
-
-cd static_libs
-LIB_PATH=$(pwd)
 
 # Clean existing
 if [ -d "openssl-$version" ]; then

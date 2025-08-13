@@ -3,6 +3,13 @@
 # CD into project directory
 cd "$(dirname "$0")/../"
 
+if [ ! -d "static_libs" ]; then
+    mkdir static_libs
+fi
+
+cd static_libs
+LIB_PATH=$(pwd)
+
 # Update artifacts.lock
 version="1.1.0"
 if [ ! -e "artifacts.lock" ]; then
@@ -14,13 +21,6 @@ if grep -q "^brotli=" artifacts.lock; then
 else
     { echo "brotli=$version"; cat artifacts.lock; } > temp && mv temp artifacts.lock
 fi
-
-if [ ! -d "static_libs" ]; then
-    mkdir static_libs
-fi
-
-cd static_libs
-LIB_PATH=$(pwd)
 
 # Clean existing
 if [ -d "brotli" ]; then
