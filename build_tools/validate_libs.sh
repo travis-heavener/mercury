@@ -19,24 +19,33 @@ if [ ! -e "artifacts.lock" ]; then
     exit 1
 fi
 
+# Remove CRLF for LF
+sed -i 's/\r//g' artifacts.lock
+
 # === Brotli ===
 
-if ! grep -q "^brotli=$BROTLI_VERSION" artifacts.lock; then
+HAS_FAILED="false"
+
+if ! grep -q "^brotli=${BROTLI_VERSION}\$" artifacts.lock; then
     echo "Update Brotli to $BROTLI_VERSION via \`make static_brotli\`"
-    exit 1
+    HAS_FAILED="true"
 fi
 
 # === OpenSSL ===
 
-if ! grep -q "^openssl=$OPENSSL_VERSION" artifacts.lock; then
+if ! grep -q "^openssl=${OPENSSL_VERSION}\$" artifacts.lock; then
     echo "Update OpenSSL to $OPENSSL_VERSION via \`make static_openssl\`"
-    exit 1
+    HAS_FAILED="true"
 fi
 
 # === zlib ===
 
-if ! grep -q "^zlib=$ZLIB_VERSION" artifacts.lock; then
+if ! grep -q "^zlib=${ZLIB_VERSION}\$" artifacts.lock; then
     echo "Update zlib to $ZLIB_VERSION via \`make static_zlib\`"
+    HAS_FAILED="true"
+fi
+
+if [ $HAS_FAILED == "true" ]; then
     exit 1
 fi
 
