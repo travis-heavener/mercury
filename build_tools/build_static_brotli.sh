@@ -3,24 +3,32 @@
 # CD into project directory
 cd "$(dirname "$0")/../"
 
-# Update artifacts.lock
-version="1.1.0"
-if [ ! -e "artifacts.lock" ]; then
-    touch artifacts.lock
-fi
-
-if grep -q "^brotli=" artifacts.lock; then
-    sed -i "s/^brotli=.*$/brotli=$version/" artifacts.lock
-else
-    { echo "brotli=$version"; cat artifacts.lock; } > temp && mv temp artifacts.lock
-fi
-
 if [ ! -d "static_libs" ]; then
     mkdir static_libs
 fi
 
 cd static_libs
 LIB_PATH=$(pwd)
+
+# Update artifacts.lock
+version="1.1.0"
+if [ ! -e "artifacts.lock" ]; then
+    touch artifacts.lock
+    echo "" | gzip | base64 > artifacts.lock
+fi
+
+# Unpack artifacts
+cat artifacts.lock | base64 --decode | gunzip > artifacts.raw
+
+if grep -q "^brotli=" artifacts.raw; then
+    sed -i "s/^brotli=.*$/brotli=$version/" artifacts.raw
+else
+    { echo "brotli=$version"; cat artifacts.raw; } > temp && mv temp artifacts.raw
+fi
+
+# Repack artifacts
+cat artifacts.raw | gzip | base64 > artifacts.lock
+rm -f artifacts.raw
 
 # Clean existing
 if [ -d "brotli" ]; then

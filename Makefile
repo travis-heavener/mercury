@@ -5,6 +5,7 @@ GPP_FLAGS = -Wall -Wextra -Winvalid-pch
 STATIC_LIBS_DIR = static_libs
 OPENSSL_DIR = $(STATIC_LIBS_DIR)/openssl
 BROTLI_DIR = $(STATIC_LIBS_DIR)/brotli
+ARTIFACTS_LOCK = $(STATIC_LIBS_DIR)/artifacts.lock
 PCH_DIR = src/pch
 
 STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -std=c++17
@@ -20,7 +21,7 @@ all: pch_linux $(TARGET) pch_windows $(TARGET_WIN)
 linux: pch_linux $(TARGET)
 windows: pch_windows $(TARGET_WIN)
 
-$(TARGET): $(DEPS)
+$(TARGET): $(DEPS) $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
 	@echo -n "Building for Linux... "
 	@mkdir -p ./bin
@@ -36,7 +37,7 @@ $(TARGET): $(DEPS)
 	@upx $(TARGET) -qqq
 	@echo "✅ Done."
 
-$(TARGET_WIN): $(DEPS) src/winheader.hpp
+$(TARGET_WIN): $(DEPS) src/winheader.hpp $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
 	@echo -n "Building for Windows... "
 	@mkdir -p ./bin
@@ -55,11 +56,10 @@ $(TARGET_WIN): $(DEPS) src/winheader.hpp
 
 # Precompiled headers
 pch: pch_linux pch_windows
-
 pch_linux: $(PCH_DIR)/common-linux.hpp.gch
 pch_windows: $(PCH_DIR)/common-win.hpp.gch
 
-$(PCH_DIR)/common-linux.hpp.gch: $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.hpp
+$(PCH_DIR)/common-linux.hpp.gch: $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.hpp $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
 	@mkdir -p ./bin
 	@echo -n "Building Linux PCH... "
@@ -73,7 +73,7 @@ $(PCH_DIR)/common-linux.hpp.gch: $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.h
 		-o $(PCH_DIR)/common-linux.hpp.gch
 	@echo "✅ Done."
 
-$(PCH_DIR)/common-win.hpp.gch: $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp
+$(PCH_DIR)/common-win.hpp.gch: $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
 	@mkdir -p ./bin
 	@echo -n "Building Windows PCH... "
@@ -104,6 +104,7 @@ static_zlib:
 	@./build_tools/build_static_zlib.sh
 
 release:
+	@./build_tools/validate_libs.sh --q
 	@./build_tools/build_release.sh
 
 ############################ TLS CERTS ############################
