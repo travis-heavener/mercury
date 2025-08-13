@@ -14,13 +14,21 @@ LIB_PATH=$(pwd)
 version="1.3.1"
 if [ ! -e "artifacts.lock" ]; then
     touch artifacts.lock
+    echo "" | gzip | base64 > artifacts.lock
 fi
 
-if grep -q "^zlib=" artifacts.lock; then
-    sed -i "s/^zlib=.*$/zlib=$version/" artifacts.lock
+# Unpack artifacts
+cat artifacts.lock | base64 --decode | gunzip > artifacts.raw
+
+if grep -q "^zlib=" artifacts.raw; then
+    sed -i "s/^zlib=.*$/zlib=$version/" artifacts.raw
 else
-    { echo "zlib=$version"; cat artifacts.lock; } > temp && mv temp artifacts.lock
+    { echo "zlib=$version"; cat artifacts.raw; } > temp && mv temp artifacts.raw
 fi
+
+# Repack artifacts
+cat artifacts.raw | gzip | base64 > artifacts.lock
+rm -f artifacts.raw
 
 # ==== Config ====
 ZLIB_DIR="$LIB_PATH/zlib-repo"

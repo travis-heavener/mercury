@@ -9,6 +9,7 @@ sudo apt install upx \
     zlib1g-dev \
     g++ \
     zip \
-    python3 -y
+    python3 \
+    gzip -y
 
 echo "✅ Successfully installed dependencies."

@@ -18,13 +18,21 @@ LIB_PATH=$(pwd)
 version="3.5.2"
 if [ ! -e "artifacts.lock" ]; then
     touch artifacts.lock
+    echo "" | gzip | base64 > artifacts.lock
 fi
 
-if grep -q "^openssl=" artifacts.lock; then
-    sed -i "s/^openssl=.*$/openssl=$version/" artifacts.lock
+# Unpack artifacts
+cat artifacts.lock | base64 --decode | gunzip > artifacts.raw
+
+if grep -q "^openssl=" artifacts.raw; then
+    sed -i "s/^openssl=.*$/openssl=$version/" artifacts.raw
 else
-    { echo "openssl=$version"; cat artifacts.lock; } > temp && mv temp artifacts.lock
+    { echo "openssl=$version"; cat artifacts.raw; } > temp && mv temp artifacts.raw
 fi
+
+# Repack artifacts
+cat artifacts.raw | gzip | base64 > artifacts.lock
+rm -f artifacts.raw
 
 # Clean existing
 if [ -d "openssl-$version" ]; then
