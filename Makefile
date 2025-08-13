@@ -104,6 +104,7 @@ static_zlib:
 	@./build_tools/build_static_zlib.sh
 
 release:
+	@./build_tools/validate_libs.sh --q
 	@./build_tools/build_release.sh
 
 ############################ TLS CERTS ############################
