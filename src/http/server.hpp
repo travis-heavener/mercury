@@ -26,6 +26,7 @@
 
 #include "version/handler_1_1.hpp"
 #include "version/handler_1_0.hpp"
+#include "version/handler_0_9.hpp"
 
 #include <zlib.h>
 

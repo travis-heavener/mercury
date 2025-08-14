@@ -23,7 +23,13 @@ namespace http {
 
         this->methodStr = line.substr(0, firstSpaceIndex);
         this->pathStr = line.substr(firstSpaceIndex + 1, secondSpaceIndex - firstSpaceIndex - 1);
-        this->httpVersionStr = line.substr(secondSpaceIndex + 1);
+
+        // Check for HTTP/0.9 unique status line
+        if (secondSpaceIndex != std::string::npos) {
+            this->httpVersionStr = line.substr(secondSpaceIndex + 1);
+        } else {
+            this->httpVersionStr = "HTTP/0.9";
+        }
 
         // Replace backslash w/ fwd slash
         std::replace( this->pathStr.begin(), this->pathStr.end(), '\\', '/');

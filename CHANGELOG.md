@@ -2,6 +2,8 @@
 
 ## v0.10.0
 - Modularized request handlers (#39)
+    - Added foundation for implementing future HTTP versions > HTTP/1.1
+- Add support for HTTP/0.9 (finally closed #16!)
 
 ## v0.9.2
 - Bump Brotli to v1.1.0

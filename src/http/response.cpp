@@ -64,6 +64,12 @@ namespace http {
     }
 
     void Response::loadToBuffer(std::string& buffer, const bool omitBody) {
+        // Handle HTTP/0.9 unique format
+        if (this->httpVersion == "HTTP/0.9") {
+            buffer = body; // Write to buffer
+            return;
+        }
+
         // Determine Content-Length
         const std::string contentLen = std::to_string(this->body.size());
         this->setHeader("Content-Length", contentLen);

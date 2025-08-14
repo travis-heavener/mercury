@@ -27,37 +27,46 @@ class TestCase:
         s.sendall(str(self).encode("utf-8"))
 
         # Read response
-        response = s.recv(READ_BUF_SIZE).decode("utf-8").replace("\r", "")
-        status_code = int(response.split(" ")[1])
+        if self.http_ver == "HTTP/0.9":
+            response = s.recv(READ_BUF_SIZE).decode("utf-8").replace("\r", "")
 
-        # Extract headers
-        header_lines = response.partition("\n\n")[0].split("\n")[1:]
-        headers = {}
-        for line in header_lines:
-            index = line.find(":")
-            key, value = line[:index], line[index+1:]
-            headers[ key.strip().upper() ] = value.strip()
+            # If anything is returned, it's a success
+            return len(response) > 0
+        else:
+            response = s.recv(READ_BUF_SIZE).decode("utf-8").replace("\r", "")
+            status_code = int(response.split(" ")[1])
 
-        ### Evaluate ###
+            # Extract headers
+            header_lines = response.partition("\n\n")[0].split("\n")[1:]
+            headers = {}
+            for line in header_lines:
+                index = line.find(":")
+                key, value = line[:index], line[index+1:]
+                headers[ key.strip().upper() ] = value.strip()
 
-        # Check status code
-        if status_code != self.expected_status:
-            return False
+            ### Evaluate ###
 
-        # Check headers
-        for k, v in self.expected_headers.items():
-            if k not in headers or headers[k] != v:
+            # Check status code
+            if status_code != self.expected_status:
                 return False
 
-        # Base case
-        return True
+            # Check headers
+            for k, v in self.expected_headers.items():
+                if k not in headers or headers[k] != v:
+                    return False
+
+            # Base case
+            return True
 
     # Stringify the test case
     def __str__(self) -> str:
-        s = f"{self.method} {self.path} {self.http_ver}\r\n"
-        s += "\r\n".join(f"{k}: {v}" for k, v in self.headers.items())
-        s += "\r\n"
-        return s
+        if self.http_ver == "HTTP/0.9":
+            return f"{self.method} {self.path}\r\n"
+        else:
+            s = f"{self.method} {self.path} {self.http_ver}\r\n"
+            s += "\r\n".join(f"{k}: {v}" for k, v in self.headers.items())
+            s += "\r\n"
+            return s
 
 cases = [
     # Path injection test cases
@@ -101,5 +110,9 @@ cases = [
     TestCase(method="FOO",  path="/",           expected_status=405),
 
     # Invalid query string
-    TestCase(method="HEAD", path="/index.html%", expected_status=400)
+    TestCase(method="HEAD", path="/index.html%", expected_status=400),
+
+    # Test HTTP/0.9
+    # These don't really check responses, just make sure the server doesn't crash lol
+    TestCase(method="", path="/index.html", expected_status=-1, http_ver="HTTP/0.9"),
 ]
