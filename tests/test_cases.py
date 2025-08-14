@@ -114,5 +114,6 @@ cases = [
 
     # Test HTTP/0.9
     # These don't really check responses, just make sure the server doesn't crash lol
-    TestCase(method="", path="/index.html", expected_status=-1, http_ver="HTTP/0.9"),
+    TestCase(method="GET", path="/index.html", expected_status=-1, http_ver="HTTP/0.9"),
+    TestCase(method="HEAD", path="/index.html", expected_status=-1, http_ver="HTTP/0.9")
 ]
