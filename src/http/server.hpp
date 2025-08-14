@@ -24,6 +24,9 @@
 #include "../util/thread_pool.hpp"
 #include "../logs/logger.hpp"
 
+#include "version/handler_1_1.hpp"
+#include "version/handler_1_0.hpp"
+
 #include <zlib.h>
 
 #define SOCKET_UNSET -1
@@ -35,7 +38,7 @@
 #define KEEP_ALIVE_TIMEOUT_MS 3000
 #define KEEP_ALIVE_MAX_REQ 100
 
-namespace HTTP {
+namespace http {
 
     class Server : public std::enable_shared_from_this<Server> {
         public:
@@ -52,7 +55,7 @@ namespace HTTP {
             void acceptLoop();
             void handleReqs(const int, const std::string);
             void kill();
-            void genResponse(Request&, Response&);
+            Response* genResponse(Request&);
         protected:
             // Socket methods
             inline void clearBuffer(char*);

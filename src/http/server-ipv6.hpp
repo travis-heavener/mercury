@@ -5,7 +5,7 @@
 
 #define MAX_IPV6_BIND_ATTEMPTS 5 
 
-namespace HTTP {
+namespace http {
 
     class ServerV6 : public Server {
         public:

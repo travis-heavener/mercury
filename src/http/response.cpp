@@ -2,7 +2,7 @@
 
 #define CRLF "\r\n"
 
-namespace HTTP {
+namespace http {
 
     Response::Response(const std::string& httpVersion) {
         this->httpVersion = httpVersion;

@@ -1,0 +1,97 @@
+#include "handler_1_1.hpp"
+
+#define ALLOWED_METHODS "GET, HEAD, OPTIONS"
+
+namespace http {
+    namespace version {
+        namespace handler_1_1 {
+
+            void setStatusMaybeErrorDoc(Request& req, Response& res, const int status) {
+                res.setStatus(status);
+                if (req.isMIMEAccepted("text/html"))
+                    res.loadBodyFromErrorDoc(status);
+            }
+
+            Response* genResponse(Request& request) {
+                // Create Response object
+                Response* pResponse = new Response("HTTP/1.1");
+
+                // Verify Host header is present for HTTP/1.1+ (RFC 2616) & URI isn't malformed
+                if ( request.getHeader("HOST") == nullptr || request.isURIBad() ) {
+                    setStatusMaybeErrorDoc(request, *pResponse, 400);
+                    return pResponse;
+                }
+
+                // Verify path is restricted to document root
+                if (!request.isInDocumentRoot(*pResponse, ALLOWED_METHODS))
+                    return pResponse;
+
+                // Lookup file & validate it doesn't have anything wrong with it
+                File file(request.getPathStr());
+                if (!request.isFileValid(*pResponse, file))
+                    return pResponse;
+
+                // Switch on method
+                switch (request.getMethod()) {
+                    case METHOD::HEAD:
+                    case METHOD::GET: {
+                        // Check accepted MIMES
+                        if (!request.isMIMEAccepted(file.MIME)) {
+                            setStatusMaybeErrorDoc(request, *pResponse, 406);
+                            break;
+                        }
+
+                        // Check if previously cached
+                        const auto pLastModTS = request.getHeader("IF-MODIFIED-SINCE");
+                        if (pLastModTS != nullptr) {
+                            // Compare timestamps
+                            try {
+                                // serverTime <= clientTime
+                                if (getFileModTimeT(file.path) <= getTimeTFromGMT(*pLastModTS)) {
+                                    pResponse->setStatus(304);
+                                    break;
+                                }
+                            } catch (...) {
+                                // Comparison failed, re-send content as if updated
+                            }
+                        }
+
+                        // Attempt to buffer resource
+                        if (pResponse->loadBodyFromFile(file) == IO_FAILURE) {
+                            setStatusMaybeErrorDoc(request, *pResponse, 500);
+                            break;
+                        }
+
+                        // Otherwise, body loaded successfully
+                        pResponse->setStatus(200);
+                        pResponse->setHeader("Content-Type", file.MIME);
+
+                        // Load additional headers for body loading
+                        for (conf::Match* pMatch : conf::matchConfigs)
+                            if (std::regex_match(file.path, pMatch->getPattern()))
+                                for (auto [name, value] : pMatch->getHeaders())
+                                    pResponse->setHeader(name, value);
+                        break;
+                    }
+                    case METHOD::OPTIONS: { // OPTIONS introduced in HTTP/1.1
+                        pResponse->setHeader("Allow", ALLOWED_METHODS);
+                        pResponse->setStatus(200);
+                        break;
+                    }
+                    default: {
+                        // If the request allows HTML, return an HTML display
+                        pResponse->setHeader("Allow", ALLOWED_METHODS);
+                        setStatusMaybeErrorDoc(request, *pResponse, 405);
+                        break;
+                    }
+                }
+
+                // Return Response ptr
+                return pResponse;
+            }
+
+        }
+    }
+}
+
+#undef ALLOWED_METHODS

@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.10.0
+- Modularized request handlers (#39)
+
 ## v0.9.2
 - Bump Brotli to v1.1.0
 - Bump OpenSSL to v3.5.2

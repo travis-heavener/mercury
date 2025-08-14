@@ -1,6 +1,6 @@
 #include "server-ipv6.hpp"
 
-namespace HTTP {
+namespace http {
 
     int bindSocketOpts(ServerV6& server, int& sock, const bool logErrors) {
         if (sock < 0) {
