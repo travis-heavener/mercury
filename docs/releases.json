@@ -1,0 +1,80 @@
+[
+    {
+        "name": "v0.10.0",
+        "date": 1755150960000,
+        "linuxHash": "4ac0c7081835bf87b532399ae064cf190744b9b4f64fbf0b5eb06bc2de5f7565",
+        "winHash": "27b3a4ae0d7b30783555ba55dc5f8b1277fcbbb21e84266041a018981002c274"
+    },
+    {
+        "name": "v0.9.2",
+        "date": 1755182640000,
+        "linuxHash": "6d6f2b7ea514cab07c735eea3d8000d8fb932e0359f4b07de592a57086fcda94",
+        "winHash": "341bc9190f7c2fe8e4f20aec88e85a7ab52b2dc81efeea8106f1d66a091245fe"
+    },
+    {
+        "name": "v0.9.1",
+        "date": 1754801040000,
+        "linuxHash": "428b55d9fd1d98bd1628398fa1ac77aae72e5ccee1a5091b16ed368396d9a588",
+        "winHash": "9dde0576c8a23bceb335bd97e450137fd2705c253aa2ecf3665947b32445ed8a"
+    },
+    {
+        "name": "v0.9.0",
+        "date": 1754800980000,
+        "linuxHash": "aa6c92c0d104f7a2423312cad20658dd85afa0096de0353a803f3b4db04f4d86",
+        "winHash": "68b4ac683660dc2f0f1714aeb387e6a9130927a0bccbaeeb1073cbfb9130a7e3"
+    },
+    {
+        "name": "v0.8.0",
+        "date": 1754581320000,
+        "linuxHash": "435d7c9d6d0d6a9ef8d4e3d10ade41c06671873a1d5701fe5bfa36b335dd1513",
+        "winHash": "0205ee441ffe8072a9df16e8656ba89dea597c0bf12fb0fe6a27c5bba70a2df5"
+    },
+    {
+        "name": "v0.7.8",
+        "date": 1754419560000,
+        "linuxHash": "4b5af6e118154dc9937ce31f571a3192e875ffac32b7d3b7e94595001ee121a4",
+        "winHash": "8b470eaf334f713d51a3ee62f752ca527787cbbaa046e52f99c59839330526ae"
+    },
+    {
+        "name": "v0.7.7",
+        "date": 1754006040000,
+        "linuxHash": "938bc90662e5009eed608a05d316333536fe725b434bf64cd47dc67a613c86ca",
+        "winHash": "f11767ac5122352f716d6764b94e93697a7aa64f1d9c60385566e485a1a66127"
+    },
+    {
+        "name": "v0.7.6",
+        "date": 1753832280000,
+        "linuxHash": "d639e7c76ffb346306daf0ff9b274086334be76221f9bb5da570e6274845d761",
+        "winHash": "44452c16d4450941022140819b2dfda98732187abe9b225a8179e646459697df"
+    },
+    {
+        "name": "v0.7.5",
+        "date": 1753371720000,
+        "linuxHash": "a51a67e3f5c0d409e2c1f4a903c752f12547fd8dc0f214daf738874f669725e1",
+        "winHash": "b66477bc7b48f2cf3d6e80c81ae28d591ed1184a4991165ef75b123f1b92a656"
+    },
+    {
+        "name": "v0.7.4",
+        "date": 1750256640000,
+        "linuxHash": "346ad474c4d2fc92be398e2f6eadd41b6be7de9ce9ccf28bea1facbbf14cb6dd",
+        "winHash": "c151cf1ec52f3b4f9dc54cb8b2846940c5a0cb1089b1c757a2060ba6362695ee"
+    },
+    {
+        "name": "v0.7.3",
+        "date": 1749313380000,
+        "linuxHash": "8fbbac3d01ed8612323351b82f59051b84cf98c411e4d1ccc6875446a81a0d8a",
+        "winHash": "e81028ca10cadd548b663c68dae026ae7cb0709e5742c6079878732e64bd57e2"
+    },
+    {
+        "name": "v0.7.2",
+        "date": 1748703180000,
+        "linuxHash": "afbc4364cc44a104e0cc4f7adb13463a9c19f4ddf8e2d2228e7f77f3d09d76df",
+        "winHash": "1fb4cbd29c1280de19489ff17d73af0eedbc216ff3205ed33131b4d5c335ca85"
+    },
+    {
+        "name": "v0.7.0",
+        "date": 1748488800000,
+        "linuxHash": "",
+        "winHash": ""
+    }
+]
