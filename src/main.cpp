@@ -6,7 +6,7 @@
 #include "http/server-ipv6.hpp"
 #include "logs/logger.hpp"
 
-std::vector<std::shared_ptr<HTTP::Server>> serversVec;
+std::vector<std::shared_ptr<http::Server>> serversVec;
 
 /******************** SIGNAL HANDLERS & CLEANUP ********************/
 
@@ -90,17 +90,17 @@ int main() {
 
     // Init server
     if (conf::IS_IPV4_ENABLED)
-        serversVec.emplace_back(std::make_shared<HTTP::Server>(conf::PORT, false));
+        serversVec.emplace_back(std::make_shared<http::Server>(conf::PORT, false));
 
     if (conf::IS_IPV6_ENABLED)
-        serversVec.emplace_back(std::make_shared<HTTP::ServerV6>(conf::PORT, false));
+        serversVec.emplace_back(std::make_shared<http::ServerV6>(conf::PORT, false));
 
     if (conf::USE_TLS) {
         if (conf::IS_IPV4_ENABLED)
-            serversVec.emplace_back(std::make_shared<HTTP::Server>(conf::TLS_PORT, true));
+            serversVec.emplace_back(std::make_shared<http::Server>(conf::TLS_PORT, true));
 
         if (conf::IS_IPV6_ENABLED)
-            serversVec.emplace_back(std::make_shared<HTTP::ServerV6>(conf::TLS_PORT, true));
+            serversVec.emplace_back(std::make_shared<http::ServerV6>(conf::TLS_PORT, true));
     }
 
     // Remove servers that fail to start

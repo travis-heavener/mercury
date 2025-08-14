@@ -1,6 +1,6 @@
 #include "server.hpp"
 
-namespace HTTP {
+namespace http {
 
     Server::Server(const port_t port, const bool useTLS) : port(port),
         maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::MAX_REQUEST_BUFFER),
@@ -234,18 +234,18 @@ namespace HTTP {
             if (bytesReceived == 0) // Connection closed by client
                 break;
 
+            Response* pResponse = nullptr;
             try {
                 // Parse request
                 Request request(readBuffer, clientIPStr);
 
                 // Generate response
-                Response response(request.getVersion());
-                this->genResponse(request, response);
+                pResponse = genResponse(request);
 
                 ACCESS_LOG << request.getMethodStr() << ' '
                         << request.getIPStr() << ' '
                         << request.getPathStr()
-                        << " -- (" << response.getStatus() << ") ["
+                        << " -- (" << pResponse->getStatus() << ") ["
                         << request.getVersion() << ']'
                         << std::endl; // Flush w/ endl vs newline
 
@@ -255,27 +255,31 @@ namespace HTTP {
                 strToUpper(connHeader); // Format copied string
                 if (connHeader == "KEEP-ALIVE" || (connHeader == "" && request.getVersion() == "HTTP/1.1")) {
                     // HTTP/1.1 defaults to keep-alive
-                    response.setHeader("Connection", "keep-alive");
-                    response.setHeader("Keep-Alive",
+                    pResponse->setHeader("Connection", "keep-alive");
+                    pResponse->setHeader("Keep-Alive",
                                 "timeout=" + std::to_string(KEEP_ALIVE_TIMEOUT_MS/1000) +
                                 ", max=" + std::to_string(KEEP_ALIVE_MAX_REQ));
                     --keepAliveReqsLeft;
                 } else { // Close connection
-                    response.setHeader("Connection", "close");
+                    pResponse->setHeader("Connection", "close");
                     keepAliveReqsLeft = 0;
                 }
 
                 // Load response to buffer
-                const bool omitBody = request.getMethod() == HTTP::METHOD::HEAD;
+                const bool omitBody = request.getMethod() == http::METHOD::HEAD;
                 std::string resBuffer;
-                response.loadToBuffer(resBuffer, omitBody);
+                pResponse->loadToBuffer(resBuffer, omitBody);
 
                 // Send response & close connection
                 ssize_t bytesSent = this->writeClientSock(client, pSSL, resBuffer);
                 if (bytesSent < 0) break;
             } catch (http::Exception& e) {
+                if (pResponse != nullptr) delete pResponse;
                 break; // Handles invalid requests syntax (ie. non-CRLF)
             }
+
+            // Free Response
+            delete pResponse;
         }
 
         // Close client socket & cleanup TLS
@@ -285,22 +289,39 @@ namespace HTTP {
         delete[] readBuffer;
     }
 
-    void Server::genResponse(Request& request, Response& response) {
-        // Load the response from the request
-        request.loadResponse(response);
+    Response* Server::genResponse(Request& request) {
+        // Handle different HTTP versions
+        Response* pResponse;
+
+        if (request.getVersion() == "HTTP/1.1") {
+            pResponse = version::handler_1_1::genResponse(request);
+        } else if (request.getVersion() == "HTTP/1.0") {
+            pResponse = version::handler_1_0::genResponse(request);
+        } else if (request.getVersion() == "HTTP/0.9") {
+            pResponse = version::handler_0_9::genResponse(request);
+        } else {
+            pResponse = new Response("HTTP/1.1"); // Default version
+
+            // Handle with HTML if possible
+            pResponse->setStatus(505);
+            if (request.isMIMEAccepted("text/html"))
+                pResponse->loadBodyFromErrorDoc(505);
+        }
 
         // Handle compression
-        const std::string contentType = response.getContentType();
+        const std::string contentType = pResponse->getContentType();
 
         // Determine compression method
-        if (request.getMethod() == HTTP::METHOD::OPTIONS) return;
+        if (request.getMethod() == http::METHOD::OPTIONS) return pResponse;
 
         if (this->useTLS && request.isEncodingAccepted("br"))
-            response.compressBody(COMPRESS_BROTLI);
+            pResponse->compressBody(COMPRESS_BROTLI);
         else if (request.isEncodingAccepted("gzip"))
-            response.compressBody(COMPRESS_GZIP);
+            pResponse->compressBody(COMPRESS_GZIP);
         else if (request.isEncodingAccepted("deflate"))
-            response.compressBody(COMPRESS_DEFLATE);
+            pResponse->compressBody(COMPRESS_DEFLATE);
+
+        return pResponse;
     }
 
     void Server::clearBuffer(char* readBuffer) {

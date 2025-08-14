@@ -1,6 +1,6 @@
 #include "request.hpp"
 
-namespace HTTP {
+namespace http {
 
     void parseAcceptHeader(std::unordered_set<std::string>&, std::string&);
 
@@ -23,7 +23,13 @@ namespace HTTP {
 
         this->methodStr = line.substr(0, firstSpaceIndex);
         this->pathStr = line.substr(firstSpaceIndex + 1, secondSpaceIndex - firstSpaceIndex - 1);
-        this->httpVersionStr = line.substr(secondSpaceIndex + 1);
+
+        // Check for HTTP/0.9 unique status line
+        if (secondSpaceIndex != std::string::npos) {
+            this->httpVersionStr = line.substr(secondSpaceIndex + 1);
+        } else {
+            this->httpVersionStr = "HTTP/0.9";
+        }
 
         // Replace backslash w/ fwd slash
         std::replace( this->pathStr.begin(), this->pathStr.end(), '\\', '/');
@@ -89,105 +95,21 @@ namespace HTTP {
         return (result != this->headers.end()) ? &result->second : nullptr;
     }
 
-    void Request::loadResponse(Response& response) const {
-        // Verify Host header is present for HTTP/1.1+ (RFC 2616)
-        const bool isHostRequiredAndPresent = getHeader("HOST") == nullptr &&
-            httpVersionStr != "HTTP/1.0" && httpVersionStr != "HTTP/0.9";
-
-        // Verify request is valid & URI isn't malformed
-        if ( isHostRequiredAndPresent || hasBadURI ) {
-            this->setStatusMaybeErrorDoc(response, 400);
-            return;
-        }
-
-        // Handle invalid HTTP version
-        if (!this->isVersionSupported()) {
-            this->setStatusMaybeErrorDoc(response, 505);
-            return;
-        }
-
+    // This method exists to combine common methods from the version handlers
+    bool Request::isInDocumentRoot(Response& response, const std::string& allowedMethods) const {
         // Decode URI after removing query string
-        std::string querylessPath = rawPathStr.substr(0, this->rawPathStr.find("?"));
-        decodeURI(querylessPath); // Doesn't need try-catch since it's already checked in constructor
+        std::string querylessPath = rawPathStr.substr(0, rawPathStr.find("?"));
+        decodeURI(querylessPath); // Doesn't need try-catch, already checked in Request constructor
 
         // Prevent lookups to files outside of the document root
         if (pathStr.size() == 0 || pathStr[0] != '/' || querylessPath.find("..") != std::string::npos) {
-            response.setHeader("Allow", this->getAllowedMethods());
-            this->setStatusMaybeErrorDoc(response, 400);
-            return;
+            response.setHeader("Allow", allowedMethods);
+            setStatusMaybeErrorDoc(response, 400);
+            return false;
         }
 
-        // Lookup file & validate it doesn't have anything wrong with it
-        File file(pathStr);
-        if (!this->isFileValid(response, file))
-            return;
-
-        // Switch on method
-        switch (this->method) {
-            case METHOD::HEAD:
-            case METHOD::GET: {
-                // Check accepted MIMES
-                if (!this->isMIMEAccepted(file.MIME)) {
-                    this->setStatusMaybeErrorDoc(response, 406);
-                    break;
-                }
-
-                // Check if previously cached
-                const auto pLastModTS = this->getHeader("IF-MODIFIED-SINCE");
-                if (pLastModTS != nullptr) {
-                    // Compare timestamps
-                    try {
-                        const std::time_t serverTime = getFileModTimeT(file.path);
-                        const std::time_t clientTime = getTimeTFromGMT(*pLastModTS);
-
-                        if (serverTime <= clientTime) { // Send 304
-                            response.setStatus(304); // Not Modified
-                            break;
-                        }
-                    } catch (...) {
-                        // Comparison failed, re-send content as if updated
-                    }
-                }
-
-                // Attempt to buffer resource
-                if (response.loadBodyFromFile(file) == IO_FAILURE) {
-                    this->setStatusMaybeErrorDoc(response, 500);
-                    break;
-                }
-
-                // Otherwise, body loaded successfully
-                response.setStatus(200);
-                response.setHeader("Content-Type", file.MIME);
-
-                // Load additional headers for body loading
-                for (conf::Match* pMatch : conf::matchConfigs) {
-                    if (std::regex_match(file.path, pMatch->getPattern())) {
-                        // Apply headers
-                        for (auto [name, value] : pMatch->getHeaders()) {
-                            response.setHeader(name, value);
-                        }
-                    }
-                }
-                break;
-            }
-            case METHOD::OPTIONS: {
-                // OPTIONS introduced in HTTP/1.1
-                if (this->httpVersionStr == "HTTP/1.0") {
-                    response.setStatus(405);
-                    break;
-                }
-
-                response.setHeader("Allow", this->getAllowedMethods());
-                response.setStatus(200);
-                break;
-            }
-            default: {
-                // If the request allows HTML, return an HTML display
-                response.setHeader("Allow", this->getAllowedMethods());
-                this->setStatusMaybeErrorDoc(response, 405);
-                break;
-            }
-        }
+        // Base case, both are valid
+        return true;
     }
 
     // Sets the status and loads an error doc, if applicable
@@ -264,17 +186,6 @@ namespace HTTP {
         // Format split buffer
         for (std::string& mime : splitBuf)
             splitVec.insert(mime.substr(0, mime.find(';')));
-    }
-
-    std::string Request::getAllowedMethods() const {
-        // Return the allowed methods for the particular version
-        if (this->httpVersionStr == "HTTP/1.1") {
-            return "GET, HEAD, OPTIONS";
-        } else if (this->httpVersionStr == "HTTP/1.0") {
-            return "GET, HEAD";
-        } else {
-            throw std::runtime_error("Invalid HTTP version passed to Request::getAllowedMethods");
-        }
     }
 
 }

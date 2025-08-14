@@ -7,7 +7,7 @@
 #include "../io/file.hpp"
 #include "../util/toolbox.hpp"
 
-namespace HTTP {
+namespace http {
 
     class Response {
         public:
