@@ -7,9 +7,8 @@
 }
 
 :root {
-    --g-start: #e0d8d2;
-    --g-mid: #161310;
-    --g-end: #040201;
+    --g-dark: #14110f;
+    --g-lite: #1d1816;
 
     --text-light: #e8e3e0;
     --text-medium: #ccc3c0;
@@ -22,10 +21,23 @@
     color-scheme: dark;
 }
 
+html, body {
+    overflow-x: hidden;
+}
+
 body {
     min-height: 100vh;
-    background: var(--theme-dark);
-    background: radial-gradient(circle at center 150%, var(--g-start) 0%, var(--g-mid) 50%, var(--g-end) 100%);
+    background: var(--g-dark);
+    background: radial-gradient(ellipse at top left, var(--g-dark) 0, var(--g-lite) 100%);
+}
+
+#main-content {
+    margin: 5vh 15%;
+    padding-bottom: 2vh;
+    width: 70%;
+
+    background-color: #413a36;
+    border-radius: 0.5rem;
 }
 
 a {
@@ -39,7 +51,7 @@ a:active { color: var(--anchor-dark) !important }
 
 h1 {
     color: var(--text-light);
-    font: 600 3rem/2.5 Montserrat, sans-serif;
+    font: 700 3rem/2.5 Montserrat, sans-serif;
     text-align: center;
 }
 
@@ -69,25 +81,26 @@ h3#mercury-desc {
     margin: 2rem 7rem;
 
     width: calc(100% - 14rem);
-    background-color: #d1611f;
+    background-color: #239534;
     border-radius: 0.5rem;
 }
 
 #latest-release-div > h2 {
     margin: 0;
-    text-shadow: 0.1em 0.1em 0.1emc #0008;
+    text-shadow: 0.1em 0.1em 0.1em #0008;
     text-align: center;
 }
 
 #latest-release-div > h3 {
-    color: var(--text-dark);
-    font: 700 1.5rem/2 Roboto, sans-serif;
+    color: var(--text-light);
+    font: 700 italic 1.5rem/2 Roboto, sans-serif;
     text-align: center;
 }
 
 #latest-release-div > a {
+    color: var(--anchor-light);
     font: 500 1.25rem/1.5 Roboto, sans-serif;
-    text-shadow: 0.1em 0.1em 0.0875em #0008;
+    text-shadow: 0.1em 0.1em 0.05em #0008;
 }
 
 /***************** TABLE STYLING *****************/
@@ -100,15 +113,14 @@ h3#mercury-desc {
     border-radius: 0.5rem;
 }
 
-#windows-download-table { background-color: #a74308 }
-#linux-download-table { background-color: #933c09 }
+#windows-download-table { background-color: #5a5a5a; }
+#linux-download-table { background-color: #5a5a5a; }
 
 table {
     width: 100%;
     padding: 1% 4%;
     border-collapse: separate;
     border-spacing: 0 0.33rem;
-    table-layout: fixed;
 }
 
 table td {
@@ -163,9 +175,9 @@ table th {
     display: block;
     position: fixed;
 
-    width: 10rem;
-    bottom: 4rem;
-    left: calc(50% - 5rem);
+    width: 12rem;
+    top: 5rem;
+    right: 5rem;
 
     background-color: var(--text-medium);
     border-radius: 0.25em;
@@ -177,5 +189,32 @@ table th {
 
 .passive-modal > p {
     color: var(--text-dark);
-    font: 450 1em/2 Roboto, sans-serif;
+    font: 450 1.15em/2 Roboto, sans-serif;
+}
+
+/***************** MOBILE STYLING *****************/
+
+@media screen and (orientation: portrait) {
+    #main-content {
+        margin: 0;
+        width: 100%;
+        border-radius: 0;
+    }
+
+    h2 {
+        margin: 0.5rem 0;
+        font-size: 1.75rem;
+        text-align: center;
+    }
+    h3#mercury-desc { font-size: 1.15rem }
+
+    #latest-release-div,
+    .download-table-wrapper {
+        padding: 1.5rem 1rem;
+        margin: 2rem 2rem;
+        width: calc(100% - 4rem);
+    }
+
+    .download-table-wrapper { overflow-x: scroll }
+    table { width: max-content }
 }
