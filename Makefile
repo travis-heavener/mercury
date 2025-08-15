@@ -89,6 +89,10 @@ $(PCH_DIR)/common-win.hpp.gch: $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp $
 
 ############################ STATIC BUILD CONFIG ############################
 
+# Called if the artifacts.lock file (which is a dependency for some recipes) doesn't exist
+$(ARTIFACTS_LOCK):
+	@echo "" | gzip | base64 > $(ARTIFACTS_LOCK)
+
 libs: static_deps static_brotli static_openssl static_zlib
 
 static_deps:
