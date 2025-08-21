@@ -1,67 +1,67 @@
 name: Build & Test
 
 on:
-    workflow_dispatch:
-    push:
-        branches: ["main"]
-        paths:
-            - "src/**"
-            - "lib/**"
-    pull_request:
-        branches: ["main"]
-        paths:
-            - "src/**"
-            - "lib/**"
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "src/**"
+      - "lib/**"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "src/**"
+      - "lib/**"
 
 jobs:
-    Build:
-        runs-on: ubuntu-24.04
-        steps:
-            - uses: actions/checkout@v4
+  Build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
 
-            # Mark artifacts for caching
-            - name: Cache Library Artifacts
-              uses: actions/cache@v4
-              with:
-                path: ./static_libs
-                key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/build_static_brotli.sh', '**/build_tools/build_static_openssl.sh') }}
+      # Mark artifacts for caching
+      - name: Cache Library Artifacts
+        uses: actions/cache@v4
+        with:
+          path: ./static_libs
+          key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/build_static_brotli.sh', '**/build_tools/build_static_openssl.sh') }}
 
-            # Make executables
-            - name: Make Executable Shell Ccripts
-              run: sudo chmod +x ./build_tools/*.sh
+      # Make executables
+      - name: Make Executable Shell Ccripts
+        run: sudo chmod +x ./build_tools/*.sh
 
-            # Install deps & build static binaries
-            - name: Install Deps & Build Libs
-              run: |
-                # Run w/o make (not installed yet)
-                sudo ./build_tools/install_deps.sh
-                if [ ! -d static_libs ] || [ -z "$(ls -A static_libs)" ]; then
-                  make static_brotli
-                  make static_openssl
-                fi
+      # Install deps & build static binaries
+      - name: Install Deps & Build Libs
+        run: |
+          # Run w/o make (not installed yet)
+          sudo ./build_tools/install_deps.sh
+          if [ ! -d static_libs ] || [ -z "$(ls -A static_libs)" ]; then
+            make static_brotli
+            make static_openssl
+          fi
 
-                # Build static zlib anyways (can't cache, takes < 10 sec)
-                make static_zlib
+          # Build static zlib anyways (can't cache, takes < 10 sec)
+          make static_zlib
 
-            # Build
-            - name: Build Mercury Binaries
-              run: sudo make -B
+      # Build
+      - name: Build Mercury Binaries
+        run: sudo make -B
 
-            # Upload build artifacts
-            - name: Upload Build Artifacts
-              uses: actions/upload-artifact@v4
-              with:
-                name: mercury-binaries
-                path: ./bin
+      # Upload build artifacts
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mercury-binaries
+          path: ./bin
 
-    Run-Linux-Tests:
-      needs: Build
-      uses: ./.github/workflows/test-linux.yml
-      with:
-        artifact-name: mercury-binaries
+  Run-Linux-Tests:
+    needs: Build
+    uses: ./.github/workflows/test-linux.yml
+    with:
+      artifact-name: mercury-binaries
 
-    Run-Windows-Tests:
-      needs: Build
-      uses: ./.github/workflows/test-windows.yml
-      with:
-        artifact-name: mercury-binaries
+  Run-Windows-Tests:
+    needs: Build
+    uses: ./.github/workflows/test-windows.yml
+    with:
+      artifact-name: mercury-binaries

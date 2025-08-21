@@ -1,0 +1,52 @@
+name: Docs Minify/Validate
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "docs/**"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "docs/**"
+
+jobs:
+  Minify-Validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install deps
+      - run: |
+          npm install clean-css-cli -g
+          npm install uglify-js -g
+          npm install html-minifier -g
+
+      # Minify files
+      - name: Minify CSS
+        run: |
+          find ./docs/ -type f -name "*.css" -not -path "*/node_modules/*" -exec cleancss -o {} {} \;
+
+      - name: Minify js
+        run: |
+          find ./docs/ -type f -name "*.js" -not -path "*/node_modules/*" -exec uglifyjs {} -o {} \;
+
+      - name: Minify HTML
+        run: |
+          find ./docs/ -type f -name "*.html" -not -path "*/node_modules/*" -exec html-minifier {} -o {} \
+          --collapse-whitespace --html5 --remove-comments --minify-css --minify-js \;
+
+      # Validate content
+      - uses: anishathalye/proof-html@v2
+        with:
+          directory: ./docs/
+          enforce_https: false
+          disable_external: true
+
+      # Push to gh-pages branch
+      - if: github.event_name != 'pull_request'
+        run: |
+          git config user.name "Travis Heavener"
+          git config user.email "travis.heavener@gmail.com"
+          git commit -am "Automated validation & minification of ${{ github.sha }}"
+          git push --force -u origin main:gh-pages

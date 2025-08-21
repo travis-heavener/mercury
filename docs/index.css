@@ -1,0 +1,230 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+}
+
+html, body {
+    overflow-x: hidden;
+}
+
+html {
+    width: 100vw;
+    height: 100vh;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+
+    color: #222;
+    font-family: "Montserrat", sans-serif;
+    line-height: 1.6;
+    background-color: #f8f9fa;
+}
+
+#main-content {
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    flex: 1;
+    max-width: 100%;
+}
+
+h1 {
+    margin-bottom: 0.5rem;
+    color: #111;
+    font-size: 2.8rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+#mercury-desc {
+    margin-bottom: 2rem;
+    color: #555;
+    font-size: 1.2rem;
+    font-weight: 400;
+    text-align: center;
+}
+
+h2 {
+    margin: 1rem;
+    color: #333;
+    font-size: 1.6rem;
+}
+
+#latest-release-div {
+    margin: 2.5rem 0;
+    padding: 2rem;
+
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px #0001;
+    text-align: center;
+}
+
+#latest-release-div h2 { margin-bottom: 1rem }
+
+#latest-release-div h3 {
+    margin-bottom: 1.5rem;
+    color: #555;
+}
+
+#latest-release-div a {
+    display: inline-block;
+    margin: 0.5rem;
+    padding: 0.8rem 1.5rem;
+
+    border-radius: 8px;
+    color: #fff;
+    font-weight: 600;
+    text-decoration: none;
+
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+
+#latest-release-div a.windows { background: #0078d7 }
+#latest-release-div a.linux { background: #2ebd59 }
+
+#latest-release-div a:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+.download-table-wrapper {
+    margin-top: 2.5rem;
+    padding: 1.5rem;
+
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px #0001;
+
+    overflow-x: auto;
+}
+
+.download-table-wrapper h3 > a {
+    display: block;
+    margin: 1rem;
+
+    color: #4a4a4a;
+    font-size: 1.125rem;
+    font-weight: 500;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+thead { background-color: #f1f3f5 }
+
+th, td {
+    text-align: left;
+    padding: 0.9rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+th {
+    font-weight: 600;
+    color: #333;
+}
+
+tbody tr:hover { background-color: #fafafa }
+
+.hash-digest { cursor: pointer }
+
+.hash-digest > img {
+    height: 1em;
+    object-fit: contain;
+}
+
+/* Footer */
+#footer-div {
+    margin-top: auto;
+    padding: 1.2rem;
+
+    background: #111;
+    color: #eee;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* Passive toast styling */
+.toast {
+    position: fixed;
+    top: 5rem;
+    right: 2rem;
+
+    padding: 1rem 1.4rem;
+    max-width: 300px;
+
+    background: #222;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px #0001;
+    opacity: 0;
+
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 500;
+
+    animation: toastFadeIn 0.4s ease forwards;
+    transform: translateY(20px);
+    z-index: 999999;
+
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.toast.fade-out { animation: toastFadeOut 0.4s ease forwards }
+
+.toast .progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+
+    background: #2ebd59;
+    border-radius: 4px;
+
+    animation: progressBarGrow 3s linear forwards;
+}
+
+@keyframes toastFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes toastFadeOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(15px);
+    }
+}
+
+@keyframes progressBarGrow {
+    from { width: 0 }
+    to   { width: 100% }
+}
+
+/* Mobile specific styling */
+@media screen and (orientation: portrait) {
+    table { width: max-content }
+    .toast {
+        top: unset;
+        bottom: 2rem;
+    }
+}
