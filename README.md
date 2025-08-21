@@ -3,6 +3,7 @@
 ### A project by Travis Heavener
 
 [![Build](https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg)](https://github.com/travis-heavener/mercury/actions/workflows/build.yml)
+[![Docs Minify/Validate](https://github.com/travis-heavener/mercury/actions/workflows/docs-minify-validate.yml/badge.svg)](https://github.com/travis-heavener/mercury/actions/workflows/docs-minify-validate.yml)
 
 ## Table of Contents
 
