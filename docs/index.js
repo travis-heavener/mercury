@@ -12,6 +12,9 @@ const handleReleaseJSON = (releases) => {
     const jWindowsTable = $("#downloads-windows-table > tbody");
     const jLinuxTable = $("#downloads-linux-table > tbody");
 
+    // Filter anything but the 10 most recent releases
+    releases = releases.slice(0, 10);
+
     for (const release of releases) {
         // Resolve asset links
         const winSuffix = "Windows_" + release.name.replaceAll(".", "_") + ".zip";
