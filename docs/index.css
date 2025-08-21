@@ -15,7 +15,7 @@
     --text-dark: #161311;
 
     --anchor-dark: #3f73d3;
-    --anchor-base: #77a6fb;
+    --anchor-base: #8db5ff;
     --anchor-light: #abc8ff;
 
     color-scheme: dark;
@@ -98,9 +98,8 @@ h3#mercury-desc {
 }
 
 #latest-release-div > a {
-    color: var(--anchor-light);
+    color: var(--text-dark) !important;
     font: 500 1.25rem/1.5 Roboto, sans-serif;
-    text-shadow: 0.1em 0.1em 0.05em #0008;
 }
 
 /***************** TABLE STYLING *****************/
