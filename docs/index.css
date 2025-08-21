@@ -142,3 +142,80 @@ tbody tr:hover { background-color: #fafafa }
     font-size: 0.9rem;
     text-align: center;
 }
+
+/* Passive toast styling */
+.toast {
+    position: fixed;
+    top: 5rem;
+    right: 2rem;
+
+    padding: 1rem 1.4rem;
+    max-width: 300px;
+
+    background: #222;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px #0001;
+    opacity: 0;
+
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 500;
+
+    animation: toastFadeIn 0.4s ease forwards;
+    transform: translateY(20px);
+    z-index: 999999;
+
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.toast.fade-out { animation: toastFadeOut 0.4s ease forwards }
+
+.toast .progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+
+    background: #2ebd59;
+    border-radius: 4px;
+
+    animation: progressBarGrow 3s linear forwards;
+}
+
+@keyframes toastFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes toastFadeOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(15px);
+    }
+}
+
+@keyframes progressBarGrow {
+    from { width: 0 }
+    to   { width: 100% }
+}
+
+/* Mobile specific styling */
+@media screen and (orientation: portrait) {
+    table { width: max-content }
+    .toast {
+        top: unset;
+        bottom: 2rem;
+    }
+}
