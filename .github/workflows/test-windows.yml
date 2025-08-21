@@ -8,76 +8,76 @@ on:
         type: string
 
 jobs:
-    Test-Windows:
-        runs-on: windows-latest
-        steps:
-            - uses: actions/checkout@v4
+  Test-Windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
 
-            # Download binaries
-            - uses: actions/download-artifact@v4
-              with:
-                name: mercury-binaries
-                path: ./bin
+      # Download binaries
+      - uses: actions/download-artifact@v4
+        with:
+          name: mercury-binaries
+          path: ./bin
 
-            - name: Configure Ports & Enable IPv4 & IPv6
-              run: |
-                # Config file
-                $port = 8081
-                $sslPort = 8082
-                $docRoot = "./public/"
-                $filePath = "conf/mercury.conf"
-                $content = Get-Content $filePath -Raw
+      - name: Configure Ports & Enable IPv4 & IPv6
+        run: |
+          # Config file
+          $port = 8081
+          $sslPort = 8082
+          $docRoot = "./public/"
+          $filePath = "conf/mercury.conf"
+          $content = Get-Content $filePath -Raw
 
-                $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<DocumentRoot>\s*.*?\s*</DocumentRoot>', "<DocumentRoot> $docRoot </DocumentRoot>")
-                $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<Port>\s*\d+\s*</Port>', "<Port> $port </Port>")
-                $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<TLSPort>\s*.+?\s*</TLSPort>', "<TLSPort> $sslPort </TLSPort>")
-                $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<EnableIPv4>\s*off\s*</EnableIPv4>', '<EnableIPv4> on </EnableIPv4>')
-                $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<EnableIPv6>\s*off\s*</EnableIPv6>', '<EnableIPv6> on </EnableIPv6>')
+          $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<DocumentRoot>\s*.*?\s*</DocumentRoot>', "<DocumentRoot> $docRoot </DocumentRoot>")
+          $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<Port>\s*\d+\s*</Port>', "<Port> $port </Port>")
+          $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<TLSPort>\s*.+?\s*</TLSPort>', "<TLSPort> $sslPort </TLSPort>")
+          $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<EnableIPv4>\s*off\s*</EnableIPv4>', '<EnableIPv4> on </EnableIPv4>')
+          $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<EnableIPv6>\s*off\s*</EnableIPv6>', '<EnableIPv6> on </EnableIPv6>')
 
-                Set-Content -Path $filePath -Value $content
+          Set-Content -Path $filePath -Value $content
 
-                # Test Runner
-                $filePath = "tests/run.py"
-                $content = Get-Content $filePath -Raw
+          # Test Runner
+          $filePath = "tests/run.py"
+          $content = Get-Content $filePath -Raw
 
-                $content = [System.Text.RegularExpressions.Regex]::Replace($content, 'port\s*=\s*.+', "port = $port")
-                $content = [System.Text.RegularExpressions.Regex]::Replace($content, 'ssl_port\s*=\s*.+', "ssl_port = $sslPort")
+          $content = [System.Text.RegularExpressions.Regex]::Replace($content, 'port\s*=\s*.+', "port = $port")
+          $content = [System.Text.RegularExpressions.Regex]::Replace($content, 'ssl_port\s*=\s*.+', "ssl_port = $sslPort")
 
-                Set-Content -Path $filePath -Value $content
+          Set-Content -Path $filePath -Value $content
 
-            # Make log files
-            - name: Make Log Files
-              run: mkdir logs
+      # Make log files
+      - name: Make Log Files
+        run: mkdir logs
 
-            # Make TLS cert
-            - name: Make TLS Cert
-              run: |
-                mkdir conf/ssl
-                openssl req -x509 -newkey rsa:4096 -keyout conf/ssl/key.pem -out conf/ssl/cert.pem -sha256 -days 1 -nodes -subj "/C=XX/ST=New York/L=NYC/O=The Mercury Project/OU=GitHub Action Runner/CN=The Mercury Developers"
+      # Make TLS cert
+      - name: Make TLS Cert
+        run: |
+          mkdir conf/ssl
+          openssl req -x509 -newkey rsa:4096 -keyout conf/ssl/key.pem -out conf/ssl/cert.pem -sha256 -days 1 -nodes -subj "/C=XX/ST=New York/L=NYC/O=The Mercury Project/OU=GitHub Action Runner/CN=The Mercury Developers"
 
-            # Start Mercury
-            - name: Start Mercury
-              run: |
-                cd bin
-                powershell -command 'Start-Process .\mercury.exe -NoNewWindow -PassThru | ForEach-Object { $_.Id } > ..\pid.txt'
+      # Start Mercury
+      - name: Start Mercury
+        run: |
+          cd bin
+          powershell -command 'Start-Process .\mercury.exe -NoNewWindow -PassThru | ForEach-Object { $_.Id } > ..\pid.txt'
 
-            # Run Python test cases
-            - name: Python Test Runner
-              run: |
-                python --version || choco install python
-                cd tests
-                $output = python run.py
-                echo $output
-                if ($output.Split("`n")[-2] -like "*Failure*") {
-                  $mercury_pid = Get-Content ..\pid.txt
-                  Stop-Process -Id $mercury_pid -Force
-                  Start-Sleep -Seconds 5
-                  exit 1
-                }
+      # Run Python test cases
+      - name: Python Test Runner
+        run: |
+          python --version || choco install python
+          cd tests
+          $output = python run.py
+          echo $output
+          if ($output.Split("`n")[-2] -like "*Failure*") {
+            $mercury_pid = Get-Content ..\pid.txt
+            Stop-Process -Id $mercury_pid -Force
+            Start-Sleep -Seconds 5
+            exit 1
+          }
 
-            # Kill the server
-            - name: Kill Server
-              run: |
-                $mercury_pid = Get-Content pid.txt
-                Stop-Process -Id $mercury_pid -Force
-                Start-Sleep -Seconds 5
+      # Kill the server
+      - name: Kill Server
+        run: |
+          $mercury_pid = Get-Content pid.txt
+          Stop-Process -Id $mercury_pid -Force
+          Start-Sleep -Seconds 5
