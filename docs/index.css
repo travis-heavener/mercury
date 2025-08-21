@@ -1,4 +1,4 @@
-*, html {
+* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -6,214 +6,139 @@
     -webkit-box-sizing: border-box;
 }
 
-:root {
-    --g-dark: #14110f;
-    --g-lite: #1d1816;
-
-    --text-light: #e8e3e0;
-    --text-medium: #ccc3c0;
-    --text-dark: #161311;
-
-    --anchor-dark: #3f73d3;
-    --anchor-base: #8db5ff;
-    --anchor-light: #abc8ff;
-
-    color-scheme: dark;
-}
-
 html, body {
     overflow-x: hidden;
 }
 
+html {
+    width: 100vw;
+    height: 100vh;
+}
+
 body {
+    display: flex;
+    flex-direction: column;
     min-height: 100vh;
-    background: var(--g-dark);
-    background: radial-gradient(ellipse at top left, var(--g-dark) 0, var(--g-lite) 100%);
+
+    color: #222;
+    font-family: "Montserrat", sans-serif;
+    line-height: 1.6;
+    background-color: #f8f9fa;
 }
 
 #main-content {
-    margin: 5vh 15%;
-    padding-bottom: 2vh;
-    width: 70%;
-
-    background-color: #413a36;
-    border-radius: 0.5rem;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    flex: 1;
+    max-width: 100%;
 }
-
-a {
-    color: var(--anchor-base) !important;
-    transition: 0.1s;
-}
-a:hover, a:focus-visible { color: var(--anchor-light) !important }
-a:active { color: var(--anchor-dark) !important }
-
-/***************** MAIN STYLING *****************/
 
 h1 {
-    color: var(--text-light);
-    font: 700 3rem/2.5 Montserrat, sans-serif;
+    margin-bottom: 0.5rem;
+    color: #111;
+    font-size: 2.8rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+#mercury-desc {
+    margin-bottom: 2rem;
+    color: #555;
+    font-size: 1.2rem;
+    font-weight: 400;
     text-align: center;
 }
 
 h2 {
-    margin: 0.5rem 3rem;
-    color: var(--text-light);
-    font: 600 2rem/1.5 Roboto, sans-serif;
-    text-shadow: 0.1em 0.1em 0.075em #0005;
-    text-align: left;
-    text-decoration: underline;
-}
-
-h3#mercury-desc {
-    margin: 0 15%;
-    color: var(--text-medium);
-    font: 500 italic 1.25rem/1.5 Montserrat, sans-serif;
-    text-shadow: 0.1em 0.1em 0.075em #0005;
-    text-align: center;
+    margin: 1rem;
+    color: #333;
+    font-size: 1.6rem;
 }
 
 #latest-release-div {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    margin: 2.5rem 0;
+    padding: 2rem;
 
-    padding: 3rem 4rem;
-    margin: 2rem 7rem;
-
-    width: calc(100% - 14rem);
-    background-color: #239534;
-    border-radius: 0.5rem;
-}
-
-#latest-release-div > h2 {
-    margin: 0;
-    text-shadow: 0.1em 0.1em 0.1em #0008;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px #0001;
     text-align: center;
 }
 
-#latest-release-div > h3 {
-    color: var(--text-light);
-    font: 700 italic 1.5rem/2 Roboto, sans-serif;
-    text-align: center;
+#latest-release-div h2 { margin-bottom: 1rem }
+
+#latest-release-div h3 {
+    margin-bottom: 1.5rem;
+    color: #555;
 }
 
-#latest-release-div > a {
-    color: var(--text-dark) !important;
-    font: 500 1.25rem/1.5 Roboto, sans-serif;
+#latest-release-div a {
+    display: inline-block;
+    margin: 0.5rem;
+    padding: 0.8rem 1.5rem;
+
+    border-radius: 8px;
+    color: #fff;
+    font-weight: 600;
+    text-decoration: none;
+
+    transition: transform 0.15s ease, background 0.15s ease;
 }
 
-/***************** TABLE STYLING *****************/
+#latest-release-div a.windows { background: #0078d7 }
+#latest-release-div a.linux { background: #2ebd59 }
+
+#latest-release-div a:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
 
 .download-table-wrapper {
-    padding-top: 0.5rem;
-    margin: 2rem 7rem;
+    margin-top: 2.5rem;
+    padding: 1.5rem;
 
-    width: calc(100% - 14rem);
-    border-radius: 0.5rem;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px #0001;
+
+    overflow-x: auto;
 }
-
-#windows-download-table { background-color: #5a5a5a; }
-#linux-download-table { background-color: #5a5a5a; }
 
 table {
     width: 100%;
-    padding: 1% 4%;
-    border-collapse: separate;
-    border-spacing: 0 0.33rem;
+    border-collapse: collapse;
+    font-size: 0.95rem;
 }
 
-table td {
-    padding: 0 1rem;
-    color: var(--text-medium);
-    font: 1.05rem/1.5 Roboto, sans-serif;
-    text-align: center;
-    text-shadow: 0.1em 0.1em 0.1em #0006;
+thead { background-color: #f1f3f5 }
 
-    text-overflow: ellipsis;
-    overflow: hidden;
+th, td {
+    text-align: left;
+    padding: 0.9rem;
+    border-bottom: 1px solid #e0e0e0;
 }
 
-table th {
-    padding: 0 1rem;
-    font: 600 1.1rem/1.5 Roboto, sans-serif;
-    color: var(--text-light);
-    text-decoration: underline;
-    text-align: center;
+th {
+    font-weight: 600;
+    color: #333;
 }
 
-.hash-digest:hover {
-    cursor: pointer;
-}
+tbody tr:hover { background-color: #fafafa }
+
+.hash-digest { cursor: pointer }
 
 .hash-digest > img {
     height: 1em;
     object-fit: contain;
 }
 
-/***************** FOOTER STYLING *****************/
-
+/* Footer */
 #footer-div {
-    width: 100%;
-    background-color: #0005;
-}
+    margin-top: auto;
+    padding: 1.2rem;
 
-#footer-div > p {
-    color: var(--text-light);
-    font: 300 1.05rem/3 "Open Sans", sans-serif;
+    background: #111;
+    color: #eee;
+    font-size: 0.9rem;
     text-align: center;
-}
-
-/***************** MODAL STYLING *****************/
-
-@keyframes fadeOut {
-    0%, 67% { opacity: 1 }
-    100% { opacity: 0 }
-}
-
-.passive-modal {
-    display: block;
-    position: fixed;
-
-    width: 12rem;
-    top: 5rem;
-    right: 5rem;
-
-    background-color: var(--text-medium);
-    border-radius: 0.25em;
-    opacity: 0;
-
-    animation: fadeOut 3s linear 0s 1;
-    text-align: center;
-}
-
-.passive-modal > p {
-    color: var(--text-dark);
-    font: 450 1.15em/2 Roboto, sans-serif;
-}
-
-/***************** MOBILE STYLING *****************/
-
-@media screen and (orientation: portrait) {
-    #main-content {
-        margin: 0;
-        width: 100%;
-        border-radius: 0;
-    }
-
-    h2 {
-        margin: 0.5rem 0;
-        font-size: 1.75rem;
-        text-align: center;
-    }
-    h3#mercury-desc { font-size: 1.15rem }
-
-    #latest-release-div,
-    .download-table-wrapper {
-        padding: 1.5rem 1rem;
-        margin: 2rem 2rem;
-        width: calc(100% - 4rem);
-    }
-
-    .download-table-wrapper { overflow-x: scroll }
-    table { width: max-content }
 }
