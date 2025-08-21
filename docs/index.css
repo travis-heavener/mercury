@@ -104,6 +104,15 @@ h2 {
     overflow-x: auto;
 }
 
+.download-table-wrapper h3 > a {
+    display: block;
+    margin: 1rem;
+
+    color: #4a4a4a;
+    font-size: 1.125rem;
+    font-weight: 500;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
