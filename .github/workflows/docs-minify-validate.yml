@@ -25,21 +25,21 @@ jobs:
       # Minify files
       - name: Minify CSS
         run: |
-          find docs/ -type f -name "*.css" -not -path "*/node_modules/*" -exec cleancss -o {} {} \;
+          find ./docs/ -type f -name "*.css" -not -path "*/node_modules/*" -exec cleancss -o {} {} \;
 
       - name: Minify js
         run: |
-          find docs/ -type f -name "*.js" -not -path "*/node_modules/*" -exec uglifyjs {} -o {} \;
+          find ./docs/ -type f -name "*.js" -not -path "*/node_modules/*" -exec uglifyjs {} -o {} \;
 
       - name: Minify HTML
         run: |
-          find docs -type f -name "*.html" -not -path "*/node_modules/*" -exec html-minifier {} -o {} \
+          find ./docs/ -type f -name "*.html" -not -path "*/node_modules/*" -exec html-minifier {} -o {} \
           --collapse-whitespace --html5 --remove-comments --minify-css --minify-js \;
 
       # Validate content
       - uses: anishathalye/proof-html@v2
         with:
-          directory: ./
+          directory: ./docs/
           enforce_https: false
           disable_external: true
 
