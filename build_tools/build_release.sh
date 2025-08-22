@@ -112,3 +112,7 @@ rm -rf temp_release
 # ==== Update Releases JSON File ====
 
 python3 ./build_tools/update_releases.py "$VERSION" "$LINUX_HASH" "$WIN_HASH"
+
+# ==== Update Latest Version Placeholder ====
+
+echo -n "$VERSION" > ./docs/latest
