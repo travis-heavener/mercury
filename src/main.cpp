@@ -1,3 +1,4 @@
+#include <iostream>
 #include <signal.h>
 
 #include "pch/common.hpp"
@@ -5,6 +6,7 @@
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
 #include "logs/logger.hpp"
+#include "http/version_checker.hpp"
 
 std::vector<std::shared_ptr<http::Server>> serversVec;
 
@@ -87,6 +89,11 @@ int main() {
         cleanExit();
         return 1;
     }
+
+    // Check for new version at startup
+    const std::string latestVersion = fetchLatestVersion();
+    if (latestVersion.length() > 0 && latestVersion != conf::VERSION)
+        std::cout << "Update available! (" << latestVersion.substr(8) << ")\nSee https://wowtravis.com/mercury" << std::endl;
 
     // Init server
     if (conf::IS_IPV4_ENABLED)

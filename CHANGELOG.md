@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.10.1
+- Now checks for a new version at startup
+
 ## v0.10.0
 - Modularized request handlers (#39)
     - Added foundation for implementing future HTTP versions > HTTP/1.1

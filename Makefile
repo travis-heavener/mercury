@@ -33,7 +33,7 @@ $(TARGET): $(DEPS) $(ARTIFACTS_LOCK)
 		-L$(OPENSSL_DIR)/linux/lib64 -L$(BROTLI_DIR)/linux/lib \
 		$(LIB_FLAGS) \
 		$(BROTLI_FLAGS) \
-		2> >(grep -v -E "BIO_lookup_ex|getaddrinfo|gethostbyname")
+		2> >(grep -v -E "BIO_lookup_ex|getaddrinfo|gethostbyname|fetchLatestVersion")
 	@upx $(TARGET) -qqq
 	@echo "✅ Done."
 
