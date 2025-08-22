@@ -22,6 +22,9 @@ namespace conf {
     bool USE_TLS;
     port_t TLS_PORT;
 
+    bool SHOW_WELCOME_BANNER;
+    bool CHECK_LATEST_RELEASE;
+
     std::ofstream accessLogHandle;
     std::ofstream errorLogHandle;
 
@@ -252,6 +255,42 @@ int loadConfig() {
     // If TLS is enabled, grab the port
     USE_TLS = tlsPortRaw != "off";
     TLS_PORT = USE_TLS ? std::stoull(tlsPortRaw) : 0;
+
+    /************************** Check welcome banner status **************************/
+    pugi::xml_node showWelcomeBannerNode = root.child("ShowWelcomeBanner");
+    if (!showWelcomeBannerNode) {
+        std::cerr << "Failed to parse config file, missing ShowWelcomeBanner node.\n";
+        return CONF_FAILURE;
+    }
+
+    std::string showWelcomeBannerStr = showWelcomeBannerNode.text().as_string();
+    trimString(showWelcomeBannerStr);
+
+    // Verify valid value provided
+    if (showWelcomeBannerStr != "true" && showWelcomeBannerStr != "false") {
+        std::cerr << "Failed to parse config file, invalid value for ShowWelcomeBanner.\n";
+        return CONF_FAILURE;
+    }
+
+    SHOW_WELCOME_BANNER = showWelcomeBannerStr == "true";
+
+    /************************** Extract check for release **************************/
+    pugi::xml_node checkLatestReleaseNode = root.child("StartupCheckLatestRelease");
+    if (!checkLatestReleaseNode) {
+        std::cerr << "Failed to parse config file, missing StartupCheckLatestRelease node.\n";
+        return CONF_FAILURE;
+    }
+
+    std::string checkLatestReleaseStr = checkLatestReleaseNode.text().as_string();
+    trimString(checkLatestReleaseStr);
+
+    // Verify valid value provided
+    if (checkLatestReleaseStr != "true" && checkLatestReleaseStr != "false") {
+        std::cerr << "Failed to parse config file, invalid value for StartupCheckLatestRelease.\n";
+        return CONF_FAILURE;
+    }
+
+    CHECK_LATEST_RELEASE = checkLatestReleaseStr == "true";
 
     /************************** Load known MIMES **************************/
     if (loadMIMES() == CONF_FAILURE)

@@ -41,6 +41,9 @@ namespace conf {
     extern bool USE_TLS;
     extern port_t TLS_PORT;
 
+    extern bool SHOW_WELCOME_BANNER;
+    extern bool CHECK_LATEST_RELEASE;
+
     extern std::ofstream accessLogHandle;
     extern std::ofstream errorLogHandle;
     

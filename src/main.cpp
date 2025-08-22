@@ -91,9 +91,11 @@ int main() {
     }
 
     // Check for new version at startup
-    const std::string latestVersion = fetchLatestVersion();
-    if (latestVersion.length() > 0 && latestVersion != conf::VERSION)
-        std::cout << "Update available! (" << latestVersion.substr(8) << ")\nSee https://wowtravis.com/mercury" << std::endl;
+    if (conf::CHECK_LATEST_RELEASE) {
+        const std::string latestVersion = fetchLatestVersion();
+        if (latestVersion.length() > 0 && latestVersion != conf::VERSION)
+            std::cout << "Update available! (" << latestVersion.substr(8) << ")\nSee https://wowtravis.com/mercury" << std::endl;
+    }
 
     // Init server
     if (conf::IS_IPV4_ENABLED)
@@ -129,7 +131,8 @@ int main() {
     }
 
     // Print welcome banner
-    printWelcomeBanner();
+    if (conf::SHOW_WELCOME_BANNER)
+        printWelcomeBanner();
 
     // Accept client responses
     std::vector<std::thread> threads;
