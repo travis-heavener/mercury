@@ -111,3 +111,22 @@ std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path) {
         return std::filesystem::canonical(path);
     #endif
 }
+
+// Creates the immediate directory for log files if missing, will silently fail
+void createLogDirectoryIfMissing(const std::filesystem::path& path) {
+    // Check if the full path exists
+    const std::filesystem::path parentPath = path.parent_path();
+    if (std::filesystem::exists( parentPath )) return;
+
+    // Parent path does not exist, check if it's parent path does
+    const std::filesystem::path grandparentPath = parentPath.parent_path();
+    if (!std::filesystem::exists( grandparentPath )) return;
+
+    // Parent does not exist, but grandparent does
+    try {
+        std::filesystem::create_directory( parentPath );
+    } catch (...) {
+        // Silently fail
+        return;
+    }
+}

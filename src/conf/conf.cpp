@@ -316,11 +316,16 @@ int loadConfig() {
         return CONF_FAILURE;
 
     /************************** Open log files **************************/
+
+    createLogDirectoryIfMissing(ACCESS_LOG_FILE);
+
     accessLogHandle = std::ofstream(ACCESS_LOG_FILE, std::ios_base::app);
     if (!accessLogHandle.is_open()) {
         std::cerr << "Failed to open Access Log File.\n";
         return CONF_FAILURE;
     }
+
+    createLogDirectoryIfMissing(ERROR_LOG_FILE);
 
     errorLogHandle = std::ofstream(ERROR_LOG_FILE, std::ios_base::app);
     if (!errorLogHandle.is_open()) {

@@ -22,4 +22,7 @@ int isSymlinked(const std::filesystem::path&);
 
 std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path);
 
+// Creates the immediate directory for log files if missing, will silently fail
+void createLogDirectoryIfMissing(const std::filesystem::path& path);
+
 #endif

@@ -1,7 +1,11 @@
 # Changelog
 
 ## v0.10.1
-- Now checks for a new version at startup
+- Now checks for a new version at startup (#91)
+    - Can be toggled off in mercury.conf
+    - Can now toggle startup welcome banner
+- Added support for toggling legacy HTTP version support (HTTP/0.9, HTTP/1.0) (#79)
+- Now makes immediate log file directory if missing (#5)
 
 ## v0.10.0
 - Modularized request handlers (#39)
