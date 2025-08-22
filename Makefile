@@ -91,7 +91,9 @@ $(PCH_DIR)/common-win.hpp.gch: $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp $
 
 # Called if the artifacts.lock file (which is a dependency for some recipes) doesn't exist
 $(ARTIFACTS_LOCK):
-	@echo "" | gzip | base64 > $(ARTIFACTS_LOCK)
+	@if [ ! -e $(ARTIFACTS_LOCK) ]; then \
+		echo "" | gzip | base64 > $(ARTIFACTS_LOCK); \
+	fi
 
 libs: static_deps static_brotli static_openssl static_zlib
 

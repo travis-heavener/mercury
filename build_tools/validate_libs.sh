@@ -3,8 +3,6 @@
 #
 # Validate the version of static libraries
 #
-# **Note that artifacts.lock is alphabetized**
-#
 
 # CD into project directory
 cd "$(dirname "$0")/../"
