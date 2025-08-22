@@ -10,7 +10,7 @@ PCH_DIR = src/pch
 
 STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -std=c++17
 BROTLI_FLAGS = -lbrotlienc -lbrotlidec -lbrotlicommon
-LIB_FLAGS = -lz -lpthread -lssl -lcrypto -libcurl
+LIB_FLAGS = -lz -lpthread -lssl -lcrypto
 
 TARGET = bin/mercury
 TARGET_WIN = bin/mercury.exe
