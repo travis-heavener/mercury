@@ -54,11 +54,11 @@ Your certificate will be located at `/conf/ssl/cert.pem` and your private key at
 
 The following table contains known compatible versions of important software used to build Mercury.
 Older mingw-w64 versions have introduced issues when binding IPv6 sockets with WinAPI.
-The g++ version restriction is much looser, as initially version 11.x.x was in use and was only upgraded as a side effect of an OS upgrade (from 22.04 LTS).
+The g++ version restriction is likely less crucial, as initially version 11.x.x was in use and was only upgraded as a side effect of an OS upgrade (Ubuntu 24.04 LTS from 22.04 LTS).
+Thus, almost any Linux environment with the following g++ and mingw-w64 versions should be sufficient for building Mercury.
 
 | Name      | Version        |
 |-----------|----------------|
-| Ubuntu    | 24.04 LTS      |
 | g++       | 13.3.0         |
 | mingw-w64 | 11.0.1-3build1 |
 
