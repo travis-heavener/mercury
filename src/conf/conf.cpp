@@ -10,6 +10,7 @@ namespace conf {
     port_t PORT;
     bool IS_IPV4_ENABLED;
     bool IS_IPV6_ENABLED;
+    bool ENABLE_LEGACY_HTTP;
     unsigned short MAX_REQUEST_BACKLOG;
     unsigned int MAX_REQUEST_BUFFER;
     unsigned int THREADS_PER_CHILD;
@@ -152,6 +153,24 @@ int loadConfig() {
         std::cerr << "Either IPv4 or IPv6 must be enabled in the config file!\n";
         return CONF_FAILURE;
     }
+
+    /************************** Extract legacy HTTP version toggle **************************/
+    pugi::xml_node legacyHTTPNode = root.child("EnableLegacyHTTPVersions");
+    if (!legacyHTTPNode) {
+        std::cerr << "Failed to parse config file, missing EnableLegacyHTTPVersions node.\n";
+        return CONF_FAILURE;
+    }
+
+    std::string legacyHTTPStr = legacyHTTPNode.text().as_string();
+    trimString(legacyHTTPStr);
+
+    // Verify valid value provided
+    if (legacyHTTPStr != "on" && legacyHTTPStr != "off") {
+        std::cerr << "Failed to parse config file, invalid value for EnableLegacyHTTPVersions.\n";
+        return CONF_FAILURE;
+    }
+
+    ENABLE_LEGACY_HTTP = legacyHTTPStr == "on";
 
     /************************** Extract IndexFile **************************/
     pugi::xml_node indexFileNode = root.child("IndexFile");

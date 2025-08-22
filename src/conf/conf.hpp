@@ -29,6 +29,7 @@ namespace conf {
     extern port_t PORT;
     extern bool IS_IPV4_ENABLED;
     extern bool IS_IPV6_ENABLED;
+    extern bool ENABLE_LEGACY_HTTP;
     extern unsigned short MAX_REQUEST_BACKLOG;
     extern unsigned int MAX_REQUEST_BUFFER;
     extern unsigned int THREADS_PER_CHILD;
