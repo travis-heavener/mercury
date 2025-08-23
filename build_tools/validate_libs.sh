@@ -18,6 +18,9 @@ BROTLI_VERSION="1.1.0"
 OPENSSL_VERSION="3.5.2"
 ZLIB_VERSION="1.3.1"
 
+GPP_VERSION="13.3.0"
+MINGW_W64_VERSION="11.0.1"
+
 # Verify artifacts.lock exists
 if [ ! -e "artifacts.lock" ]; then
     touch artifacts.lock
@@ -50,6 +53,24 @@ fi
 
 if ! grep -q "^zlib=${ZLIB_VERSION}\$" artifacts.raw; then
     echo "Update zlib to $ZLIB_VERSION via \`make static_zlib\`"
+    HAS_FAILED="true"
+fi
+
+# === g++ ===
+
+CURRENT_GPP=$(g++ --version | head -1 | grep -oP "\d+\.\d+\.\d+" | head -1)
+
+if dpkg --compare-versions "$CURRENT_GPP" lt "$GPP_VERSION"; then
+    echo "Update g++ to $GPP_VERSION or newer (currently $CURRENT_GPP)"
+    HAS_FAILED="true"
+fi
+
+# === mingw-w64 ===
+
+CURRENT_MINGW_W64=$(dpkg -s mingw-w64 | grep -oP "(?<=Version: )\d+\.\d+\.\d+")
+
+if dpkg --compare-versions "$CURRENT_MINGW_W64" lt "$MINGW_W64_VERSION"; then
+    echo "Update mingw-w64 to $MINGW_W64_VERSION or newer (currently $CURRENT_MINGW_W64)"
     HAS_FAILED="true"
 fi
 
