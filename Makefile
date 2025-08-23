@@ -24,7 +24,7 @@ windows: pch_windows $(TARGET_WIN)
 $(TARGET): $(DEPS) $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
 	@echo -n "Building for Linux... "
-	@mkdir -p ./bin
+	@./build_tools/init_conf.sh
 	@g++ \
 		-include $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.hpp \
 		$(SRCS) -o $(TARGET) \
@@ -40,7 +40,7 @@ $(TARGET): $(DEPS) $(ARTIFACTS_LOCK)
 $(TARGET_WIN): $(DEPS) src/winheader.hpp $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
 	@echo -n "Building for Windows... "
-	@mkdir -p ./bin
+	@./build_tools/init_conf.sh
 	@x86_64-w64-mingw32-g++-posix \
 		-include $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp \
 		$(SRCS) -o $(TARGET_WIN) \
@@ -61,7 +61,7 @@ pch_windows: $(PCH_DIR)/common-win.hpp.gch
 
 $(PCH_DIR)/common-linux.hpp.gch: $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.hpp $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
-	@mkdir -p ./bin
+	@./build_tools/init_conf.sh
 	@echo -n "Building Linux PCH... "
 	@g++ -x c++-header \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
@@ -75,7 +75,7 @@ $(PCH_DIR)/common-linux.hpp.gch: $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.h
 
 $(PCH_DIR)/common-win.hpp.gch: $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
-	@mkdir -p ./bin
+	@./build_tools/init_conf.sh
 	@echo -n "Building Windows PCH... "
 	@x86_64-w64-mingw32-g++-posix -x c++-header \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
