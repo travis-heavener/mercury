@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.10.1
+## v0.11.0
 - Now checks for a new version at startup (#91)
     - Can be toggled off in mercury.conf
     - Can now toggle startup welcome banner
