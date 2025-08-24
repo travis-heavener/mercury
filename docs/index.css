@@ -87,6 +87,7 @@ h2 {
 
 #latest-release-div a.windows { background: #0078d7 }
 #latest-release-div a.linux { background: #2ebd59 }
+#latest-release-div a.github { background: #343434 }
 
 #latest-release-div a:hover {
     transform: translateY(-2px);
