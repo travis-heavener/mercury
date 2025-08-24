@@ -2,6 +2,8 @@
 
 ### A project by Travis Heavener
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+![Static Badge](https://img.shields.io/badge/Language-C%2B%2B-blue)
 [![Build](https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg)](https://github.com/travis-heavener/mercury/actions/workflows/build.yml)
 [![Docs Minify/Validate](https://github.com/travis-heavener/mercury/actions/workflows/docs-minify-validate.yml/badge.svg)](https://github.com/travis-heavener/mercury/actions/workflows/docs-minify-validate.yml)
 
@@ -20,7 +22,7 @@
 
 ## About
 
-Mercury is a lightweight, configurable, static content HTTP server designed with C++ socket programming, available for Linux and Windows systems.
+Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux.
 
 ## Build Info
 
