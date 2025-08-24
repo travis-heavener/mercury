@@ -17,6 +17,10 @@
     - [Compatibility](#compatibility)
 - [Testing Suite](#testing-suite)
 - [Contributing](#contributing)
+    - [Creating Issues & Pull Requests](#creating-issues--pull-requests)
+    - [Creating Issues for Bugs](#creating-issues-for-bugs)
+    - [Branch Cleanup](#branch-cleanup)
+    - [Reviewing Pull Requests](#reviewing-pull-requests)
 - [Changelog](#changelog)
 - [Credits](#credits)
 
