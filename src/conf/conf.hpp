@@ -29,6 +29,7 @@ namespace conf {
     extern port_t PORT;
     extern bool IS_IPV4_ENABLED;
     extern bool IS_IPV6_ENABLED;
+    extern bool ENABLE_LEGACY_HTTP;
     extern unsigned short MAX_REQUEST_BACKLOG;
     extern unsigned int MAX_REQUEST_BUFFER;
     extern unsigned int THREADS_PER_CHILD;
@@ -40,6 +41,9 @@ namespace conf {
 
     extern bool USE_TLS;
     extern port_t TLS_PORT;
+
+    extern bool SHOW_WELCOME_BANNER;
+    extern bool CHECK_LATEST_RELEASE;
 
     extern std::ofstream accessLogHandle;
     extern std::ofstream errorLogHandle;

@@ -19,19 +19,19 @@ jobs:
           name: mercury-binaries
           path: ./bin
 
-      - name: Configure Ports & Enable IPv4 & IPv6
+      - name: Copy Default Config
+        run: Copy-Item ./conf/default/*.conf ./conf
+
+      - name: Configure Ports & Enable IPv6
         run: |
           # Config file
           $port = 8081
           $sslPort = 8082
-          $docRoot = "./public/"
           $filePath = "conf/mercury.conf"
           $content = Get-Content $filePath -Raw
 
-          $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<DocumentRoot>\s*.*?\s*</DocumentRoot>', "<DocumentRoot> $docRoot </DocumentRoot>")
           $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<Port>\s*\d+\s*</Port>', "<Port> $port </Port>")
           $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<TLSPort>\s*.+?\s*</TLSPort>', "<TLSPort> $sslPort </TLSPort>")
-          $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<EnableIPv4>\s*off\s*</EnableIPv4>', '<EnableIPv4> on </EnableIPv4>')
           $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<EnableIPv6>\s*off\s*</EnableIPv6>', '<EnableIPv6> on </EnableIPv6>')
 
           Set-Content -Path $filePath -Value $content
@@ -44,10 +44,6 @@ jobs:
           $content = [System.Text.RegularExpressions.Regex]::Replace($content, 'ssl_port\s*=\s*.+', "ssl_port = $sslPort")
 
           Set-Content -Path $filePath -Value $content
-
-      # Make log files
-      - name: Make Log Files
-        run: mkdir logs
 
       # Make TLS cert
       - name: Make TLS Cert

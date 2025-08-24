@@ -1,3 +1,4 @@
+#include <iostream>
 #include <signal.h>
 
 #include "pch/common.hpp"
@@ -5,6 +6,7 @@
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
 #include "logs/logger.hpp"
+#include "http/version_checker.hpp"
 
 std::vector<std::shared_ptr<http::Server>> serversVec;
 
@@ -88,6 +90,13 @@ int main() {
         return 1;
     }
 
+    // Check for new version at startup
+    if (conf::CHECK_LATEST_RELEASE) {
+        const std::string latestVersion = fetchLatestVersion();
+        if (latestVersion.length() > 0 && latestVersion != conf::VERSION)
+            std::cout << "Update available! (" << latestVersion.substr(8) << ")\nSee https://wowtravis.com/mercury" << std::endl;
+    }
+
     // Init server
     if (conf::IS_IPV4_ENABLED)
         serversVec.emplace_back(std::make_shared<http::Server>(conf::PORT, false));
@@ -122,7 +131,8 @@ int main() {
     }
 
     // Print welcome banner
-    printWelcomeBanner();
+    if (conf::SHOW_WELCOME_BANNER)
+        printWelcomeBanner();
 
     // Accept client responses
     std::vector<std::thread> threads;

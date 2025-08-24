@@ -8,3 +8,5 @@ static_libs/*
 releases/*
 bin/*
 artifacts.lock
+conf/mercury.conf
+conf/mimes.conf

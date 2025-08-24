@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import re
 import socket
 
 READ_BUF_SIZE = 1024 * 16 # Read buffer size for recv
@@ -27,13 +28,20 @@ class TestCase:
         s.sendall(str(self).encode("utf-8"))
 
         # Read response
-        if self.http_ver == "HTTP/0.9":
-            response = s.recv(READ_BUF_SIZE).decode("utf-8").replace("\r", "")
+        response = s.recv(READ_BUF_SIZE).decode("utf-8").replace("\r", "")
 
-            # If anything is returned, it's a success
-            return len(response) > 0
+        if self.http_ver == "HTTP/0.9":
+            # Verify something is returned
+            if len(response) == 0:
+                return False
+
+            # Verify this isn't an HTTP/1.1 fallback
+            if re.match(r"^HTTP\/1.1 \d+ [\w ]+$", response.split("\n")[0]):
+                return False
+
+            # Base case, success
+            return True
         else:
-            response = s.recv(READ_BUF_SIZE).decode("utf-8").replace("\r", "")
             status_code = int(response.split(" ")[1])
 
             # Extract headers

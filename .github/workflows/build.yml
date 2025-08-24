@@ -27,7 +27,7 @@ jobs:
           key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/build_static_brotli.sh', '**/build_tools/build_static_openssl.sh') }}
 
       # Make executables
-      - name: Make Executable Shell Ccripts
+      - name: Make Executable Shell Scripts
         run: sudo chmod +x ./build_tools/*.sh
 
       # Install deps & build static binaries

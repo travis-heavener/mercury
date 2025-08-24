@@ -10,6 +10,7 @@ namespace conf {
     port_t PORT;
     bool IS_IPV4_ENABLED;
     bool IS_IPV6_ENABLED;
+    bool ENABLE_LEGACY_HTTP;
     unsigned short MAX_REQUEST_BACKLOG;
     unsigned int MAX_REQUEST_BUFFER;
     unsigned int THREADS_PER_CHILD;
@@ -21,6 +22,9 @@ namespace conf {
 
     bool USE_TLS;
     port_t TLS_PORT;
+
+    bool SHOW_WELCOME_BANNER;
+    bool CHECK_LATEST_RELEASE;
 
     std::ofstream accessLogHandle;
     std::ofstream errorLogHandle;
@@ -150,6 +154,24 @@ int loadConfig() {
         return CONF_FAILURE;
     }
 
+    /************************** Extract legacy HTTP version toggle **************************/
+    pugi::xml_node legacyHTTPNode = root.child("EnableLegacyHTTPVersions");
+    if (!legacyHTTPNode) {
+        std::cerr << "Failed to parse config file, missing EnableLegacyHTTPVersions node.\n";
+        return CONF_FAILURE;
+    }
+
+    std::string legacyHTTPStr = legacyHTTPNode.text().as_string();
+    trimString(legacyHTTPStr);
+
+    // Verify valid value provided
+    if (legacyHTTPStr != "on" && legacyHTTPStr != "off") {
+        std::cerr << "Failed to parse config file, invalid value for EnableLegacyHTTPVersions.\n";
+        return CONF_FAILURE;
+    }
+
+    ENABLE_LEGACY_HTTP = legacyHTTPStr == "on";
+
     /************************** Extract IndexFile **************************/
     pugi::xml_node indexFileNode = root.child("IndexFile");
     if (!indexFileNode) {
@@ -253,16 +275,57 @@ int loadConfig() {
     USE_TLS = tlsPortRaw != "off";
     TLS_PORT = USE_TLS ? std::stoull(tlsPortRaw) : 0;
 
+    /************************** Check welcome banner status **************************/
+    pugi::xml_node showWelcomeBannerNode = root.child("ShowWelcomeBanner");
+    if (!showWelcomeBannerNode) {
+        std::cerr << "Failed to parse config file, missing ShowWelcomeBanner node.\n";
+        return CONF_FAILURE;
+    }
+
+    std::string showWelcomeBannerStr = showWelcomeBannerNode.text().as_string();
+    trimString(showWelcomeBannerStr);
+
+    // Verify valid value provided
+    if (showWelcomeBannerStr != "true" && showWelcomeBannerStr != "false") {
+        std::cerr << "Failed to parse config file, invalid value for ShowWelcomeBanner.\n";
+        return CONF_FAILURE;
+    }
+
+    SHOW_WELCOME_BANNER = showWelcomeBannerStr == "true";
+
+    /************************** Extract check for release **************************/
+    pugi::xml_node checkLatestReleaseNode = root.child("StartupCheckLatestRelease");
+    if (!checkLatestReleaseNode) {
+        std::cerr << "Failed to parse config file, missing StartupCheckLatestRelease node.\n";
+        return CONF_FAILURE;
+    }
+
+    std::string checkLatestReleaseStr = checkLatestReleaseNode.text().as_string();
+    trimString(checkLatestReleaseStr);
+
+    // Verify valid value provided
+    if (checkLatestReleaseStr != "true" && checkLatestReleaseStr != "false") {
+        std::cerr << "Failed to parse config file, invalid value for StartupCheckLatestRelease.\n";
+        return CONF_FAILURE;
+    }
+
+    CHECK_LATEST_RELEASE = checkLatestReleaseStr == "true";
+
     /************************** Load known MIMES **************************/
     if (loadMIMES() == CONF_FAILURE)
         return CONF_FAILURE;
 
     /************************** Open log files **************************/
+
+    createLogDirectoryIfMissing(ACCESS_LOG_FILE);
+
     accessLogHandle = std::ofstream(ACCESS_LOG_FILE, std::ios_base::app);
     if (!accessLogHandle.is_open()) {
         std::cerr << "Failed to open Access Log File.\n";
         return CONF_FAILURE;
     }
+
+    createLogDirectoryIfMissing(ERROR_LOG_FILE);
 
     errorLogHandle = std::ofstream(ERROR_LOG_FILE, std::ios_base::app);
     if (!errorLogHandle.is_open()) {
