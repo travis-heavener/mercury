@@ -2,6 +2,8 @@
 
 ### A project by Travis Heavener
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+![Static Badge](https://img.shields.io/badge/Language-C%2B%2B-blue)
 [![Build](https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg)](https://github.com/travis-heavener/mercury/actions/workflows/build.yml)
 [![Docs Minify/Validate](https://github.com/travis-heavener/mercury/actions/workflows/docs-minify-validate.yml/badge.svg)](https://github.com/travis-heavener/mercury/actions/workflows/docs-minify-validate.yml)
 
@@ -15,12 +17,16 @@
     - [Compatibility](#compatibility)
 - [Testing Suite](#testing-suite)
 - [Contributing](#contributing)
+    - [Creating Issues & Pull Requests](#creating-issues--pull-requests)
+    - [Creating Issues for Bugs](#creating-issues-for-bugs)
+    - [Branch Cleanup](#branch-cleanup)
+    - [Reviewing Pull Requests](#reviewing-pull-requests)
 - [Changelog](#changelog)
 - [Credits](#credits)
 
 ## About
 
-Mercury is a lightweight, configurable, static content HTTP server designed with C++ socket programming, available for Linux and Windows systems.
+Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux.
 
 ## Build Info
 
@@ -32,15 +38,15 @@ Binaries are placed in the `/bin/` directory, `mercury` for Linux and `mercury.e
 
 ### Linux & Windows Builds
 
-See compatibility
+To build for Linux and/or Windows, use the following steps:
 
 1. Install all necessary dependencies & extract static libraries.
 
     `make libs`.
 
-2. **If building for Linux**, run `make linux`.
+2. Using GNU Make, build for your desired platform(s) via `make linux`, `make windows`, or `make all`.
 
-    **If building for Windows**, run `make windows`.
+Note: see [Compatibility](#compatibility) section for software compatibility.
 
 ### TLS Certs
 
