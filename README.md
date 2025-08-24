@@ -38,15 +38,15 @@ Binaries are placed in the `/bin/` directory, `mercury` for Linux and `mercury.e
 
 ### Linux & Windows Builds
 
-See compatibility
+To build for Linux and/or Windows, use the following steps:
 
 1. Install all necessary dependencies & extract static libraries.
 
     `make libs`.
 
-2. **If building for Linux**, run `make linux`.
+2. Using GNU Make, build for your desired platform(s) via `make linux`, `make windows`, or `make all`.
 
-    **If building for Windows**, run `make windows`.
+Note: see [Compatibility](#compatibility) section for software compatibility.
 
 ### TLS Certs
 
