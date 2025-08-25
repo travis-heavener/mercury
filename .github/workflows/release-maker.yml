@@ -119,9 +119,10 @@ jobs:
         run: |
           gh pr create \
             --title "[Website] Bump Release ${{ steps.version.outputs.version }}" \
-            --body "Automated update of release metadata." \
+            --body "Automated release bump for ${{ steps.version.outputs.version }}." \
             --base main \
-            --head release-update-${{ steps.version.outputs.version }}
+            --head release-update-${{ steps.version.outputs.version }} \
+            --label "website,repo,top-priority"
 
       - name: Approve and Merge PR
         env:
