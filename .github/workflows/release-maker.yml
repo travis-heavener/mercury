@@ -14,21 +14,15 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/create-github-app-token@v1
-        id: app-token
-        with:
-          app-id: ${{ vars.MERCURY_BOT_APP_ID }}
-          private-key: ${{ secrets.MERCURY_BOT_KEY }}
-
       - uses: actions/checkout@v4
         with:
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ secrets.MERCURY_PAT }}
           fetch-depth: 0
 
       - name: Set User
         run: |
-          git config user.name "Mercury Actions Bot"
-          git config user.email "228363331+mercury-actions-bot[bot]@users.noreply.github.com"
+          git config user.name "Mercury Release Workflow"
+          git config user.email "mercury-release-workflow@users.noreply.github.com"
 
       # Download binaries
       - uses: actions/download-artifact@v4
@@ -64,7 +58,7 @@ jobs:
       - name: Delete Existing Release If Exists
         continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
 
@@ -86,7 +80,7 @@ jobs:
       # Create GitHub Release
       - name: Create GitHub Release
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           SUMMARY_FILE=$(ls ./releases/SUMMARY_*.md | head -n1)
@@ -109,7 +103,7 @@ jobs:
       # Commit updated docs
       - name: Create Release Update Branch
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
         run: |
           # Create branch & commit
           git checkout -b release-update-${{ steps.version.outputs.version }}
@@ -120,17 +114,17 @@ jobs:
 
       - name: Create PR
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
         run: |
           gh pr create \
-            --title "Update release metadata for ${{ steps.version.outputs.version }}" \
+            --title "[Website] Bump Release ${{ steps.version.outputs.version }}" \
             --body "Automated update of release metadata." \
             --base main \
             --head release-update-${{ steps.version.outputs.version }}
 
       - name: Approve and Merge PR
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
         run: |
           PR_NUMBER=$(gh pr list --head release-update-${{ steps.version.outputs.version }} --json number -q '.[0].number')
           gh pr review $PR_NUMBER --approve
@@ -138,7 +132,7 @@ jobs:
 
       - name: Delete Release Update Branch
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
         run: |
           BRANCH="release-update-${{ steps.version.outputs.version }}"
           git push origin --delete "$BRANCH" || echo "Branch already deleted"
