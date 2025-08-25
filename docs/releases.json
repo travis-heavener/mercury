@@ -1,9 +1,9 @@
 [
     {
         "name": "v0.11.0",
-        "date": 1756089738998,
-        "linuxHash": "3081759e8333df81b423186c7f9da2dd4c3a36b6cda7ed4533033cb62e20beb1",
-        "winHash": "d059504ef4917b7d60adddb9391ec598d5d0b7037db673d0188e9e67919b1c63"
+        "date": 1756090277796,
+        "linuxHash": "fae52b66bb7f54e279e6df79dcd2f69b0b5cde50f60d6bf56b35b06c89029d46",
+        "winHash": "788f3988fd53599c215fa1c5e45dc01809214088217ae8bbaaa6b23a916757cc"
     },
     {
         "name": "v0.10.0",
