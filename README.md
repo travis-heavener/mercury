@@ -15,6 +15,7 @@
     - [Linux & Windows Builds](#linux--windows-builds)
     - [TLS Certs](#tls-certs)
     - [Compatibility](#compatibility)
+    - [Making Releases](#making-releases)
 - [Testing Suite](#testing-suite)
 - [Contributing](#contributing)
     - [Creating Issues & Pull Requests](#creating-issues--pull-requests)
@@ -67,6 +68,12 @@ Thus, almost any Linux environment with the following g++ and mingw-w64 versions
 |-----------|------------|
 | g++       | 13.3.0     |
 | mingw-w64 | 11.0.1     |
+
+### Making Releases
+
+To build a release, manually dispatch the "Make Release" GitHub Action to automatically build the binaries, test them, then bundle the release and push it to the downloads website.
+
+While a release can be manually made locally (via `make release`), this process is now automated and should only be done by dispatching this workflow.
 
 ## Testing Suite
 
