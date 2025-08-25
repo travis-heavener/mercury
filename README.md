@@ -75,6 +75,9 @@ To build a release, manually dispatch the "Make Release" GitHub Action to automa
 
 While a release can be manually made locally (via `make release`), this process is now automated and should only be done by dispatching this workflow.
 
+**NOTE**: the "Make Release" workflow will take the most recent changes on main and bundle them with the version committed to main. If you are building a release from a work-in-progress branch, *don't*.
+Please refrain from building a release from commits not yet pushed to main--any such releases will be removed and your contributorship will be reconsidered.
+
 ## Testing Suite
 
 This project has its own Python test runner complete with passes for IPv4 & IPv6 traffic with and without TLS enabled.
