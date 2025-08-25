@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.12.0
+- Add PHP-FPM support
+- Bump C++ version from C++17 to C++20
+
 ## v0.11.0
 - Now checks for a new version at startup (#91)
     - Can be toggled off in mercury.conf
