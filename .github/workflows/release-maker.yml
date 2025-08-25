@@ -127,7 +127,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
         run: |
           PR_NUMBER=$(gh pr list --head release-update-${{ steps.version.outputs.version }} --json number -q '.[0].number')
-          gh pr review $PR_NUMBER --approve
           gh pr merge $PR_NUMBER --merge --admin
 
       - name: Delete Release Update Branch
