@@ -14,34 +14,39 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/create-github-app-token@v1
-        id: app-token
-        with:
-          app-id: ${{ vars.MERCURY_BOT_APP_ID }}
-          private-key: ${{ secrets.MERCURY_BOT_KEY }}
-
       - uses: actions/checkout@v4
         with:
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ secrets.MERCURY_PAT }}
+          fetch-depth: 0
+          ref: main
 
       - name: Set User
         run: |
-          git config user.name "Mercury Actions Bot"
-          git config user.email "228363331+mercury-actions-bot[bot]@users.noreply.github.com"
+          git config user.name "Mercury Release Workflow"
+          git config user.email "mercury-release-workflow@users.noreply.github.com"
 
-      # Download built binaries from build job
+      # Download binaries
       - uses: actions/download-artifact@v4
         with:
           name: mercury-binaries
           path: ./bin
 
+      # Download static libs
+      - uses: actions/download-artifact@v4
+        with:
+          name: static-libs
+          path: ./static_libs
+
       # Make executables
       - name: Make Executable Shell Scripts
-        run: chmod +x ./build_release.sh
+        run: chmod +x ./build_tools/*.sh
 
       # Run release builder
       - name: Make Release
-        run: make release
+        run: |
+          make -t all # Force to be up-to-date
+          make static_deps
+          make release
 
       # Read version from version.txt
       - name: Extract Version
@@ -50,10 +55,33 @@ jobs:
           VERSION=$(sed 's/^Mercury //' version.txt)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      # Delete existing release if it exists
+      - name: Delete Existing Release If Exists
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          echo "Cleaning up release and tag for $VERSION"
+
+          # Delete release if it exists
+          gh release delete "$VERSION" -y || echo "No release to delete"
+
+          # Delete remote tag if it exists
+          git push origin ":refs/tags/$VERSION" || echo "No remote tag to delete"
+
+          # Delete local tag if it exists
+          git tag -d "$VERSION" || echo "No local tag to delete"
+
+          # Confirm cleanup
+          gh release list --limit 5
+          git ls-remote --tags origin | grep "$VERSION" || echo "Remote tag is gone"
+
       # Create GitHub Release
       - name: Create GitHub Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           SUMMARY_FILE=$(ls ./releases/SUMMARY_*.md | head -n1)
@@ -74,10 +102,38 @@ jobs:
             $PRERELEASE
 
       # Commit updated docs
-      - name: Update Website
+      - name: Create Release Update Branch
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
         run: |
+          # Create branch & commit
+          git checkout -b release-update-${{ steps.version.outputs.version }}
           git add docs/releases.json docs/latest
-          git commit -m "Update release metadata for ${{ steps.version.outputs.version }}"
-          git push origin HEAD:main
+          git commit -m "Update release metadata for ${{ steps.version.outputs.version }}" || echo "No changes to commit"
+          git restore .
+          git push origin HEAD
+
+      - name: Create PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
+        run: |
+          gh pr create \
+            --title "[Website] Bump Release ${{ steps.version.outputs.version }}" \
+            --body "Automated release bump for ${{ steps.version.outputs.version }}." \
+            --base main \
+            --head release-update-${{ steps.version.outputs.version }} \
+            --label "website,repo,top-priority"
+
+      - name: Approve and Merge PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
+        run: |
+          PR_NUMBER=$(gh pr list --head release-update-${{ steps.version.outputs.version }} --json number -q '.[0].number')
+          gh pr merge $PR_NUMBER --merge --admin
+
+      - name: Delete Release Update Branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
+        run: |
+          BRANCH="release-update-${{ steps.version.outputs.version }}"
+          git push origin --delete "$BRANCH" || echo "Branch already deleted"
