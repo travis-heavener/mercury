@@ -10,6 +10,7 @@ sudo apt install upx \
     g++ \
     zip \
     python3 \
-    gzip -y
+    gzip \
+    php8.3-fpm -y
 
 echo "✅ Successfully installed dependencies."
