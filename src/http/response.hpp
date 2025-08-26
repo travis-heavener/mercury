@@ -14,7 +14,7 @@ namespace http {
             Response(const std::string&);
 
             void setStatus(const uint16_t statusCode);
-            inline uint16_t getStatus() const { return statusCode; };
+            inline uint16_t getStatus() const { return httpVersion == "HTTP/0.9" ? 0 : statusCode; };
             void setHeader(std::string name, const std::string& value);
 
             int loadBodyFromErrorDoc(const uint16_t statusCode);

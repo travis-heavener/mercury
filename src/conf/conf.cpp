@@ -273,10 +273,15 @@ int loadConfig() {
 
     std::string tlsPortRaw = tlsPortNode.text().as_string();
     trimString(tlsPortRaw);
-    
+
     // If TLS is enabled, grab the port
     USE_TLS = tlsPortRaw != "off";
-    TLS_PORT = USE_TLS ? std::stoull(tlsPortRaw) : 0;
+    try {
+        TLS_PORT = USE_TLS ? std::stoull(tlsPortRaw) : 0;
+    } catch (std::invalid_argument&) {
+        std::cerr << "Failed to parse TLSPort node, invalid port passed.\n";
+        return CONF_FAILURE;
+    }
 
     /************************** Load PHP FPM port **************************/
     pugi::xml_node phpFPMPortNode = root.child("PhpFPMPort");
@@ -290,7 +295,12 @@ int loadConfig() {
     
     // If TLS is enabled, grab the port
     USE_PHP_FPM = phpFPMPortRaw != "off";
-    PHP_FPM_PORT = USE_PHP_FPM ? std::stoull(phpFPMPortRaw) : 0;
+    try {
+        PHP_FPM_PORT = USE_PHP_FPM ? std::stoull(phpFPMPortRaw) : 0;
+    } catch (std::invalid_argument&) {
+        std::cerr << "Failed to parse PhpFPMPort node, invalid port passed.\n";
+        return CONF_FAILURE;
+    }
 
     /************************** Check welcome banner status **************************/
     pugi::xml_node showWelcomeBannerNode = root.child("ShowWelcomeBanner");

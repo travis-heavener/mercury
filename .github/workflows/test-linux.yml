@@ -26,8 +26,18 @@ jobs:
         run: |
           sudo apt update
           sudo apt install php8.3-fpm
+
+      - name: Configure PHP-FPM
+        run: |
           sudo sed -i 's/^[[:space:]]*listen[[:space:]]*=.*/listen = 9000/' /etc/php/8.3/fpm/pool.d/www.conf
           sudo systemctl restart php8.3-fpm
+
+      - name: Fix Ownership of Public Files
+        run: |
+          # sudo chmod -R a+r ./public
+          ls -l ./public/index.php
+          stat ./public/index.php
+          sudo find ./ -type d -exec chmod o+x {} \;
 
       - name: Configure Ports & Enable IPv6/TLS
         run: |
@@ -44,6 +54,12 @@ jobs:
           # Update tests/run.py
           sed -i "s|port[[:space:]]*=[[:space:]]*.*|port = $port|" tests/run.py
           sed -i "s|ssl_port[[:space:]]*=[[:space:]]*.*|ssl_port = $sslPort|" tests/run.py
+
+      - name: Debug Step
+        run: |
+          sudo apt install net-tools
+          sudo netstat -tlp | grep 9000
+          sudo systemctl status php8.3-fpm
 
       # Make TLS cert
       - name: Make TLS Cert
@@ -74,6 +90,10 @@ jobs:
           if echo "$OUTPUT" | tail -n 2 | grep -q "Failure"; then
             kill -INT $(cat ../pid.txt)
             sleep 5
+            ls -la ../public
+            pwd
+            cat ../logs/access.log
+            cat ../logs/error.log
             exit 1
           fi
 

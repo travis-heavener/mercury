@@ -166,9 +166,18 @@ namespace http {
             fcgi.beginRequest();
 
             // Map request to FastCGI params
+            const std::string contentType = req.getHeader("Content-Type") ? *req.getHeader("Content-Type") : "text/plain";
+
+            fcgi.sendParam("DOCUMENT_ROOT", conf::DOCUMENT_ROOT.string());
             fcgi.sendParam("SCRIPT_FILENAME", file.path);
             fcgi.sendParam("REQUEST_METHOD", req.getMethodStr());
             fcgi.sendParam("QUERY_STRING", file.queryStr);
+            fcgi.sendParam("SERVER_SOFTWARE", conf::VERSION);
+            fcgi.sendParam("GATEWAY_INTERFACE", "CGI/1.1");
+            fcgi.sendParam("REQUEST_URI", file.rawPath);
+            fcgi.sendParam("CONTENT_TYPE", contentType);
+            fcgi.sendParam("SERVER_PROTOCOL", req.getVersion());
+            fcgi.sendParam("REMOTE_ADDR", req.getIPStr());
             fcgi.sendParam("CONTENT_LENGTH", std::to_string(req.getBody().size()));
 
             if (file.MIME != MIME_UNSET)
@@ -224,6 +233,10 @@ namespace http {
                             res.setStatus(std::stoi(val));
                         else
                             res.setHeader(key, val);
+
+                        if (key == "Status" && std::stoi(val) == 404) {
+                            ERROR_LOG << file.path << std::endl;
+                        }
                     }
                 }
 

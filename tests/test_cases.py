@@ -24,7 +24,7 @@ class TestCase:
         self.expected_headers = { k.upper(): v for k, v in expected_headers.items() }
 
     # Send the payload to the server socket
-    def test(self, s: socket.socket) -> bool:
+    def test(self, s: socket.socket, test_desc: str) -> bool:
         # Send payload
         s.sendall(str(self).encode("utf-8"))
 
@@ -63,6 +63,10 @@ class TestCase:
             # Check status code
             if status_code != self.expected_status and status_code != self.fallback_status:
                 return False
+
+            # Warn if fallback status reached
+            if status_code == self.fallback_status:
+                print(f"[Note]: Fallback status reached for {test_desc}")
 
             # Check headers
             for k, v in self.expected_headers.items():

@@ -17,6 +17,7 @@
 
 #include "../../io/file.hpp"
 #include "../../pch/common.hpp"
+#include "../../logs/logger.hpp"
 
 #define FASTCGI_HOST "127.0.0.1"
 
