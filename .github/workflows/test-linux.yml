@@ -34,11 +34,6 @@ jobs:
           sudo sed -i 's/^group = www-data/group = docker/' /etc/php/8.3/fpm/pool.d/www.conf
           sudo systemctl restart php8.3-fpm
 
-      - name: Fix Ownership of Public Files
-        run: |
-          sudo find /home/runner/work/mercury/mercury/public -type d -exec chmod o+x {} \;
-          ps aux | grep php-fpm
-
       - name: Configure Ports & Enable IPv6/TLS
         run: |
           port=8081
@@ -54,12 +49,6 @@ jobs:
           # Update tests/run.py
           sed -i "s|port[[:space:]]*=[[:space:]]*.*|port = $port|" tests/run.py
           sed -i "s|ssl_port[[:space:]]*=[[:space:]]*.*|ssl_port = $sslPort|" tests/run.py
-
-      - name: Debug Step
-        run: |
-          sudo apt install net-tools
-          sudo netstat -tlp | grep 9000
-          sudo systemctl status php8.3-fpm
 
       # Make TLS cert
       - name: Make TLS Cert
@@ -90,10 +79,6 @@ jobs:
           if echo "$OUTPUT" | tail -n 2 | grep -q "Failure"; then
             kill -INT $(cat ../pid.txt)
             sleep 5
-            ls -la ../public
-            pwd
-            cat ../logs/access.log
-            cat ../logs/error.log
             exit 1
           fi
 
