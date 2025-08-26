@@ -1,7 +1,7 @@
 # Changelog
 
 ## v0.12.0
-- Add PHP-FPM support for Linux
+- Add basic php-fpm support for Linux (#97)
     - Install via `sudo apt install php8.3-fpm`
 - Bump C++ version from C++17 to C++20
 - Add "Getting Started" section to README
