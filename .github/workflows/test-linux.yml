@@ -34,10 +34,8 @@ jobs:
 
       - name: Fix Ownership of Public Files
         run: |
-          # sudo chmod -R a+r ./public
-          ls -l ./public/index.php
-          stat ./public/index.php
-          sudo find ./ -type d -exec chmod o+x {} \;
+          sudo find /home/runner/work/mercury/mercury/public -type d -exec chmod o+x {} \;
+          ps aux | grep php-fpm
 
       - name: Configure Ports & Enable IPv6/TLS
         run: |
