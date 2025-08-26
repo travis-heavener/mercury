@@ -38,6 +38,14 @@ Mercury is a lightweight, configurable HTTP server made in C++ for Windows and L
 Once you've downloaded your own Mercury release, navigate to the `/bin/` directory.
 If running on Linux, start `mercury` from the terminal; if running on Windows, start `mercury.exe`.
 
+A full list of Mercury versions is available on our website, [wowtravis.com/mercury](https://wowtravis.com/mercruy).
+If you start up Mercury and are met with an "Update available!" notification, navigate to our website to download a new copy.
+New versions are continuously being produced and may include crucial bug fixes or security improvements.
+
+Any version of Mercury marked as a "pre-release" (versions starting with "v0.x.x") is not a finalized product.
+Therefore, bugs and security vulnerabilities are still possible.
+If you encounter any unexpected behavior, please start an Issue on [github.com/travis-heavener/mercury/issues](https://github.com/travis-heavener/mercury/issues).
+
 **Note: Mercury binaries must be run from within the `/bin/` directory as resources & config files are loaded relative to the working directory.**
 
 ### Config Files
@@ -49,14 +57,6 @@ In the `conf` directory are two config files: "mercury.conf" for server config a
 Once you start Mercury, a `logs` directory will be created, with an access and error log.
 The access log contains a detailed log of all server traffic that is processed, along with status information.
 The error log contains any detailed error messages that the server encounters.
-
-A full list of Mercury versions is available on our website, [wowtravis.com/mercury](https://wowtravis.com/mercruy).
-If you start up Mercury and are met with an "Update available!" notification, navigate to our website to download a new copy.
-New versions are continuously being produced and may include crucial bug fixes or security improvements.
-
-Any version of Mercury marked as a "pre-release" (versions starting with "v0.x.x") is not a finalized product.
-Therefore, bugs and security vulnerabilities are still possible.
-If you encounter any unexpected behavior, please start an Issue on [github.com/travis-heavener/mercury/issues](https://github.com/travis-heavener/mercury/issues).
 
 ### Setting Up PHP
 
