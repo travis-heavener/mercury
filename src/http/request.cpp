@@ -94,7 +94,8 @@ namespace http {
             splitStringUnique(acceptedEncodings, headers["ACCEPT-ENCODING"], ',', true);
     }
 
-    const std::string* Request::getHeader(const std::string& header) const {
+    const std::string* Request::getHeader(std::string header) const {
+        strToUpper(header);
         const auto result = this->headers.find(header);
         return (result != this->headers.end()) ? &result->second : nullptr;
     }

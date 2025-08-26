@@ -22,7 +22,7 @@ namespace http {
         public:
             Request(const char*, std::string);
 
-            const std::string* getHeader(const std::string&) const;
+            const std::string* getHeader(std::string) const;
             inline const std::string getIPStr() const { return ipStr; };
             inline METHOD getMethod() const { return method; };
             inline const std::string& getMethodStr() const { return methodStr; };

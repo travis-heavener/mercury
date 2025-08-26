@@ -6,6 +6,7 @@
 - Bump C++ version from C++17 to C++20
 - Add "Getting Started" section to README
 - Fix explicitly declaring HTTP/0.9 as the version in the status line (#108)
+- Fix connection: close handling for HTTP/1.1 (forcing as keep-alive) (#109)
 
 ## v0.11.0
 - Now checks for a new version at startup (#91)
