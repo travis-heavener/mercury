@@ -30,6 +30,8 @@ jobs:
       - name: Configure PHP-FPM
         run: |
           sudo sed -i 's/^[[:space:]]*listen[[:space:]]*=.*/listen = 9000/' /etc/php/8.3/fpm/pool.d/www.conf
+          sudo sed -i 's/^user = www-data/user = runner/' /etc/php/8.3/fpm/pool.d/www.conf
+          sudo sed -i 's/^group = www-data/group = docker/' /etc/php/8.3/fpm/pool.d/www.conf
           sudo systemctl restart php8.3-fpm
 
       - name: Fix Ownership of Public Files
