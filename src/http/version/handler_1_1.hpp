@@ -4,12 +4,10 @@
 #include "../request.hpp"
 #include "../response.hpp"
 
-namespace http {
-    namespace version {
-        namespace handler_1_1 {
-            Response* genResponse(Request&);
-        }
-    }
+#include "../cgi/client.hpp"
+
+namespace http::version::handler_1_1 {
+    Response* genResponse(Request&);
 }
 
 #endif

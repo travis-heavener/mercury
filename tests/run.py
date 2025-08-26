@@ -33,7 +33,7 @@ if __name__ == "__main__":
                 s.connect((host, port))
 
                 # Send payload & evaluate
-                if not test_case.test(s):
+                if not test_case.test(s, f"IPv4 test #{i+1}"):
                     print(f"Failed IPv4 test #{i+1}")
                 else:
                     num_passing += 1
@@ -47,7 +47,7 @@ if __name__ == "__main__":
             with socket.create_connection((host, ssl_port)) as sock:
                 with ssl_ctx.wrap_socket(sock, server_hostname=host) as s:
                     # Send payload & evaluate
-                    if not test_case.test(s):
+                    if not test_case.test(s, f"IPv4 SSL test #{i+1}"):
                         print(f"Failed IPv4 SSL test #{i+1}")
                     else:
                         num_passing += 1
@@ -62,7 +62,7 @@ if __name__ == "__main__":
                 s.connect((host_v6, port))
 
                 # Send payload & evaluate
-                if not test_case.test(s):
+                if not test_case.test(s, f"IPv6 test #{i+1}"):
                     print(f"Failed IPv6 test #{i+1}")
                 else:
                     num_passing += 1
@@ -76,7 +76,7 @@ if __name__ == "__main__":
             with socket.create_connection((host_v6, ssl_port)) as sock:
                 with ssl_ctx.wrap_socket(sock, server_hostname=host_v6) as s:
                     # Send payload & evaluate
-                    if not test_case.test(s):
+                    if not test_case.test(s, f"IPv6 SSL test #{i+1}"):
                         print(f"Failed IPv6 SSL test #{i+1}")
                     else:
                         num_passing += 1

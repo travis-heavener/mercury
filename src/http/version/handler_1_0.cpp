@@ -25,6 +25,12 @@ namespace http {
                 if (!request.isFileValid(*pResponse, file))
                     return pResponse;
 
+                // Check for PHP files
+                if (conf::USE_PHP_FPM && file.path.ends_with(".php")) {
+                    fcgi::handlePHPRequest(file, request, *pResponse);
+                    return pResponse;
+                }
+
                 // Switch on method
                 switch (request.getMethod()) {
                     case METHOD::HEAD:

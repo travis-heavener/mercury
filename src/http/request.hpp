@@ -22,7 +22,7 @@ namespace http {
         public:
             Request(const char*, std::string);
 
-            const std::string* getHeader(const std::string&) const;
+            const std::string* getHeader(std::string) const;
             inline const std::string getIPStr() const { return ipStr; };
             inline METHOD getMethod() const { return method; };
             inline const std::string& getMethodStr() const { return methodStr; };
@@ -31,9 +31,12 @@ namespace http {
             inline const std::string& getBody() const { return body; };
             inline const std::string& getVersion() const { return httpVersionStr; };
 
+            inline const std::unordered_map<std::string, std::string>& getHeaders() const { return headers; };
+
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
             inline bool isURIBad() const { return hasBadURI; };
+            inline bool getHasExplicitlyDefinedHTTPVersion0_9() const { return hasExplicitlyDefinedHTTPVersion0_9; };
 
             bool isFileValid(Response& response, const File& file) const;
             bool isInDocumentRoot(Response&, const std::string&) const;
@@ -53,6 +56,7 @@ namespace http {
             std::string pathStr;
             std::string rawPathStr; // The path BEFORE URI decoding
             bool hasBadURI = false; // Set to true if the decodeURI method fails, handled by Response object
+            bool hasExplicitlyDefinedHTTPVersion0_9; // Set to true if the status line has HTTP/0.9 explicitly in it (not allowed)
 
             std::string httpVersionStr;
 

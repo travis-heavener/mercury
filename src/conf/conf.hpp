@@ -42,6 +42,9 @@ namespace conf {
     extern bool USE_TLS;
     extern port_t TLS_PORT;
 
+    extern bool USE_PHP_FPM;
+    extern port_t PHP_FPM_PORT;
+
     extern bool SHOW_WELCOME_BANNER;
     extern bool CHECK_LATEST_RELEASE;
 

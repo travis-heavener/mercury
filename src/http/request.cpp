@@ -15,7 +15,7 @@ namespace http {
 
         // Check for invalid status line
         if (line.size() == 0 || line.back() != '\r')
-            throw http::Exception();
+            throw http::Exception(); // Force close connection
         line.pop_back();
 
         size_t firstSpaceIndex = line.find(" ");
@@ -27,6 +27,10 @@ namespace http {
         // Check for HTTP/0.9 unique status line
         if (secondSpaceIndex != std::string::npos) {
             this->httpVersionStr = line.substr(secondSpaceIndex + 1);
+
+            // Prevent explicit HTTP/0.9 version in status line
+            if (this->httpVersionStr == "HTTP/0.9")
+                this->hasExplicitlyDefinedHTTPVersion0_9 = true;
         } else {
             this->httpVersionStr = "HTTP/0.9";
         }
@@ -90,7 +94,8 @@ namespace http {
             splitStringUnique(acceptedEncodings, headers["ACCEPT-ENCODING"], ',', true);
     }
 
-    const std::string* Request::getHeader(const std::string& header) const {
+    const std::string* Request::getHeader(std::string header) const {
+        strToUpper(header);
         const auto result = this->headers.find(header);
         return (result != this->headers.end()) ? &result->second : nullptr;
     }

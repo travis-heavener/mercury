@@ -4,6 +4,8 @@
 #include "../pch/common.hpp"
 #include "../util/toolbox.hpp"
 
+#define MIME_UNSET ""
+
 class File {
     public:
         File(const std::string&);
@@ -16,8 +18,14 @@ class File {
         bool ioFailure = false; // True if an IO failure occured
 
         std::string MIME;
+
+        // The FULL, absolute path to the file
         std::string path;
+
+        // The RAW path from the HTTP request
         std::string rawPath;
+
+        // The query string
         std::string queryStr;
 };
 

@@ -7,13 +7,14 @@ READ_BUF_SIZE = 1024 * 16 # Read buffer size for recv
 gmt_now = lambda: datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
 
 class TestCase:
-    def __init__(self, method: str, path: str, expected_status: int,
+    def __init__(self, method: str, path: str, expected_status: int, fallback_status: int=None,
                  headers: dict=None, expected_headers: dict=None,
                  http_ver: str="HTTP/1.1"):
         self.method = method
         self.path = path
         self.http_ver = http_ver
         self.expected_status = expected_status
+        self.fallback_status = fallback_status
 
         self.headers = {} if headers is None else headers
         self.headers["Host"] = "Mercury Test Agent"
@@ -23,7 +24,7 @@ class TestCase:
         self.expected_headers = { k.upper(): v for k, v in expected_headers.items() }
 
     # Send the payload to the server socket
-    def test(self, s: socket.socket) -> bool:
+    def test(self, s: socket.socket, test_desc: str) -> bool:
         # Send payload
         s.sendall(str(self).encode("utf-8"))
 
@@ -31,6 +32,11 @@ class TestCase:
         response = s.recv(READ_BUF_SIZE).decode("utf-8").replace("\r", "")
 
         if self.http_ver == "HTTP/0.9":
+            # Allow returning true if response missing but fallback status is set
+            # ex. handling 502 Bad Gateway w/ unimplemented PHP for Windows
+            if self.fallback_status == 502 and len(response) == 0:
+                return True
+
             # Verify something is returned
             if len(response) == 0:
                 return False
@@ -55,8 +61,12 @@ class TestCase:
             ### Evaluate ###
 
             # Check status code
-            if status_code != self.expected_status:
+            if status_code != self.expected_status and status_code != self.fallback_status:
                 return False
+
+            # Warn if fallback status reached
+            if status_code == self.fallback_status:
+                print(f"[Note]: Fallback status reached for {test_desc}")
 
             # Check headers
             for k, v in self.expected_headers.items():
@@ -123,5 +133,12 @@ cases = [
     # Test HTTP/0.9
     # These don't really check responses, just make sure the server doesn't crash lol
     TestCase(method="GET", path="/index.html", expected_status=-1, http_ver="HTTP/0.9"),
-    TestCase(method="HEAD", path="/index.html", expected_status=-1, http_ver="HTTP/0.9")
+
+    # Test invalid method handling
+    TestCase(method="HEAD", path="/index.html", expected_status=-1, http_ver="HTTP/0.9"),
+
+    # Test PHP parsing
+    TestCase(method="GET", path="/index.php", expected_status=-1, fallback_status=502, http_ver="HTTP/0.9"),
+    TestCase(method="HEAD", path="/index.php", expected_status=200, fallback_status=502, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="/index.php", expected_status=200, fallback_status=502, http_ver="HTTP/1.1")
 ]

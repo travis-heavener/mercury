@@ -8,14 +8,27 @@ BROTLI_DIR = $(STATIC_LIBS_DIR)/brotli
 ARTIFACTS_LOCK = $(STATIC_LIBS_DIR)/artifacts.lock
 PCH_DIR = src/pch
 
-STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -std=c++17
+STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -std=c++20
 BROTLI_FLAGS = -lbrotlienc -lbrotlidec -lbrotlicommon
 LIB_FLAGS = -lz -lpthread -lssl -lcrypto
 
 TARGET = bin/mercury
 TARGET_WIN = bin/mercury.exe
-SRCS = src/conf/*.cpp src/*.cpp src/http/*.cpp src/http/version/*.cpp src/util/*.cpp src/io/*.cpp src/logs/*.cpp lib/*.cpp
-DEPS = src/conf/*.hpp src/http/*.hpp src/http/version/*.hpp src/util/*.hpp src/io/*.hpp src/logs/*.hpp lib/*.hpp src/pch/*.hpp $(SRCS)
+SRCS = src/conf/*.cpp \
+	src/*.cpp \
+	src/http/*.cpp src/http/version/*.cpp src/http/cgi/*.cpp \
+	src/util/*.cpp \
+	src/io/*.cpp \
+	src/logs/*.cpp \
+	lib/*.cpp
+DEPS = src/conf/*.hpp \
+	src/http/*.hpp src/http/version/*.hpp src/http/cgi/*.hpp \
+	src/util/*.hpp \
+	src/io/*.hpp \
+	src/logs/*.hpp \
+	lib/*.hpp \
+	src/pch/*.hpp \
+	$(SRCS)
 
 all: pch_linux $(TARGET) pch_windows $(TARGET_WIN)
 linux: pch_linux $(TARGET)

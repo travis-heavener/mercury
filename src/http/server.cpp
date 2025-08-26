@@ -297,7 +297,8 @@ namespace http {
             pResponse = version::handler_1_1::genResponse(request);
         } else if (request.getVersion() == "HTTP/1.0" && conf::ENABLE_LEGACY_HTTP) {
             pResponse = version::handler_1_0::genResponse(request);
-        } else if (request.getVersion() == "HTTP/0.9" && conf::ENABLE_LEGACY_HTTP) {
+        } else if (request.getVersion() == "HTTP/0.9" && conf::ENABLE_LEGACY_HTTP
+            && !request.getHasExplicitlyDefinedHTTPVersion0_9()) {
             pResponse = version::handler_0_9::genResponse(request);
         } else {
             pResponse = new Response("HTTP/1.1"); // Default version
