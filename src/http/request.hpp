@@ -31,6 +31,8 @@ namespace http {
             inline const std::string& getBody() const { return body; };
             inline const std::string& getVersion() const { return httpVersionStr; };
 
+            inline const std::unordered_map<std::string, std::string>& getHeaders() const { return headers; };
+
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
             inline bool isURIBad() const { return hasBadURI; };

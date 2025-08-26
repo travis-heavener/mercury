@@ -16,13 +16,13 @@ TARGET = bin/mercury
 TARGET_WIN = bin/mercury.exe
 SRCS = src/conf/*.cpp \
 	src/*.cpp \
-	src/http/*.cpp src/http/version/*.cpp \
+	src/http/*.cpp src/http/version/*.cpp src/http/cgi/*.cpp \
 	src/util/*.cpp \
 	src/io/*.cpp \
 	src/logs/*.cpp \
 	lib/*.cpp
 DEPS = src/conf/*.hpp \
-	src/http/*.hpp src/http/version/*.hpp \
+	src/http/*.hpp src/http/version/*.hpp src/http/cgi/*.hpp \
 	src/util/*.hpp \
 	src/io/*.hpp \
 	src/logs/*.hpp \

@@ -23,6 +23,9 @@ namespace conf {
     bool USE_TLS;
     port_t TLS_PORT;
 
+    bool USE_PHP_FPM;
+    port_t PHP_FPM_PORT;
+
     bool SHOW_WELCOME_BANNER;
     bool CHECK_LATEST_RELEASE;
 
@@ -274,6 +277,20 @@ int loadConfig() {
     // If TLS is enabled, grab the port
     USE_TLS = tlsPortRaw != "off";
     TLS_PORT = USE_TLS ? std::stoull(tlsPortRaw) : 0;
+
+    /************************** Load PHP FPM port **************************/
+    pugi::xml_node phpFPMPortNode = root.child("PhpFPMPort");
+    if (!phpFPMPortNode) {
+        std::cerr << "Failed to parse config file, missing PhpFPMPort node.\n";
+        return CONF_FAILURE;
+    }
+
+    std::string phpFPMPortRaw = phpFPMPortNode.text().as_string();
+    trimString(phpFPMPortRaw);
+    
+    // If TLS is enabled, grab the port
+    USE_PHP_FPM = phpFPMPortRaw != "off";
+    PHP_FPM_PORT = USE_PHP_FPM ? std::stoull(phpFPMPortRaw) : 0;
 
     /************************** Check welcome banner status **************************/
     pugi::xml_node showWelcomeBannerNode = root.child("ShowWelcomeBanner");

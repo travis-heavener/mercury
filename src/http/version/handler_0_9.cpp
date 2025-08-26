@@ -1,50 +1,52 @@
-#include "handler_1_0.hpp"
+#include "handler_0_9.hpp"
 
-namespace http {
-    namespace version {
-        namespace handler_0_9 {
+namespace http::version::handler_0_9 {
 
-            Response* genResponse(Request& request) {
-                // Create Response object
-                Response* pResponse = new Response("HTTP/0.9");
+    Response* genResponse(Request& request) {
+        // Create Response object
+        Response* pResponse = new Response("HTTP/0.9");
 
-                // Verify path is restricted to document root
-                if (!request.isInDocumentRoot(*pResponse, ""))
-                    return pResponse;
+        // Verify path is restricted to document root
+        if (!request.isInDocumentRoot(*pResponse, ""))
+            return pResponse;
 
-                // Lookup file & validate it doesn't have anything wrong with it
-                File file(request.getPathStr());
-                if (!request.isFileValid(*pResponse, file))
-                    return pResponse;
+        // Lookup file & validate it doesn't have anything wrong with it
+        File file(request.getPathStr());
+        if (!request.isFileValid(*pResponse, file))
+            return pResponse;
 
-                // Switch on method
-                switch (request.getMethod()) {
-                    case METHOD::GET: {
-                        // Check accepted MIMES
-                        if (!request.isMIMEAccepted(file.MIME)) {
-                            pResponse->loadBodyFromErrorDoc(406);
-                            break;
-                        }
+        // Check for PHP files
+        if (conf::USE_PHP_FPM && file.path.ends_with(".php")) {
+            fcgi::handlePHPRequest(file, request, *pResponse);
+            return pResponse;
+        }
 
-                        // Attempt to buffer resource
-                        if (pResponse->loadBodyFromFile(file) == IO_FAILURE) {
-                            pResponse->loadBodyFromErrorDoc(500);
-                            break;
-                        }
-                        break;
-                    }
-                    default: {
-                        pResponse->loadBodyFromErrorDoc(405);
-                        break;
-                    }
+        // Switch on method
+        switch (request.getMethod()) {
+            case METHOD::GET: {
+                // Check accepted MIMES
+                if (!request.isMIMEAccepted(file.MIME)) {
+                    pResponse->loadBodyFromErrorDoc(406);
+                    break;
                 }
 
-                // Return Response ptr
-                return pResponse;
+                // Attempt to buffer resource
+                if (pResponse->loadBodyFromFile(file) == IO_FAILURE) {
+                    pResponse->loadBodyFromErrorDoc(500);
+                    break;
+                }
+                break;
             }
-
+            default: {
+                pResponse->loadBodyFromErrorDoc(405);
+                break;
+            }
         }
+
+        // Return Response ptr
+        return pResponse;
     }
+
 }
 
 #undef ALLOWED_METHODS

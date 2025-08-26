@@ -11,6 +11,10 @@
 
 - [Table of Contents](#table-of-contents)
 - [About](#about)
+- [Getting Started](#getting-started)
+    - [Setting Up PHP](#setting-up-php)
+    - [Config Files](#config-files)
+    - [Log Files](#log-files)
 - [Build Info](#build-info)
     - [Linux & Windows Builds](#linux--windows-builds)
     - [TLS Certs](#tls-certs)
@@ -28,6 +32,50 @@
 ## About
 
 Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux.
+
+## Getting Started
+
+Once you've downloaded your own Mercury release, navigate to the `/bin/` directory.
+If running on Linux, start `mercury` from the terminal; if running on Windows, start `mercury.exe`.
+
+**Note: Mercury binaries must be run from within the `/bin/` directory as resources & config files are loaded relative to the working directory.**
+
+### Config Files
+
+In the `conf` directory are two config files: "mercury.conf" for server config and "mimes.conf" for a list of supported MIME types.
+
+### Log Files
+
+Once you start Mercury, a `logs` directory will be created, with an access and error log.
+The access log contains a detailed log of all server traffic that is processed, along with status information.
+The error log contains any detailed error messages that the server encounters.
+
+A full list of Mercury versions is available on our website, [wowtravis.com/mercury](https://wowtravis.com/mercruy).
+If you start up Mercury and are met with an "Update available!" notification, navigate to our website to download a new copy.
+New versions are continuously being produced and may include crucial bug fixes or security improvements.
+
+Any version of Mercury marked as a "pre-release" (versions starting with "v0.x.x") is not a finalized product.
+Therefore, bugs and security vulnerabilities are still possible.
+If you encounter any unexpected behavior, please start an Issue on [github.com/travis-heavener/mercury/issues](https://github.com/travis-heavener/mercury/issues).
+
+### Setting Up PHP
+
+Currently, PHP is only supported on Linux via php8.3-fpm.
+The FPM can be installed via `sudo apt install php8.3-fpm`.
+
+To configure PHP support:
+
+1. Modify the php8.3-fpm config to listen to a port.
+
+Using your desired text editor, edit the php8.3-fpm config file (usually located at "/etc/php/8.3/fpm/pool.d/www.conf").
+Search for the line starting with "listen = ..." WITHOUT a leading comment semicolon (;), and replace the righthand value with a port of your choice (9000 recommended).
+
+Note that this port *MUST* match the port specified in the PhpFPMPort node in mercury.conf.
+
+2. Restart php8.3-fpm via `sudo systemctl restart php8.3-fpm`.
+
+3. Start up Mercury for Linux and open your PHP files!
+If the connection fails, you will receive a 502 Bad Gateway status when accessing a PHP file.
 
 ## Build Info
 
