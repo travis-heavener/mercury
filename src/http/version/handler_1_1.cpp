@@ -1,6 +1,7 @@
 #include "handler_1_1.hpp"
 
 #define ALLOWED_STATIC_METHODS "GET, HEAD, OPTIONS"
+#define ALLOWED_METHODS "GET, HEAD, OPTIONS, POST, PUT, PATCH, DELETE"
 
 namespace http {
     namespace version {
@@ -31,19 +32,23 @@ namespace http {
                     return pResponse;
                 }
 
-                // Verify path is restricted to document root
-                if (!request.isInDocumentRoot(*pResponse, ALLOWED_STATIC_METHODS))
-                    return pResponse;
-
-                // Lookup file & validate it doesn't have anything wrong with it
                 File file(request.getPathStr());
-                if (!request.isFileValid(*pResponse, file))
-                    return pResponse;
 
-                // Check for PHP files
-                if (conf::USE_PHP_FPM && file.path.ends_with(".php")) {
-                    fcgi::handlePHPRequest(file, request, *pResponse);
-                    return pResponse;
+                // Bypass document root checks, file checks, and PHP for OPTIONS * (server-wide edge case)
+                if (method != METHOD::OPTIONS || request.getRawPathStr() != "*") {
+                    // Verify path is restricted to document root
+                    if (!request.isInDocumentRoot(*pResponse, ALLOWED_STATIC_METHODS))
+                        return pResponse;
+
+                    // Lookup file & validate it doesn't have anything wrong with it
+                    if (!request.isFileValid(*pResponse, file))
+                        return pResponse;
+
+                    // Check for PHP files
+                    if (conf::USE_PHP_FPM && file.path.ends_with(".php")) {
+                        fcgi::handlePHPRequest(file, request, *pResponse);
+                        return pResponse;
+                    }
                 }
 
                 // Switch on method
@@ -89,7 +94,10 @@ namespace http {
                         break;
                     }
                     case METHOD::OPTIONS: { // OPTIONS introduced in HTTP/1.1
-                        pResponse->setHeader("Allow", ALLOWED_STATIC_METHODS);
+                        if (request.getRawPathStr() == "*") // Server-wide edge case
+                            pResponse->setHeader("Allow", ALLOWED_METHODS);
+                        else
+                            pResponse->setHeader("Allow", ALLOWED_STATIC_METHODS);
                         pResponse->setStatus(204);
                         break;
                     }
@@ -110,3 +118,4 @@ namespace http {
 }
 
 #undef ALLOWED_STATIC_METHODS
+#undef ALLOWED_METHODS
