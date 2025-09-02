@@ -122,10 +122,10 @@ cases = [
 
     # Invalid method checking & proper method versions
     TestCase(method="POST", path="/",           expected_status=405),
-    TestCase(method="OPTIONS", path="/",        expected_status=200, http_ver="HTTP/1.1"),
-    TestCase(method="OPTIONS", path="/",        expected_status=405, http_ver="HTTP/1.0"),
-    TestCase(method="FOO",  path="/foo-bar",    expected_status=404),
-    TestCase(method="FOO",  path="/",           expected_status=405),
+    TestCase(method="OPTIONS", path="/",        expected_status=204, http_ver="HTTP/1.1"),
+    TestCase(method="OPTIONS", path="/",        expected_status=501, http_ver="HTTP/1.0"),
+    TestCase(method="FOO",  path="/foo-bar",    expected_status=501),
+    TestCase(method="FOO",  path="/",           expected_status=501),
 
     # Invalid query string
     TestCase(method="HEAD", path="/index.html%", expected_status=400),

@@ -15,6 +15,9 @@ namespace http {
         GET = 0,
         HEAD = 1,
         OPTIONS = 2,
+        POST = 3,
+        PUT = 4,
+        DEL = 5,
         UNKNOWN = 999
     };
 

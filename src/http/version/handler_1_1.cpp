@@ -16,6 +16,14 @@ namespace http {
                 // Create Response object
                 Response* pResponse = new Response("HTTP/1.1");
 
+                // Check if method is valid
+                const METHOD method = request.getMethod();
+                if (method != METHOD::GET && method != METHOD::HEAD && method != METHOD::OPTIONS
+                    && method != METHOD::POST && method != METHOD::PUT && method != METHOD::DEL) {
+                    setStatusMaybeErrorDoc(request, *pResponse, 501); // Not Implemented
+                    return pResponse;
+                }
+
                 // Verify Host header is present for HTTP/1.1+ (RFC 2616) & URI isn't malformed
                 if ( request.getHeader("HOST") == nullptr || request.isURIBad() ) {
                     setStatusMaybeErrorDoc(request, *pResponse, 400);
@@ -81,10 +89,10 @@ namespace http {
                     }
                     case METHOD::OPTIONS: { // OPTIONS introduced in HTTP/1.1
                         pResponse->setHeader("Allow", ALLOWED_METHODS);
-                        pResponse->setStatus(200);
+                        pResponse->setStatus(204);
                         break;
                     }
-                    default: {
+                    default: { // Method is allowed but invalid for static file
                         // If the request allows HTML, return an HTML display
                         pResponse->setHeader("Allow", ALLOWED_METHODS);
                         setStatusMaybeErrorDoc(request, *pResponse, 405);

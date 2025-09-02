@@ -16,6 +16,13 @@ namespace http {
                 // Create Response object
                 Response* pResponse = new Response("HTTP/1.0");
 
+                // Check if method is valid
+                const METHOD method = request.getMethod();
+                if (method != METHOD::GET && method != METHOD::HEAD && method != METHOD::POST) {
+                    setStatusMaybeErrorDoc(request, *pResponse, 501); // Not Implemented
+                    return pResponse;
+                }
+
                 // Verify path is restricted to document root
                 if (!request.isInDocumentRoot(*pResponse, ALLOWED_METHODS))
                     return pResponse;
@@ -73,7 +80,7 @@ namespace http {
                                     pResponse->setHeader(name, value);
                         break;
                     }
-                    default: {
+                    default: { // Method is allowed but invalid for static file
                         // If the request allows HTML, return an HTML display
                         pResponse->setHeader("Allow", ALLOWED_METHODS);
                         setStatusMaybeErrorDoc(request, *pResponse, 405);

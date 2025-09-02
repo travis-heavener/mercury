@@ -207,6 +207,9 @@ namespace http {
                 std::string headersStr = fcgiResp.substr(0, pos);
                 std::string bodyStr = fcgiResp.substr(pos + 4);
 
+                // Initially set content-type
+                res.setHeader("Content-Type", "text/plain");
+
                 // Parse headers
                 std::unordered_set<std::string> headers;
                 splitStringUnique(headers, headersStr, '\n', true);
@@ -242,11 +245,15 @@ namespace http {
 
                 // Set body
                 res.setBody(bodyStr);
+
+                // Force set Content-Length
+                res.setHeader("Content-Length", std::to_string(bodyStr.size()));
             } else {
                 // Fallback if no headers, just return body
                 res.setContentType("text/html");
                 res.setStatus(200);
                 res.setBody(fcgiResp);
+                res.setHeader("Content-Length", std::to_string(fcgiResp.size()));
             }
 
             fcgi.close();

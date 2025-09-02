@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.13.0
+- PHP CGI improvements (#110)
+    - Now initially sets the Content-Type if not received from PHP CGI (as fallback)
+    - Force overrides the Content-Length header to the actual length of returned content
+- Now ignores MIME checks over HTTP/0.9
+- Now sends 204 No Content instead of 200 OK for OPTIONS method requests
+- Now checks if the provided method is allowed BEFORE checking if the path exists (#110)
+    - Returns 501 Not Implemented if method isn't supported for the HTTP version
+    - Still returns 405 Method Not Allowed if method is allowed for the version but not on the resource
+
 ## v0.12.0
 - Add basic php-fpm support for Linux (#97)
     - Install via `sudo apt install php8.3-fpm`
