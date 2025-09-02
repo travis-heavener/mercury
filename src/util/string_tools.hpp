@@ -28,4 +28,6 @@ void formatHeaderCasing(std::string&);
 
 int compressText(std::string&, const int);
 
+bool isMostlyAscii(const std::string&, double=0.95);
+
 #endif

@@ -16,6 +16,7 @@ namespace http {
             void setStatus(const uint16_t statusCode);
             inline uint16_t getStatus() const { return httpVersion == "HTTP/0.9" ? 0 : statusCode; };
             void setHeader(std::string name, const std::string& value);
+            void clearHeader(std::string);
 
             int loadBodyFromErrorDoc(const uint16_t statusCode);
             int loadBodyFromFile(File& file);
@@ -26,6 +27,7 @@ namespace http {
                 this->setHeader("Content-Type", type);
             }
             const std::string getContentType() const;
+            int getContentLength() const;
 
             void loadToBuffer(std::string& buffer, const bool omitBody);
         private:

@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.13.1
+- Fix Response object headers not being overwritten if multiple of the same name are applied in succession
+    - This causes the default MIME type for PHP scripts to not function as intended
+- Add lazy MIME inferring for PHP CGI responses
+- Removed extra debug log in CGI client
+- Fixed HEAD requests w/ PHP-FPM returning no body internally
+    - Resulted in Content-Length of 0 and broke early type inferring
+- Now applies Match node headers for PHP files
+
 ## v0.13.0
 - PHP CGI improvements (#110)
     - Now initially sets the Content-Type if not received from PHP CGI (as fallback)

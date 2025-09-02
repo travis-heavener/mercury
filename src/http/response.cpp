@@ -15,13 +15,32 @@ namespace http {
     void Response::setHeader(std::string name, const std::string& value) {
         // Update header casing (ex. cOntENt-LeNGTh --> Content-Length)
         formatHeaderCasing(name);
-        this->headers.insert({name, value});
+
+        // Check if header already exists
+        auto itrMatch = headers.find(name);
+        if (itrMatch != headers.end())
+            itrMatch->second = value;
+        else // Otherwise, append
+            this->headers.insert({name, value});
+    }
+
+    void Response::clearHeader(std::string name) {
+        // Update header casing (ex. cOntENt-LeNGTh --> Content-Length)
+        formatHeaderCasing(name);
+
+        // Check if header already exists
+        auto itrMatch = headers.find(name);
+        if (itrMatch != headers.end())
+            headers.erase(itrMatch);
     }
 
     int Response::loadBodyFromErrorDoc(const uint16_t statusCode) {
         this->setStatus(statusCode);
         this->setContentType("text/html");
-        return loadErrorDoc(statusCode, this->body);
+
+        const int status = loadErrorDoc(statusCode, this->body);
+        this->setHeader("Content-Length", std::to_string(this->body.size()));
+        return status;
     }
 
     int Response::loadBodyFromFile(File& file) {
@@ -31,6 +50,7 @@ namespace http {
         if (bodyStatus == IO_SUCCESS)
             this->setHeader("Last-Modified", file.getLastModifiedGMT());
 
+        this->setHeader("Content-Length", std::to_string(this->body.size()));
         return bodyStatus;
     }
 
@@ -61,6 +81,12 @@ namespace http {
         auto type = this->headers.find("Content-Type");
         if (type == this->headers.end()) return "";
         return type->second;
+    }
+
+    int Response::getContentLength() const {
+        auto type = this->headers.find("Content-Length");
+        if (type == this->headers.end()) return -1;
+        return std::stoi(type->second);
     }
 
     void Response::loadToBuffer(std::string& buffer, const bool omitBody) {

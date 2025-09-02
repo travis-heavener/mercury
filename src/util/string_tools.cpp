@@ -96,3 +96,13 @@ int compressText(std::string& buffer, const int method) {
     }
     return IO_SUCCESS;
 }
+
+bool isMostlyAscii(const std::string& data, double thresh) {
+    int asciiCount = 0;
+
+    for (const unsigned char c : data)
+        if ((c >= 0x20 && c <= 0x7E) || c == '\n' || c == '\r' || c == '\t')
+            ++asciiCount;
+
+    return (double)asciiCount / data.size() >= thresh;
+}
