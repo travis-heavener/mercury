@@ -1,6 +1,6 @@
 #include "handler_1_1.hpp"
 
-#define ALLOWED_METHODS "GET, HEAD, OPTIONS"
+#define ALLOWED_STATIC_METHODS "GET, HEAD, OPTIONS"
 
 namespace http {
     namespace version {
@@ -31,7 +31,7 @@ namespace http {
                 }
 
                 // Verify path is restricted to document root
-                if (!request.isInDocumentRoot(*pResponse, ALLOWED_METHODS))
+                if (!request.isInDocumentRoot(*pResponse, ALLOWED_STATIC_METHODS))
                     return pResponse;
 
                 // Lookup file & validate it doesn't have anything wrong with it
@@ -88,13 +88,13 @@ namespace http {
                         break;
                     }
                     case METHOD::OPTIONS: { // OPTIONS introduced in HTTP/1.1
-                        pResponse->setHeader("Allow", ALLOWED_METHODS);
+                        pResponse->setHeader("Allow", ALLOWED_STATIC_METHODS);
                         pResponse->setStatus(204);
                         break;
                     }
                     default: { // Method is allowed but invalid for static file
                         // If the request allows HTML, return an HTML display
-                        pResponse->setHeader("Allow", ALLOWED_METHODS);
+                        pResponse->setHeader("Allow", ALLOWED_STATIC_METHODS);
                         setStatusMaybeErrorDoc(request, *pResponse, 405);
                         break;
                     }
@@ -108,4 +108,4 @@ namespace http {
     }
 }
 
-#undef ALLOWED_METHODS
+#undef ALLOWED_STATIC_METHODS
