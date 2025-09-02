@@ -10,6 +10,7 @@
     - Returns 501 Not Implemented if method isn't supported for the HTTP version
     - Still returns 405 Method Not Allowed if method is allowed for the version but not on the resource
 - Fix OPTIONS method support for server-wide asterisk (#115)
+- Release bundler script now places files inside a directory within the release archive (#114)
 
 ## v0.12.0
 - Add basic php-fpm support for Linux (#97)
