@@ -59,6 +59,8 @@ namespace http {
             this->method = METHOD::PUT;
         else if (this->methodStr == "DELETE")
             this->method = METHOD::DEL;
+        else if (this->methodStr == "PATCH")
+            this->method = METHOD::PATCH;
         else
             this->method = METHOD::UNKNOWN;
 

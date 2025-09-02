@@ -18,6 +18,7 @@ namespace http {
         POST = 3,
         PUT = 4,
         DEL = 5,
+        PATCH = 6,
         UNKNOWN = 999
     };
 

@@ -19,7 +19,8 @@ namespace http {
                 // Check if method is valid
                 const METHOD method = request.getMethod();
                 if (method != METHOD::GET && method != METHOD::HEAD && method != METHOD::OPTIONS
-                    && method != METHOD::POST && method != METHOD::PUT && method != METHOD::DEL) {
+                    && method != METHOD::POST && method != METHOD::PUT && method != METHOD::DEL
+                    && method != METHOD::PATCH) {
                     setStatusMaybeErrorDoc(request, *pResponse, 501); // Not Implemented
                     return pResponse;
                 }
