@@ -14,6 +14,7 @@ LIB_FLAGS = -lz -lpthread -lssl -lcrypto
 
 TARGET = bin/mercury
 TARGET_WIN = bin/mercury.exe
+TARGET_WIN_ICON = bin/icon.o
 SRCS = src/conf/*.cpp \
 	src/*.cpp \
 	src/http/*.cpp src/http/version/*.cpp src/http/cgi/*.cpp \
@@ -50,13 +51,14 @@ $(TARGET): $(DEPS) $(ARTIFACTS_LOCK)
 	@upx $(TARGET) -qqq
 	@echo "✅ Done."
 
-$(TARGET_WIN): $(DEPS) src/winheader.hpp $(ARTIFACTS_LOCK)
+$(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
 	@echo -n "Building for Windows... "
 	@./build_tools/init_conf.sh
+	@x86_64-w64-mingw32-windres src/res/icon.rc -O coff -o $(TARGET_WIN_ICON)
 	@x86_64-w64-mingw32-g++-posix \
 		-include $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp \
-		$(SRCS) -o $(TARGET_WIN) \
+		$(SRCS) $(TARGET_WIN_ICON) -o $(TARGET_WIN) \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
 		-I$(OPENSSL_DIR)/windows/include -I$(BROTLI_DIR)/windows/include \
 		-L$(OPENSSL_DIR)/windows/lib64 -L$(BROTLI_DIR)/windows/lib \
