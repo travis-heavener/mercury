@@ -35,6 +35,13 @@ namespace http {
                 // Check for PHP files
                 if (conf::USE_PHP_FPM && file.path.ends_with(".php")) {
                     fcgi::handlePHPRequest(file, request, *pResponse);
+
+                    // Load additional headers
+                    for (conf::Match* pMatch : conf::matchConfigs)
+                        if (std::regex_match(file.path, pMatch->getPattern()))
+                            for (auto [name, value] : pMatch->getHeaders())
+                                pResponse->setHeader(name, value);
+
                     return pResponse;
                 }
 
@@ -71,7 +78,10 @@ namespace http {
 
                         // Otherwise, body loaded successfully
                         pResponse->setStatus(200);
-                        pResponse->setHeader("Content-Type", file.MIME);
+
+                        // Set MIME if there is content to return
+                        if (pResponse->getContentLength() > 0)
+                            pResponse->setHeader("Content-Type", file.MIME);
 
                         // Load additional headers for body loading
                         for (conf::Match* pMatch : conf::matchConfigs)

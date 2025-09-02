@@ -153,6 +153,20 @@ namespace http {
             return result;
         }
 
+        void inferContentType(const std::string& body, Response& res) {
+            // Lazily infer Content-Type
+            if (body[0] == '{' || body[0] == '[') { // JSON
+                res.setContentType("application/json");
+            } else if (body[0] == '<') { // HTML or XML
+                res.setContentType(body.find("<html") != std::string::npos ?
+                    "text/html" : "application/xml");
+            } else if (isMostlyAscii(body)) { // plaintext
+                res.setContentType("text/plain; charset=utf-8");
+            } else { // BLOB
+                res.setContentType("application/octet-stream");
+            }
+        }
+
         // Dedicated PHP handler
         void handlePHPRequest(const File& file, const Request& req, Response& res) {
             // Create per-request client
@@ -170,7 +184,7 @@ namespace http {
 
             fcgi.sendParam("DOCUMENT_ROOT", conf::DOCUMENT_ROOT.string());
             fcgi.sendParam("SCRIPT_FILENAME", file.path);
-            fcgi.sendParam("REQUEST_METHOD", req.getMethodStr());
+            fcgi.sendParam("REQUEST_METHOD", req.getMethodStr() == "HEAD" ? "GET" : req.getMethodStr()); // Map HEAD to GET
             fcgi.sendParam("QUERY_STRING", file.queryStr);
             fcgi.sendParam("SERVER_SOFTWARE", conf::VERSION);
             fcgi.sendParam("GATEWAY_INTERFACE", "CGI/1.1");
@@ -207,9 +221,6 @@ namespace http {
                 std::string headersStr = fcgiResp.substr(0, pos);
                 std::string bodyStr = fcgiResp.substr(pos + 4);
 
-                // Initially set content-type
-                res.setHeader("Content-Type", "text/plain");
-
                 // Parse headers
                 std::unordered_set<std::string> headers;
                 splitStringUnique(headers, headersStr, '\n', true);
@@ -231,15 +242,12 @@ namespace http {
 
                         trimString(key);
                         trimString(val);
+                        formatHeaderCasing(key);
 
                         if (key == "Status")
                             res.setStatus(std::stoi(val));
                         else
                             res.setHeader(key, val);
-
-                        if (key == "Status" && std::stoi(val) == 404) {
-                            ERROR_LOG << file.path << std::endl;
-                        }
                     }
                 }
 
@@ -248,12 +256,23 @@ namespace http {
 
                 // Force set Content-Length
                 res.setHeader("Content-Length", std::to_string(bodyStr.size()));
+
+                // Check Content-Type
+                if (bodyStr.size() == 0)
+                    res.clearHeader("Content-Type"); // Clear if no content
+                else if (res.getContentType() == "text/html; charset=UTF-8")
+                    inferContentType(bodyStr, res); // Infer if default MIME is set
             } else {
                 // Fallback if no headers, just return body
-                res.setContentType("text/html");
-                res.setStatus(200);
-                res.setBody(fcgiResp);
-                res.setHeader("Content-Length", std::to_string(fcgiResp.size()));
+                if (fcgiResp.size() == 0) {
+                    res.setStatus(204);
+                    res.setHeader("Content-Length", "0");
+                } else {
+                    res.setStatus(200);
+                    res.setBody(fcgiResp);
+                    res.setHeader("Content-Length", std::to_string(fcgiResp.size()));
+                    inferContentType(fcgiResp, res);
+                }
             }
 
             fcgi.close();
