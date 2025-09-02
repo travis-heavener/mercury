@@ -122,10 +122,10 @@ cases = [
 
     # Invalid method checking & proper method versions
     TestCase(method="POST", path="/",           expected_status=405),
-    TestCase(method="OPTIONS", path="/",        expected_status=200, http_ver="HTTP/1.1"),
-    TestCase(method="OPTIONS", path="/",        expected_status=405, http_ver="HTTP/1.0"),
-    TestCase(method="FOO",  path="/foo-bar",    expected_status=404),
-    TestCase(method="FOO",  path="/",           expected_status=405),
+    TestCase(method="OPTIONS", path="/",        expected_status=204, http_ver="HTTP/1.1"),
+    TestCase(method="OPTIONS", path="/",        expected_status=501, http_ver="HTTP/1.0"),
+    TestCase(method="FOO",  path="/foo-bar",    expected_status=501),
+    TestCase(method="FOO",  path="/",           expected_status=501),
 
     # Invalid query string
     TestCase(method="HEAD", path="/index.html%", expected_status=400),
@@ -140,5 +140,9 @@ cases = [
     # Test PHP parsing
     TestCase(method="GET", path="/index.php", expected_status=-1, fallback_status=502, http_ver="HTTP/0.9"),
     TestCase(method="HEAD", path="/index.php", expected_status=200, fallback_status=502, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="/index.php", expected_status=200, fallback_status=502, http_ver="HTTP/1.1")
+    TestCase(method="HEAD", path="/index.php", expected_status=200, fallback_status=502, http_ver="HTTP/1.1"),
+
+    # Test server-wide OPTIONS
+    TestCase(method="HEAD", path="*", expected_status=400, http_ver="HTTP/1.1"),
+    TestCase(method="OPTIONS", path="*", expected_status=204, http_ver="HTTP/1.1")
 ]

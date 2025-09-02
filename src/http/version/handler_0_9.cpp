@@ -6,8 +6,15 @@ namespace http::version::handler_0_9 {
         // Create Response object
         Response* pResponse = new Response("HTTP/0.9");
 
+        // Check if method is valid
+        const METHOD method = request.getMethod();
+        if (method != METHOD::GET) {
+            pResponse->loadBodyFromErrorDoc(501); // Not Implemented
+            return pResponse;
+        }
+
         // Verify path is restricted to document root
-        if (!request.isInDocumentRoot(*pResponse, ""))
+        if (!request.isInDocumentRoot(*pResponse, "GET"))
             return pResponse;
 
         // Lookup file & validate it doesn't have anything wrong with it
@@ -24,12 +31,6 @@ namespace http::version::handler_0_9 {
         // Switch on method
         switch (request.getMethod()) {
             case METHOD::GET: {
-                // Check accepted MIMES
-                if (!request.isMIMEAccepted(file.MIME)) {
-                    pResponse->loadBodyFromErrorDoc(406);
-                    break;
-                }
-
                 // Attempt to buffer resource
                 if (pResponse->loadBodyFromFile(file) == IO_FAILURE) {
                     pResponse->loadBodyFromErrorDoc(500);
@@ -38,7 +39,7 @@ namespace http::version::handler_0_9 {
                 break;
             }
             default: {
-                pResponse->loadBodyFromErrorDoc(405);
+                pResponse->loadBodyFromErrorDoc(400);
                 break;
             }
         }

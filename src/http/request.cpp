@@ -53,6 +53,14 @@ namespace http {
             this->method = METHOD::HEAD;
         else if (this->methodStr == "OPTIONS")
             this->method = METHOD::OPTIONS;
+        else if (this->methodStr == "POST")
+            this->method = METHOD::POST;
+        else if (this->methodStr == "PUT")
+            this->method = METHOD::PUT;
+        else if (this->methodStr == "DELETE")
+            this->method = METHOD::DEL;
+        else if (this->methodStr == "PATCH")
+            this->method = METHOD::PATCH;
         else
             this->method = METHOD::UNKNOWN;
 

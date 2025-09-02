@@ -29,40 +29,43 @@ WIN_ARCHIVE="../releases/Windows_$RELEASE_NAME.zip"
 # Prepare contents
 mkdir temp_release && cd temp_release
 
+# Create internal directory
+mkdir "$VERSION"
+
 # Make logs
-mkdir logs
-touch logs/access.log
-touch logs/error.log
+mkdir "./$VERSION/logs"
+touch "./$VERSION/logs/access.log"
+touch "./$VERSION/logs/error.log"
 
 # Copy default config
-cp -r ../conf .
-cp -f ../conf/default/* conf
+cp -r ../conf "./$VERSION/"
+cp -f ../conf/default/* "./$VERSION/conf"
 
 # Copy license, public files, & extras
-cp ../{version.txt,README.md,SECURITY.md,CREDITS.md,CHANGELOG.md,LICENSE.txt} .
-cp -r ../{public,licenses} .
+cp ../{version.txt,README.md,SECURITY.md,CREDITS.md,CHANGELOG.md,LICENSE.txt} "./$VERSION/"
+cp -r ../{public,licenses} "./$VERSION/"
 
 # Create binary folder
-mkdir bin
+mkdir "./$VERSION/bin"
 
 # ==== Linux Build ====
 
 # Copy binary
-cp ../bin/mercury bin
+cp ../bin/mercury "./$VERSION/bin"
 
 # Create tar.gz archive
-tar -czvf $LINUX_ARCHIVE * &> /dev/null
+tar -czvf "$LINUX_ARCHIVE" * &> /dev/null
 
 echo "✅ Linux release archive created: $LINUX_ARCHIVE"
 
 # ==== Windows Build ====
 
 # Replace binary
-rm bin/mercury
-cp ../bin/mercury.exe bin
+rm "./$VERSION/bin/mercury"
+cp ../bin/mercury.exe "./$VERSION/bin"
 
 # Create zip archive
-zip -r $WIN_ARCHIVE * &> /dev/null
+zip -r "$WIN_ARCHIVE" * &> /dev/null
 
 echo "✅ Windows release archive created: $WIN_ARCHIVE"
 
@@ -71,10 +74,10 @@ echo "✅ Windows release archive created: $WIN_ARCHIVE"
 SUMMARY_FILE="../releases/SUMMARY_$RELEASE_NAME.md"
 
 # Create summary file
-touch $SUMMARY_FILE
+touch "$SUMMARY_FILE"
 
 # Write anchor to full changelog
-echo -e "# Changelog\n### [Read Full Changelog](https://github.com/travis-heavener/mercury/blob/main/CHANGELOG.md)\n" > $SUMMARY_FILE
+echo -e "# Changelog\n### [Read Full Changelog](https://github.com/travis-heavener/mercury/blob/main/CHANGELOG.md)\n" > "$SUMMARY_FILE"
 
 # Copy most recent 5 changelog entries
 
@@ -91,18 +94,18 @@ awk '
   } END {
     if (entry && count <= 5) print entry
   }
-' CHANGELOG.md >> $SUMMARY_FILE
+' "./$VERSION/CHANGELOG.md" >> "$SUMMARY_FILE"
 
 # Generate SHA-256 hash digests
 
 LINUX_HASH=$(sha256sum $LINUX_ARCHIVE | grep -Po "[^ ]+" | head -1)
 WIN_HASH=$(sha256sum $WIN_ARCHIVE | grep -Po "[^ ]+" | head -1)
 
-echo "# SHA-256 Hashes" >> $SUMMARY_FILE
-echo "| System | SHA-256 Hash Digest |" >> $SUMMARY_FILE
-echo "|--------|---------------------|" >> $SUMMARY_FILE
-echo -e "| Linux | \`$LINUX_HASH\` |" >> $SUMMARY_FILE
-echo -n "| Windows | \`$WIN_HASH\` |" >> $SUMMARY_FILE
+echo "# SHA-256 Hashes" >> "$SUMMARY_FILE"
+echo "| System | SHA-256 Hash Digest |" >> "$SUMMARY_FILE"
+echo "|--------|---------------------|" >> "$SUMMARY_FILE"
+echo -e "| Linux | \`$LINUX_HASH\` |" >> "$SUMMARY_FILE"
+echo -n "| Windows | \`$WIN_HASH\` |" >> "$SUMMARY_FILE"
 
 # ==== Clean Up ====
 
