@@ -71,7 +71,8 @@ namespace http::cgi {
             strToUpper(cgiKey);
 
             // Ignore Authorization header (already passed)
-            if (cgiKey != "HTTP_AUTHORIZATION") envsMap[cgiKey] = val;
+            if (cgiKey != "HTTP_AUTHORIZATION" && cgiKey != "HTTP_CONTENT_LENGTH" && cgiKey != "HTTP_CONTENT_TYPE")
+                envsMap[cgiKey] = val;
         }
 
         // Platform dependent, create env block
@@ -247,8 +248,7 @@ namespace http::cgi {
             // Start CGI process
             std::wstring phpCgiPathStr = conf::PHP_CGI_EXE_PATH.wstring();
             if (!CreateProcessW(
-                    NULL,
-                    phpCgiPathStr.data(), NULL, NULL,
+                    phpCgiPathStr.data(), NULL, NULL, NULL,
                     TRUE, // Inherit handles
                     CREATE_UNICODE_ENVIRONMENT,
                     envBlock.data(), // Env
@@ -259,7 +259,7 @@ namespace http::cgi {
             }
 
             // Close unneeded pipes
-            CloseHandle(stdoutWrite); stdinWrite = NULL;
+            CloseHandle(stdoutWrite); stdoutWrite = NULL;
             CloseHandle(stdinRead); stdinRead = NULL;
 
             // Base case, return success

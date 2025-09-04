@@ -67,7 +67,7 @@ namespace http {
 
         // Read headers from buffer
         while (std::getline(buffer, line)) {
-            if (line.size() == 0) break; // Parse body
+            if (line.size() <= 1) break; // Parse body
 
             // Check for invalid line format
             if (line.back() != '\r')
@@ -85,14 +85,9 @@ namespace http {
         }
 
         // Read remaining body
-        this->body.clear();
-        while (std::getline(buffer, line)) {
-            // Check for invalid line format
-            if (line.back() != '\r')
-                throw http::Exception();
-            line.pop_back();
-            this->body += line;
-        }
+        std::ostringstream oss;
+        oss << buffer.rdbuf();
+        this->body = oss.str();
 
         // Extract accepted MIME types
         if (headers.find("ACCEPT") != headers.end())

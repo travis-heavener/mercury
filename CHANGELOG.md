@@ -10,6 +10,7 @@
         - Alternative PHP CGIs can be downloaded from [www.php.net/downloads.php](https://www.php.net/downloads.php)
     - Now supports all CGI environment meta-variables per RFC3875 (see https://datatracker.ietf.org/doc/html/rfc3875)
 - Updated Server header syntax (Mercury vX.X.X -> Mercury/X.X.X)
+- Fixed connections being closed when sending x-www-form-urlencoded HTTP body in requests
 - Reviewed licenses after updating libs in [v0.9.2](#v092)
     - Updated Brotli license
     - Updated zlib license
