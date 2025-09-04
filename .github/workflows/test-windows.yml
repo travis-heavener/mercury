@@ -33,6 +33,7 @@ jobs:
           $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<Port>\s*\d+\s*</Port>', "<Port> $port </Port>")
           $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<TLSPort>\s*.+?\s*</TLSPort>', "<TLSPort> $sslPort </TLSPort>")
           $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<EnableIPv6>\s*off\s*</EnableIPv6>', '<EnableIPv6> on </EnableIPv6>')
+          $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<EnablePHPCGI>\s*off\s*</EnablePHPCGI>', '<EnablePHPCGI> on </EnablePHPCGI>')
 
           Set-Content -Path $filePath -Value $content
 
