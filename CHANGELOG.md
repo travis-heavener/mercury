@@ -8,7 +8,7 @@
     - Now supports Windows (PHP v8.4.12 comes bundled in `/php/` directory)
         - Added WinPHPCGIPath config node for Windows-only to point to php-cgi.exe, defaults to `./php/php-cgi.exe`
         - Alternative PHP CGIs can be downloaded from [www.php.net/downloads.php](https://www.php.net/downloads.php)
-    - Now supports all CGI environment meta-variables per RFC3875 (see https://datatracker.ietf.org/doc/html/rfc3875)
+    - Now supports all CGI environment meta-variables per RFC 3875 (see https://datatracker.ietf.org/doc/html/rfc3875)
 - Updated Server header syntax (Mercury vX.X.X -> Mercury/X.X.X)
 - Fixed connections being closed when sending x-www-form-urlencoded HTTP body in requests
 - Reviewed licenses after updating libs in [v0.9.2](#v092)
