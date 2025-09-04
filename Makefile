@@ -110,7 +110,7 @@ $(ARTIFACTS_LOCK):
 		echo "" | gzip | base64 > $(ARTIFACTS_LOCK); \
 	fi
 
-libs: static_deps static_brotli static_openssl static_zlib
+libs: static_deps static_brotli static_openssl static_zlib win_php
 
 static_deps:
 	@./build_tools/install_deps.sh
@@ -123,6 +123,9 @@ static_openssl:
 
 static_zlib:
 	@./build_tools/build_static_zlib.sh
+
+win_php:
+	@./build_tools/setup_win_php.sh
 
 release:
 	@./build_tools/validate_libs.sh --q

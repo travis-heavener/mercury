@@ -64,6 +64,9 @@ echo "✅ Linux release archive created: $LINUX_ARCHIVE"
 rm "./$VERSION/bin/mercury"
 cp ../bin/mercury.exe "./$VERSION/bin"
 
+# Copy PHP
+cp -r ../php "./$VERSION/"
+
 # Create zip archive
 zip -r "$WIN_ARCHIVE" * &> /dev/null
 

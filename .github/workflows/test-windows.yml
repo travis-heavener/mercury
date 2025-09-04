@@ -22,6 +22,18 @@ jobs:
       - name: Copy Default Config
         run: Copy-Item ./conf/default/*.conf ./conf
 
+      - name: Setup PHP
+        run: |
+          $DownloadUrl = "https://downloads.php.net/~windows/releases/php-8.4.12-Win32-vs17-x64.zip"
+          $ZipFile = "php-8.4.12-Win32-vs17-x64.zip"
+
+          # Download zip
+          Invoke-WebRequest -Uri $DownloadUrl -OutFile $ZipFile -UseBasicParsing
+
+          # Extract archive
+          Expand-Archive -Path $ZipFile -DestinationPath "php" -Force
+          Remove-Item -Path $ZipFile -Force
+
       - name: Configure Ports & Enable IPv6
         run: |
           # Config file
@@ -33,6 +45,7 @@ jobs:
           $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<Port>\s*\d+\s*</Port>', "<Port> $port </Port>")
           $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<TLSPort>\s*.+?\s*</TLSPort>', "<TLSPort> $sslPort </TLSPort>")
           $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<EnableIPv6>\s*off\s*</EnableIPv6>', '<EnableIPv6> on </EnableIPv6>')
+          $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<EnablePHPCGI>\s*off\s*</EnablePHPCGI>', '<EnablePHPCGI> on </EnablePHPCGI>')
 
           Set-Content -Path $filePath -Value $content
 

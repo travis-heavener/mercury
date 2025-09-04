@@ -11,6 +11,6 @@ sudo apt install upx \
     zip \
     python3 \
     gzip \
-    php8.3-fpm -y
+    php-cgi -y
 
 echo "✅ Successfully installed dependencies."

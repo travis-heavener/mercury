@@ -22,29 +22,21 @@ jobs:
       - name: Copy Default Config
         run: cp ./conf/default/*.conf ./conf
 
-      - name: Install PHP-FPM
+      - name: Install PHP-CGI
         run: |
           sudo apt update
-          sudo apt install php8.3-fpm
-
-      - name: Configure PHP-FPM
-        run: |
-          sudo sed -i 's/^[[:space:]]*listen[[:space:]]*=.*/listen = 9000/' /etc/php/8.3/fpm/pool.d/www.conf
-          sudo sed -i 's/^user = www-data/user = runner/' /etc/php/8.3/fpm/pool.d/www.conf
-          sudo sed -i 's/^group = www-data/group = docker/' /etc/php/8.3/fpm/pool.d/www.conf
-          sudo systemctl restart php8.3-fpm
+          sudo apt install php-cgi
 
       - name: Configure Ports & Enable IPv6/TLS
         run: |
           port=8081
           sslPort=8082
-          fpmPort=9000
 
           # Update conf/mercury.conf
           sed -i "s|<Port>[[:space:]]*[0-9]\+[[:space:]]*</Port>|<Port> $port </Port>|" conf/mercury.conf
           sed -i "s|<TLSPort>[[:space:]]*.*[[:space:]]*</TLSPort>|<TLSPort> $sslPort </TLSPort>|" conf/mercury.conf
           sed -i "s|<EnableIPv6>[[:space:]]*off[[:space:]]*</EnableIPv6>|<EnableIPv6> on </EnableIPv6>|" conf/mercury.conf
-          sed -i "s|<PhpFPMPort>[[:space:]]*.*[[:space:]]*</PhpFPMPort>|<PhpFPMPort> $fpmPort </PhpFPMPort>|" conf/mercury.conf
+          sed -i "s|<EnablePHPCGI>[[:space:]]*off[[:space:]]*</EnablePHPCGI>|<EnablePHPCGI> on </EnablePHPCGI>|" conf/mercury.conf
 
           # Update tests/run.py
           sed -i "s|port[[:space:]]*=[[:space:]]*.*|port = $port|" tests/run.py

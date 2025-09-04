@@ -45,8 +45,8 @@ namespace http {
                         return pResponse;
 
                     // Check for PHP files
-                    if (conf::USE_PHP_FPM && file.path.ends_with(".php")) {
-                        fcgi::handlePHPRequest(file, request, *pResponse);
+                    if (conf::IS_PHP_ENABLED && file.path.ends_with(".php")) {
+                        cgi::handlePHPRequest(file, request, *pResponse);
 
                         // Load additional headers
                         for (conf::Match* pMatch : conf::matchConfigs)

@@ -237,7 +237,7 @@ namespace http {
             Response* pResponse = nullptr;
             try {
                 // Parse request
-                Request request(readBuffer, clientIPStr);
+                Request request(readBuffer, clientIPStr, useTLS);
 
                 // Generate response
                 pResponse = genResponse(request);

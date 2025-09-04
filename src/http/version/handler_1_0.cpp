@@ -32,19 +32,6 @@ namespace http {
                 if (!request.isFileValid(*pResponse, file))
                     return pResponse;
 
-                // Check for PHP files
-                if (conf::USE_PHP_FPM && file.path.ends_with(".php")) {
-                    fcgi::handlePHPRequest(file, request, *pResponse);
-
-                    // Load additional headers
-                    for (conf::Match* pMatch : conf::matchConfigs)
-                        if (std::regex_match(file.path, pMatch->getPattern()))
-                            for (auto [name, value] : pMatch->getHeaders())
-                                pResponse->setHeader(name, value);
-
-                    return pResponse;
-                }
-
                 // Switch on method
                 switch (request.getMethod()) {
                     case METHOD::HEAD:

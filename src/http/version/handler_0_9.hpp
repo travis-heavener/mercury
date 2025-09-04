@@ -4,7 +4,7 @@
 #include "../request.hpp"
 #include "../response.hpp"
 
-#include "../cgi/client.hpp"
+#include "../cgi/process.hpp"
 
 namespace http::version::handler_0_9 {
     Response* genResponse(Request&);

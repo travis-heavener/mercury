@@ -101,7 +101,7 @@ namespace http {
         this->setHeader("Content-Length", contentLen);
 
         // Load config headers last to overwrite any dupes that have been previously set
-        this->setHeader("Server", conf::VERSION);
+        this->setHeader("Server", "Mercury/" + conf::VERSION.substr(9)); // Skip "Mercury v"
         this->setHeader("Date", getCurrentGMTString());
 
         // Stringify headers

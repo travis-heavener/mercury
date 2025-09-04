@@ -23,8 +23,10 @@ namespace conf {
     bool USE_TLS;
     port_t TLS_PORT;
 
-    bool USE_PHP_FPM;
-    port_t PHP_FPM_PORT;
+    bool IS_PHP_ENABLED;
+    #ifdef _WIN32
+        std::filesystem::path PHP_CGI_EXE_PATH;
+    #endif
 
     bool SHOW_WELCOME_BANNER;
     bool CHECK_LATEST_RELEASE;
@@ -283,24 +285,44 @@ int loadConfig() {
         return CONF_FAILURE;
     }
 
-    /************************** Load PHP FPM port **************************/
-    pugi::xml_node phpFPMPortNode = root.child("PhpFPMPort");
-    if (!phpFPMPortNode) {
-        std::cerr << "Failed to parse config file, missing PhpFPMPort node.\n";
+    /************************** Extract PHP CGI toggle **************************/
+    pugi::xml_node phpCgiToggleNode = root.child("EnablePHPCGI");
+    if (!phpCgiToggleNode) {
+        std::cerr << "Failed to parse config file, missing EnablePHPCGI node.\n";
         return CONF_FAILURE;
     }
 
-    std::string phpFPMPortRaw = phpFPMPortNode.text().as_string();
-    trimString(phpFPMPortRaw);
-    
-    // If TLS is enabled, grab the port
-    USE_PHP_FPM = phpFPMPortRaw != "off";
-    try {
-        PHP_FPM_PORT = USE_PHP_FPM ? std::stoull(phpFPMPortRaw) : 0;
-    } catch (std::invalid_argument&) {
-        std::cerr << "Failed to parse PhpFPMPort node, invalid port passed.\n";
+    std::string phpCgiToggleStr = phpCgiToggleNode.text().as_string();
+    trimString(phpCgiToggleStr);
+
+    // Verify valid value provided
+    if (phpCgiToggleStr != "on" && phpCgiToggleStr != "off") {
+        std::cerr << "Failed to parse config file, invalid value for EnablePHPCGI.\n";
         return CONF_FAILURE;
     }
+
+    IS_PHP_ENABLED = phpCgiToggleStr == "on";
+
+    /************************** Load PHP CGI executable path **************************/
+
+    #ifdef _WIN32
+        pugi::xml_node phpCgiExeNode = root.child("WinPHPCGIPath");
+        if (!phpCgiExeNode) {
+            std::cerr << "Failed to parse config file, missing WinPHPCGIPath node.\n";
+            return CONF_FAILURE;
+        }
+
+        std::string phpCgiPathStr( phpCgiExeNode.text().as_string() );
+        trimString(phpCgiPathStr);
+
+        // Format string
+        PHP_CGI_EXE_PATH = (phpCgiPathStr.find("./") == 0) ? (CWD / phpCgiPathStr.substr(2)) : std::filesystem::path(phpCgiPathStr);
+
+        if (!PHP_CGI_EXE_PATH.string().size()) {
+            std::cerr << "Failed to parse config file, invalid PHP CGI path.\n";
+            return CONF_FAILURE;
+        }
+    #endif
 
     /************************** Check welcome banner status **************************/
     pugi::xml_node showWelcomeBannerNode = root.child("ShowWelcomeBanner");
