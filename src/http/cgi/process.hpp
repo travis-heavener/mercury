@@ -59,6 +59,7 @@ namespace http::cgi {
                 // Linux piping fields
                 int stdinRead = -1, stdinWrite = -1;
                 int stdoutRead = -1, stdoutWrite = -1;
+                int stderrRead = -1;
 
                 pid_t childPid;
             #endif

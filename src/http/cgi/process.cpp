@@ -340,17 +340,24 @@ namespace http::cgi {
 
         // Spawn CGI process
         bool Process::spawnCGIProcess(env_block_t& envBlock) {
-            pid_t pid = fork();
-            if (pid < 0) return false;
+            int stderrPipe[2]; // separate pipe for STDERR
+    if (pipe(stderrPipe) < 0) return false;
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(stderrPipe[0]); close(stderrPipe[1]);
+        return false;
+    }
 
             if (pid == 0) { // This is the child
                 // Open pipes
                 dup2(stdinRead, STDIN_FILENO);
                 dup2(stdoutWrite, STDOUT_FILENO);
-                dup2(STDERR_FILENO, STDERR_FILENO);
+                dup2(stderrPipe[1], STDERR_FILENO); // Redirect to pipe
 
                 // Close unused fds in child
-                close(stdinWrite); close(stdoutRead);
+                close(stdinRead); close(stdoutWrite); close(stdinWrite); close(stdoutRead);
+                close(stderrPipe[0]); close(stderrPipe[1]);
 
                 // Prepare argv
                 const char* phpCgiPath = "php-cgi"; // Resolved from PATH
@@ -376,6 +383,10 @@ namespace http::cgi {
                 close(stdinRead); stdinRead = -1;
                 close(stdoutWrite); stdoutWrite = -1;
 
+                // Pipe stderr to stdout
+                close(stderrPipe[1]);
+                stderrRead = stderrPipe[0];
+
                 return true;
             }
         }
@@ -396,6 +407,10 @@ namespace http::cgi {
 
             readFromPipe(stdoutRead, outBuffer);
             close(stdoutRead); stdoutRead = -1;
+
+            // Concat stderr to stdout
+            readFromPipe(stderrRead, outBuffer);
+            close(stderrRead); stderrRead = -1;
         }
     #endif
 
