@@ -68,11 +68,13 @@ The error log contains any detailed error messages that the server encounters.
 
 PHP is now supported via php-cgi for Windows and Linux!
 
-The php-cgi program is installed when running `make static_deps` or `make libs`, however you can manually install this as well.
+To install:
 - For Linux, run `sudo apt install php-cgi`.
-- For Windows, run `make win_php`.
+- For Windows, run `/conf/setup_php.ps1`.
 
-Windows users also have the option to use their own PHP installation instead, just modify the path to php-cgi in "mercury.conf" under the WinPHPCGIPath node.
+Developer environments also come with php-cgi installed after running `make static_deps` or `make libs`.
+
+Windows users have the option to use their own PHP installation instead by modifying the path to php-cgi in "mercury.conf" under the WinPHPCGIPath node.
 
 **Note: By default, in "mercury.conf" PHP support is disabled. Enable PHP by changing the value of the EnablePHPCGI node to on.**
 
