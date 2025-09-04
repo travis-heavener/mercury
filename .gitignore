@@ -10,3 +10,4 @@ bin/*
 artifacts.lock
 conf/mercury.conf
 conf/mimes.conf
+php/*
