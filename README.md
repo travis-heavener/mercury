@@ -60,22 +60,15 @@ The error log contains any detailed error messages that the server encounters.
 
 ### Setting Up PHP
 
-Currently, PHP is only supported on Linux via php8.3-fpm.
-The FPM can be installed via `sudo apt install php8.3-fpm`.
+PHP is now supported via php-cgi for Windows and Linux!
 
-To configure PHP support:
+The php-cgi program is installed when running `make static_deps` or `make libs`, however you can manually install this as well.
+- For Linux, run `sudo apt install php-cgi`.
+- For Windows, run `make win_php`.
 
-1. Modify the php8.3-fpm config to listen to a port.
+Windows users also have the option to use their own PHP installation instead, just modify the path to php-cgi in "mercury.conf" under the WinPHPCGIPath node.
 
-Using your desired text editor, edit the php8.3-fpm config file (usually located at "/etc/php/8.3/fpm/pool.d/www.conf").
-Search for the line starting with "listen = ..." WITHOUT a leading comment semicolon (;), and replace the righthand value with a port of your choice (9000 recommended).
-
-Note that this port *MUST* match the port specified in the PhpFPMPort node in mercury.conf.
-
-2. Restart php8.3-fpm via `sudo systemctl restart php8.3-fpm`.
-
-3. Start up Mercury for Linux and open your PHP files!
-If the connection fails, you will receive a 502 Bad Gateway status when accessing a PHP file.
+**Note: By default, in "mercury.conf" PHP support is disabled. Enable PHP by changing the value of the EnablePHPCGI node to on.**
 
 ## Build Info
 
