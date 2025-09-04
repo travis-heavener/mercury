@@ -18,6 +18,9 @@
 - [Build Info](#build-info)
     - [Linux & Windows Builds](#linux--windows-builds)
     - [TLS Certs](#tls-certs)
+        - [For Linux](#for-linux)
+        - [For Windows](#for-windows)
+        - [For Developers](#for-developers)
     - [Compatibility](#compatibility)
     - [Making Releases](#making-releases)
 - [Testing Suite](#testing-suite)
@@ -97,9 +100,21 @@ Note: see [Compatibility](#compatibility) section for software compatibility.
 
 Self-signed TLS 1.3 certs are now available with OpenSSL.
 
-Use `make cert` in the root directory of this project and enter your information to automatically create a new certificate pair.
-Your certificate will be located at `/conf/ssl/cert.pem` and your private key at `/conf/ssl/key.pem`.
+#### For Linux
+1. Run `./conf/ssl/makecert.sh` and enter the following information to fill out the certificate.
 
+#### For Windows
+1. Download [Git for Windows](https://git-scm.com/downloads/win) if not already installed.
+It's crucial that Git is installed since it comes bundled with OpenSSL.
+
+2. Double check the install location of Git. OpenSSL should be installed in the `<Git location>/usr/bin` directory.
+Update the `$OPENSSL_PATH` variable in `/conf/ssl/makecert.ps1` with your correct path if needed.
+
+3. Run `/conf/ssl/makecert.ps1` and enter the following information to fill out the certificate.
+
+#### For Developers
+In your Linux/Debian environment, use `make cert` in the root directory of this project and enter your information to automatically create a new certificate pair.
+Your certificate will be located at `/conf/ssl/cert.pem` and your private key at `/conf/ssl/key.pem`.
 
 ### Compatibility
 

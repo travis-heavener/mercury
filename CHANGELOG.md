@@ -2,6 +2,10 @@
 
 ## v0.15.0
 - Clarified supported Linux distributions in README & website (#133)
+- Added TLS cert creation scripts to releases (#131)
+    - Release builder now ships w/o default TLS certs
+    - `conf/ssl/makecert.sh` for Linux
+    - `conf/ssl/makecert.ps1` for Windows
 
 ## v0.14.0
 - Fully reworked PHP processing (#97)
