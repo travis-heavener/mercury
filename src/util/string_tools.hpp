@@ -20,7 +20,7 @@ inline void strToUpper(std::string& str) {
     std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 }
 
-void splitStringUnique(std::unordered_set<std::string>&, std::string&, char, bool);
+void splitStringUnique(std::unordered_set<std::string>&, const std::string&, const char, const bool);
 void stringReplaceAll(std::string&, const std::string&, const std::string&);
 void trimString(std::string&);
 void decodeURI(std::string&);

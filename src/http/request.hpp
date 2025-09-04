@@ -24,7 +24,7 @@ namespace http {
 
     class Request {
         public:
-            Request(const char*, std::string);
+            Request(const char*, std::string, const bool);
 
             const std::string* getHeader(std::string) const;
             inline const std::string getIPStr() const { return ipStr; };
@@ -39,6 +39,7 @@ namespace http {
 
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
+            inline bool usesHTTPS() const { return isHTTPS; };
             inline bool isURIBad() const { return hasBadURI; };
             inline bool getHasExplicitlyDefinedHTTPVersion0_9() const { return hasExplicitlyDefinedHTTPVersion0_9; };
 
@@ -53,6 +54,7 @@ namespace http {
             std::unordered_set<std::string> acceptedEncodings;
 
             std::string ipStr;
+            bool isHTTPS;
 
             METHOD method;
             std::string methodStr;

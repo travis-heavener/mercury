@@ -1,6 +1,6 @@
 #include "string_tools.hpp"
 
-void splitStringUnique(std::unordered_set<std::string>& splitVec, std::string& string, char delimiter, bool stripWhitespace) {
+void splitStringUnique(std::unordered_set<std::string>& splitVec, const std::string& string, const char delimiter, const bool stripWhitespace) {
     size_t startIndex = 0;
     for (size_t i = 0; i < string.size(); i++) {
         if (string[i] == delimiter) {
