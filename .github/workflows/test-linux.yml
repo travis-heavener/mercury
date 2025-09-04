@@ -45,7 +45,6 @@ jobs:
       # Make TLS cert
       - name: Make TLS Cert
         run: |
-          mkdir conf/ssl
           openssl req -x509 \
             -newkey rsa:4096 \
             -keyout conf/ssl/key.pem \

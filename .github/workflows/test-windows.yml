@@ -52,7 +52,6 @@ jobs:
       # Make TLS cert
       - name: Make TLS Cert
         run: |
-          mkdir conf/ssl
           openssl req -x509 -newkey rsa:4096 -keyout conf/ssl/key.pem -out conf/ssl/cert.pem -sha256 -days 1 -nodes -subj "/C=XX/ST=New York/L=NYC/O=The Mercury Project/OU=GitHub Action Runner/CN=The Mercury Developers"
 
       # Start Mercury
