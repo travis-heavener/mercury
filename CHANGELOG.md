@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.15.0
+- Clarified supported Linux distributions in README & website (#133)
+
 ## v0.14.0
 - Fully reworked PHP processing (#97)
     - Now uses traditional CGI

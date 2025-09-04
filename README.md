@@ -31,7 +31,10 @@
 
 ## About
 
-Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux.
+Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux*.
+
+\* Most (if not all) of the supported Linux distributions are for Debian (or any other distribution using APT packages).
+Additionally, most of these distributions come with glibc, which is required to be locally installed for Mercury to run.
 
 ## Getting Started
 
@@ -104,6 +107,7 @@ The following table contains known compatible versions of important software use
 Older mingw-w64 versions have introduced issues when binding IPv6 sockets with WinAPI.
 The g++ version restriction is likely less crucial, as initially version 11.x.x was in use and was only upgraded as a side effect of an OS upgrade (Ubuntu 24.04 LTS from 22.04 LTS).
 Thus, almost any Linux environment with the following g++ and mingw-w64 versions should be sufficient for building Mercury.
+However, it's important to note that APT and glibc must both be present on development and client Linux devices (hence why most Debian systems are supported).
 
 | Name      | Version    |
 |-----------|------------|
