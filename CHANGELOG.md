@@ -6,6 +6,8 @@
     - Release builder now ships w/o default TLS certs
     - `conf/ssl/makecert.sh` for Linux
     - `conf/ssl/makecert.ps1` for Windows
+- PHP is no longer bundled with Windows releases
+    - To download PHP, run `conf/setup_php.ps1`
 
 ## v0.14.0
 - Fully reworked PHP processing (#97)
