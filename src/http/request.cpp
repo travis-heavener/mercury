@@ -2,9 +2,37 @@
 
 namespace http {
 
+    void loadEarlyHeaders(headers_map_t& headers, const std::string& partialReq) {
+        std::stringstream buffer( partialReq );
+        std::string line;
+        
+        // Skip status line
+        std::getline(buffer, line);
+
+        // Read headers from buffer
+        while (std::getline(buffer, line)) {
+            if (line.size() <= 1) break; // Parse body
+
+            // Check for invalid line format
+            if (line.back() != '\r')
+                throw http::Exception();
+            line.pop_back();
+
+            // Find first colon-space delimiter
+            size_t firstSpaceIndex = line.find(": ");
+            if (firstSpaceIndex != std::string::npos) {
+                std::string key = line.substr(0, firstSpaceIndex);
+                std::string value = line.substr(firstSpaceIndex+2);
+                strToUpper(key);
+                headers.insert({key, value});
+            }
+        }
+    }
+
     void parseAcceptHeader(std::unordered_set<std::string>&, std::string&);
 
-    Request::Request(const char* raw, std::string clientIP, const bool isHTTPS) {
+    Request::Request(headers_map_t& headers, const std::string& raw, std::string clientIP, const bool isHTTPS)
+        : headers(headers) {
         this->ipStr = clientIP;
         this->isHTTPS = isHTTPS;
 
@@ -65,24 +93,8 @@ namespace http {
         else
             this->method = METHOD::UNKNOWN;
 
-        // Read headers from buffer
-        while (std::getline(buffer, line)) {
-            if (line.size() <= 1) break; // Parse body
-
-            // Check for invalid line format
-            if (line.back() != '\r')
-                throw http::Exception();
-            line.pop_back();
-
-            // Find first colon-space delimiter
-            firstSpaceIndex = line.find(": ");
-            if (firstSpaceIndex != std::string::npos) {
-                std::string key = line.substr(0, firstSpaceIndex);
-                std::string value = line.substr(firstSpaceIndex+2);
-                strToUpper(key);
-                this->headers.insert({key, value});
-            }
-        }
+        // Skip headers
+        buffer.seekg( raw.find("\r\n\r\n") + 4 );
 
         // Read remaining body
         std::ostringstream oss;
@@ -90,12 +102,12 @@ namespace http {
         this->body = oss.str();
 
         // Extract accepted MIME types
-        if (headers.find("ACCEPT") != headers.end())
-            parseAcceptHeader(acceptedMIMETypes, headers["ACCEPT"]);
+        if (this->headers.find("ACCEPT") != this->headers.end())
+            parseAcceptHeader(acceptedMIMETypes, this->headers["ACCEPT"]);
 
         // Extract accepted encodings
-        if (headers.find("ACCEPT-ENCODING") != headers.end())
-            splitStringUnique(acceptedEncodings, headers["ACCEPT-ENCODING"], ',', true);
+        if (this->headers.find("ACCEPT-ENCODING") != this->headers.end())
+            splitStringUnique(acceptedEncodings, this->headers["ACCEPT-ENCODING"], ',', true);
     }
 
     const std::string* Request::getHeader(std::string header) const {

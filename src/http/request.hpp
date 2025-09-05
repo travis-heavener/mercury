@@ -22,9 +22,13 @@ namespace http {
         UNKNOWN = 999
     };
 
+    // Used to extract headers and status info from partial request
+    typedef std::unordered_map<std::string, std::string> headers_map_t;
+    void loadEarlyHeaders(headers_map_t&, const std::string&);
+
     class Request {
         public:
-            Request(const char*, std::string, const bool);
+            Request(headers_map_t& headers, const std::string&, std::string, const bool);
 
             const std::string* getHeader(std::string) const;
             inline const std::string getIPStr() const { return ipStr; };
@@ -35,7 +39,7 @@ namespace http {
             inline const std::string& getBody() const { return body; };
             inline const std::string& getVersion() const { return httpVersionStr; };
 
-            inline const std::unordered_map<std::string, std::string>& getHeaders() const { return headers; };
+            inline const headers_map_t& getHeaders() const { return headers; };
 
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
@@ -48,7 +52,7 @@ namespace http {
         private:
             void setStatusMaybeErrorDoc(Response& response, const int status) const;
 
-            std::unordered_map<std::string, std::string> headers;
+            headers_map_t& headers;
 
             std::unordered_set<std::string> acceptedMIMETypes;
             std::unordered_set<std::string> acceptedEncodings;

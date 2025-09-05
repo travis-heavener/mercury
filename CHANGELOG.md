@@ -8,6 +8,9 @@
     - `conf/ssl/makecert.ps1` for Windows
 - PHP is no longer bundled with Windows releases
     - To download PHP, run `conf/setup_php.ps1`
+- Fix request body reading previously truncating with file uploads (#126)
+    - Now respects and uses Content-Length header in requests to read whole body
+- Now properly buffers incoming HTTP requests (#134)
 
 ## v0.14.0
 - Fully reworked PHP processing (#97)

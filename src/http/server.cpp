@@ -3,7 +3,7 @@
 namespace http {
 
     Server::Server(const port_t port, const bool useTLS) : port(port),
-        maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::MAX_REQUEST_BUFFER),
+    maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::MAX_REQUEST_BUFFER),
         threadPool(conf::THREADS_PER_CHILD), useTLS(useTLS) {};
 
     void Server::kill() {
@@ -218,26 +218,81 @@ namespace http {
         // Track keep-alive requests for a given connection
         int keepAliveReqsLeft = KEEP_ALIVE_MAX_REQ;
         while (keepAliveReqsLeft > 0) {
+            // Read buffer until headers have loaded
+            std::string requestStr;
+            requestStr.reserve(this->maxBufferSize);
+
             // Poll for data
-            struct pollfd pfd;
-            pfd.fd = client;
-            const ssize_t pollStatus = this->waitForClientData(pfd, KEEP_ALIVE_TIMEOUT_MS);
-            if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR)))
-                break; // Time out, hang up, or fatal error
+            bool isForceClosed = false, isDataReady = true;
+            while (requestStr.find("\r\n\r\n") == std::string::npos &&
+                !isForceClosed && isDataReady) {
+                struct pollfd pfd; pfd.fd = client;
+                const ssize_t pollStatus = this->waitForClientData(pfd, KEEP_ALIVE_TIMEOUT_MS);
+                if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR))) {
+                    isForceClosed = true; break; // Fatal error or timeout
+                }
 
-            // Check for POLLIN event
-            if (!(pfd.revents & POLLIN)) continue;
+                // Check for POLLIN event
+                if (!(pfd.revents & POLLIN)) { isDataReady = false; break; }
+                
+                // Read buffer (regardless of TLS or not, keep looping if TLS)
+                do {
+                    this->clearBuffer(readBuffer); // Clear read buffer
+                    const ssize_t bytesReceived = this->readClientSock(readBuffer, client, pSSL);
+                    if (bytesReceived <= 0) { isForceClosed = true; break; } // Connection closed by client
+                    requestStr.append(readBuffer, bytesReceived); // Concat string
+                } while (this->useTLS && SSL_pending(pSSL) > 0);
+            }
 
-            // Read buffer
-            this->clearBuffer(readBuffer); // Clear read buffer
-            const ssize_t bytesReceived = this->readClientSock(readBuffer, client, pSSL);
-            if (bytesReceived == 0) // Connection closed by client
-                break;
+            if (!isDataReady) continue; // Handle POLLIN not set
+            if (isForceClosed) break; // Handle connection closed by client
 
+            // Process headers and early info
+            headers_map_t reqHeaders;
+            loadEarlyHeaders(reqHeaders, requestStr);
+            size_t contentLength;
+            try {
+                contentLength = reqHeaders.find("CONTENT-LENGTH") != reqHeaders.end() ?
+                    std::stoull(reqHeaders["CONTENT-LENGTH"]) : 0;
+            } catch (std::invalid_argument&) {
+                break; // Bad Content-Length header, close connection
+            }
+
+            // Account for already read body
+            if (contentLength > 0)
+                contentLength -= requestStr.length() - (requestStr.find("\r\n\r\n") + 4);
+
+            // Read remaining body
+            while (contentLength > 0 && !isForceClosed && isDataReady) {
+                struct pollfd pfd; pfd.fd = client;
+                const ssize_t pollStatus = this->waitForClientData(pfd, KEEP_ALIVE_TIMEOUT_MS);
+                if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR))) {
+                    isForceClosed = true; break; // Fatal error or timeout
+                }
+
+                // Check for POLLIN event
+                if (!(pfd.revents & POLLIN)) { isDataReady = false; break; }
+
+                // Read buffer (regardless of TLS or not, keep looping if TLS)
+                do {
+                    this->clearBuffer(readBuffer);
+                    const ssize_t bytesReceived = this->readClientSock(readBuffer, client, pSSL);
+                    if (bytesReceived <= 0) { isForceClosed = true; break; } // Connection closed by client
+                    requestStr.append(readBuffer, bytesReceived); // Concat string
+
+                    // Update remaining content length
+                    contentLength = (contentLength > static_cast<size_t>(bytesReceived)) ?
+                        (contentLength - bytesReceived) : 0;
+                } while (this->useTLS && SSL_pending(pSSL) > 0);
+            }
+
+            if (!isDataReady) continue; // Handle POLLIN not set
+            if (isForceClosed) break; // Handle connection closed by client
+
+            // Parse request
             Response* pResponse = nullptr;
             try {
-                // Parse request
-                Request request(readBuffer, clientIPStr, useTLS);
+                Request request(reqHeaders, requestStr, clientIPStr, useTLS);
 
                 // Generate response
                 pResponse = genResponse(request);

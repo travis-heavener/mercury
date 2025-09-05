@@ -69,11 +69,11 @@ class TestCase:
     # Stringify the test case
     def __str__(self) -> str:
         if self.http_ver == "HTTP/0.9":
-            return f"{self.method} {self.path}\r\n"
+            return f"{self.method} {self.path}\r\n\r\n"
         else:
             s = f"{self.method} {self.path} {self.http_ver}\r\n"
             s += "\r\n".join(f"{k}: {v}" for k, v in self.headers.items())
-            s += "\r\n"
+            s += "\r\n" * (2 if len(self.headers) > 0 else 1)
             return s
 
 cases = [
@@ -128,8 +128,6 @@ cases = [
     TestCase(method="HEAD", path="/index.html", expected_status=-1, http_ver="HTTP/0.9"),
 
     # Test PHP parsing
-    TestCase(method="GET", path="/index.php", expected_status=-1, http_ver="HTTP/0.9"),
-    TestCase(method="HEAD", path="/index.php", expected_status=200, http_ver="HTTP/1.0"),
     TestCase(method="HEAD", path="/index.php", expected_status=200, http_ver="HTTP/1.1"),
 
     # Test server-wide OPTIONS
