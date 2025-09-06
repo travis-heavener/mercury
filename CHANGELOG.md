@@ -11,6 +11,9 @@
 - Fix request body reading previously truncating with file uploads (#126)
     - Now respects and uses Content-Length header in requests to read whole body
 - Now properly buffers incoming HTTP requests (#134)
+- Now properly buffers outgoing HTTP responses (#134)
+    - Added MaxResponseBuffer node in Mercury.conf
+- Fixed compression error handling (previously uncaught)
 
 ## v0.14.0
 - Fully reworked PHP processing (#97)

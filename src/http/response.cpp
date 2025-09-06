@@ -6,6 +6,7 @@ namespace http {
 
     Response::Response(const std::string& httpVersion) {
         this->httpVersion = httpVersion;
+        this->pBodyStream = std::unique_ptr<IResponseStream>( new MemoryStream("") );
     }
 
     void Response::setStatus(const uint16_t statusCode) {
@@ -38,41 +39,41 @@ namespace http {
         this->setStatus(statusCode);
         this->setContentType("text/html");
 
-        const int status = loadErrorDoc(statusCode, this->body);
-        this->setHeader("Content-Length", std::to_string(this->body.size()));
+        const int status = loadErrorDoc(statusCode, pBodyStream);
+        this->setHeader("Content-Length", std::to_string(this->pBodyStream->size()));
         return status;
     }
 
     int Response::loadBodyFromFile(File& file) {
-        const int bodyStatus = file.loadToBuffer(this->body);
+        const int bodyStatus = file.loadToBuffer(pBodyStream);
 
         // Get last modified GMT string
         if (bodyStatus == IO_SUCCESS)
             this->setHeader("Last-Modified", file.getLastModifiedGMT());
 
-        this->setHeader("Content-Length", std::to_string(this->body.size()));
+        this->setHeader("Content-Length", std::to_string(this->pBodyStream->size()));
         return bodyStatus;
     }
 
     int Response::compressBody(const int compressionType) {
         // Ignore if empty body
-        if (this->body.size() == 0) return IO_SUCCESS;
+        if (this->pBodyStream->size() == 0) return IO_SUCCESS;
 
-        const int status = compressText(this->body, compressionType);
+        const int status = IO_SUCCESS; //compressText(this->body, compressionType);
 
-        if (status == IO_SUCCESS) {
-            switch (compressionType) {
-                case COMPRESS_BROTLI:
-                    this->setHeader("Content-Encoding", "br");
-                    break;
-                case COMPRESS_GZIP:
-                    this->setHeader("Content-Encoding", "gzip");
-                    break;
-                case COMPRESS_DEFLATE:
-                    this->setHeader("Content-Encoding", "deflate");
-                    break;
-            }
-        }
+        // if (status == IO_SUCCESS) {
+        //     switch (compressionType) {
+        //         case COMPRESS_BROTLI:
+        //             this->setHeader("Content-Encoding", "br");
+        //             break;
+        //         case COMPRESS_GZIP:
+        //             this->setHeader("Content-Encoding", "gzip");
+        //             break;
+        //         case COMPRESS_DEFLATE:
+        //             this->setHeader("Content-Encoding", "deflate");
+        //             break;
+        //     }
+        // }
 
         return status;
     }
@@ -89,15 +90,26 @@ namespace http {
         return std::stoi(type->second);
     }
 
-    void Response::loadToBuffer(std::string& buffer, const bool omitBody) {
+    ssize_t Response::loadToBuffer(const bool omitBody, std::function<ssize_t(const char*, const size_t)>& sendFunc) {
+        std::vector<char> chunk(conf::MAX_RESPONSE_BUFFER);
+
         // Handle HTTP/0.9 unique format
         if (this->httpVersion == "HTTP/0.9") {
-            buffer = body; // Write to buffer
-            return;
+            // Send chunks
+            while (true) {
+                // Read
+                size_t bytesRead = pBodyStream->read(chunk.data(), conf::MAX_RESPONSE_BUFFER);
+                if (bytesRead == 0) break;
+
+                // Send
+                ssize_t status = sendFunc(chunk.data(), bytesRead);
+                if (status < 0) return status;
+            }
+            return 0;
         }
 
         // Determine Content-Length
-        const std::string contentLen = std::to_string(this->body.size());
+        const std::string contentLen = std::to_string(this->pBodyStream->size());
         this->setHeader("Content-Length", contentLen);
 
         // Load config headers last to overwrite any dupes that have been previously set
@@ -110,10 +122,26 @@ namespace http {
             headers += name + ':' + value + CRLF;
 
         // Write to buffer
-        buffer = httpVersion + ' ' + std::to_string(statusCode) + ' '  + getReasonFromStatusCode(statusCode) + CRLF + headers + CRLF;
+        std::string headersBlock = httpVersion + ' ' + std::to_string(statusCode) + ' '  + getReasonFromStatusCode(statusCode) + CRLF + headers + CRLF;
+        ssize_t status = sendFunc(headersBlock.data(), headersBlock.size());
+        if (status < 0) return status;
 
         // Omit the body from HEAD requests
-        if (!omitBody) buffer += body;
+        if (omitBody) return 0;
+
+        // Send chunks
+        while (true) {
+            // Read
+            size_t bytesRead = pBodyStream->read(chunk.data(), conf::MAX_RESPONSE_BUFFER);
+            if (bytesRead == 0) break;
+
+            // Send
+            ssize_t status = sendFunc(chunk.data(), bytesRead);
+            if (status < 0) return status;
+        }
+
+        // Base case, success
+        return 0;
     }
 
 };

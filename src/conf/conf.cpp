@@ -12,7 +12,7 @@ namespace conf {
     bool IS_IPV6_ENABLED;
     bool ENABLE_LEGACY_HTTP;
     unsigned short MAX_REQUEST_BACKLOG;
-    unsigned int MAX_REQUEST_BUFFER;
+    unsigned int MAX_REQUEST_BUFFER, MAX_RESPONSE_BUFFER;
     unsigned int THREADS_PER_CHILD;
     std::vector<conf::Match*> matchConfigs;
     std::string INDEX_FILE;
@@ -220,6 +220,15 @@ int loadConfig() {
     }
 
     MAX_REQUEST_BUFFER = reqBufferNode.text().as_uint();
+
+    /************************** Extract MaxResponseBuffer **************************/
+    pugi::xml_node resBufferNode = root.child("MaxResponseBuffer");
+    if (!resBufferNode) {
+        std::cerr << "Failed to parse config file, missing MaxResponseBuffer node.\n";
+        return CONF_FAILURE;
+    }
+
+    MAX_RESPONSE_BUFFER = resBufferNode.text().as_uint();
 
     /************************** Extract ThreadsPerChild **************************/
     pugi::xml_node threadsPerChildNode = root.child("ThreadsPerChild");

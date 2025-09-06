@@ -71,33 +71,21 @@ File::File(const std::string& rawPath) {
     }
 }
 
-int File::loadToBuffer(std::string& buffer) {
+int File::loadToBuffer(std::unique_ptr<http::IResponseStream>& pStream) {
     // Handle directory listings
     if (this->isDirectory) {
         // Load directory listing document
-        if (loadDirectoryListing(buffer, path, rawPath) == IO_FAILURE)
+        if (loadDirectoryListing(pStream, path, rawPath) == IO_FAILURE)
             return IO_FAILURE;
 
         // Update MIME
-        this->MIME = "text/html";
+        this->MIME = "text/html; charset=UTF-8";
         return IO_SUCCESS;
     }
 
-    // Base case, load as normal file
-    // Open file
-    std::ifstream handle( path, std::ios::binary | std::ios::ate );
-    if (!handle.is_open()) return IO_FAILURE;
-
-    // Read file to buffer
-    std::streamsize size = handle.tellg();
-    handle.seekg(0, std::ios::beg);
-    buffer = std::string(size, '\0');
-    handle.read(buffer.data(), size);
-
-    // Close file
-    handle.close();
-
-    return IO_SUCCESS;
+    // Base case, load to FileStream
+    pStream = std::unique_ptr<http::IResponseStream>( new http::FileStream(path) );
+    return pStream->status() == FILESTREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
 }
 
 std::string File::getLastModifiedGMT() const {

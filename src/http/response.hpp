@@ -2,10 +2,13 @@
 #define __HTTP_RESPONSE_HPP
 
 #include <algorithm>
+#include <functional>
+#include <memory>
 
 #include "../pch/common.hpp"
 #include "../io/file.hpp"
 #include "../util/toolbox.hpp"
+#include "response_stream.hpp"
 
 namespace http {
 
@@ -21,7 +24,7 @@ namespace http {
             int loadBodyFromErrorDoc(const uint16_t statusCode);
             int loadBodyFromFile(File& file);
             int compressBody(const int compressionType);
-            inline void setBody(const std::string& body) { this->body = body; }
+            inline void setBodyStream(std::unique_ptr<IResponseStream> p) { pBodyStream = std::move(p); };
 
             inline void setContentType(const std::string& type) {
                 this->setHeader("Content-Type", type);
@@ -29,11 +32,11 @@ namespace http {
             const std::string getContentType() const;
             int getContentLength() const;
 
-            void loadToBuffer(std::string& buffer, const bool omitBody);
+            ssize_t loadToBuffer(const bool omitBody, std::function<ssize_t(const char*, const size_t)>&);
         private:
             std::string httpVersion;
             uint16_t statusCode;
-            std::string body;
+            std::unique_ptr<IResponseStream> pBodyStream;
 
             std::unordered_map<std::string, std::string> headers;
     };

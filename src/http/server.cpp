@@ -107,11 +107,18 @@ namespace http {
             return recv(client, readBuffer, this->maxBufferSize, 0);
     }
 
-    ssize_t Server::writeClientSock(const int client, SSL* pSSL, std::string& resBuffer) {
-        if (this->useTLS)
-            return SSL_write(pSSL, resBuffer.c_str(), resBuffer.size());
-        else
-            return send(client, resBuffer.c_str(), resBuffer.size(), 0);
+    ssize_t Server::writeClientSock(const int client, SSL* pSSL, const char* resBuffer, const size_t n) {
+        ssize_t status;
+        if (this->useTLS) {
+            status = SSL_write(pSSL, resBuffer, n);
+        } else {
+            #ifndef _WIN32
+                status = send(client, resBuffer, n, MSG_NOSIGNAL);
+            #else
+                status = send(client, resBuffer, n, 0);
+            #endif
+        }
+        return (status <= 0) ? -1 : status;
     }
 
     int Server::closeSocket(const int sock) {
@@ -190,7 +197,7 @@ namespace http {
             this->extractClientIP(clientAddr, clientIPStr); // Read client IP
 
             // Detach new thread
-            auto self = shared_from_this();  // must inherit from enable_shared_from_this
+            auto self = shared_from_this(); // Must inherit from enable_shared_from_this
             threadPool.enqueue([self, client, ip = std::move(clientIPStr)]() mutable {
                 self->handleReqs(client, std::move(ip));
             });
@@ -322,12 +329,13 @@ namespace http {
 
                 // Load response to buffer
                 const bool omitBody = request.getMethod() == http::METHOD::HEAD;
-                std::string resBuffer;
-                pResponse->loadToBuffer(resBuffer, omitBody);
+                std::function<ssize_t(const char*, const size_t)> sendFunc = [this, client, &pSSL](const char* resBuffer, const size_t n) -> ssize_t {
+                    return this->writeClientSock(client, pSSL, resBuffer, n);
+                };
 
-                // Send response & close connection
-                ssize_t bytesSent = this->writeClientSock(client, pSSL, resBuffer);
-                if (bytesSent < 0) break;
+                // Handle write failure
+                if (pResponse->loadToBuffer(omitBody, sendFunc) < 0)
+                    break;
             } catch (http::Exception& e) {
                 if (pResponse != nullptr) delete pResponse;
                 break; // Handles invalid requests syntax (ie. non-CRLF)
@@ -370,12 +378,19 @@ namespace http {
         // Determine compression method
         if (request.getMethod() == http::METHOD::OPTIONS) return pResponse;
 
+        int compStatus = IO_SUCCESS;
         if (this->useTLS && request.isEncodingAccepted("br"))
-            pResponse->compressBody(COMPRESS_BROTLI);
+            compStatus = pResponse->compressBody(COMPRESS_BROTLI);
         else if (request.isEncodingAccepted("gzip"))
-            pResponse->compressBody(COMPRESS_GZIP);
+            compStatus = pResponse->compressBody(COMPRESS_GZIP);
         else if (request.isEncodingAccepted("deflate"))
-            pResponse->compressBody(COMPRESS_DEFLATE);
+            compStatus = pResponse->compressBody(COMPRESS_DEFLATE);
+
+        if (compStatus != IO_SUCCESS) {
+            pResponse->setStatus(500);
+            if (request.isMIMEAccepted("text/html"))
+                pResponse->loadBodyFromErrorDoc(500);
+        }
 
         return pResponse;
     }

@@ -61,7 +61,7 @@ namespace http {
             // Socket methods
             inline void clearBuffer(char*);
             ssize_t readClientSock(char*, const int, SSL*);
-            ssize_t writeClientSock(const int, SSL*, std::string&);
+            ssize_t writeClientSock(const int, SSL*, const char*, const size_t);
             int closeSocket(const int);
             int closeClientSocket(const int, SSL*);
 

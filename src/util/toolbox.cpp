@@ -1,6 +1,7 @@
 #include "toolbox.hpp"
 
-int loadErrorDoc(const int status, std::string& buffer) {
+int loadErrorDoc(const int status, std::unique_ptr<http::IResponseStream>& pStream) {
+    std::string buffer;
     std::filesystem::path cwd = conf::CWD / "conf" / "html" / "err.html";
 
     // Open file
@@ -20,7 +21,9 @@ int loadErrorDoc(const int status, std::string& buffer) {
     stringReplaceAll(buffer, "%title%", getReasonFromStatusCode(status));
     stringReplaceAll(buffer, "%status%", std::to_string(status));
 
-    return IO_SUCCESS;
+    // Load to MemoryStream
+    pStream = std::unique_ptr<http::IResponseStream>( new http::MemoryStream(buffer) );
+    return pStream->status() == FILESTREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
 }
 
 void formatFileSize(size_t fileSize, std::string& buffer) {
@@ -64,7 +67,8 @@ void formatDate(std::filesystem::file_time_type dur, std::string& buffer) {
     buffer = ss.str();
 }
 
-int loadDirectoryListing(std::string& buffer, const std::string& path, const std::string& rawPath) {
+int loadDirectoryListing(std::unique_ptr<http::IResponseStream>& pStream, const std::string& path, const std::string& rawPath) {
+    std::string buffer;
     std::filesystem::path directoryListing = conf::CWD / "conf" / "html" / "dir_index.html";
 
     // Read directory listing file
@@ -128,8 +132,9 @@ int loadDirectoryListing(std::string& buffer, const std::string& path, const std
     stringReplaceAll(buffer, "%dirname%", rawPath);
     stringReplaceAll(buffer, "%files%", rowsBuffer.str());
 
-    // Base case, return success
-    return IO_SUCCESS;
+    // Load to MemoryStream
+    pStream = std::unique_ptr<http::IResponseStream>( new http::MemoryStream(buffer) );
+    return pStream->status() == FILESTREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
 }
 
 std::time_t getTimeTFromGMT(const std::string& gmtString) {
