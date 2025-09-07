@@ -32,6 +32,9 @@ void initSigHandler() {
         sigIntHandler.sa_flags = 0;
 
         sigaction(SIGINT, &sigIntHandler, NULL);
+
+        // Ignore SIGPIPE
+        signal(SIGPIPE, SIG_IGN);
     #endif
 }
 

@@ -22,9 +22,13 @@ namespace http {
         UNKNOWN = 999
     };
 
+    // Used to extract headers and status info from partial request
+    typedef std::unordered_map<std::string, std::string> headers_map_t;
+    void loadEarlyHeaders(headers_map_t&, const std::string&);
+
     class Request {
         public:
-            Request(const char*, std::string, const bool);
+            Request(headers_map_t& headers, const std::string&, std::string, const bool, const bool);
 
             const std::string* getHeader(std::string) const;
             inline const std::string getIPStr() const { return ipStr; };
@@ -34,12 +38,14 @@ namespace http {
             inline const std::string& getPathStr() const { return pathStr; };
             inline const std::string& getBody() const { return body; };
             inline const std::string& getVersion() const { return httpVersionStr; };
+            inline int getCompressMethod() const { return compressMethod; };
 
-            inline const std::unordered_map<std::string, std::string>& getHeaders() const { return headers; };
+            inline const headers_map_t& getHeaders() const { return headers; };
 
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
             inline bool usesHTTPS() const { return isHTTPS; };
+            inline bool isContentTooLarge() const { return _isContentTooLarge; };
             inline bool isURIBad() const { return hasBadURI; };
             inline bool getHasExplicitlyDefinedHTTPVersion0_9() const { return hasExplicitlyDefinedHTTPVersion0_9; };
 
@@ -48,13 +54,14 @@ namespace http {
         private:
             void setStatusMaybeErrorDoc(Response& response, const int status) const;
 
-            std::unordered_map<std::string, std::string> headers;
+            headers_map_t& headers;
 
             std::unordered_set<std::string> acceptedMIMETypes;
             std::unordered_set<std::string> acceptedEncodings;
 
             std::string ipStr;
             bool isHTTPS;
+            bool _isContentTooLarge; // If true, sends 413 Content Too Large
 
             METHOD method;
             std::string methodStr;
@@ -67,6 +74,7 @@ namespace http {
             std::string httpVersionStr;
 
             std::string body;
+            int compressMethod = NO_COMPRESS;
     };
 
 }

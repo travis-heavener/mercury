@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.15.0
+- Clarified supported Linux distributions in README & website (#133)
+- Added TLS cert creation scripts to releases (#131)
+    - Release builder now ships w/o default TLS certs
+    - `conf/ssl/makecert.sh` for Linux
+    - `conf/ssl/makecert.ps1` for Windows
+- PHP is no longer bundled with Windows releases
+    - To download PHP, run `conf/setup_php.ps1`
+- Fix request body reading previously truncating with file uploads (#126)
+    - Now respects and uses Content-Length header in requests to read whole body
+- Now properly buffers incoming HTTP requests (#134)
+    - MaxRequestBuffer node -> RequestBufferSize node in mercury.conf
+    - Added MaxRequestBody node to specify how large a request's body can be
+- Now properly buffers outgoing HTTP responses (#134)
+    - Added ResponseBufferSize node in mercury.conf
+    - Added MaxResponseBody node to specify how large a response's body can be
+    - Body compression is now streamed via chunked transfer encoding (HTTP/1.1+ only)
+- Fixed compression error handling (previously uncaught)
+- Now gracefully exits if compression fails
+- Added compression bypass for small bodies (#139)
+- Fixed sending blank HTTP request bodies over TLS (#143)
+
 ## v0.14.0
 - Fully reworked PHP processing (#97)
     - Now uses traditional CGI

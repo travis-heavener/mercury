@@ -3,7 +3,6 @@
 namespace http {
 
     Server::Server(const port_t port, const bool useTLS) : port(port),
-        maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::MAX_REQUEST_BUFFER),
         threadPool(conf::THREADS_PER_CHILD), useTLS(useTLS) {};
 
     void Server::kill() {
@@ -83,7 +82,7 @@ namespace http {
         if (bindStatus != 0) return bindStatus;
 
         // Listen to socket
-        if (listen(this->sock, this->maxBacklog) < 0) {
+        if (listen(this->sock, conf::MAX_REQUEST_BACKLOG) < 0) {
             ERROR_LOG << "Failed to listen to socket (" << *this << "), errno: " << errno << std::endl;
             return LISTEN_FAILURE;
         }
@@ -102,16 +101,23 @@ namespace http {
 
     ssize_t Server::readClientSock(char* readBuffer, const int client, SSL* pSSL) {
         if (this->useTLS)
-            return SSL_read(pSSL, readBuffer, this->maxBufferSize);
+            return SSL_read(pSSL, readBuffer, conf::REQUEST_BUFFER_SIZE);
         else
-            return recv(client, readBuffer, this->maxBufferSize, 0);
+            return recv(client, readBuffer, conf::REQUEST_BUFFER_SIZE, 0);
     }
 
-    ssize_t Server::writeClientSock(const int client, SSL* pSSL, std::string& resBuffer) {
-        if (this->useTLS)
-            return SSL_write(pSSL, resBuffer.c_str(), resBuffer.size());
-        else
-            return send(client, resBuffer.c_str(), resBuffer.size(), 0);
+    ssize_t Server::writeClientSock(const int client, SSL* pSSL, const char* resBuffer, const size_t n) {
+        ssize_t status;
+        if (this->useTLS) {
+            status = SSL_write(pSSL, resBuffer, n);
+        } else {
+            #ifndef _WIN32
+                status = send(client, resBuffer, n, MSG_NOSIGNAL);
+            #else
+                status = send(client, resBuffer, n, 0);
+            #endif
+        }
+        return (status <= 0) ? -1 : status;
     }
 
     int Server::closeSocket(const int sock) {
@@ -124,14 +130,23 @@ namespace http {
     }
 
     int Server::closeClientSocket(const int sock, SSL* pSSL) {
-        const int status = this->closeSocket(sock);
         this->untrackClient(sock);
 
         // Cleanup TLS
         if (this->useTLS)
             SSL_free(pSSL);
 
-        return status;
+        return this->closeSocket(sock);
+    }
+
+    void Server::drainClientSocket(const int sock, SSL* pSSL, size_t size) {
+        char buffer[SOCKET_DRAIN_BUFFER_SIZE];
+        while (size > 0) {
+            ssize_t bytesRead = this->readClientSock(buffer, sock, pSSL);
+            if (bytesRead <= 0) break; // Connection closed
+            if (static_cast<size_t>(bytesRead) > size) break;
+            size -= static_cast<size_t>(bytesRead);
+        }
     }
 
     void Server::extractClientIP(struct sockaddr_storage& clientAddr, char* clientIPStr) const {
@@ -190,7 +205,7 @@ namespace http {
             this->extractClientIP(clientAddr, clientIPStr); // Read client IP
 
             // Detach new thread
-            auto self = shared_from_this();  // must inherit from enable_shared_from_this
+            auto self = shared_from_this(); // Must inherit from enable_shared_from_this
             threadPool.enqueue([self, client, ip = std::move(clientIPStr)]() mutable {
                 self->handleReqs(client, std::move(ip));
             });
@@ -212,48 +227,105 @@ namespace http {
         }
 
         // Create read buffer
-        char* readBuffer = new char[this->maxBufferSize];
+        char* readBuffer = new char[conf::REQUEST_BUFFER_SIZE];
         this->clearBuffer(readBuffer);
 
         // Track keep-alive requests for a given connection
+        bool isContentTooLarge = false;
         int keepAliveReqsLeft = KEEP_ALIVE_MAX_REQ;
-        while (keepAliveReqsLeft > 0) {
+        while (keepAliveReqsLeft > 0 && !isContentTooLarge) {
+            // Read buffer until headers have loaded
+            std::string requestStr;
+            requestStr.reserve(conf::REQUEST_BUFFER_SIZE);
+
             // Poll for data
-            struct pollfd pfd;
-            pfd.fd = client;
-            const ssize_t pollStatus = this->waitForClientData(pfd, KEEP_ALIVE_TIMEOUT_MS);
-            if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR)))
-                break; // Time out, hang up, or fatal error
+            bool isForceClosed = false, isDataReady = true;
+            while (requestStr.find("\r\n\r\n") == std::string::npos &&
+                !isForceClosed && isDataReady) {
+                struct pollfd pfd; pfd.fd = client;
+                const ssize_t pollStatus = this->waitForClientData(pfd, KEEP_ALIVE_TIMEOUT_MS);
+                if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR))) {
+                    isForceClosed = true; break; // Fatal error or timeout
+                }
 
-            // Check for POLLIN event
-            if (!(pfd.revents & POLLIN)) continue;
+                // Check for POLLIN event
+                if (!(pfd.revents & POLLIN)) { isDataReady = false; break; }
+                
+                // Read buffer (regardless of TLS or not, keep looping if TLS)
+                do {
+                    this->clearBuffer(readBuffer); // Clear read buffer
+                    const ssize_t bytesReceived = this->readClientSock(readBuffer, client, pSSL);
+                    if (bytesReceived <= 0) { isForceClosed = true; break; } // Connection closed by client
+                    requestStr.append(readBuffer, bytesReceived); // Concat string
+                } while (this->useTLS && SSL_pending(pSSL) > 0);
+            }
 
-            // Read buffer
-            this->clearBuffer(readBuffer); // Clear read buffer
-            const ssize_t bytesReceived = this->readClientSock(readBuffer, client, pSSL);
-            if (bytesReceived == 0) // Connection closed by client
-                break;
+            if (!isDataReady) continue; // Handle POLLIN not set
+            if (isForceClosed) break; // Handle connection closed by client
 
+            // Process headers and early info
+            headers_map_t reqHeaders;
+            loadEarlyHeaders(reqHeaders, requestStr);
+            size_t contentLength;
+            try {
+                contentLength = reqHeaders.find("CONTENT-LENGTH") != reqHeaders.end() ?
+                    std::stoull(reqHeaders["CONTENT-LENGTH"]) : 0;
+            } catch (std::invalid_argument&) {
+                break; // Bad Content-Length header, close connection
+            }
+
+            // Reject oversized bodies
+            if (contentLength > conf::MAX_REQUEST_BODY) {
+                contentLength = 0; // Passthru
+                this->drainClientSocket(client, pSSL, contentLength); // Drain socket
+                isContentTooLarge = true;
+            }
+
+            // Account for already read body
+            if (contentLength > 0)
+                contentLength -= requestStr.length() - (requestStr.find("\r\n\r\n") + 4);
+
+            // Read remaining body
+            while (contentLength > 0 && !isForceClosed && isDataReady) {
+                struct pollfd pfd; pfd.fd = client;
+                const ssize_t pollStatus = this->waitForClientData(pfd, KEEP_ALIVE_TIMEOUT_MS);
+                if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR))) {
+                    isForceClosed = true; break; // Fatal error or timeout
+                }
+
+                // Check for POLLIN event
+                if (!(pfd.revents & POLLIN)) { isDataReady = false; break; }
+
+                // Read buffer (regardless of TLS or not, keep looping if TLS)
+                do {
+                    this->clearBuffer(readBuffer);
+                    const ssize_t bytesReceived = this->readClientSock(readBuffer, client, pSSL);
+                    if (bytesReceived <= 0) { isForceClosed = true; break; } // Connection closed by client
+                    requestStr.append(readBuffer, bytesReceived); // Concat string
+
+                    // Update remaining content length
+                    contentLength = (contentLength > static_cast<size_t>(bytesReceived)) ?
+                        (contentLength - bytesReceived) : 0;
+                } while (this->useTLS && SSL_pending(pSSL) > 0);
+            }
+
+            if (!isDataReady) continue; // Handle POLLIN not set
+            if (isForceClosed) break; // Handle connection closed by client
+
+            // Parse request
             Response* pResponse = nullptr;
             try {
-                // Parse request
-                Request request(readBuffer, clientIPStr, useTLS);
+                Request request(reqHeaders, requestStr, clientIPStr, useTLS, isContentTooLarge);
 
                 // Generate response
                 pResponse = genResponse(request);
-
-                ACCESS_LOG << request.getMethodStr() << ' '
-                        << request.getIPStr() << ' '
-                        << request.getPathStr()
-                        << " -- (" << pResponse->getStatus() << ") ["
-                        << request.getVersion() << ']'
-                        << std::endl; // Flush w/ endl vs newline
 
                 // Handle keep-alive requests
                 const std::string* pConnHeader = request.getHeader("Connection");
                 std::string connHeader = (pConnHeader != nullptr) ? *pConnHeader : ""; // Copy string
                 strToUpper(connHeader); // Format copied string
-                if (connHeader == "KEEP-ALIVE" || (connHeader == "" && request.getVersion() == "HTTP/1.1")) {
+                if (!isContentTooLarge &&
+                    (connHeader == "KEEP-ALIVE" || (connHeader == "" && request.getVersion() == "HTTP/1.1"))) {
                     // HTTP/1.1 defaults to keep-alive
                     pResponse->setHeader("Connection", "keep-alive");
                     pResponse->setHeader("Keep-Alive",
@@ -267,12 +339,24 @@ namespace http {
 
                 // Load response to buffer
                 const bool omitBody = request.getMethod() == http::METHOD::HEAD;
-                std::string resBuffer;
-                pResponse->loadToBuffer(resBuffer, omitBody);
+                std::function<ssize_t(const char*, const size_t)> sendFunc = [this, client, &pSSL](const char* resBuffer, const size_t n) -> ssize_t {
+                    return this->writeClientSock(client, pSSL, resBuffer, n);
+                };
 
-                // Send response & close connection
-                ssize_t bytesSent = this->writeClientSock(client, pSSL, resBuffer);
-                if (bytesSent < 0) break;
+                // Handle write failure
+                const ssize_t sendStatus = pResponse->beginStreamingBody(request.isMIMEAccepted("text/html"), omitBody, sendFunc);
+
+                // Log request
+                ACCESS_LOG << request.getMethodStr() << ' '
+                        << request.getIPStr() << ' '
+                        << request.getPathStr()
+                        << " -- (" << pResponse->getStatus() << ") ["
+                        << request.getVersion() << ']'
+                        << std::endl; // Flush w/ endl vs newline
+
+                // Handle connection closure OR Content Too Large
+                if (sendStatus < 0 || pResponse->getStatus() == 413)
+                    break;
             } catch (http::Exception& e) {
                 if (pResponse != nullptr) delete pResponse;
                 break; // Handles invalid requests syntax (ie. non-CRLF)
@@ -309,24 +393,14 @@ namespace http {
                 pResponse->loadBodyFromErrorDoc(505);
         }
 
-        // Handle compression
-        const std::string contentType = pResponse->getContentType();
-
-        // Determine compression method
-        if (request.getMethod() == http::METHOD::OPTIONS) return pResponse;
-
-        if (this->useTLS && request.isEncodingAccepted("br"))
-            pResponse->compressBody(COMPRESS_BROTLI);
-        else if (request.isEncodingAccepted("gzip"))
-            pResponse->compressBody(COMPRESS_GZIP);
-        else if (request.isEncodingAccepted("deflate"))
-            pResponse->compressBody(COMPRESS_DEFLATE);
+        // Pass the compression method
+        pResponse->setCompressMethod(request.getCompressMethod());
 
         return pResponse;
     }
 
     void Server::clearBuffer(char* readBuffer) {
-        for (unsigned int i = 0; i < this->maxBufferSize; ++i)
+        for (unsigned int i = 0; i < conf::REQUEST_BUFFER_SIZE; ++i)
             readBuffer[i] = 0;
     }
 

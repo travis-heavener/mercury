@@ -18,6 +18,9 @@
 - [Build Info](#build-info)
     - [Linux & Windows Builds](#linux--windows-builds)
     - [TLS Certs](#tls-certs)
+        - [For Linux](#for-linux)
+        - [For Windows](#for-windows)
+        - [For Developers](#for-developers)
     - [Compatibility](#compatibility)
     - [Making Releases](#making-releases)
 - [Testing Suite](#testing-suite)
@@ -31,7 +34,10 @@
 
 ## About
 
-Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux.
+Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux*.
+
+\* Most (if not all) of the supported Linux distributions are for Debian (or any other distribution using APT packages).
+Additionally, most of these distributions come with glibc, which is required to be locally installed for Mercury to run.
 
 ## Getting Started
 
@@ -62,11 +68,13 @@ The error log contains any detailed error messages that the server encounters.
 
 PHP is now supported via php-cgi for Windows and Linux!
 
-The php-cgi program is installed when running `make static_deps` or `make libs`, however you can manually install this as well.
+To install:
 - For Linux, run `sudo apt install php-cgi`.
-- For Windows, run `make win_php`.
+- For Windows, run `/conf/setup_php.ps1`.
 
-Windows users also have the option to use their own PHP installation instead, just modify the path to php-cgi in "mercury.conf" under the WinPHPCGIPath node.
+Developer environments also come with php-cgi installed after running `make static_deps` or `make libs`.
+
+Windows users have the option to use their own PHP installation instead by modifying the path to php-cgi in "mercury.conf" under the WinPHPCGIPath node.
 
 **Note: By default, in "mercury.conf" PHP support is disabled. Enable PHP by changing the value of the EnablePHPCGI node to on.**
 
@@ -94,9 +102,21 @@ Note: see [Compatibility](#compatibility) section for software compatibility.
 
 Self-signed TLS 1.3 certs are now available with OpenSSL.
 
-Use `make cert` in the root directory of this project and enter your information to automatically create a new certificate pair.
-Your certificate will be located at `/conf/ssl/cert.pem` and your private key at `/conf/ssl/key.pem`.
+#### For Linux
+1. Run `./conf/ssl/makecert.sh` and enter the following information to fill out the certificate.
 
+#### For Windows
+1. Download [Git for Windows](https://git-scm.com/downloads/win) if not already installed.
+It's crucial that Git is installed since it comes bundled with OpenSSL.
+
+2. Double check the install location of Git. OpenSSL should be installed in the `<Git location>/usr/bin` directory.
+Update the `$OPENSSL_PATH` variable in `/conf/ssl/makecert.ps1` with your correct path if needed.
+
+3. Run `/conf/ssl/makecert.ps1` and enter the following information to fill out the certificate.
+
+#### For Developers
+In your Linux/Debian environment, use `make cert` in the root directory of this project and enter your information to automatically create a new certificate pair.
+Your certificate will be located at `/conf/ssl/cert.pem` and your private key at `/conf/ssl/key.pem`.
 
 ### Compatibility
 
@@ -104,6 +124,7 @@ The following table contains known compatible versions of important software use
 Older mingw-w64 versions have introduced issues when binding IPv6 sockets with WinAPI.
 The g++ version restriction is likely less crucial, as initially version 11.x.x was in use and was only upgraded as a side effect of an OS upgrade (Ubuntu 24.04 LTS from 22.04 LTS).
 Thus, almost any Linux environment with the following g++ and mingw-w64 versions should be sufficient for building Mercury.
+However, it's important to note that APT and glibc must both be present on development and client Linux devices (hence why most Debian systems are supported).
 
 | Name      | Version    |
 |-----------|------------|

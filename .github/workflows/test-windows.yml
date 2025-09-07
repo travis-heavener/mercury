@@ -23,16 +23,7 @@ jobs:
         run: Copy-Item ./conf/default/*.conf ./conf
 
       - name: Setup PHP
-        run: |
-          $DownloadUrl = "https://downloads.php.net/~windows/releases/php-8.4.12-Win32-vs17-x64.zip"
-          $ZipFile = "php-8.4.12-Win32-vs17-x64.zip"
-
-          # Download zip
-          Invoke-WebRequest -Uri $DownloadUrl -OutFile $ZipFile -UseBasicParsing
-
-          # Extract archive
-          Expand-Archive -Path $ZipFile -DestinationPath "php" -Force
-          Remove-Item -Path $ZipFile -Force
+        run: ./conf/setup_php.ps1
 
       - name: Configure Ports & Enable IPv6
         run: |
@@ -61,7 +52,6 @@ jobs:
       # Make TLS cert
       - name: Make TLS Cert
         run: |
-          mkdir conf/ssl
           openssl req -x509 -newkey rsa:4096 -keyout conf/ssl/key.pem -out conf/ssl/cert.pem -sha256 -days 1 -nodes -subj "/C=XX/ST=New York/L=NYC/O=The Mercury Project/OU=GitHub Action Runner/CN=The Mercury Developers"
 
       # Start Mercury

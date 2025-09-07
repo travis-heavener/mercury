@@ -114,6 +114,20 @@ h2 {
     font-weight: 500;
 }
 
+.download-table-wrapper p {
+    display: block;
+    margin: 0.5rem;
+
+    color: #5a5a5a;
+    font-size: 0.9rem;
+    font-style: italic;
+    font-weight: 500;
+}
+
+.download-table-wrapper sup.dagger { font-style: normal }
+.download-table-wrapper h2 > sup.dagger { font-size: 0.5em }
+.download-table-wrapper p > sup.dagger { font-size: 0.67em }
+
 table {
     width: 100%;
     border-collapse: collapse;

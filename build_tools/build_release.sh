@@ -40,6 +40,7 @@ touch "./$VERSION/logs/error.log"
 # Copy default config
 cp -r ../conf "./$VERSION/"
 cp -f ../conf/default/* "./$VERSION/conf"
+find "./$VERSION/conf/ssl/" -name "*" -type f -delete
 
 # Copy license, public files, & extras
 cp ../{version.txt,README.md,SECURITY.md,CREDITS.md,CHANGELOG.md,LICENSE.txt} "./$VERSION/"
@@ -53,6 +54,10 @@ mkdir "./$VERSION/bin"
 # Copy binary
 cp ../bin/mercury "./$VERSION/bin"
 
+# Copy makecert
+cp "../conf/ssl/makecert.sh" "./$VERSION/conf/ssl/"
+rm -f "./$VERSION/conf/setup_php.ps1"
+
 # Create tar.gz archive
 tar -czvf "$LINUX_ARCHIVE" * &> /dev/null
 
@@ -64,8 +69,10 @@ echo "✅ Linux release archive created: $LINUX_ARCHIVE"
 rm "./$VERSION/bin/mercury"
 cp ../bin/mercury.exe "./$VERSION/bin"
 
-# Copy PHP
-cp -r ../php "./$VERSION/"
+# Copy makecert
+rm "./$VERSION/conf/ssl/makecert.sh"
+cp "../conf/ssl/makecert.ps1" "./$VERSION/conf/ssl/"
+cp "../conf/setup_php.ps1" "./$VERSION/conf/"
 
 # Create zip archive
 zip -r "$WIN_ARCHIVE" * &> /dev/null

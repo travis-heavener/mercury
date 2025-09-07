@@ -1,7 +1,10 @@
 #ifndef __FILE_TOOLS_HPP
 #define __FILE_TOOLS_HPP
 
+#include <random>
+
 #include "../pch/common.hpp"
+#include "../logs/logger.hpp"
 
 #ifdef _WIN32
     #include "../winheader.hpp"
@@ -24,5 +27,11 @@ std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path);
 
 // Creates the immediate directory for log files if missing, will silently fail
 void createLogDirectoryIfMissing(const std::filesystem::path& path);
+
+// Creates and returns the full, absolute path to a new tmp file, returning true if successful
+bool createTempFile(std::string& outPath);
+
+// Attempts to remove the temp file, returns true if successful
+bool removeTempFile(const std::string& tmpPath);
 
 #endif

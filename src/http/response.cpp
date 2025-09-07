@@ -6,6 +6,7 @@ namespace http {
 
     Response::Response(const std::string& httpVersion) {
         this->httpVersion = httpVersion;
+        this->pBodyStream = std::unique_ptr<IBodyStream>( new MemoryStream("") );
     }
 
     void Response::setStatus(const uint16_t statusCode) {
@@ -34,47 +35,40 @@ namespace http {
             headers.erase(itrMatch);
     }
 
+    void Response::setCompressMethod(const int compressMethod) {
+        // Determine compression method
+        this->compressMethod = compressMethod;
+        switch (this->compressMethod) {
+            case COMPRESS_BROTLI:
+                this->setHeader("Content-Encoding", "br");
+                break;
+            case COMPRESS_GZIP:
+                this->setHeader("Content-Encoding", "gzip");
+                break;
+            case COMPRESS_DEFLATE:
+                this->setHeader("Content-Encoding", "deflate");
+                break;
+        }
+    }
+
     int Response::loadBodyFromErrorDoc(const uint16_t statusCode) {
         this->setStatus(statusCode);
-        this->setContentType("text/html");
+        this->setContentType("text/html; charset=UTF-8");
 
-        const int status = loadErrorDoc(statusCode, this->body);
-        this->setHeader("Content-Length", std::to_string(this->body.size()));
+        const int status = loadErrorDoc(statusCode, pBodyStream);
+        this->setHeader("Content-Length", std::to_string(this->pBodyStream->size()));
         return status;
     }
 
     int Response::loadBodyFromFile(File& file) {
-        const int bodyStatus = file.loadToBuffer(this->body);
+        const int bodyStatus = file.loadToBuffer(pBodyStream);
 
         // Get last modified GMT string
         if (bodyStatus == IO_SUCCESS)
             this->setHeader("Last-Modified", file.getLastModifiedGMT());
 
-        this->setHeader("Content-Length", std::to_string(this->body.size()));
+        this->setHeader("Content-Length", std::to_string(this->pBodyStream->size()));
         return bodyStatus;
-    }
-
-    int Response::compressBody(const int compressionType) {
-        // Ignore if empty body
-        if (this->body.size() == 0) return IO_SUCCESS;
-
-        const int status = compressText(this->body, compressionType);
-
-        if (status == IO_SUCCESS) {
-            switch (compressionType) {
-                case COMPRESS_BROTLI:
-                    this->setHeader("Content-Encoding", "br");
-                    break;
-                case COMPRESS_GZIP:
-                    this->setHeader("Content-Encoding", "gzip");
-                    break;
-                case COMPRESS_DEFLATE:
-                    this->setHeader("Content-Encoding", "deflate");
-                    break;
-            }
-        }
-
-        return status;
     }
 
     const std::string Response::getContentType() const {
@@ -89,16 +83,153 @@ namespace http {
         return std::stoi(type->second);
     }
 
-    void Response::loadToBuffer(std::string& buffer, const bool omitBody) {
-        // Handle HTTP/0.9 unique format
-        if (this->httpVersion == "HTTP/0.9") {
-            buffer = body; // Write to buffer
-            return;
+    bool Response::precompressBody() {
+        // Get path to a temp file
+        std::string tmpPath;
+        if (!createTempFile(tmpPath)) return false;
+
+        // Buffer the output continuously to the temp file
+        std::ofstream handle(tmpPath, std::ios::binary);
+        if (!handle.is_open()) {
+            removeTempFile(tmpPath);
+            return false;
         }
 
-        // Determine Content-Length
-        const std::string contentLen = std::to_string(this->body.size());
-        this->setHeader("Content-Length", contentLen);
+        // Create compressor
+        std::unique_ptr<ICompressor> pCompressor = std::unique_ptr<ICompressor>( createCompressorStream(this->compressMethod) );
+
+        // Write in chunks
+        std::vector<char> readChunk(conf::RESPONSE_BUFFER_SIZE), compressChunk;
+        size_t contentLen = 0;
+        while (true) {
+            // Read
+            size_t bytesRead = pBodyStream->read(readChunk.data(), conf::RESPONSE_BUFFER_SIZE);
+            if (bytesRead == 0) {
+                // Send any remaining compression data
+                if (pCompressor != nullptr) {
+                    // Compress
+                    compressChunk.clear();
+                    bytesRead = pCompressor->finish(compressChunk);
+                    if (pCompressor->status() != STREAM_SUCCESS) {
+                        ERROR_LOG << "Precompression error (end flush)." << std::endl;
+                        return false;
+                    }
+
+                    // Write
+                    contentLen += bytesRead;
+                    handle.write(compressChunk.data(), bytesRead);
+                }
+                break;
+            }
+
+            // Compress
+            if (pCompressor != nullptr) {
+                compressChunk.clear();
+                bytesRead = pCompressor->compress(readChunk.data(), compressChunk, bytesRead);
+                if (pCompressor->status() != STREAM_SUCCESS) {
+                    ERROR_LOG << "Precompression error." << std::endl;
+                    return false;
+                }
+
+                // Write
+                contentLen += bytesRead;
+                handle.write(compressChunk.data(), bytesRead);
+            } else {
+                // Write w/o compression
+                contentLen += bytesRead;
+                handle.write(readChunk.data(), bytesRead);
+            }
+        }
+
+        // Close the file
+        handle.close();
+
+        // Create FileStream in place of body stream to buffer the response
+        this->pBodyStream = std::unique_ptr<IBodyStream>(new FileStream(tmpPath, true));
+
+        // Base case, successful
+        return true;
+    }
+
+    ssize_t Response::beginStreamingBody(const bool isHTMLAccepted, const bool omitBody, std::function<ssize_t(const char*, const size_t)>& sendFunc) {
+        std::vector<char> readChunk(conf::RESPONSE_BUFFER_SIZE), compressChunk;
+
+        // Handle HTTP/0.9 unique format
+        if (this->httpVersion == "HTTP/0.9") {
+            // Send chunks
+            while (true) {
+                // Read
+                size_t bytesRead = pBodyStream->read(readChunk.data(), conf::RESPONSE_BUFFER_SIZE);
+                if (bytesRead == 0) break;
+
+                // Send
+                ssize_t status = sendFunc(readChunk.data(), bytesRead);
+                if (status < 0) return status;
+            }
+            return 0;
+        }
+
+        // Lambda to reset Content-Length, close the connection, and wipe the stream
+        auto clearBodyAndResetStream = [&]() {
+            this->clearHeader("Content-Type");
+            this->clearHeader("Keep-Alive");
+            this->setHeader("Content-Length", "0");
+            this->setHeader("Connection", "close");
+            this->pBodyStream = std::unique_ptr<IBodyStream>( new MemoryStream("") );
+        };
+
+        // Verify the content isn't too large
+        if (pBodyStream->size() > conf::MAX_RESPONSE_BODY) {
+            this->setStatus(413);
+            this->clearHeader("Keep-Alive");
+            this->setHeader("Connection", "close");
+            if (isHTMLAccepted) { // Replace body
+                this->loadBodyFromErrorDoc(413);
+
+                // Verify the error doc ALSO isn't too large
+                if (pBodyStream->size() > conf::MAX_RESPONSE_BODY)
+                    clearBodyAndResetStream();
+            } else { // Remove body
+                clearBodyAndResetStream();
+            }
+        }
+
+        // Check if the body needs to be pre-compressed (HTTP/1.0 ONLY)
+        if (this->httpVersion == "HTTP/1.0" && this->pBodyStream->size() > 0) {
+            if (!this->precompressBody()) { // Failed to compress body
+                // Send uncompresesed error page
+                this->setStatus(500);
+                if (isHTMLAccepted) { // Replace body
+                    this->loadBodyFromErrorDoc(500);
+
+                    // Verify the error doc ALSO isn't too large
+                    if (pBodyStream->size() > conf::MAX_RESPONSE_BODY)
+                        clearBodyAndResetStream();
+                } else { // Remove body
+                    this->clearHeader("Content-Type");
+                    this->setHeader("Content-Length", "0");
+                    this->pBodyStream = std::unique_ptr<IBodyStream>( new MemoryStream("") );
+                }
+            }
+        }
+
+        // Create a streamable, buffered compressor
+        std::unique_ptr<ICompressor> pCompressor(
+            (httpVersion == "HTTP/1.0" || pBodyStream->size() < MIN_COMPRESSION_SIZE) ? nullptr : createCompressorStream(this->compressMethod)
+        );
+
+        // Skip compression for small bodies
+        if (this->pBodyStream->size() < MIN_COMPRESSION_SIZE)
+            this->clearHeader("Content-Encoding");
+
+        // Update transfer encoding
+        bool isTransferEncodingSupported = this->httpVersion != "HTTP/1.0";
+        bool isUsingTransferEncoding = isTransferEncodingSupported && pBodyStream->size() > 0;
+        if (!isTransferEncodingSupported && pBodyStream->size() > 0) { // Content-Length is known (no compress)
+            this->setHeader("Content-Length", std::to_string(pBodyStream->size()));
+        } else if (isUsingTransferEncoding) { // Use chunked transfer encoding
+            this->setHeader("Transfer-Encoding", "chunked");
+        }
 
         // Load config headers last to overwrite any dupes that have been previously set
         this->setHeader("Server", "Mercury/" + conf::VERSION.substr(9)); // Skip "Mercury v"
@@ -107,13 +238,73 @@ namespace http {
         // Stringify headers
         std::string headers;
         for (auto& [name, value] : this->headers)
-            headers += name + ':' + value + CRLF;
+            headers += name + ": " + value + CRLF;
 
         // Write to buffer
-        buffer = httpVersion + ' ' + std::to_string(statusCode) + ' '  + getReasonFromStatusCode(statusCode) + CRLF + headers + CRLF;
+        std::string headersBlock = httpVersion + ' ' + std::to_string(statusCode) + ' '  + getReasonFromStatusCode(statusCode) + CRLF + headers + CRLF;
+        ssize_t status = sendFunc(headersBlock.data(), headersBlock.size());
+        if (status < 0) return status;
 
-        // Omit the body from HEAD requests
-        if (!omitBody) buffer += body;
+        // Omit the body from HEAD requests OR if the body doesn't exist
+        if (omitBody || pBodyStream->size() == 0) return 0;
+
+        // Send chunks
+        auto sendWrapper = [&](const std::vector<char>& chunk, const size_t bytesRead) -> int {
+            if (bytesRead == 0) return 0;
+            if (isTransferEncodingSupported) {
+                const std::string header = std::format("{:x}", bytesRead) + "\r\n";
+                if (sendFunc(header.data(), header.size()) < 0) return -1;
+                if (sendFunc(chunk.data(), bytesRead) < 0) return -1;
+                if (sendFunc("\r\n", 2) < 0) return -1;
+            } else {
+                if (sendFunc(chunk.data(), bytesRead) < 0) return -1;
+            }
+            return 0;
+        };
+
+        while (true) {
+            // Read
+            size_t bytesRead = pBodyStream->read(readChunk.data(), conf::RESPONSE_BUFFER_SIZE);
+            if (bytesRead == 0) {
+                // Send any remaining compression data
+                if (pCompressor != nullptr) {
+                    // Compress
+                    compressChunk.clear();
+                    bytesRead = pCompressor->finish(compressChunk);
+                    if (pCompressor->status() != STREAM_SUCCESS) {
+                        ERROR_LOG << "Compression error (end flush)." << std::endl;
+                        return -1;
+                    }
+
+                    // Send
+                    if (sendWrapper(compressChunk, bytesRead) < 0) return -1;
+                }
+                break;
+            }
+
+            // Compress
+            if (pCompressor != nullptr) {
+                compressChunk.clear();
+                bytesRead = pCompressor->compress(readChunk.data(), compressChunk, bytesRead);
+                if (pCompressor->status() != STREAM_SUCCESS) {
+                    ERROR_LOG << "Compression error." << std::endl;
+                    return -1;
+                }
+
+                // Send
+                if (sendWrapper(compressChunk, bytesRead) < 0)
+                    return -1;
+            } else if (sendWrapper(readChunk, bytesRead) < 0) { // Send w/o compression
+                return -1;
+            }
+        }
+
+        // End chunked transfer
+        if (isUsingTransferEncoding)
+            sendFunc("0\r\n\r\n", 5);
+
+        // Base case, success
+        return 0;
     }
 
 };

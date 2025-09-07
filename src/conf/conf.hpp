@@ -22,8 +22,9 @@ typedef unsigned short port_t;
 /****** EXTERNAL FIELDS ******/
 
 namespace conf {
-
+    
     extern std::string VERSION;
+    extern std::filesystem::path TMP_PATH;
 
     extern std::filesystem::path DOCUMENT_ROOT;
     extern port_t PORT;
@@ -31,7 +32,8 @@ namespace conf {
     extern bool IS_IPV6_ENABLED;
     extern bool ENABLE_LEGACY_HTTP;
     extern unsigned short MAX_REQUEST_BACKLOG;
-    extern unsigned int MAX_REQUEST_BUFFER;
+    extern unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
+    extern unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
     extern unsigned int THREADS_PER_CHILD;
     extern std::vector<conf::Match*> matchConfigs;
     extern std::string INDEX_FILE;

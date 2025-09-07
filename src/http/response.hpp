@@ -2,10 +2,17 @@
 #define __HTTP_RESPONSE_HPP
 
 #include <algorithm>
+#include <functional>
+#include <memory>
 
 #include "../pch/common.hpp"
 #include "../io/file.hpp"
 #include "../util/toolbox.hpp"
+#include "../logs/logger.hpp"
+#include "body_stream.hpp"
+
+// The minimum size for a body to be compressed
+#define MIN_COMPRESSION_SIZE 750
 
 namespace http {
 
@@ -17,11 +24,11 @@ namespace http {
             inline uint16_t getStatus() const { return httpVersion == "HTTP/0.9" ? 0 : statusCode; };
             void setHeader(std::string name, const std::string& value);
             void clearHeader(std::string);
+            void setCompressMethod(const int compressMethod);
 
             int loadBodyFromErrorDoc(const uint16_t statusCode);
             int loadBodyFromFile(File& file);
-            int compressBody(const int compressionType);
-            inline void setBody(const std::string& body) { this->body = body; }
+            inline void setBodyStream(std::unique_ptr<IBodyStream> p) { pBodyStream = std::move(p); };
 
             inline void setContentType(const std::string& type) {
                 this->setHeader("Content-Type", type);
@@ -29,11 +36,14 @@ namespace http {
             const std::string getContentType() const;
             int getContentLength() const;
 
-            void loadToBuffer(std::string& buffer, const bool omitBody);
+            ssize_t beginStreamingBody(const bool isHTMLAccepted, const bool omitBody, std::function<ssize_t(const char*, const size_t)>&);
         private:
+            bool precompressBody();
+
             std::string httpVersion;
             uint16_t statusCode;
-            std::string body;
+            std::unique_ptr<IBodyStream> pBodyStream;
+            int compressMethod = NO_COMPRESS;
 
             std::unordered_map<std::string, std::string> headers;
     };

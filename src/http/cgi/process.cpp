@@ -159,7 +159,7 @@ namespace http::cgi {
             }
 
             // Set body
-            res.setBody(bodyStr);
+            res.setBodyStream( std::unique_ptr<IBodyStream>( new MemoryStream(bodyStr) ) );
 
             // Force set Content-Length
             res.setHeader("Content-Length", std::to_string(bodyStr.size()));
@@ -176,7 +176,7 @@ namespace http::cgi {
                 res.setHeader("Content-Length", "0");
             } else {
                 res.setStatus(200);
-                res.setBody(cgiResp);
+                res.setBodyStream( std::unique_ptr<IBodyStream>( new MemoryStream(cgiResp) ) );
                 res.setHeader("Content-Length", std::to_string(cgiResp.size()));
                 inferContentType(cgiResp, res);
             }
