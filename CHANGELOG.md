@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.15.1
+- Remove unused string compression methods
+- Remove unused brotli-cpp lib
+
 ## v0.15.0
 - Clarified supported Linux distributions in README & website (#133)
 - Added TLS cert creation scripts to releases (#131)
