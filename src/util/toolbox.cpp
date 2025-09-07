@@ -1,6 +1,6 @@
 #include "toolbox.hpp"
 
-int loadErrorDoc(const int status, std::unique_ptr<http::IResponseStream>& pStream) {
+int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) {
     std::string buffer;
     std::filesystem::path cwd = conf::CWD / "conf" / "html" / "err.html";
 
@@ -22,8 +22,8 @@ int loadErrorDoc(const int status, std::unique_ptr<http::IResponseStream>& pStre
     stringReplaceAll(buffer, "%status%", std::to_string(status));
 
     // Load to MemoryStream
-    pStream = std::unique_ptr<http::IResponseStream>( new http::MemoryStream(buffer) );
-    return pStream->status() == FILESTREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
+    pStream = std::unique_ptr<http::IBodyStream>( new http::MemoryStream(buffer) );
+    return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
 }
 
 void formatFileSize(size_t fileSize, std::string& buffer) {
@@ -67,7 +67,7 @@ void formatDate(std::filesystem::file_time_type dur, std::string& buffer) {
     buffer = ss.str();
 }
 
-int loadDirectoryListing(std::unique_ptr<http::IResponseStream>& pStream, const std::string& path, const std::string& rawPath) {
+int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std::string& path, const std::string& rawPath) {
     std::string buffer;
     std::filesystem::path directoryListing = conf::CWD / "conf" / "html" / "dir_index.html";
 
@@ -133,8 +133,8 @@ int loadDirectoryListing(std::unique_ptr<http::IResponseStream>& pStream, const 
     stringReplaceAll(buffer, "%files%", rowsBuffer.str());
 
     // Load to MemoryStream
-    pStream = std::unique_ptr<http::IResponseStream>( new http::MemoryStream(buffer) );
-    return pStream->status() == FILESTREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
+    pStream = std::unique_ptr<http::IBodyStream>( new http::MemoryStream(buffer) );
+    return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
 }
 
 std::time_t getTimeTFromGMT(const std::string& gmtString) {

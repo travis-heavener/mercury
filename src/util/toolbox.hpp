@@ -11,13 +11,13 @@
 #include "../pch/common.hpp"
 #include "string_tools.hpp"
 #include "../conf/conf.hpp"
-#include "../http/response_stream.hpp"
+#include "../http/body_stream.hpp"
 
 void formatFileSize(size_t, std::string&);
 void formatDate(const std::chrono::system_clock::duration, std::string&);
 
-int loadErrorDoc(const int, std::unique_ptr<http::IResponseStream>&);
-int loadDirectoryListing(std::unique_ptr<http::IResponseStream>&, const std::string&, const std::string&);
+int loadErrorDoc(const int, std::unique_ptr<http::IBodyStream>&);
+int loadDirectoryListing(std::unique_ptr<http::IBodyStream>&, const std::string&, const std::string&);
 
 // Time helper functions
 std::time_t getTimeTFromGMT(const std::string&);

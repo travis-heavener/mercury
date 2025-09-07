@@ -38,6 +38,7 @@ namespace http {
             inline const std::string& getPathStr() const { return pathStr; };
             inline const std::string& getBody() const { return body; };
             inline const std::string& getVersion() const { return httpVersionStr; };
+            inline int getCompressMethod() const { return compressMethod; };
 
             inline const headers_map_t& getHeaders() const { return headers; };
 
@@ -71,6 +72,7 @@ namespace http {
             std::string httpVersionStr;
 
             std::string body;
+            int compressMethod = NO_COMPRESS;
     };
 
 }

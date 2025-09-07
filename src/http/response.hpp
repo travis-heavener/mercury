@@ -8,7 +8,8 @@
 #include "../pch/common.hpp"
 #include "../io/file.hpp"
 #include "../util/toolbox.hpp"
-#include "response_stream.hpp"
+#include "../logs/logger.hpp"
+#include "body_stream.hpp"
 
 namespace http {
 
@@ -20,11 +21,11 @@ namespace http {
             inline uint16_t getStatus() const { return httpVersion == "HTTP/0.9" ? 0 : statusCode; };
             void setHeader(std::string name, const std::string& value);
             void clearHeader(std::string);
+            void setCompressMethod(const int compressMethod);
 
             int loadBodyFromErrorDoc(const uint16_t statusCode);
             int loadBodyFromFile(File& file);
-            int compressBody(const int compressionType);
-            inline void setBodyStream(std::unique_ptr<IResponseStream> p) { pBodyStream = std::move(p); };
+            inline void setBodyStream(std::unique_ptr<IBodyStream> p) { pBodyStream = std::move(p); };
 
             inline void setContentType(const std::string& type) {
                 this->setHeader("Content-Type", type);
@@ -32,11 +33,14 @@ namespace http {
             const std::string getContentType() const;
             int getContentLength() const;
 
-            ssize_t loadToBuffer(const bool omitBody, std::function<ssize_t(const char*, const size_t)>&);
+            ssize_t beginStreamingBody(const bool isHTMLAccepted, const bool omitBody, std::function<ssize_t(const char*, const size_t)>&);
         private:
+            bool precompressBody();
+
             std::string httpVersion;
             uint16_t statusCode;
-            std::unique_ptr<IResponseStream> pBodyStream;
+            std::unique_ptr<IBodyStream> pBodyStream;
+            int compressMethod = NO_COMPRESS;
 
             std::unordered_map<std::string, std::string> headers;
     };

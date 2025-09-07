@@ -3,7 +3,7 @@
 namespace http {
 
     Server::Server(const port_t port, const bool useTLS) : port(port),
-    maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::MAX_REQUEST_BUFFER),
+    maxBacklog(conf::MAX_REQUEST_BACKLOG), maxBufferSize(conf::REQUEST_BUFFER_SIZE),
         threadPool(conf::THREADS_PER_CHILD), useTLS(useTLS) {};
 
     void Server::kill() {
@@ -334,7 +334,7 @@ namespace http {
                 };
 
                 // Handle write failure
-                if (pResponse->loadToBuffer(omitBody, sendFunc) < 0)
+                if (pResponse->beginStreamingBody(request.isMIMEAccepted("text/html"), omitBody, sendFunc) < 0)
                     break;
             } catch (http::Exception& e) {
                 if (pResponse != nullptr) delete pResponse;
@@ -372,25 +372,8 @@ namespace http {
                 pResponse->loadBodyFromErrorDoc(505);
         }
 
-        // Handle compression
-        const std::string contentType = pResponse->getContentType();
-
-        // Determine compression method
-        if (request.getMethod() == http::METHOD::OPTIONS) return pResponse;
-
-        int compStatus = IO_SUCCESS;
-        if (this->useTLS && request.isEncodingAccepted("br"))
-            compStatus = pResponse->compressBody(COMPRESS_BROTLI);
-        else if (request.isEncodingAccepted("gzip"))
-            compStatus = pResponse->compressBody(COMPRESS_GZIP);
-        else if (request.isEncodingAccepted("deflate"))
-            compStatus = pResponse->compressBody(COMPRESS_DEFLATE);
-
-        if (compStatus != IO_SUCCESS) {
-            pResponse->setStatus(500);
-            if (request.isMIMEAccepted("text/html"))
-                pResponse->loadBodyFromErrorDoc(500);
-        }
+        // Pass the compression method
+        pResponse->setCompressMethod(request.getCompressMethod());
 
         return pResponse;
     }

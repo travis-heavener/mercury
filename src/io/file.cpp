@@ -71,7 +71,7 @@ File::File(const std::string& rawPath) {
     }
 }
 
-int File::loadToBuffer(std::unique_ptr<http::IResponseStream>& pStream) {
+int File::loadToBuffer(std::unique_ptr<http::IBodyStream>& pStream) {
     // Handle directory listings
     if (this->isDirectory) {
         // Load directory listing document
@@ -84,8 +84,8 @@ int File::loadToBuffer(std::unique_ptr<http::IResponseStream>& pStream) {
     }
 
     // Base case, load to FileStream
-    pStream = std::unique_ptr<http::IResponseStream>( new http::FileStream(path) );
-    return pStream->status() == FILESTREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
+    pStream = std::unique_ptr<http::IBodyStream>( new http::FileStream(path) );
+    return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
 }
 
 std::string File::getLastModifiedGMT() const {

@@ -108,6 +108,14 @@ namespace http {
         // Extract accepted encodings
         if (this->headers.find("ACCEPT-ENCODING") != this->headers.end())
             splitStringUnique(acceptedEncodings, this->headers["ACCEPT-ENCODING"], ',', true);
+
+        // Determine compression method
+        if (this->isHTTPS && this->isEncodingAccepted("br"))
+            this->compressMethod = COMPRESS_BROTLI;
+        else if (this->isEncodingAccepted("gzip"))
+            this->compressMethod = COMPRESS_GZIP;
+        else if (this->isEncodingAccepted("deflate"))
+            this->compressMethod = COMPRESS_DEFLATE;
     }
 
     const std::string* Request::getHeader(std::string header) const {

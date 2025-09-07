@@ -5,6 +5,7 @@
 namespace conf {
 
     std::string VERSION;
+    std::filesystem::path TMP_PATH;
 
     std::filesystem::path DOCUMENT_ROOT;
     port_t PORT;
@@ -12,7 +13,8 @@ namespace conf {
     bool IS_IPV6_ENABLED;
     bool ENABLE_LEGACY_HTTP;
     unsigned short MAX_REQUEST_BACKLOG;
-    unsigned int MAX_REQUEST_BUFFER, MAX_RESPONSE_BUFFER;
+    unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
+    unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
     unsigned int THREADS_PER_CHILD;
     std::vector<conf::Match*> matchConfigs;
     std::string INDEX_FILE;
@@ -55,6 +57,28 @@ int loadConfig() {
 
     if (!result) {
         std::cerr << "Failed to open config file.\n";
+        return CONF_FAILURE;
+    }
+
+    // Specify temp file directory
+    const std::string tmpPathStr( (conf::CWD / "tmp").string() );
+    try {
+        if (!std::filesystem::exists(tmpPathStr)) {
+            std::filesystem::create_directory(tmpPathStr);
+        } else if (!std::filesystem::is_directory(tmpPathStr)) {
+            std::cerr << "Failed to open \"tmp\" directory: \"tmp\" already exists as a file in the Mercury root directory.\n";
+            return CONF_FAILURE;
+        }
+    } catch (std::filesystem::filesystem_error&) {
+        std::cerr << "Failed to create \"tmp\" directory in the Mercury root directory.\n";
+        return CONF_FAILURE;
+    }
+
+    // Canonicalize the tmp path
+    try {
+        TMP_PATH = resolveCanonicalPath(tmpPathStr);
+    } catch (...) {
+        std::cerr << "Failed to canonicalize \"tmp\" directory.\n";
         return CONF_FAILURE;
     }
 
@@ -212,23 +236,41 @@ int loadConfig() {
 
     MAX_REQUEST_BACKLOG = reqBacklogNode.text().as_uint();
 
-    /************************** Extract MaxRequestBuffer **************************/
-    pugi::xml_node reqBufferNode = root.child("MaxRequestBuffer");
+    /************************** Extract RequestBufferSize **************************/
+    pugi::xml_node reqBufferNode = root.child("RequestBufferSize");
     if (!reqBufferNode) {
-        std::cerr << "Failed to parse config file, missing MaxRequestBuffer node.\n";
+        std::cerr << "Failed to parse config file, missing RequestBufferSize node.\n";
         return CONF_FAILURE;
     }
 
-    MAX_REQUEST_BUFFER = reqBufferNode.text().as_uint();
+    REQUEST_BUFFER_SIZE = reqBufferNode.text().as_uint();
 
-    /************************** Extract MaxResponseBuffer **************************/
-    pugi::xml_node resBufferNode = root.child("MaxResponseBuffer");
+    /************************** Extract ResponseBufferSize **************************/
+    pugi::xml_node resBufferNode = root.child("ResponseBufferSize");
     if (!resBufferNode) {
-        std::cerr << "Failed to parse config file, missing MaxResponseBuffer node.\n";
+        std::cerr << "Failed to parse config file, missing ResponseBufferSize node.\n";
         return CONF_FAILURE;
     }
 
-    MAX_RESPONSE_BUFFER = resBufferNode.text().as_uint();
+    RESPONSE_BUFFER_SIZE = resBufferNode.text().as_uint();
+
+    /************************** Extract MaxRequestBody **************************/
+    pugi::xml_node reqBodySizeNode = root.child("MaxRequestBody");
+    if (!reqBodySizeNode) {
+        std::cerr << "Failed to parse config file, missing MaxRequestBody node.\n";
+        return CONF_FAILURE;
+    }
+
+    MAX_REQUEST_BODY = reqBodySizeNode.text().as_uint();
+
+    /************************** Extract MaxResponseBody **************************/
+    pugi::xml_node resBodySizeNode = root.child("MaxResponseBody");
+    if (!resBodySizeNode) {
+        std::cerr << "Failed to parse config file, missing MaxResponseBody node.\n";
+        return CONF_FAILURE;
+    }
+
+    MAX_RESPONSE_BODY = resBodySizeNode.text().as_uint();
 
     /************************** Extract ThreadsPerChild **************************/
     pugi::xml_node threadsPerChildNode = root.child("ThreadsPerChild");

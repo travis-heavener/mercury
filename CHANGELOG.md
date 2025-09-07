@@ -11,9 +11,14 @@
 - Fix request body reading previously truncating with file uploads (#126)
     - Now respects and uses Content-Length header in requests to read whole body
 - Now properly buffers incoming HTTP requests (#134)
+    - MaxRequestBuffer node -> RequestBufferSize node in mercury.conf
+    - Added MaxRequestBody node to specify how large a request's body can be
 - Now properly buffers outgoing HTTP responses (#134)
-    - Added MaxResponseBuffer node in Mercury.conf
+    - Added ResponseBufferSize node in mercury.conf
+    - Added MaxResponseBody node to specify how large a response's body can be
+    - Body compression is now streamed via chunked transfer encoding (HTTP/1.1+ only)
 - Fixed compression error handling (previously uncaught)
+- Now gracefully exits if compression fails
 
 ## v0.14.0
 - Fully reworked PHP processing (#97)

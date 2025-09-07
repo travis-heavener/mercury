@@ -15,6 +15,7 @@
 #define COMPRESS_DEFLATE 0
 #define COMPRESS_GZIP 1
 #define COMPRESS_BROTLI 2
+#define NO_COMPRESS 3
 
 inline void strToUpper(std::string& str) {
     std::transform(str.begin(), str.end(), str.begin(), ::toupper);
