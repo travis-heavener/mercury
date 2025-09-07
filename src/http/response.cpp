@@ -215,8 +215,12 @@ namespace http {
 
         // Create a streamable, buffered compressor
         std::unique_ptr<ICompressor> pCompressor(
-            (httpVersion == "HTTP/1.0") ? nullptr : createCompressorStream(this->compressMethod)
+            (httpVersion == "HTTP/1.0" || pBodyStream->size() < MIN_COMPRESSION_SIZE) ? nullptr : createCompressorStream(this->compressMethod)
         );
+
+        // Skip compression for small bodies
+        if (this->pBodyStream->size() < MIN_COMPRESSION_SIZE)
+            this->clearHeader("Content-Encoding");
 
         // Update transfer encoding
         bool isTransferEncodingSupported = this->httpVersion != "HTTP/1.0";
@@ -230,10 +234,6 @@ namespace http {
         // Load config headers last to overwrite any dupes that have been previously set
         this->setHeader("Server", "Mercury/" + conf::VERSION.substr(9)); // Skip "Mercury v"
         this->setHeader("Date", getCurrentGMTString());
-
-        // If no body is present, force Content-Length: 0
-        if (omitBody || pBodyStream->size() == 0)
-            this->setHeader("Content-Length", "0");
 
         // Stringify headers
         std::string headers;

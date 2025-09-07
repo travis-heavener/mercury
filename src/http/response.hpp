@@ -11,6 +11,9 @@
 #include "../logs/logger.hpp"
 #include "body_stream.hpp"
 
+// The minimum size for a body to be compressed
+#define MIN_COMPRESSION_SIZE 750
+
 namespace http {
 
     class Response {

@@ -19,6 +19,8 @@
     - Body compression is now streamed via chunked transfer encoding (HTTP/1.1+ only)
 - Fixed compression error handling (previously uncaught)
 - Now gracefully exits if compression fails
+- Added compression bypass for small bodies (#139)
+- Fixed sending blank HTTP request bodies over TLS (#143)
 
 ## v0.14.0
 - Fully reworked PHP processing (#97)
