@@ -4,7 +4,6 @@
 #include <algorithm>
 
 #include "../pch/common.hpp"
-#include "../../lib/brotli-cpp.hpp"
 
 #include <zlib.h>
 
@@ -26,8 +25,6 @@ void stringReplaceAll(std::string&, const std::string&, const std::string&);
 void trimString(std::string&);
 void decodeURI(std::string&);
 void formatHeaderCasing(std::string&);
-
-int compressText(std::string&, const int);
 
 bool isMostlyAscii(const std::string&, double=0.95);
 

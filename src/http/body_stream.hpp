@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include <brotli/encode.h>
 #include <zlib.h>
 
 #include "../conf/conf.hpp"
