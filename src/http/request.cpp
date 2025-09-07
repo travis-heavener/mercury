@@ -31,10 +31,11 @@ namespace http {
 
     void parseAcceptHeader(std::unordered_set<std::string>&, std::string&);
 
-    Request::Request(headers_map_t& headers, const std::string& raw, std::string clientIP, const bool isHTTPS)
+    Request::Request(headers_map_t& headers, const std::string& raw, std::string clientIP, const bool isHTTPS, const bool isContentTooLarge)
         : headers(headers) {
         this->ipStr = clientIP;
         this->isHTTPS = isHTTPS;
+        this->_isContentTooLarge = isContentTooLarge;
 
         std::stringstream buffer( raw );
         std::string line;

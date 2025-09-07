@@ -32,6 +32,12 @@ namespace http {
                     return pResponse;
                 }
 
+                // Verify the body (which is ignored in the Request object) wasn't too large
+                if (request.isContentTooLarge()) {
+                    setStatusMaybeErrorDoc(request, *pResponse, 413);
+                    return pResponse;
+                }
+
                 File file(request.getPathStr());
 
                 // Bypass document root checks, file checks, and PHP for OPTIONS * (server-wide edge case)

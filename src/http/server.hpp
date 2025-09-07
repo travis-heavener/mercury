@@ -30,6 +30,8 @@
 
 #include <zlib.h>
 
+#define SOCKET_DRAIN_BUFFER_SIZE 8192
+
 #define SOCKET_UNSET -1
 
 #define SOCKET_FAILURE 1
@@ -64,6 +66,7 @@ namespace http {
             ssize_t writeClientSock(const int, SSL*, const char*, const size_t);
             int closeSocket(const int);
             int closeClientSocket(const int, SSL*);
+            void drainClientSocket(const int, SSL*, size_t);
 
             // Request loop helper methods
             void extractClientIP(struct sockaddr_storage&, char*) const;
@@ -78,9 +81,6 @@ namespace http {
             const port_t port;
             int sock = SOCKET_UNSET;
             std::unordered_set<int> clientSocks;
-
-            const unsigned short maxBacklog;
-            const unsigned int maxBufferSize;
 
             // For multithreading
             std::shared_mutex clientsMutex;

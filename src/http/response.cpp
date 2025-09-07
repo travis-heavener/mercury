@@ -169,12 +169,47 @@ namespace http {
             return 0;
         }
 
+        // Lambda to reset Content-Length, close the connection, and wipe the stream
+        auto clearBodyAndResetStream = [&]() {
+            this->clearHeader("Content-Type");
+            this->clearHeader("Keep-Alive");
+            this->setHeader("Content-Length", "0");
+            this->setHeader("Connection", "close");
+            this->pBodyStream = std::unique_ptr<IBodyStream>( new MemoryStream("") );
+        };
+
+        // Verify the content isn't too large
+        if (pBodyStream->size() > conf::MAX_RESPONSE_BODY) {
+            this->setStatus(413);
+            this->clearHeader("Keep-Alive");
+            this->setHeader("Connection", "close");
+            if (isHTMLAccepted) { // Replace body
+                this->loadBodyFromErrorDoc(413);
+
+                // Verify the error doc ALSO isn't too large
+                if (pBodyStream->size() > conf::MAX_RESPONSE_BODY)
+                    clearBodyAndResetStream();
+            } else { // Remove body
+                clearBodyAndResetStream();
+            }
+        }
+
         // Check if the body needs to be pre-compressed (HTTP/1.0 ONLY)
         if (this->httpVersion == "HTTP/1.0" && this->pBodyStream->size() > 0) {
-            if (!this->precompressBody()) {
+            if (!this->precompressBody()) { // Failed to compress body
+                // Send uncompresesed error page
                 this->setStatus(500);
-                if (isHTMLAccepted)
+                if (isHTMLAccepted) { // Replace body
                     this->loadBodyFromErrorDoc(500);
+
+                    // Verify the error doc ALSO isn't too large
+                    if (pBodyStream->size() > conf::MAX_RESPONSE_BODY)
+                        clearBodyAndResetStream();
+                } else { // Remove body
+                    this->clearHeader("Content-Type");
+                    this->setHeader("Content-Length", "0");
+                    this->pBodyStream = std::unique_ptr<IBodyStream>( new MemoryStream("") );
+                }
             }
         }
 
@@ -184,16 +219,21 @@ namespace http {
         );
 
         // Update transfer encoding
-        bool isTransferEncoding = this->httpVersion != "HTTP/1.0";
-        if (!isTransferEncoding) { // Content-Length is known (no compress)
-            this->setHeader("Content-Length", std::to_string(this->pBodyStream->size()));
-        } else { // Use chunked transfer encoding
+        bool isTransferEncodingSupported = this->httpVersion != "HTTP/1.0";
+        bool isUsingTransferEncoding = isTransferEncodingSupported && pBodyStream->size() > 0;
+        if (!isTransferEncodingSupported && pBodyStream->size() > 0) { // Content-Length is known (no compress)
+            this->setHeader("Content-Length", std::to_string(pBodyStream->size()));
+        } else if (isUsingTransferEncoding) { // Use chunked transfer encoding
             this->setHeader("Transfer-Encoding", "chunked");
         }
 
         // Load config headers last to overwrite any dupes that have been previously set
         this->setHeader("Server", "Mercury/" + conf::VERSION.substr(9)); // Skip "Mercury v"
         this->setHeader("Date", getCurrentGMTString());
+
+        // If no body is present, force Content-Length: 0
+        if (omitBody || pBodyStream->size() == 0)
+            this->setHeader("Content-Length", "0");
 
         // Stringify headers
         std::string headers;
@@ -205,13 +245,13 @@ namespace http {
         ssize_t status = sendFunc(headersBlock.data(), headersBlock.size());
         if (status < 0) return status;
 
-        // Omit the body from HEAD requests
+        // Omit the body from HEAD requests OR if the body doesn't exist
         if (omitBody || pBodyStream->size() == 0) return 0;
 
         // Send chunks
         auto sendWrapper = [&](const std::vector<char>& chunk, const size_t bytesRead) -> int {
             if (bytesRead == 0) return 0;
-            if (isTransferEncoding) {
+            if (isTransferEncodingSupported) {
                 const std::string header = std::format("{:x}", bytesRead) + "\r\n";
                 if (sendFunc(header.data(), header.size()) < 0) return -1;
                 if (sendFunc(chunk.data(), bytesRead) < 0) return -1;
@@ -260,7 +300,7 @@ namespace http {
         }
 
         // End chunked transfer
-        if (isTransferEncoding)
+        if (isUsingTransferEncoding)
             sendFunc("0\r\n\r\n", 5);
 
         // Base case, success

@@ -23,6 +23,12 @@ namespace http {
                     return pResponse;
                 }
 
+                // Verify the body (which is ignored in the Request object) wasn't too large
+                if (request.isContentTooLarge()) {
+                    setStatusMaybeErrorDoc(request, *pResponse, 413);
+                    return pResponse;
+                }
+
                 // Verify path is restricted to document root
                 if (!request.isInDocumentRoot(*pResponse, ALLOWED_STATIC_METHODS))
                     return pResponse;
