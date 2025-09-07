@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.15.0
+## v0.15.1
 - Remove unused string compression methods
 - Remove unused brotli-cpp lib
 
