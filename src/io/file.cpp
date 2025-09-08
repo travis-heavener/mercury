@@ -1,5 +1,8 @@
 #include "file.hpp"
 
+#include "../io/file_tools.hpp"
+#include "../util/toolbox.hpp"
+
 File::File(const std::string& rawPath) {
     this->rawPath = rawPath;
     size_t queryIndex = rawPath.find('?');

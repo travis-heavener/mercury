@@ -1,24 +1,10 @@
 #ifndef __HTTP_CGI_PROCESS_HPP
 #define __HTTP_CGI_PROCESS_HPP
 
-#include <condition_variable>
-#include <map>
-#include <mutex>
-
 #include "../../pch/common.hpp"
-
-#ifdef _WIN32
-    #include "../../winheader.hpp"
-#else
-    #include <fcntl.h>
-    #include <sys/types.h>
-    #include <sys/wait.h>
-    #include <unistd.h>
-#endif
 
 #include "../request.hpp"
 #include "../response.hpp"
-#include "../../logs/logger.hpp"
 
 // Platform specifics
 

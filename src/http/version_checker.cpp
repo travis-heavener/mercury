@@ -1,5 +1,20 @@
 #include "version_checker.hpp"
 
+#include <cstring>
+#include <iostream>
+
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
+#ifdef _WIN32
+    #include "../winheader.hpp"
+#else
+    #include <arpa/inet.h>
+    #include <netdb.h>
+    #include <sys/socket.h>
+    #include <unistd.h>
+#endif
+
 #ifdef _WIN32
     #define close closesocket
 #endif

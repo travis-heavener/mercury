@@ -1,5 +1,8 @@
 #include "handler_0_9.hpp"
 
+#include "../../conf/conf.hpp"
+#include "../../util/toolbox.hpp"
+
 namespace http::version::handler_0_9 {
 
     Response* genResponse(Request& request) {

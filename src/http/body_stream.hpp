@@ -1,17 +1,12 @@
 #ifndef __HTTP_BODY_STREAM_HPP
 #define __HTTP_BODY_STREAM_HPP
 
-#include <cstring>
 #include <fstream>
 #include <string>
 #include <vector>
 
 #include <brotli/encode.h>
 #include <zlib.h>
-
-#include "../conf/conf.hpp"
-#include "../logs/logger.hpp"
-#include "../util/string_tools.hpp"
 
 #define STREAM_SUCCESS 0
 #define STREAM_FAILURE 1

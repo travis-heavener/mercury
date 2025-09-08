@@ -1,8 +1,6 @@
 #ifndef __TLS_HPP
 #define __TLS_HPP
 
-#include <string>
-
 #include <openssl/ssl.h>
 
 #include "../conf/conf.hpp"

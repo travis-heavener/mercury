@@ -1,13 +1,9 @@
 #ifndef __HTTP_REQUEST_HPP
 #define __HTTP_REQUEST_HPP
 
-#include <chrono>
-
 #include "../pch/common.hpp"
 
 #include "response.hpp"
-#include "exception.hpp"
-#include "../util/toolbox.hpp"
 
 namespace http {
 

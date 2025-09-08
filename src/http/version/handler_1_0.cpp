@@ -1,5 +1,8 @@
 #include "handler_1_0.hpp"
 
+#include "../../conf/conf.hpp"
+#include "../../util/toolbox.hpp"
+
 #define ALLOWED_STATIC_METHODS "GET, HEAD"
 
 namespace http {

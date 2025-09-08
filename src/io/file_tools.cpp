@@ -1,5 +1,14 @@
 #include "file_tools.hpp"
 
+#ifdef _WIN32
+    #include "../winheader.hpp"
+#endif
+
+#include <iostream>
+#include <random>
+
+#include "../logs/logger.hpp"
+
 #define TMP_FILE_MAX_RETRIES 50
 #define TMP_FILE_NAME_LEN 12
 

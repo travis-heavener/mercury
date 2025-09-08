@@ -1,5 +1,7 @@
 #include "tls.hpp"
 
+#include <string>
+
 SSL_CTX* initTLSContext() {
     OPENSSL_no_config();
 

@@ -5,12 +5,6 @@
 
 #include "../pch/common.hpp"
 
-#include <zlib.h>
-
-#define IO_SUCCESS 0
-#define IO_FAILURE 1
-#define IO_ABORTED 2
-
 #define COMPRESS_DEFLATE 0
 #define COMPRESS_GZIP 1
 #define COMPRESS_BROTLI 2
