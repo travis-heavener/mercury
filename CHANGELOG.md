@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.16.0
+- Refactored & streamlined config loader script (#128)
+
 ## v0.15.1
 - Remove unused string compression methods
 - Remove unused brotli-cpp lib
