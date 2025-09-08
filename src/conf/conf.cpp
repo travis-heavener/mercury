@@ -53,8 +53,8 @@ namespace conf {
 
 // Forward decs
 int loadMIMES();
-int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName);
-int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName);
+int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName, const bool allowZero=true);
+int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName, const bool allowZero=true);
 int loadOnOff(const pugi::xml_node& root, bool& var, const std::string& nodeName);
 int loadTrueFalse(const pugi::xml_node& root, bool& var, const std::string& nodeName);
 
@@ -198,16 +198,16 @@ int loadConfig() {
 
     /************ LOAD UINTS/USHORTS ************/
 
-    if (loadUint(root, PORT, "Port") == CONF_FAILURE)
+    if (loadUint(root, PORT, "Port", false) == CONF_FAILURE)
         return CONF_FAILURE;
 
-    if (loadUint(root, MAX_REQUEST_BACKLOG, "MaxRequestBacklog") == CONF_FAILURE)
+    if (loadUint(root, MAX_REQUEST_BACKLOG, "MaxRequestBacklog", false) == CONF_FAILURE)
         return CONF_FAILURE;
 
-    if (loadUint(root, REQUEST_BUFFER_SIZE, "RequestBufferSize") == CONF_FAILURE)
+    if (loadUint(root, REQUEST_BUFFER_SIZE, "RequestBufferSize", false) == CONF_FAILURE)
         return CONF_FAILURE;
 
-    if (loadUint(root, RESPONSE_BUFFER_SIZE, "ResponseBufferSize") == CONF_FAILURE)
+    if (loadUint(root, RESPONSE_BUFFER_SIZE, "ResponseBufferSize", false) == CONF_FAILURE)
         return CONF_FAILURE;
 
     if (loadUint(root, MAX_REQUEST_BODY, "MaxRequestBody") == CONF_FAILURE)
@@ -216,7 +216,7 @@ int loadConfig() {
     if (loadUint(root, MAX_RESPONSE_BODY, "MaxResponseBody") == CONF_FAILURE)
         return CONF_FAILURE;
 
-    if (loadUint(root, THREADS_PER_CHILD, "ThreadsPerChild") == CONF_FAILURE)
+    if (loadUint(root, THREADS_PER_CHILD, "ThreadsPerChild", false) == CONF_FAILURE)
         return CONF_FAILURE;
 
     /************************** Extract AccessLogFile **************************/
@@ -269,6 +269,7 @@ int loadConfig() {
     USE_TLS = tlsPortRaw != "off";
     try {
         TLS_PORT = USE_TLS ? std::stoul(tlsPortRaw) : 0;
+        if (USE_TLS && TLS_PORT == 0) throw std::invalid_argument("");
     } catch (std::invalid_argument&) {
         std::cerr << "Failed to parse config file, invalid value for TLSPort." << std::endl;
         return CONF_FAILURE;
@@ -354,7 +355,7 @@ void cleanupConfig() {
 
 /************************* Config loader helpers *************************/
 
-int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName) {
+int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName, const bool allowZero) {
     const pugi::xml_node node = root.child(nodeName);
     if (!node) {
         std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
@@ -367,6 +368,7 @@ int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& n
 
     try {
         var = std::stoull(valueStr);
+        if (!allowZero && var == 0) throw std::invalid_argument("");
     } catch (std::invalid_argument&) {
         std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
         return CONF_FAILURE;
@@ -375,7 +377,7 @@ int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& n
     return CONF_SUCCESS;
 }
 
-int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName) {
+int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName, const bool allowZero) {
     const pugi::xml_node node = root.child(nodeName);
     if (!node) {
         std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
@@ -388,6 +390,7 @@ int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string&
 
     try {
         var = std::stoul(valueStr);
+        if (!allowZero && var == 0) throw std::invalid_argument("");
     } catch (std::invalid_argument&) {
         std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
         return CONF_FAILURE;
