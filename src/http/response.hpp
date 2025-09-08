@@ -5,10 +5,13 @@
 #include <functional>
 #include <memory>
 
+#ifdef _WIN32
+    #include "../winheader.hpp"
+#endif
+
 #include "../pch/common.hpp"
 #include "../io/file.hpp"
-#include "../util/toolbox.hpp"
-#include "../logs/logger.hpp"
+#include "../util/string_tools.hpp"
 #include "body_stream.hpp"
 
 // The minimum size for a body to be compressed

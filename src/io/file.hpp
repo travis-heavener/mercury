@@ -2,7 +2,6 @@
 #define __FILE_HPP
 
 #include "../pch/common.hpp"
-#include "../util/toolbox.hpp"
 #include "../http/body_stream.hpp"
 
 #define MIME_UNSET ""

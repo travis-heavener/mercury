@@ -1,14 +1,7 @@
 #ifndef __FILE_TOOLS_HPP
 #define __FILE_TOOLS_HPP
 
-#include <random>
-
 #include "../pch/common.hpp"
-#include "../logs/logger.hpp"
-
-#ifdef _WIN32
-    #include "../winheader.hpp"
-#endif
 
 // Including conf.hpp technically is a cyclical header but it doesn't introduce any errors
 // Needed for conf::DOCUMENT_ROOT

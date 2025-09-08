@@ -1,5 +1,9 @@
 #include "handler_1_1.hpp"
 
+#include "../cgi/process.hpp"
+#include "../../conf/conf.hpp"
+#include "../../util/toolbox.hpp"
+
 #define ALLOWED_STATIC_METHODS "GET, HEAD, OPTIONS"
 #define ALLOWED_METHODS "GET, HEAD, OPTIONS, POST, PUT, PATCH, DELETE"
 

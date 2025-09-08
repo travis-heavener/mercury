@@ -1,5 +1,11 @@
 #include "conf.hpp"
 
+#include <iostream>
+
+#include "../io/file_tools.hpp"
+#include "../util/string_tools.hpp"
+#include "../../lib/pugixml.hpp"
+
 /****** EXTERNAL FIELDS ******/
 
 namespace conf {
@@ -222,7 +228,7 @@ int loadConfig() {
 
     for (pugi::xml_node& match : matchNodes) {
         // Parse match
-        Match* pMatch = loadMatch(match);
+        Match* pMatch = conf::loadMatch(match);
         if (pMatch == nullptr) return CONF_FAILURE;
         matchConfigs.push_back(pMatch);
     }

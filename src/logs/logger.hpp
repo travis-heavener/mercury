@@ -3,12 +3,8 @@
 
 #include <atomic>
 #include <condition_variable>
-#include <iomanip>
 #include <mutex>
 #include <ostream>
-
-#include "../pch/common.hpp"
-#include "../conf/conf.hpp"
 
 #define ACCESS_LOG Logger::getInstance()(true)
 #define ERROR_LOG Logger::getInstance()(false)

@@ -1,5 +1,11 @@
 #include "response.hpp"
 
+#include <format>
+
+#include "../logs/logger.hpp"
+#include "../io/file_tools.hpp"
+#include "../util/toolbox.hpp"
+
 #define CRLF "\r\n"
 
 namespace http {

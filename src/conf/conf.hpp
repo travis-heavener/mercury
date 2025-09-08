@@ -1,14 +1,8 @@
 #ifndef __CONF_HPP
 #define __CONF_HPP
 
-#include <iostream>
-
 #include "../pch/common.hpp"
-#include "../io/file_tools.hpp"
-#include "../util/string_tools.hpp"
 #include "conf_match.hpp"
-
-#include "../../lib/pugixml.hpp"
 
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1

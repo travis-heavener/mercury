@@ -1,5 +1,10 @@
 #include "logger.hpp"
 
+#include <iomanip>
+
+#include "../pch/common.hpp"
+#include "../conf/conf.hpp"
+
 Logger::Logger() : isExited(false) {
     // Create thread
     this->thread = std::thread(&Logger::threadWrite, this);

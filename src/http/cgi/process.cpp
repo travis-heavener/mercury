@@ -1,7 +1,22 @@
 #include "process.hpp"
 
-// Platform specifics
+#ifdef _WIN32
+    #include "../../winheader.hpp"
+#else
+    #include <fcntl.h>
+    #include <sys/types.h>
+    #include <sys/wait.h>
+    #include <unistd.h>
+#endif
 
+#include <map>
+
+#include "../../conf/conf.hpp"
+#include "../../logs/logger.hpp"
+#include "../../util/string_tools.hpp"
+#include "../../util/toolbox.hpp"
+
+// Platform specifics
 namespace http::cgi {
 
     // Lazily infer Content-Type

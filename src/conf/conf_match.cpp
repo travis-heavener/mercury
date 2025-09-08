@@ -1,5 +1,9 @@
 #include "conf_match.hpp"
 
+#include <iostream>
+
+#include "../util/string_tools.hpp"
+
 namespace conf {
 
     Match::Match(const std::string& pattern) {

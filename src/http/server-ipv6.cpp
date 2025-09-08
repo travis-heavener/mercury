@@ -1,5 +1,7 @@
 #include "server-ipv6.hpp"
 
+#include "../logs/logger.hpp"
+
 namespace http {
 
     int bindSocketOpts(ServerV6& server, int& sock, const bool logErrors) {

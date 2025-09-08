@@ -1,5 +1,10 @@
 #include "request.hpp"
 
+#include "exception.hpp"
+#include "../conf/conf.hpp"
+#include "../util/string_tools.hpp"
+#include "../util/toolbox.hpp"
+
 namespace http {
 
     void loadEarlyHeaders(headers_map_t& headers, const std::string& partialReq) {

@@ -1,5 +1,20 @@
 #include "server.hpp"
 
+#include "../io/file.hpp"
+#include "../logs/logger.hpp"
+#include "../util/string_tools.hpp"
+#include "../util/toolbox.hpp"
+
+#include "exception.hpp"
+#include "version/handler_1_1.hpp"
+#include "version/handler_1_0.hpp"
+#include "version/handler_0_9.hpp"
+
+#define SOCKET_DRAIN_BUFFER_SIZE 8192
+
+#define KEEP_ALIVE_TIMEOUT_MS 3000
+#define KEEP_ALIVE_MAX_REQ 100
+
 namespace http {
 
     Server::Server(const port_t port, const bool useTLS) : port(port),

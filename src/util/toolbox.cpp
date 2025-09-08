@@ -1,5 +1,16 @@
 #include "toolbox.hpp"
 
+#include <chrono>
+#include <iomanip>
+
+#ifdef _WIN32
+    #include "../winheader.hpp"
+#endif
+
+#include "string_tools.hpp"
+#include "../conf/conf.hpp"
+#include "../pch/common.hpp"
+
 int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) {
     std::string buffer;
     std::filesystem::path cwd = conf::CWD / "conf" / "html" / "err.html";

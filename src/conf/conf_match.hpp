@@ -1,12 +1,9 @@
 #ifndef __CONF_MATCH_HPP
 #define __CONF_MATCH_HPP
 
-#include <iostream>
 #include <regex>
 
 #include "../pch/common.hpp"
-#include "../util/string_tools.hpp"
-
 #include "../../lib/pugixml.hpp"
 
 namespace conf {

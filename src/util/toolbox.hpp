@@ -1,17 +1,11 @@
 #ifndef __TOOLBOX_HPP
 #define __TOOLBOX_HPP
 
-#include <chrono>
-#include <iomanip>
-
-#ifdef _WIN32
-    #include "../winheader.hpp"
-#endif
-
-#include "../pch/common.hpp"
-#include "string_tools.hpp"
-#include "../conf/conf.hpp"
 #include "../http/body_stream.hpp"
+
+#define IO_SUCCESS 0
+#define IO_FAILURE 1
+#define IO_ABORTED 2
 
 void formatFileSize(size_t, std::string&);
 void formatDate(const std::chrono::system_clock::duration, std::string&);
