@@ -1,1 +1,1 @@
-Mercury v0.15.1
+Mercury v0.16.0

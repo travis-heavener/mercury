@@ -51,8 +51,11 @@ namespace conf {
 
 /*****************************/
 
-// Forward dec
+// Forward decs
 int loadMIMES();
+int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName);
+int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName);
+int loadOnOff(const pugi::xml_node& root, bool& var, const std::string& nodeName);
 
 int loadConfig() {
     using namespace conf;
@@ -139,73 +142,26 @@ int loadConfig() {
         return CONF_FAILURE;
     }
 
-    /************************** Extract Port **************************/
-    pugi::xml_node portNode = root.child("Port");
-    if (!portNode) {
-        std::cerr << "Failed to parse config file, missing Port node.\n";
+    /************************** Extract IPv4/IPv6 toggles **************************/
+
+    if (loadOnOff(root, IS_IPV4_ENABLED, "EnableIPv4") == CONF_FAILURE)
         return CONF_FAILURE;
-    }
 
-    PORT = portNode.text().as_uint();
-
-    /************************** Extract IPv4 toggle **************************/
-    pugi::xml_node ipv4Node = root.child("EnableIPv4");
-    if (!ipv4Node) {
-        std::cerr << "Failed to parse config file, missing EnableIPv4 node.\n";
+    if (loadOnOff(root, IS_IPV6_ENABLED, "EnableIPv6") == CONF_FAILURE)
         return CONF_FAILURE;
-    }
-
-    std::string ipv4StatusStr = ipv4Node.text().as_string();
-    trimString(ipv4StatusStr);
-
-    // Verify valid value provided
-    if (ipv4StatusStr != "on" && ipv4StatusStr != "off") {
-        std::cerr << "Failed to parse config file, invalid value for EnableIPv4.\n";
-        return CONF_FAILURE;
-    }
-
-    IS_IPV4_ENABLED = ipv4StatusStr == "on";
-
-    /************************** Extract IPv6 toggle **************************/
-    pugi::xml_node ipv6Node = root.child("EnableIPv6");
-    if (!ipv6Node) {
-        std::cerr << "Failed to parse config file, missing EnableIPv6 node.\n";
-        return CONF_FAILURE;
-    }
-
-    std::string ipv6StatusStr = ipv6Node.text().as_string();
-    trimString(ipv6StatusStr);
-
-    // Verify valid value provided
-    if (ipv6StatusStr != "on" && ipv6StatusStr != "off") {
-        std::cerr << "Failed to parse config file, invalid value for EnableIPv6.\n";
-        return CONF_FAILURE;
-    }
-
-    IS_IPV6_ENABLED = ipv6StatusStr == "on";
 
     if (!IS_IPV4_ENABLED && !IS_IPV6_ENABLED) {
-        std::cerr << "Either IPv4 or IPv6 must be enabled in the config file!\n";
+        std::cerr << "Either IPv4 or IPv6 must be enabled in the config file!" << std::endl;
         return CONF_FAILURE;
     }
 
-    /************************** Extract legacy HTTP version toggle **************************/
-    pugi::xml_node legacyHTTPNode = root.child("EnableLegacyHTTPVersions");
-    if (!legacyHTTPNode) {
-        std::cerr << "Failed to parse config file, missing EnableLegacyHTTPVersions node.\n";
+    /************ LOAD BOOLEANS ************/
+
+    if (loadOnOff(root, ENABLE_LEGACY_HTTP, "EnableLegacyHTTPVersions") == CONF_FAILURE)
         return CONF_FAILURE;
-    }
 
-    std::string legacyHTTPStr = legacyHTTPNode.text().as_string();
-    trimString(legacyHTTPStr);
-
-    // Verify valid value provided
-    if (legacyHTTPStr != "on" && legacyHTTPStr != "off") {
-        std::cerr << "Failed to parse config file, invalid value for EnableLegacyHTTPVersions.\n";
+    if (loadOnOff(root, IS_PHP_ENABLED, "EnablePHPCGI") == CONF_FAILURE)
         return CONF_FAILURE;
-    }
-
-    ENABLE_LEGACY_HTTP = legacyHTTPStr == "on";
 
     /************************** Extract IndexFile **************************/
     pugi::xml_node indexFileNode = root.child("IndexFile");
@@ -233,59 +189,28 @@ int loadConfig() {
         matchConfigs.push_back(pMatch);
     }
 
-    /************************** Extract MaxRequestBacklog **************************/
-    pugi::xml_node reqBacklogNode = root.child("MaxRequestBacklog");
-    if (!reqBacklogNode) {
-        std::cerr << "Failed to parse config file, missing MaxRequestBacklog node.\n";
+    /************ LOAD UINTS/USHORTS ************/
+
+    if (loadUint(root, PORT, "Port") == CONF_FAILURE)
         return CONF_FAILURE;
-    }
 
-    MAX_REQUEST_BACKLOG = reqBacklogNode.text().as_uint();
-
-    /************************** Extract RequestBufferSize **************************/
-    pugi::xml_node reqBufferNode = root.child("RequestBufferSize");
-    if (!reqBufferNode) {
-        std::cerr << "Failed to parse config file, missing RequestBufferSize node.\n";
+    if (loadUint(root, MAX_REQUEST_BACKLOG, "MaxRequestBacklog") == CONF_FAILURE)
         return CONF_FAILURE;
-    }
 
-    REQUEST_BUFFER_SIZE = reqBufferNode.text().as_uint();
-
-    /************************** Extract ResponseBufferSize **************************/
-    pugi::xml_node resBufferNode = root.child("ResponseBufferSize");
-    if (!resBufferNode) {
-        std::cerr << "Failed to parse config file, missing ResponseBufferSize node.\n";
+    if (loadUint(root, REQUEST_BUFFER_SIZE, "RequestBufferSize") == CONF_FAILURE)
         return CONF_FAILURE;
-    }
 
-    RESPONSE_BUFFER_SIZE = resBufferNode.text().as_uint();
-
-    /************************** Extract MaxRequestBody **************************/
-    pugi::xml_node reqBodySizeNode = root.child("MaxRequestBody");
-    if (!reqBodySizeNode) {
-        std::cerr << "Failed to parse config file, missing MaxRequestBody node.\n";
+    if (loadUint(root, RESPONSE_BUFFER_SIZE, "ResponseBufferSize") == CONF_FAILURE)
         return CONF_FAILURE;
-    }
 
-    MAX_REQUEST_BODY = reqBodySizeNode.text().as_uint();
-
-    /************************** Extract MaxResponseBody **************************/
-    pugi::xml_node resBodySizeNode = root.child("MaxResponseBody");
-    if (!resBodySizeNode) {
-        std::cerr << "Failed to parse config file, missing MaxResponseBody node.\n";
+    if (loadUint(root, MAX_REQUEST_BODY, "MaxRequestBody") == CONF_FAILURE)
         return CONF_FAILURE;
-    }
 
-    MAX_RESPONSE_BODY = resBodySizeNode.text().as_uint();
-
-    /************************** Extract ThreadsPerChild **************************/
-    pugi::xml_node threadsPerChildNode = root.child("ThreadsPerChild");
-    if (!threadsPerChildNode) {
-        std::cerr << "Failed to parse config file, missing ThreadsPerChild node.\n";
+    if (loadUint(root, MAX_RESPONSE_BODY, "MaxResponseBody") == CONF_FAILURE)
         return CONF_FAILURE;
-    }
 
-    THREADS_PER_CHILD = threadsPerChildNode.text().as_uint();
+    if (loadUint(root, THREADS_PER_CHILD, "ThreadsPerChild") == CONF_FAILURE)
+        return CONF_FAILURE;
 
     /************************** Extract AccessLogFile **************************/
     pugi::xml_node accessLogNode = root.child("AccessLogFile");
@@ -338,27 +263,9 @@ int loadConfig() {
     try {
         TLS_PORT = USE_TLS ? std::stoull(tlsPortRaw) : 0;
     } catch (std::invalid_argument&) {
-        std::cerr << "Failed to parse TLSPort node, invalid port passed.\n";
+        std::cerr << "Failed to parse config file, invalid value for TLSPort." << std::endl;
         return CONF_FAILURE;
     }
-
-    /************************** Extract PHP CGI toggle **************************/
-    pugi::xml_node phpCgiToggleNode = root.child("EnablePHPCGI");
-    if (!phpCgiToggleNode) {
-        std::cerr << "Failed to parse config file, missing EnablePHPCGI node.\n";
-        return CONF_FAILURE;
-    }
-
-    std::string phpCgiToggleStr = phpCgiToggleNode.text().as_string();
-    trimString(phpCgiToggleStr);
-
-    // Verify valid value provided
-    if (phpCgiToggleStr != "on" && phpCgiToggleStr != "off") {
-        std::cerr << "Failed to parse config file, invalid value for EnablePHPCGI.\n";
-        return CONF_FAILURE;
-    }
-
-    IS_PHP_ENABLED = phpCgiToggleStr == "on";
 
     /************************** Load PHP CGI executable path **************************/
 
@@ -471,4 +378,69 @@ void cleanupConfig() {
         delete pMatch;
 
     conf::matchConfigs.clear();
+}
+
+/************************* Config loader helpers *************************/
+
+int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName) {
+    const pugi::xml_node node = root.child(nodeName);
+    if (!node) {
+        std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
+        return CONF_FAILURE;
+    }
+
+    // Extract and stringify
+    std::string valueStr = node.text().as_string();
+    trimString(valueStr);
+
+    try {
+        var = std::stoull(valueStr);
+    } catch (std::invalid_argument&) {
+        std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+        return CONF_FAILURE;
+    }
+
+    return CONF_SUCCESS;
+}
+
+int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName) {
+    const pugi::xml_node node = root.child(nodeName);
+    if (!node) {
+        std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
+        return CONF_FAILURE;
+    }
+
+    // Extract and stringify
+    std::string valueStr = node.text().as_string();
+    trimString(valueStr);
+
+    try {
+        var = std::stoul(valueStr);
+    } catch (std::invalid_argument&) {
+        std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+        return CONF_FAILURE;
+    }
+
+    return CONF_SUCCESS;
+}
+
+int loadOnOff(const pugi::xml_node& root, bool& var, const std::string& nodeName) {
+    pugi::xml_node node = root.child(nodeName);
+    if (!node) {
+        std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
+        return CONF_FAILURE;
+    }
+
+    // Extract and stringify
+    std::string valueStr = node.text().as_string();
+    trimString(valueStr);
+
+    // Verify valid value provided
+    if (valueStr != "on" && valueStr != "off") {
+        std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+        return CONF_FAILURE;
+    }
+
+    var = (valueStr == "on");
+    return CONF_SUCCESS;
 }
