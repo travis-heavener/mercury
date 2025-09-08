@@ -56,6 +56,7 @@ int loadMIMES();
 int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName);
 int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName);
 int loadOnOff(const pugi::xml_node& root, bool& var, const std::string& nodeName);
+int loadTrueFalse(const pugi::xml_node& root, bool& var, const std::string& nodeName);
 
 int loadConfig() {
     using namespace conf;
@@ -163,6 +164,12 @@ int loadConfig() {
     if (loadOnOff(root, IS_PHP_ENABLED, "EnablePHPCGI") == CONF_FAILURE)
         return CONF_FAILURE;
 
+    if (loadTrueFalse(root, SHOW_WELCOME_BANNER, "ShowWelcomeBanner") == CONF_FAILURE)
+        return CONF_FAILURE;
+
+    if (loadTrueFalse(root, CHECK_LATEST_RELEASE, "StartupCheckLatestRelease") == CONF_FAILURE)
+        return CONF_FAILURE;
+
     /************************** Extract IndexFile **************************/
     pugi::xml_node indexFileNode = root.child("IndexFile");
     if (!indexFileNode) {
@@ -261,7 +268,7 @@ int loadConfig() {
     // If TLS is enabled, grab the port
     USE_TLS = tlsPortRaw != "off";
     try {
-        TLS_PORT = USE_TLS ? std::stoull(tlsPortRaw) : 0;
+        TLS_PORT = USE_TLS ? std::stoul(tlsPortRaw) : 0;
     } catch (std::invalid_argument&) {
         std::cerr << "Failed to parse config file, invalid value for TLSPort." << std::endl;
         return CONF_FAILURE;
@@ -288,43 +295,8 @@ int loadConfig() {
         }
     #endif
 
-    /************************** Check welcome banner status **************************/
-    pugi::xml_node showWelcomeBannerNode = root.child("ShowWelcomeBanner");
-    if (!showWelcomeBannerNode) {
-        std::cerr << "Failed to parse config file, missing ShowWelcomeBanner node.\n";
-        return CONF_FAILURE;
-    }
-
-    std::string showWelcomeBannerStr = showWelcomeBannerNode.text().as_string();
-    trimString(showWelcomeBannerStr);
-
-    // Verify valid value provided
-    if (showWelcomeBannerStr != "true" && showWelcomeBannerStr != "false") {
-        std::cerr << "Failed to parse config file, invalid value for ShowWelcomeBanner.\n";
-        return CONF_FAILURE;
-    }
-
-    SHOW_WELCOME_BANNER = showWelcomeBannerStr == "true";
-
-    /************************** Extract check for release **************************/
-    pugi::xml_node checkLatestReleaseNode = root.child("StartupCheckLatestRelease");
-    if (!checkLatestReleaseNode) {
-        std::cerr << "Failed to parse config file, missing StartupCheckLatestRelease node.\n";
-        return CONF_FAILURE;
-    }
-
-    std::string checkLatestReleaseStr = checkLatestReleaseNode.text().as_string();
-    trimString(checkLatestReleaseStr);
-
-    // Verify valid value provided
-    if (checkLatestReleaseStr != "true" && checkLatestReleaseStr != "false") {
-        std::cerr << "Failed to parse config file, invalid value for StartupCheckLatestRelease.\n";
-        return CONF_FAILURE;
-    }
-
-    CHECK_LATEST_RELEASE = checkLatestReleaseStr == "true";
-
     /************************** Load known MIMES **************************/
+
     if (loadMIMES() == CONF_FAILURE)
         return CONF_FAILURE;
 
@@ -442,5 +414,25 @@ int loadOnOff(const pugi::xml_node& root, bool& var, const std::string& nodeName
     }
 
     var = (valueStr == "on");
+    return CONF_SUCCESS;
+}
+
+int loadTrueFalse(const pugi::xml_node& root, bool& var, const std::string& nodeName) {
+    pugi::xml_node node = root.child(nodeName);
+    if (!node) {
+        std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
+        return CONF_FAILURE;
+    }
+
+    std::string valueStr = node.text().as_string();
+    trimString(valueStr);
+
+    // Verify valid value provided
+    if (valueStr != "true" && valueStr != "false") {
+        std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+        return CONF_FAILURE;
+    }
+
+    var = (valueStr == "true");
     return CONF_SUCCESS;
 }
