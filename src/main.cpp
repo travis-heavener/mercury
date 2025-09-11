@@ -51,7 +51,7 @@ void cleanExit() {
     ACCESS_LOG << "Process killed successfully." << std::endl;
 
     // Cleanup config resources
-    cleanupConfig();
+    conf::cleanupConfig();
 }
 
 /******************** WELCOME BANNER METHODS ********************/
@@ -88,7 +88,7 @@ int main() {
     initSigHandler();
 
     // Load config files
-    if (loadConfig() == CONF_FAILURE) {
+    if (conf::loadConfig() == CONF_FAILURE) {
         cleanExit();
         return 1;
     }

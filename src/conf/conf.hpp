@@ -52,11 +52,9 @@ namespace conf {
     extern std::unordered_map<std::string, std::string> MIMES;
     extern std::filesystem::path CWD;
 
+    // Static methods
+    int loadConfig();
+    void cleanupConfig();
 }
-
-/*****************************/
-
-int loadConfig();
-void cleanupConfig();
 
 #endif
