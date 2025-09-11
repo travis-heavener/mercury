@@ -198,8 +198,10 @@ namespace conf {
         // If TLS is enabled, grab the port
         USE_TLS = tlsPortRaw != "off";
         try {
+            // Prevent negatives
+            if (tlsPortRaw.size() == 0) throw std::invalid_argument("");
+            if (USE_TLS && tlsPortRaw[0] == '-') throw std::invalid_argument("");
             TLS_PORT = USE_TLS ? std::stoul(tlsPortRaw) : 0;
-            if (USE_TLS && TLS_PORT == 0) throw std::invalid_argument("");
         } catch (std::invalid_argument&) {
             std::cerr << "Failed to parse config file, invalid value for TLSPort." << std::endl;
             return CONF_FAILURE;
@@ -271,6 +273,10 @@ namespace conf {
         trimString(valueStr);
 
         try {
+            // Prevent negatives
+            if (valueStr.size() == 0) throw std::invalid_argument("");
+            if (valueStr[0] == '-') throw std::invalid_argument("");
+
             var = std::stoull(valueStr);
             if (!allowZero && var == 0) throw std::invalid_argument("");
         } catch (std::invalid_argument&) {
@@ -293,6 +299,10 @@ namespace conf {
         trimString(valueStr);
 
         try {
+            // Prevent negatives
+            if (valueStr.size() == 0) throw std::invalid_argument("");
+            if (valueStr[0] == '-') throw std::invalid_argument("");
+
             var = std::stoul(valueStr);
             if (!allowZero && var == 0) throw std::invalid_argument("");
         } catch (std::invalid_argument&) {
