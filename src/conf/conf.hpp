@@ -30,7 +30,7 @@ namespace conf {
     extern unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
     extern unsigned int THREADS_PER_CHILD;
     extern std::vector<conf::Match*> matchConfigs;
-    extern std::string INDEX_FILE;
+    extern std::vector<std::string> INDEX_FILES;
 
     extern std::filesystem::path ACCESS_LOG_FILE;
     extern std::filesystem::path ERROR_LOG_FILE;

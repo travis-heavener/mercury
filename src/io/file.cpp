@@ -41,9 +41,14 @@ File::File(const std::string& rawPath) {
     }
 
     // Check for index file
-    if (this->path.back() == '/' && std::filesystem::exists(this->path + conf::INDEX_FILE) &&
-        !std::filesystem::is_directory(this->path + conf::INDEX_FILE)) {
-        this->path += conf::INDEX_FILE;
+    if (this->path.back() == '/') {
+        for (const std::string& indexFile : conf::INDEX_FILES) {
+            if (std::filesystem::exists(this->path + indexFile) &&
+                !std::filesystem::is_directory(this->path + indexFile)) {
+                this->path += indexFile;
+                break;
+            }
+        }
     }
 
     // Handle the MIME type if this is a directory

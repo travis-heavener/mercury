@@ -23,7 +23,7 @@ namespace conf {
     unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
     unsigned int THREADS_PER_CHILD;
     std::vector<Match*> matchConfigs;
-    std::string INDEX_FILE;
+    std::vector<std::string> INDEX_FILES;
 
     std::filesystem::path ACCESS_LOG_FILE;
     std::filesystem::path ERROR_LOG_FILE;
@@ -121,20 +121,25 @@ namespace conf {
         if (loadTrueFalse(root, CHECK_LATEST_RELEASE, "StartupCheckLatestRelease") == CONF_FAILURE)
             return CONF_FAILURE;
 
-        /************************** Extract IndexFile **************************/
+        /************************** Load IndexFiles **************************/
 
-        pugi::xml_node indexFileNode = root.child("IndexFile");
+        pugi::xml_node indexFileNode = root.child("IndexFiles");
         if (!indexFileNode) {
             std::cerr << "Failed to parse config file, missing IndexFile node.\n";
             return CONF_FAILURE;
         }
 
-        INDEX_FILE = indexFileNode.text().as_string();
-        trimString(INDEX_FILE);
+        // Extract index files
+        std::string indexFilesRaw( indexFileNode.text().as_string() );
+        trimString(indexFilesRaw);
+        splitString(INDEX_FILES, indexFilesRaw, ',', true);
 
-        if (INDEX_FILE.size() == 0 || INDEX_FILE.find('/') != std::string::npos || INDEX_FILE.find('\\') != std::string::npos) {
-            std::cerr << "Failed to parse config file, invalid IndexFile value.\n";
-            return CONF_FAILURE;
+        // Validate all index files
+        for (const std::string& str : INDEX_FILES) {
+            if (str.size() == 0 || str.find('/') != std::string::npos || str.find('\\') != std::string::npos) {
+                std::cerr << "Failed to parse config file, invalid IndexFile value.\n";
+                return CONF_FAILURE;
+            }
         }
 
         /************ LOAD UINTS/USHORTS ************/

@@ -3,6 +3,10 @@
 ## v0.16.0
 - Refactored & streamlined config loader script (#128)
     - Now gracefully handles invalid formatting for lines in mimes.conf
+- Extended index file support to allow multiple files (#137)
+    - Renamed IndexFile -> IndexFiles
+    - Contains a comma-separated list of all index file names to look for, in order left to right
+    - Now allows specifying no index file
 
 ## v0.15.1
 - Remove unused string compression methods

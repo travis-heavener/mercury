@@ -1,25 +1,48 @@
 #include "string_tools.hpp"
 
-void splitStringUnique(std::unordered_set<std::string>& splitVec, const std::string& string, const char delimiter, const bool stripWhitespace) {
+void splitString(std::vector<std::string>& vec, const std::string& string, const char delimiter, const bool stripWhitespace) {
     size_t startIndex = 0;
-    for (size_t i = 0; i < string.size(); i++) {
+    for (size_t i = 0; i < string.size(); ++i) {
         if (string[i] == delimiter) {
             std::string substr = string.substr(startIndex, i-startIndex);
             if (stripWhitespace)
                 trimString(substr);
             if (substr.size() > 0)
-                splitVec.insert(substr);
+                vec.push_back(substr);
             startIndex = i+1;
         }
     }
 
-    // append last snippet
+    // Append last snippet
     if (startIndex < string.size()) {
         std::string substr = string.substr(startIndex);
         if (stripWhitespace)
             trimString(substr);
         if (substr.size() > 0)
-            splitVec.insert(substr);
+            vec.push_back(substr);
+    }
+}
+
+void splitStringUnique(std::unordered_set<std::string>& set, const std::string& string, const char delimiter, const bool stripWhitespace) {
+    size_t startIndex = 0;
+    for (size_t i = 0; i < string.size(); ++i) {
+        if (string[i] == delimiter) {
+            std::string substr = string.substr(startIndex, i-startIndex);
+            if (stripWhitespace)
+                trimString(substr);
+            if (substr.size() > 0)
+                set.insert(substr);
+            startIndex = i+1;
+        }
+    }
+
+    // Append last snippet
+    if (startIndex < string.size()) {
+        std::string substr = string.substr(startIndex);
+        if (stripWhitespace)
+            trimString(substr);
+        if (substr.size() > 0)
+            set.insert(substr);
     }
 }
 
