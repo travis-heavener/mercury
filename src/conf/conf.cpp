@@ -67,7 +67,7 @@ namespace conf {
         pugi::xml_parse_result result = doc.load_file(CONF_FILE);
 
         if (!result) {
-            std::cerr << "Failed to open config file.\n";
+            std::cerr << "Failed to open config file." << std::endl;
             return CONF_FAILURE;
         }
 
@@ -85,7 +85,7 @@ namespace conf {
         // Extract root node
         pugi::xml_node root = doc.child("Mercury");
         if (!root) {
-            std::cerr << "Failed to parse config file, missing root node.\n";
+            std::cerr << "Failed to parse config file, missing root \"Mercury\" node." << std::endl;
             return CONF_FAILURE;
         }
 
@@ -122,6 +122,7 @@ namespace conf {
             return CONF_FAILURE;
 
         /************************** Extract IndexFile **************************/
+
         pugi::xml_node indexFileNode = root.child("IndexFile");
         if (!indexFileNode) {
             std::cerr << "Failed to parse config file, missing IndexFile node.\n";
@@ -131,7 +132,7 @@ namespace conf {
         INDEX_FILE = indexFileNode.text().as_string();
         trimString(INDEX_FILE);
 
-        if (!INDEX_FILE.size() || INDEX_FILE.find('/') != std::string::npos || INDEX_FILE.find('\\') != std::string::npos) {
+        if (INDEX_FILE.size() == 0 || INDEX_FILE.find('/') != std::string::npos || INDEX_FILE.find('\\') != std::string::npos) {
             std::cerr << "Failed to parse config file, invalid IndexFile value.\n";
             return CONF_FAILURE;
         }
@@ -186,6 +187,7 @@ namespace conf {
             return CONF_FAILURE;
 
         /************************** LOAD TLS **************************/
+
         pugi::xml_node tlsPortNode = root.child("TLSPort");
         if (!tlsPortNode) {
             std::cerr << "Failed to parse config file, missing TLSPort node.\n";
@@ -230,8 +232,6 @@ namespace conf {
     }
 
     int loadMIMES() {
-        using namespace conf;
-
         // Load MIMES
         std::ifstream mimeHandle(MIMES_FILE);
         if (!mimeHandle.is_open()) return CONF_FAILURE;
@@ -239,6 +239,8 @@ namespace conf {
         std::string line, extBuf, mimeBuf;
         while (std::getline(mimeHandle, line)) {
             size_t spaceIndex = line.find(' ');
+            if (spaceIndex == std::string::npos) continue;
+
             extBuf = line.substr(0, spaceIndex);
             mimeBuf = line.substr(spaceIndex+1);
             trimString(extBuf);

@@ -2,6 +2,7 @@
 
 ## v0.16.0
 - Refactored & streamlined config loader script (#128)
+    - Now gracefully handles invalid formatting for lines in mimes.conf
 
 ## v0.15.1
 - Remove unused string compression methods
