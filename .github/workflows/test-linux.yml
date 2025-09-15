@@ -35,7 +35,6 @@ jobs:
           # Update conf/mercury.conf
           sed -i "s|<Port>[[:space:]]*[0-9]\+[[:space:]]*</Port>|<Port> $port </Port>|" conf/mercury.conf
           sed -i "s|<TLSPort>[[:space:]]*.*[[:space:]]*</TLSPort>|<TLSPort> $sslPort </TLSPort>|" conf/mercury.conf
-          sed -i "s|<EnableIPv6>[[:space:]]*off[[:space:]]*</EnableIPv6>|<EnableIPv6> on </EnableIPv6>|" conf/mercury.conf
           sed -i "s|<EnablePHPCGI>[[:space:]]*off[[:space:]]*</EnablePHPCGI>|<EnablePHPCGI> on </EnablePHPCGI>|" conf/mercury.conf
 
           # Update tests/run.py

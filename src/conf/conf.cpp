@@ -15,15 +15,19 @@ namespace conf {
 
     std::filesystem::path DOCUMENT_ROOT;
     port_t PORT;
+
     bool IS_IPV4_ENABLED;
+    std::optional<SanitizedIP> BIND_ADDR_IPV4;
     bool IS_IPV6_ENABLED;
+    std::optional<SanitizedIP> BIND_ADDR_IPV6;
+
     bool ENABLE_LEGACY_HTTP;
     unsigned short MAX_REQUEST_BACKLOG;
     unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
     unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
     unsigned int THREADS_PER_CHILD;
-    std::vector<conf::Match*> matchConfigs;
-    std::string INDEX_FILE;
+    std::vector<std::unique_ptr<Match>> matchConfigs;
+    std::vector<std::string> INDEX_FILES;
 
     std::filesystem::path ACCESS_LOG_FILE;
     std::filesystem::path ERROR_LOG_FILE;
@@ -47,428 +51,436 @@ namespace conf {
     // CWD in root directory of repo
     std::filesystem::path CWD = std::filesystem::current_path().parent_path();
 
-}
-
-/*****************************/
-
-// Forward dec
-int loadMIMES();
-
-int loadConfig() {
-    using namespace conf;
-
-    // Read XML config file
-    pugi::xml_document doc;
-    pugi::xml_parse_result result = doc.load_file(CONF_FILE);
-
-    if (!result) {
-        std::cerr << "Failed to open config file.\n";
-        return CONF_FAILURE;
-    }
-
-    // Specify temp file directory
-    const std::string tmpPathStr( (conf::CWD / "tmp").string() );
-    try {
-        if (!std::filesystem::exists(tmpPathStr)) {
-            std::filesystem::create_directory(tmpPathStr);
-        } else if (!std::filesystem::is_directory(tmpPathStr)) {
-            std::cerr << "Failed to open \"tmp\" directory: \"tmp\" already exists as a file in the Mercury root directory.\n";
-            return CONF_FAILURE;
-        }
-    } catch (std::filesystem::filesystem_error&) {
-        std::cerr << "Failed to create \"tmp\" directory in the Mercury root directory.\n";
-        return CONF_FAILURE;
-    }
-
-    // Canonicalize the tmp path
-    try {
-        TMP_PATH = resolveCanonicalPath(tmpPathStr);
-    } catch (...) {
-        std::cerr << "Failed to canonicalize \"tmp\" directory.\n";
-        return CONF_FAILURE;
-    }
-
-    // Load version
-    std::ifstream versionHandle( VERSION_FILE );
-    std::getline(versionHandle, VERSION);
-    if (VERSION.back() == '\n') VERSION.pop_back();
-    if (VERSION.back() == '\r') VERSION.pop_back();
-    versionHandle.close();
-
-    // Extract root node
-    pugi::xml_node root = doc.child("Mercury");
-    if (!root) {
-        std::cerr << "Failed to parse config file, missing root node.\n";
-        return CONF_FAILURE;
-    }
-
-    /************************** Extract DocumentRoot **************************/
-    pugi::xml_node documentRootNode = root.child("DocumentRoot");
-    if (!documentRootNode) {
-        std::cerr << "Failed to parse config file, missing DocumentRoot node.\n";
-        return CONF_FAILURE;
-    }
-
-    std::string documentRootStr( documentRootNode.text().as_string() );
-    trimString(documentRootStr);
-
-    if (documentRootStr.find(".") == 0) // Relative paths
-        DOCUMENT_ROOT = CWD / documentRootStr;
-    else // Absolute paths
-        DOCUMENT_ROOT = documentRootStr;
-
-    // Resolve as absolute path
-    try {
-        DOCUMENT_ROOT = resolveCanonicalPath(DOCUMENT_ROOT);
-
-        // Affix trailing slash
-        if (DOCUMENT_ROOT.string().size() > 0 && DOCUMENT_ROOT.string().back() != '/')
-            DOCUMENT_ROOT = DOCUMENT_ROOT.string() + '/';
-
-        if (DOCUMENT_ROOT.string().size() == 0 || !std::filesystem::exists(DOCUMENT_ROOT) || !std::filesystem::is_directory(DOCUMENT_ROOT)) {
-            std::cerr << "Failed to parse config file, DocumentRoot points to invalid/nonexistant directory.\n";
-            return CONF_FAILURE;
-        }
-    } catch (std::filesystem::filesystem_error&) {
-        // Handle std::filesystem::canonical failure
-        std::cerr << "Failed to parse config file, DocumentRoot points to invalid/nonexistant directory.\n";
-        return CONF_FAILURE;
-    } catch (std::runtime_error&) {
-        // Handle canonical failure from IO error
-        std::cerr << "Failed to parse config file, DocumentRoot points to invalid/nonexistant directory.\n";
-        return CONF_FAILURE;
-    }
-
-    /************************** Extract Port **************************/
-    pugi::xml_node portNode = root.child("Port");
-    if (!portNode) {
-        std::cerr << "Failed to parse config file, missing Port node.\n";
-        return CONF_FAILURE;
-    }
-
-    PORT = portNode.text().as_uint();
-
-    /************************** Extract IPv4 toggle **************************/
-    pugi::xml_node ipv4Node = root.child("EnableIPv4");
-    if (!ipv4Node) {
-        std::cerr << "Failed to parse config file, missing EnableIPv4 node.\n";
-        return CONF_FAILURE;
-    }
-
-    std::string ipv4StatusStr = ipv4Node.text().as_string();
-    trimString(ipv4StatusStr);
-
-    // Verify valid value provided
-    if (ipv4StatusStr != "on" && ipv4StatusStr != "off") {
-        std::cerr << "Failed to parse config file, invalid value for EnableIPv4.\n";
-        return CONF_FAILURE;
-    }
-
-    IS_IPV4_ENABLED = ipv4StatusStr == "on";
-
-    /************************** Extract IPv6 toggle **************************/
-    pugi::xml_node ipv6Node = root.child("EnableIPv6");
-    if (!ipv6Node) {
-        std::cerr << "Failed to parse config file, missing EnableIPv6 node.\n";
-        return CONF_FAILURE;
-    }
-
-    std::string ipv6StatusStr = ipv6Node.text().as_string();
-    trimString(ipv6StatusStr);
-
-    // Verify valid value provided
-    if (ipv6StatusStr != "on" && ipv6StatusStr != "off") {
-        std::cerr << "Failed to parse config file, invalid value for EnableIPv6.\n";
-        return CONF_FAILURE;
-    }
-
-    IS_IPV6_ENABLED = ipv6StatusStr == "on";
-
-    if (!IS_IPV4_ENABLED && !IS_IPV6_ENABLED) {
-        std::cerr << "Either IPv4 or IPv6 must be enabled in the config file!\n";
-        return CONF_FAILURE;
-    }
-
-    /************************** Extract legacy HTTP version toggle **************************/
-    pugi::xml_node legacyHTTPNode = root.child("EnableLegacyHTTPVersions");
-    if (!legacyHTTPNode) {
-        std::cerr << "Failed to parse config file, missing EnableLegacyHTTPVersions node.\n";
-        return CONF_FAILURE;
-    }
-
-    std::string legacyHTTPStr = legacyHTTPNode.text().as_string();
-    trimString(legacyHTTPStr);
-
-    // Verify valid value provided
-    if (legacyHTTPStr != "on" && legacyHTTPStr != "off") {
-        std::cerr << "Failed to parse config file, invalid value for EnableLegacyHTTPVersions.\n";
-        return CONF_FAILURE;
-    }
-
-    ENABLE_LEGACY_HTTP = legacyHTTPStr == "on";
-
-    /************************** Extract IndexFile **************************/
-    pugi::xml_node indexFileNode = root.child("IndexFile");
-    if (!indexFileNode) {
-        std::cerr << "Failed to parse config file, missing IndexFile node.\n";
-        return CONF_FAILURE;
-    }
-
-    INDEX_FILE = indexFileNode.text().as_string();
-    trimString(INDEX_FILE);
-
-    if (!INDEX_FILE.size() || INDEX_FILE.find('/') != std::string::npos || INDEX_FILE.find('\\') != std::string::npos) {
-        std::cerr << "Failed to parse config file, invalid IndexFile value.\n";
-        return CONF_FAILURE;
-    }
-
-    /************************** Extract Matches **************************/
-    // Load all Matches
-    pugi::xml_object_range matchNodes = root.children("Match");
-
-    for (pugi::xml_node& match : matchNodes) {
-        // Parse match
-        Match* pMatch = conf::loadMatch(match);
-        if (pMatch == nullptr) return CONF_FAILURE;
-        matchConfigs.push_back(pMatch);
-    }
-
-    /************************** Extract MaxRequestBacklog **************************/
-    pugi::xml_node reqBacklogNode = root.child("MaxRequestBacklog");
-    if (!reqBacklogNode) {
-        std::cerr << "Failed to parse config file, missing MaxRequestBacklog node.\n";
-        return CONF_FAILURE;
-    }
-
-    MAX_REQUEST_BACKLOG = reqBacklogNode.text().as_uint();
-
-    /************************** Extract RequestBufferSize **************************/
-    pugi::xml_node reqBufferNode = root.child("RequestBufferSize");
-    if (!reqBufferNode) {
-        std::cerr << "Failed to parse config file, missing RequestBufferSize node.\n";
-        return CONF_FAILURE;
-    }
-
-    REQUEST_BUFFER_SIZE = reqBufferNode.text().as_uint();
-
-    /************************** Extract ResponseBufferSize **************************/
-    pugi::xml_node resBufferNode = root.child("ResponseBufferSize");
-    if (!resBufferNode) {
-        std::cerr << "Failed to parse config file, missing ResponseBufferSize node.\n";
-        return CONF_FAILURE;
-    }
-
-    RESPONSE_BUFFER_SIZE = resBufferNode.text().as_uint();
-
-    /************************** Extract MaxRequestBody **************************/
-    pugi::xml_node reqBodySizeNode = root.child("MaxRequestBody");
-    if (!reqBodySizeNode) {
-        std::cerr << "Failed to parse config file, missing MaxRequestBody node.\n";
-        return CONF_FAILURE;
-    }
-
-    MAX_REQUEST_BODY = reqBodySizeNode.text().as_uint();
-
-    /************************** Extract MaxResponseBody **************************/
-    pugi::xml_node resBodySizeNode = root.child("MaxResponseBody");
-    if (!resBodySizeNode) {
-        std::cerr << "Failed to parse config file, missing MaxResponseBody node.\n";
-        return CONF_FAILURE;
-    }
-
-    MAX_RESPONSE_BODY = resBodySizeNode.text().as_uint();
-
-    /************************** Extract ThreadsPerChild **************************/
-    pugi::xml_node threadsPerChildNode = root.child("ThreadsPerChild");
-    if (!threadsPerChildNode) {
-        std::cerr << "Failed to parse config file, missing ThreadsPerChild node.\n";
-        return CONF_FAILURE;
-    }
-
-    THREADS_PER_CHILD = threadsPerChildNode.text().as_uint();
-
-    /************************** Extract AccessLogFile **************************/
-    pugi::xml_node accessLogNode = root.child("AccessLogFile");
-    if (!accessLogNode) {
-        std::cerr << "Failed to parse config file, missing AccessLogFile node.\n";
-        return CONF_FAILURE;
-    }
-
-    std::string accessFileStr( accessLogNode.text().as_string() );
-    trimString(accessFileStr);
-
-    // Format string
-    ACCESS_LOG_FILE = (accessFileStr.find("./") == 0) ? (CWD / accessFileStr.substr(2)) : std::filesystem::path(accessFileStr);
-
-    if (!ACCESS_LOG_FILE.string().size()) {
-        std::cerr << "Failed to parse config file, invalid Access Log File.\n";
-        return CONF_FAILURE;
-    }
-
-    /************************** Extract ErrorLogFile **************************/
-    pugi::xml_node errorLogNode = root.child("ErrorLogFile");
-    if (!errorLogNode) {
-        std::cerr << "Failed to parse config file, missing ErrorLogFile node.\n";
-        return CONF_FAILURE;
-    }
-
-    std::string errorFileStr( errorLogNode.text().as_string() );
-    trimString(errorFileStr);
-
-    // Format string
-    ERROR_LOG_FILE = (errorFileStr.find("./") == 0) ? (CWD / errorFileStr.substr(2)) : std::filesystem::path(errorFileStr);
-
-    if (!ERROR_LOG_FILE.string().size()) {
-        std::cerr << "Failed to parse config file, invalid Error Log File.\n";
-        return CONF_FAILURE;
-    }
-
-    /************************** Load TLS **************************/
-    pugi::xml_node tlsPortNode = root.child("TLSPort");
-    if (!tlsPortNode) {
-        std::cerr << "Failed to parse config file, missing TLSPort node.\n";
-        return CONF_FAILURE;
-    }
-
-    std::string tlsPortRaw = tlsPortNode.text().as_string();
-    trimString(tlsPortRaw);
-
-    // If TLS is enabled, grab the port
-    USE_TLS = tlsPortRaw != "off";
-    try {
-        TLS_PORT = USE_TLS ? std::stoull(tlsPortRaw) : 0;
-    } catch (std::invalid_argument&) {
-        std::cerr << "Failed to parse TLSPort node, invalid port passed.\n";
-        return CONF_FAILURE;
-    }
-
-    /************************** Extract PHP CGI toggle **************************/
-    pugi::xml_node phpCgiToggleNode = root.child("EnablePHPCGI");
-    if (!phpCgiToggleNode) {
-        std::cerr << "Failed to parse config file, missing EnablePHPCGI node.\n";
-        return CONF_FAILURE;
-    }
-
-    std::string phpCgiToggleStr = phpCgiToggleNode.text().as_string();
-    trimString(phpCgiToggleStr);
-
-    // Verify valid value provided
-    if (phpCgiToggleStr != "on" && phpCgiToggleStr != "off") {
-        std::cerr << "Failed to parse config file, invalid value for EnablePHPCGI.\n";
-        return CONF_FAILURE;
-    }
-
-    IS_PHP_ENABLED = phpCgiToggleStr == "on";
-
-    /************************** Load PHP CGI executable path **************************/
-
-    #ifdef _WIN32
-        pugi::xml_node phpCgiExeNode = root.child("WinPHPCGIPath");
-        if (!phpCgiExeNode) {
-            std::cerr << "Failed to parse config file, missing WinPHPCGIPath node.\n";
+    /**********************************************************/
+    /********************* STATIC METHODS *********************/
+    /**********************************************************/
+
+    // Forward decs
+    int loadMIMES();
+    int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName, const bool allowZero=true);
+    int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName, const bool allowZero=true);
+    int loadOnOff(const pugi::xml_node& root, bool& var, const std::string& nodeName);
+    int loadBindAddress(const pugi::xml_node& root, const bool isIPv6);
+    int loadTrueFalse(const pugi::xml_node& root, bool& var, const std::string& nodeName);
+    int loadPath(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName, const bool isLogFile=false);
+    int loadDirectoryAndCanonicalize(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName);
+    int loadTempFileDirectory();
+
+    int loadConfig() {
+        // Read XML config file
+        pugi::xml_document doc;
+        pugi::xml_parse_result result = doc.load_file(CONF_FILE);
+
+        if (!result) {
+            std::cerr << "Failed to open config file." << std::endl;
             return CONF_FAILURE;
         }
 
-        std::string phpCgiPathStr( phpCgiExeNode.text().as_string() );
-        trimString(phpCgiPathStr);
+        // Load tmp file directory
+        if (loadTempFileDirectory() == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        // Load version
+        std::ifstream versionHandle( VERSION_FILE );
+        std::getline(versionHandle, VERSION);
+        if (VERSION.back() == '\n') VERSION.pop_back();
+        if (VERSION.back() == '\r') VERSION.pop_back();
+        versionHandle.close();
+
+        // Extract root node
+        pugi::xml_node root = doc.child("Mercury");
+        if (!root) {
+            std::cerr << "Failed to parse config file, missing root \"Mercury\" node." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        /************************** Extract DocumentRoot **************************/
+
+        if (loadDirectoryAndCanonicalize(root, DOCUMENT_ROOT, "DocumentRoot") == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        /************************** LOAD IPv4/IPv6 TOGGLES **************************/
+
+        if (loadBindAddress(root, false) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadBindAddress(root, true) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (!IS_IPV4_ENABLED && !IS_IPV6_ENABLED) {
+            std::cerr << "Either IPv4 or IPv6 must be enabled in the config file!" << std::endl;
+            return CONF_FAILURE;
+        }
+
+        /************ LOAD BOOLEANS ************/
+
+        if (loadOnOff(root, ENABLE_LEGACY_HTTP, "EnableLegacyHTTPVersions") == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadOnOff(root, IS_PHP_ENABLED, "EnablePHPCGI") == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadTrueFalse(root, SHOW_WELCOME_BANNER, "ShowWelcomeBanner") == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadTrueFalse(root, CHECK_LATEST_RELEASE, "StartupCheckLatestRelease") == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        /************************** Load IndexFiles **************************/
+
+        pugi::xml_node indexFileNode = root.child("IndexFiles");
+        if (!indexFileNode) {
+            std::cerr << "Failed to parse config file, missing IndexFiles node." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Extract index files
+        std::string indexFilesRaw( indexFileNode.text().as_string() );
+        trimString(indexFilesRaw);
+        splitString(INDEX_FILES, indexFilesRaw, ',', true);
+
+        // Validate all index files
+        for (const std::string& str : INDEX_FILES) {
+            if (str.size() == 0 || str.find('/') != std::string::npos || str.find('\\') != std::string::npos) {
+                std::cerr << "Failed to parse config file, invalid IndexFiles value." << std::endl;
+                return CONF_FAILURE;
+            }
+        }
+
+        /************ LOAD UINTS/USHORTS ************/
+
+        if (loadUint(root, PORT, "Port", false) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, MAX_REQUEST_BACKLOG, "MaxRequestBacklog", false) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, REQUEST_BUFFER_SIZE, "RequestBufferSize", false) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, RESPONSE_BUFFER_SIZE, "ResponseBufferSize", false) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, MAX_REQUEST_BODY, "MaxRequestBody") == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, MAX_RESPONSE_BODY, "MaxResponseBody") == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, THREADS_PER_CHILD, "ThreadsPerChild", false) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        /************************** LOAD PATHS **************************/
+
+        if (loadPath(root, ACCESS_LOG_FILE, "AccessLogFile", true) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadPath(root, ERROR_LOG_FILE, "ErrorLogFile", true) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        #ifdef _WIN32
+            if (loadPath(root, PHP_CGI_EXE_PATH, "WinPHPCGIPath") == CONF_FAILURE)
+                return CONF_FAILURE;
+        #endif
+
+        /************ LOAD MATCHES & MIMES ************/
+
+        pugi::xml_object_range matchNodes = root.children("Match");
+        for (pugi::xml_node& match : matchNodes) {
+            // Parse match
+            std::unique_ptr<Match> pMatch = loadMatch(match);
+            if (pMatch == nullptr) return CONF_FAILURE;
+            matchConfigs.push_back( std::move(pMatch) );
+        }
+
+        if (loadMIMES() == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        /************************** LOAD TLS **************************/
+
+        pugi::xml_node tlsPortNode = root.child("TLSPort");
+        if (!tlsPortNode) {
+            std::cerr << "Failed to parse config file, missing TLSPort node." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        std::string tlsPortRaw = tlsPortNode.text().as_string();
+        trimString(tlsPortRaw);
+
+        // If TLS is enabled, grab the port
+        USE_TLS = tlsPortRaw != "off";
+        try {
+            // Prevent negatives
+            if (tlsPortRaw.size() == 0) throw std::invalid_argument("");
+            if (USE_TLS && tlsPortRaw[0] == '-') throw std::invalid_argument("");
+            TLS_PORT = USE_TLS ? std::stoul(tlsPortRaw) : 0;
+        } catch (std::invalid_argument&) {
+            std::cerr << "Failed to parse config file, invalid value for TLSPort." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        /************************** Open log files **************************/
+
+        accessLogHandle = std::ofstream(ACCESS_LOG_FILE, std::ios_base::app);
+        if (!accessLogHandle.is_open()) {
+            std::cerr << "Failed to open Access Log File." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        errorLogHandle = std::ofstream(ERROR_LOG_FILE, std::ios_base::app);
+        if (!errorLogHandle.is_open()) {
+            std::cerr << "Failed to open Error Log File." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Return success
+        return CONF_SUCCESS;
+    }
+
+    int loadMIMES() {
+        // Load MIMES
+        std::ifstream mimeHandle(MIMES_FILE);
+        if (!mimeHandle.is_open()) return CONF_FAILURE;
+
+        std::string line, extBuf, mimeBuf;
+        while (std::getline(mimeHandle, line)) {
+            size_t spaceIndex = line.find(' ');
+            if (spaceIndex == std::string::npos) continue;
+
+            extBuf = line.substr(0, spaceIndex);
+            mimeBuf = line.substr(spaceIndex+1);
+            trimString(extBuf);
+            trimString(mimeBuf);
+            MIMES.insert({extBuf, mimeBuf});
+        }
+
+        mimeHandle.close();
+
+        return CONF_SUCCESS;
+    }
+
+    void cleanupConfig() {
+        matchConfigs.clear();
+    }
+
+    /************************* Config loader helpers *************************/
+
+    int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName, const bool allowZero) {
+        const pugi::xml_node node = root.child(nodeName);
+        if (!node) {
+            std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Extract and stringify
+        std::string valueStr = node.text().as_string();
+        trimString(valueStr);
+
+        try {
+            // Prevent negatives
+            if (valueStr.size() == 0) throw std::invalid_argument("");
+            if (valueStr[0] == '-') throw std::invalid_argument("");
+
+            var = std::stoull(valueStr);
+            if (!allowZero && var == 0) throw std::invalid_argument("");
+        } catch (std::invalid_argument&) {
+            std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+            return CONF_FAILURE;
+        }
+
+        return CONF_SUCCESS;
+    }
+
+    int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName, const bool allowZero) {
+        const pugi::xml_node node = root.child(nodeName);
+        if (!node) {
+            std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Extract and stringify
+        std::string valueStr = node.text().as_string();
+        trimString(valueStr);
+
+        try {
+            // Prevent negatives
+            if (valueStr.size() == 0) throw std::invalid_argument("");
+            if (valueStr[0] == '-') throw std::invalid_argument("");
+
+            var = std::stoul(valueStr);
+            if (!allowZero && var == 0) throw std::invalid_argument("");
+        } catch (std::invalid_argument&) {
+            std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+            return CONF_FAILURE;
+        }
+
+        return CONF_SUCCESS;
+    }
+
+    int loadOnOff(const pugi::xml_node& root, bool& var, const std::string& nodeName) {
+        pugi::xml_node node = root.child(nodeName);
+        if (!node) {
+            std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Extract and stringify
+        std::string valueStr = node.text().as_string();
+        trimString(valueStr);
+
+        // Verify valid value provided
+        if (valueStr != "on" && valueStr != "off") {
+            std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+            return CONF_FAILURE;
+        }
+
+        var = (valueStr == "on");
+        return CONF_SUCCESS;
+    }
+
+    int loadBindAddress(const pugi::xml_node& root, const bool isIPv6) {
+        const std::string nodeName = isIPv6 ? "BindAddressIPv6" : "BindAddressIPv4";
+        pugi::xml_node node = root.child(nodeName);
+        if (!node) {
+            std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        std::string rawValue = node.text().as_string();
+        trimString(rawValue);
+
+        // If the IP protocol is enabled, grab the bind address
+        const bool isEnabled = rawValue != "off";
+        if (isIPv6) IS_IPV6_ENABLED = isEnabled;
+        else        IS_IPV4_ENABLED = isEnabled;
+
+        if (!isEnabled) return CONF_SUCCESS;
+
+        // Base case, parse bind address
+        try {
+            // Validate the IP address (throws std::invalid_argument if invalid)
+            if (isIPv6)
+                BIND_ADDR_IPV6.emplace( parseSanitizedClientIP(rawValue) );
+            else
+                BIND_ADDR_IPV4.emplace( parseSanitizedClientIP(rawValue) );
+        } catch (std::invalid_argument&) {
+            std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Base case
+        return CONF_SUCCESS;
+    }
+
+    int loadTrueFalse(const pugi::xml_node& root, bool& var, const std::string& nodeName) {
+        pugi::xml_node node = root.child(nodeName);
+        if (!node) {
+            std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        std::string valueStr = node.text().as_string();
+        trimString(valueStr);
+
+        // Verify valid value provided
+        if (valueStr != "true" && valueStr != "false") {
+            std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+            return CONF_FAILURE;
+        }
+
+        var = (valueStr == "true");
+        return CONF_SUCCESS;
+    }
+
+    int loadPath(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName, const bool isLogFile) {
+        pugi::xml_node node = root.child(nodeName);
+        if (!node) {
+            std::cerr << "Failed to parse config file, missing " << nodeName << '.' << std::endl;
+            return CONF_FAILURE;
+        }
+
+        std::string value( node.text().as_string() );
+        trimString(value);
+
+        if (value.size() == 0) {
+            std::cerr << "Failed to parse config file, invalid path provided for " << nodeName << '.' << std::endl;
+            return CONF_FAILURE;
+        }
 
         // Format string
-        PHP_CGI_EXE_PATH = (phpCgiPathStr.find("./") == 0) ? (CWD / phpCgiPathStr.substr(2)) : std::filesystem::path(phpCgiPathStr);
+        if (value.find("./") == 0) { // Use relative path
+            var = CWD / value.substr(2);
+            if (isLogFile) createLogDirectoryIfMissing(var);
+        } else { // Try as absolute path
+            var = std::filesystem::path(value);
+            if (isLogFile) createLogDirectoryIfMissing(var);
 
-        if (!PHP_CGI_EXE_PATH.string().size()) {
-            std::cerr << "Failed to parse config file, invalid PHP CGI path.\n";
+            if (!std::filesystem::exists(var)) {
+                // Try as relative path (ex. "path" instead of "./path")
+                var = CWD / value;
+                if (isLogFile) createLogDirectoryIfMissing(var);
+            }
+        }
+
+        // Skip exists check for log files (handled separately)
+        if (!isLogFile && !std::filesystem::exists(var)) {
+            std::cerr << "Failed to parse config file, path provided for " << nodeName << " could not be found." << std::endl;
             return CONF_FAILURE;
         }
-    #endif
 
-    /************************** Check welcome banner status **************************/
-    pugi::xml_node showWelcomeBannerNode = root.child("ShowWelcomeBanner");
-    if (!showWelcomeBannerNode) {
-        std::cerr << "Failed to parse config file, missing ShowWelcomeBanner node.\n";
-        return CONF_FAILURE;
+        return CONF_SUCCESS;
     }
 
-    std::string showWelcomeBannerStr = showWelcomeBannerNode.text().as_string();
-    trimString(showWelcomeBannerStr);
+    int loadDirectoryAndCanonicalize(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName) {
+        if (loadPath(root, var, nodeName) == CONF_FAILURE) return CONF_FAILURE;
 
-    // Verify valid value provided
-    if (showWelcomeBannerStr != "true" && showWelcomeBannerStr != "false") {
-        std::cerr << "Failed to parse config file, invalid value for ShowWelcomeBanner.\n";
-        return CONF_FAILURE;
+        // Canonicalize document root
+        try {
+            var = resolveCanonicalPath(var);
+
+            // Affix trailing slash
+            if (var.string().size() > 0 && var.string().back() != '/')
+                var = var.string() + '/';
+
+            // Validate path exists and is a directory (passthru to catch block if failed)
+            if (var.string().size() == 0 || !std::filesystem::exists(var) || !std::filesystem::is_directory(var))
+                throw std::runtime_error("");
+        } catch (...) {
+            /**
+             * Handle internal std::filesystem::canonical failure or
+             * canonical failure from IO error (std::runtime_error)
+             */
+
+            std::cerr << "Failed to parse config file, " << nodeName << " points to invalid/nonexistant directory." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        return CONF_SUCCESS;
     }
 
-    SHOW_WELCOME_BANNER = showWelcomeBannerStr == "true";
+    int loadTempFileDirectory() {
+        // Specify temp file directory
+        const std::string tmpPathStr( (CWD / "tmp").string() );
+        try {
+            if (!std::filesystem::exists(tmpPathStr)) {
+                std::filesystem::create_directory(tmpPathStr);
+            } else if (!std::filesystem::is_directory(tmpPathStr)) {
+                std::cerr << "Failed to open \"tmp\" directory: \"tmp\" already exists as a file in the Mercury root directory." << std::endl;
+                return CONF_FAILURE;
+            }
+        } catch (std::filesystem::filesystem_error&) {
+            std::cerr << "Failed to create \"tmp\" directory in the Mercury root directory." << std::endl;
+            return CONF_FAILURE;
+        }
 
-    /************************** Extract check for release **************************/
-    pugi::xml_node checkLatestReleaseNode = root.child("StartupCheckLatestRelease");
-    if (!checkLatestReleaseNode) {
-        std::cerr << "Failed to parse config file, missing StartupCheckLatestRelease node.\n";
-        return CONF_FAILURE;
+        // Canonicalize the tmp path
+        try {
+            TMP_PATH = resolveCanonicalPath(tmpPathStr);
+        } catch (...) {
+            std::cerr << "Failed to canonicalize \"tmp\" directory." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        return CONF_SUCCESS;
     }
-
-    std::string checkLatestReleaseStr = checkLatestReleaseNode.text().as_string();
-    trimString(checkLatestReleaseStr);
-
-    // Verify valid value provided
-    if (checkLatestReleaseStr != "true" && checkLatestReleaseStr != "false") {
-        std::cerr << "Failed to parse config file, invalid value for StartupCheckLatestRelease.\n";
-        return CONF_FAILURE;
-    }
-
-    CHECK_LATEST_RELEASE = checkLatestReleaseStr == "true";
-
-    /************************** Load known MIMES **************************/
-    if (loadMIMES() == CONF_FAILURE)
-        return CONF_FAILURE;
-
-    /************************** Open log files **************************/
-
-    createLogDirectoryIfMissing(ACCESS_LOG_FILE);
-
-    accessLogHandle = std::ofstream(ACCESS_LOG_FILE, std::ios_base::app);
-    if (!accessLogHandle.is_open()) {
-        std::cerr << "Failed to open Access Log File.\n";
-        return CONF_FAILURE;
-    }
-
-    createLogDirectoryIfMissing(ERROR_LOG_FILE);
-
-    errorLogHandle = std::ofstream(ERROR_LOG_FILE, std::ios_base::app);
-    if (!errorLogHandle.is_open()) {
-        std::cerr << "Failed to open Error Log File.\n";
-        return CONF_FAILURE;
-    }
-
-    // Return success
-    return CONF_SUCCESS;
-}
-
-int loadMIMES() {
-    using namespace conf;
-
-    // Load MIMES
-    std::ifstream mimeHandle(MIMES_FILE);
-    if (!mimeHandle.is_open()) return CONF_FAILURE;
-
-    std::string line, extBuf, mimeBuf;
-    while (std::getline(mimeHandle, line)) {
-        size_t spaceIndex = line.find(' ');
-        extBuf = line.substr(0, spaceIndex);
-        mimeBuf = line.substr(spaceIndex+1);
-        trimString(extBuf);
-        trimString(mimeBuf);
-        MIMES.insert({extBuf, mimeBuf});
-    }
-
-    mimeHandle.close();
-
-    return CONF_SUCCESS;
-}
-
-void cleanupConfig() {
-    // Free any matches
-    for (conf::Match* pMatch : conf::matchConfigs)
-        delete pMatch;
-
-    conf::matchConfigs.clear();
 }

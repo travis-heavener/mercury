@@ -1,6 +1,8 @@
 #ifndef __CONF_HPP
 #define __CONF_HPP
 
+#include <optional>
+
 #include "../pch/common.hpp"
 #include "conf_match.hpp"
 
@@ -22,15 +24,19 @@ namespace conf {
 
     extern std::filesystem::path DOCUMENT_ROOT;
     extern port_t PORT;
+
     extern bool IS_IPV4_ENABLED;
+    extern std::optional<SanitizedIP> BIND_ADDR_IPV4;
     extern bool IS_IPV6_ENABLED;
+    extern std::optional<SanitizedIP> BIND_ADDR_IPV6;
+
     extern bool ENABLE_LEGACY_HTTP;
     extern unsigned short MAX_REQUEST_BACKLOG;
     extern unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
     extern unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
     extern unsigned int THREADS_PER_CHILD;
-    extern std::vector<conf::Match*> matchConfigs;
-    extern std::string INDEX_FILE;
+    extern std::vector<std::unique_ptr<Match>> matchConfigs;
+    extern std::vector<std::string> INDEX_FILES;
 
     extern std::filesystem::path ACCESS_LOG_FILE;
     extern std::filesystem::path ERROR_LOG_FILE;
@@ -52,11 +58,9 @@ namespace conf {
     extern std::unordered_map<std::string, std::string> MIMES;
     extern std::filesystem::path CWD;
 
+    // Static methods
+    int loadConfig();
+    void cleanupConfig();
 }
-
-/*****************************/
-
-int loadConfig();
-void cleanupConfig();
 
 #endif

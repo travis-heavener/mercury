@@ -169,7 +169,7 @@ namespace http {
 
         // Handle directory listings
         if (file.isDirectory) {
-            for (conf::Match* pMatch : conf::matchConfigs) {
+            for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
                 if (!pMatch->showDirectoryIndexes() &&
                     std::regex_match(file.path, pMatch->getPattern())) {
                     // Hide the directory index

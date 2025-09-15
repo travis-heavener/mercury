@@ -60,7 +60,7 @@ namespace http {
                 struct sockaddr_in6 addr = {};
                 addr.sin6_family = AF_INET6;
                 addr.sin6_port = htons(this->port);
-                addr.sin6_addr = in6addr_any;
+                memcpy(&addr.sin6_addr, conf::BIND_ADDR_IPV6->bytes, 16);
 
                 // If bound properly, exit early
                 if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) >= 0)

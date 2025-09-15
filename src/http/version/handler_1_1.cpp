@@ -3,6 +3,7 @@
 #include "../cgi/process.hpp"
 #include "../../conf/conf.hpp"
 #include "../../util/toolbox.hpp"
+#include "../../logs/logger.hpp"
 
 #define ALLOWED_STATIC_METHODS "GET, HEAD, OPTIONS"
 #define ALLOWED_METHODS "GET, HEAD, OPTIONS, POST, PUT, PATCH, DELETE"
@@ -36,6 +37,35 @@ namespace http {
                     return pResponse;
                 }
 
+                // Verify access is permitted
+                if (!conf::matchConfigs.empty()) {
+                    // Format raw path & remove query string
+                    std::string rawPath = request.getPathStr();
+                    const size_t queryIndex = rawPath.find('/');
+                    while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
+                        rawPath.pop_back();
+
+                    // Create sanitized IP address
+                    try {
+                        conf::SanitizedIP sip( conf::parseSanitizedClientIP(request.getIPStr()) );
+
+                        // Check Match patterns
+                        for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
+                            if (std::regex_match(rawPath, pMatch->getPattern())) {
+                                // Verify access is permitted
+                                if (!pMatch->getAccessControl()->isIPAccepted(sip)) {
+                                    setStatusMaybeErrorDoc(request, *pResponse, 403);
+                                    return pResponse;
+                                }
+                            }
+                        }
+                    } catch (std::invalid_argument&) {
+                        ERROR_LOG << "Invalid IP address while parsing sanitized IP (" << request.getIPStr() << ')' << std::endl;
+                        setStatusMaybeErrorDoc(request, *pResponse, 500);
+                        return pResponse;
+                    }
+                }
+
                 // Verify the body (which is ignored in the Request object) wasn't too large
                 if (request.isContentTooLarge()) {
                     setStatusMaybeErrorDoc(request, *pResponse, 413);
@@ -59,8 +89,8 @@ namespace http {
                         cgi::handlePHPRequest(file, request, *pResponse);
 
                         // Load additional headers
-                        for (conf::Match* pMatch : conf::matchConfigs)
-                            if (std::regex_match(file.path, pMatch->getPattern()))
+                        for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
+                            if (std::regex_match(file.rawPath, pMatch->getPattern()))
                                 for (auto [name, value] : pMatch->getHeaders())
                                     pResponse->setHeader(name, value);
 
@@ -107,8 +137,8 @@ namespace http {
                             pResponse->setHeader("Content-Type", file.MIME);
 
                         // Load additional headers for body loading
-                        for (conf::Match* pMatch : conf::matchConfigs)
-                            if (std::regex_match(file.path, pMatch->getPattern()))
+                        for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
+                            if (std::regex_match(file.rawPath, pMatch->getPattern()))
                                 for (auto [name, value] : pMatch->getHeaders())
                                     pResponse->setHeader(name, value);
                         break;

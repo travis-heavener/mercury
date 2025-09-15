@@ -70,7 +70,7 @@ namespace http {
         struct sockaddr_in addr;
         addr.sin_family = AF_INET;
         addr.sin_port = htons(this->port);
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        memcpy(&addr.sin_addr, conf::BIND_ADDR_IPV4->bytes, 4);
 
         if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
             #ifdef __linux__
@@ -178,7 +178,7 @@ namespace http {
             if (afType == AF_INET) {
                 strcpy(clientIPStr, inet_ntoa(*(struct in_addr*)addrPtr));
             } else {
-                inet_ntop(AF_INET6, addrPtr, clientIPStr, sizeof(clientIPStr));
+                inet_ntop(AF_INET6, addrPtr, clientIPStr, INET6_ADDRSTRLEN);
             }
         #else
             inet_ntop(afType, addrPtr, clientIPStr, afType == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN);

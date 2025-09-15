@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.16.0
+- Refactored & streamlined config loader script (#128)
+    - Now gracefully handles invalid formatting for lines in mimes.conf
+- Extended index file support to allow multiple files (#137)
+    - Renamed IndexFile -> IndexFiles
+    - Contains a comma-separated list of all index file names to look for, in order left to right
+    - Now allows specifying no index file
+- Added Access node w/ Allow & Deny nodes for restricting access (#141)
+- No longer requires ShowDirectoryIndexes node in Match nodes (defaults to true)
+- Fixed Match patterns applying to full file paths, not relative paths
+- Fixed IPv6 client IP resolution on Windows (previously worked only for ::1)
+- Added BindAddressIPv4 and BindAddressIPv6 nodes to control bind address (#122)
+    - Replaced EnableIPv4 and EnableIPv6 nodes
+
 ## v0.15.1
 - Remove unused string compression methods
 - Remove unused brotli-cpp lib
