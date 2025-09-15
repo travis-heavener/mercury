@@ -70,7 +70,7 @@ namespace http {
         struct sockaddr_in addr;
         addr.sin_family = AF_INET;
         addr.sin_port = htons(this->port);
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        memcpy(&addr.sin_addr, conf::BIND_ADDR_IPV4->bytes, 4);
 
         if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
             #ifdef __linux__

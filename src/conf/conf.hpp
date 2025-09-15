@@ -1,6 +1,8 @@
 #ifndef __CONF_HPP
 #define __CONF_HPP
 
+#include <optional>
+
 #include "../pch/common.hpp"
 #include "conf_match.hpp"
 
@@ -22,8 +24,12 @@ namespace conf {
 
     extern std::filesystem::path DOCUMENT_ROOT;
     extern port_t PORT;
+
     extern bool IS_IPV4_ENABLED;
+    extern std::optional<SanitizedIP> BIND_ADDR_IPV4;
     extern bool IS_IPV6_ENABLED;
+    extern std::optional<SanitizedIP> BIND_ADDR_IPV6;
+
     extern bool ENABLE_LEGACY_HTTP;
     extern unsigned short MAX_REQUEST_BACKLOG;
     extern unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;

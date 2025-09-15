@@ -15,8 +15,12 @@ namespace conf {
 
     std::filesystem::path DOCUMENT_ROOT;
     port_t PORT;
+
     bool IS_IPV4_ENABLED;
+    std::optional<SanitizedIP> BIND_ADDR_IPV4;
     bool IS_IPV6_ENABLED;
+    std::optional<SanitizedIP> BIND_ADDR_IPV6;
+
     bool ENABLE_LEGACY_HTTP;
     unsigned short MAX_REQUEST_BACKLOG;
     unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
@@ -56,6 +60,7 @@ namespace conf {
     int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName, const bool allowZero=true);
     int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName, const bool allowZero=true);
     int loadOnOff(const pugi::xml_node& root, bool& var, const std::string& nodeName);
+    int loadBindAddress(const pugi::xml_node& root, const bool isIPv6);
     int loadTrueFalse(const pugi::xml_node& root, bool& var, const std::string& nodeName);
     int loadPath(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName);
     int loadDirectoryAndCanonicalize(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName);
@@ -96,10 +101,10 @@ namespace conf {
 
         /************************** LOAD IPv4/IPv6 TOGGLES **************************/
 
-        if (loadOnOff(root, IS_IPV4_ENABLED, "EnableIPv4") == CONF_FAILURE)
+        if (loadBindAddress(root, false) == CONF_FAILURE)
             return CONF_FAILURE;
 
-        if (loadOnOff(root, IS_IPV6_ENABLED, "EnableIPv6") == CONF_FAILURE)
+        if (loadBindAddress(root, true) == CONF_FAILURE)
             return CONF_FAILURE;
 
         if (!IS_IPV4_ENABLED && !IS_IPV6_ENABLED) {
@@ -125,7 +130,7 @@ namespace conf {
 
         pugi::xml_node indexFileNode = root.child("IndexFiles");
         if (!indexFileNode) {
-            std::cerr << "Failed to parse config file, missing IndexFiles node.\n";
+            std::cerr << "Failed to parse config file, missing IndexFiles node." << std::endl;
             return CONF_FAILURE;
         }
 
@@ -137,7 +142,7 @@ namespace conf {
         // Validate all index files
         for (const std::string& str : INDEX_FILES) {
             if (str.size() == 0 || str.find('/') != std::string::npos || str.find('\\') != std::string::npos) {
-                std::cerr << "Failed to parse config file, invalid IndexFiles value.\n";
+                std::cerr << "Failed to parse config file, invalid IndexFiles value." << std::endl;
                 return CONF_FAILURE;
             }
         }
@@ -195,7 +200,7 @@ namespace conf {
 
         pugi::xml_node tlsPortNode = root.child("TLSPort");
         if (!tlsPortNode) {
-            std::cerr << "Failed to parse config file, missing TLSPort node.\n";
+            std::cerr << "Failed to parse config file, missing TLSPort node." << std::endl;
             return CONF_FAILURE;
         }
 
@@ -220,7 +225,7 @@ namespace conf {
 
         accessLogHandle = std::ofstream(ACCESS_LOG_FILE, std::ios_base::app);
         if (!accessLogHandle.is_open()) {
-            std::cerr << "Failed to open Access Log File.\n";
+            std::cerr << "Failed to open Access Log File." << std::endl;
             return CONF_FAILURE;
         }
 
@@ -228,7 +233,7 @@ namespace conf {
 
         errorLogHandle = std::ofstream(ERROR_LOG_FILE, std::ios_base::app);
         if (!errorLogHandle.is_open()) {
-            std::cerr << "Failed to open Error Log File.\n";
+            std::cerr << "Failed to open Error Log File." << std::endl;
             return CONF_FAILURE;
         }
 
@@ -337,6 +342,40 @@ namespace conf {
         return CONF_SUCCESS;
     }
 
+    int loadBindAddress(const pugi::xml_node& root, const bool isIPv6) {
+        const std::string nodeName = isIPv6 ? "BindAddressIPv6" : "BindAddressIPv4";
+        pugi::xml_node node = root.child(nodeName);
+        if (!node) {
+            std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        std::string rawValue = node.text().as_string();
+        trimString(rawValue);
+
+        // If the IP protocol is enabled, grab the bind address
+        const bool isEnabled = rawValue != "off";
+        if (isIPv6) IS_IPV6_ENABLED = isEnabled;
+        else        IS_IPV4_ENABLED = isEnabled;
+
+        if (!isEnabled) return CONF_SUCCESS;
+
+        // Base case, parse bind address
+        try {
+            // Validate the IP address (throws std::invalid_argument if invalid)
+            if (isIPv6)
+                BIND_ADDR_IPV6.emplace( parseSanitizedClientIP(rawValue) );
+            else
+                BIND_ADDR_IPV4.emplace( parseSanitizedClientIP(rawValue) );
+        } catch (std::invalid_argument&) {
+            std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Base case
+        return CONF_SUCCESS;
+    }
+
     int loadTrueFalse(const pugi::xml_node& root, bool& var, const std::string& nodeName) {
         pugi::xml_node node = root.child(nodeName);
         if (!node) {
@@ -426,11 +465,11 @@ namespace conf {
             if (!std::filesystem::exists(tmpPathStr)) {
                 std::filesystem::create_directory(tmpPathStr);
             } else if (!std::filesystem::is_directory(tmpPathStr)) {
-                std::cerr << "Failed to open \"tmp\" directory: \"tmp\" already exists as a file in the Mercury root directory.\n";
+                std::cerr << "Failed to open \"tmp\" directory: \"tmp\" already exists as a file in the Mercury root directory." << std::endl;
                 return CONF_FAILURE;
             }
         } catch (std::filesystem::filesystem_error&) {
-            std::cerr << "Failed to create \"tmp\" directory in the Mercury root directory.\n";
+            std::cerr << "Failed to create \"tmp\" directory in the Mercury root directory." << std::endl;
             return CONF_FAILURE;
         }
 
@@ -438,7 +477,7 @@ namespace conf {
         try {
             TMP_PATH = resolveCanonicalPath(tmpPathStr);
         } catch (...) {
-            std::cerr << "Failed to canonicalize \"tmp\" directory.\n";
+            std::cerr << "Failed to canonicalize \"tmp\" directory." << std::endl;
             return CONF_FAILURE;
         }
 
