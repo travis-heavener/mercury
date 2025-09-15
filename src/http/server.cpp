@@ -178,7 +178,7 @@ namespace http {
             if (afType == AF_INET) {
                 strcpy(clientIPStr, inet_ntoa(*(struct in_addr*)addrPtr));
             } else {
-                inet_ntop(AF_INET6, addrPtr, clientIPStr, sizeof(clientIPStr));
+                inet_ntop(AF_INET6, addrPtr, clientIPStr, INET6_ADDRSTRLEN);
             }
         #else
             inet_ntop(afType, addrPtr, clientIPStr, afType == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN);

@@ -22,7 +22,7 @@ namespace conf {
     unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
     unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
     unsigned int THREADS_PER_CHILD;
-    std::vector<Match*> matchConfigs;
+    std::vector<std::unique_ptr<Match>> matchConfigs;
     std::vector<std::string> INDEX_FILES;
 
     std::filesystem::path ACCESS_LOG_FILE;
@@ -125,7 +125,7 @@ namespace conf {
 
         pugi::xml_node indexFileNode = root.child("IndexFiles");
         if (!indexFileNode) {
-            std::cerr << "Failed to parse config file, missing IndexFile node.\n";
+            std::cerr << "Failed to parse config file, missing IndexFiles node.\n";
             return CONF_FAILURE;
         }
 
@@ -137,7 +137,7 @@ namespace conf {
         // Validate all index files
         for (const std::string& str : INDEX_FILES) {
             if (str.size() == 0 || str.find('/') != std::string::npos || str.find('\\') != std::string::npos) {
-                std::cerr << "Failed to parse config file, invalid IndexFile value.\n";
+                std::cerr << "Failed to parse config file, invalid IndexFiles value.\n";
                 return CONF_FAILURE;
             }
         }
@@ -183,9 +183,9 @@ namespace conf {
         pugi::xml_object_range matchNodes = root.children("Match");
         for (pugi::xml_node& match : matchNodes) {
             // Parse match
-            Match* pMatch = loadMatch(match);
+            std::unique_ptr<Match> pMatch = loadMatch(match);
             if (pMatch == nullptr) return CONF_FAILURE;
-            matchConfigs.push_back(pMatch);
+            matchConfigs.push_back( std::move(pMatch) );
         }
 
         if (loadMIMES() == CONF_FAILURE)
@@ -259,10 +259,6 @@ namespace conf {
     }
 
     void cleanupConfig() {
-        // Free any matches
-        for (Match* pMatch : matchConfigs)
-            delete pMatch;
-
         matchConfigs.clear();
     }
 

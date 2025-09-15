@@ -7,6 +7,10 @@
     - Renamed IndexFile -> IndexFiles
     - Contains a comma-separated list of all index file names to look for, in order left to right
     - Now allows specifying no index file
+- Added Access node w/ Allow & Deny nodes for restricting access (#141)
+- No longer requires ShowDirectoryIndexes node in Match nodes (defaults to true)
+- Fixed Match patterns applying to full file paths, not relative paths
+- Fixed IPv6 client IP resolution on Windows (previously worked only for ::1)
 
 ## v0.15.1
 - Remove unused string compression methods

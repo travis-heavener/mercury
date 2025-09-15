@@ -29,7 +29,7 @@ namespace conf {
     extern unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
     extern unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
     extern unsigned int THREADS_PER_CHILD;
-    extern std::vector<conf::Match*> matchConfigs;
+    extern std::vector<std::unique_ptr<Match>> matchConfigs;
     extern std::vector<std::string> INDEX_FILES;
 
     extern std::filesystem::path ACCESS_LOG_FILE;

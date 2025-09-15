@@ -30,8 +30,11 @@ namespace conf {
         _showDirectoryIndexes = b;
     }
 
+    void Match::setAccessControl(std::unique_ptr<Access> pAccess) {
+        this->pAccess = std::move(pAccess);
+    }
 
-    Match* loadMatch(pugi::xml_node& root) {
+    std::unique_ptr<Match> loadMatch(pugi::xml_node& root) {
         // Extract regex
         pugi::xml_attribute patternAttr = root.attribute("pattern");
         if (!patternAttr) {
@@ -40,9 +43,9 @@ namespace conf {
         }
 
         // Create new Match
-        Match* pMatch;
+        std::unique_ptr<Match> pMatch;
         try {
-            pMatch = new Match(patternAttr.as_string());
+            pMatch = std::make_unique<Match>( patternAttr.as_string() );
         } catch (std::regex_error&) {
             std::cerr << "Failed to parse config file, bad Match pattern.\n";
             return nullptr;
@@ -57,7 +60,6 @@ namespace conf {
             pugi::xml_attribute nameAttr = headerNode.attribute("name");
             if (!nameAttr) {
                 std::cerr << "Failed to parse config file, Header node missing name attribute.\n";
-                delete pMatch;
                 return nullptr;
             }
 
@@ -72,23 +74,60 @@ namespace conf {
         /***************************** Extract ShowDirectoryIndexes *****************************/
         pugi::xml_node showDirectoryIndexNode = root.child("ShowDirectoryIndexes");
 
-        if (!showDirectoryIndexNode) {
-            std::cerr << "Failed to parse config file, missing ShowDirectoryIndexes node in Match.\n";
-            delete pMatch;
-            return nullptr;
+        if (showDirectoryIndexNode) {
+            std::string showDirectoryIndexStr = showDirectoryIndexNode.text().as_string();
+            trimString(showDirectoryIndexStr);
+
+            // Verify valid value provided
+            if (showDirectoryIndexStr != "on" && showDirectoryIndexStr != "off") {
+                std::cerr << "Failed to parse config file, invalid value for ShowDirectoryIndexes node in Match.\n";
+                return nullptr;
+            }
+
+            pMatch->setShowDirectoryIndexes( showDirectoryIndexStr == "on" );
+        } else {
+            // Not present, use default value (true)
+            pMatch->setShowDirectoryIndexes( true );
         }
 
-        std::string showDirectoryIndexStr = showDirectoryIndexNode.text().as_string();
-        trimString(showDirectoryIndexStr);
+        /***************************** Extract Access nodes *****************************/
+        pugi::xml_node accessNode = root.child("Access");
 
-        // Verify valid value provided
-        if (showDirectoryIndexStr != "on" && showDirectoryIndexStr != "off") {
-            std::cerr << "Failed to parse config file, invalid value for ShowDirectoryIndexes node in Match.\n";
-            delete pMatch;
-            return nullptr;
+        if (accessNode) {
+            // Extract mode
+            pugi::xml_attribute modeAttr = accessNode.attribute("mode");
+            if (!modeAttr) {
+                std::cerr << "Failed to parse config file, Access node missing name attribute.\n";
+                return nullptr;
+            }
+
+            const std::string modeStr( modeAttr.as_string() );
+            if (modeStr != "deny all" && modeStr != "allow all") {
+                std::cerr << "Failed to parse config file, Access node has invalid mode, must be either \"deny all\" or \"allow all\".\n";
+                return nullptr;
+            }
+
+            std::unique_ptr<Access> pAccess = std::unique_ptr<Access>(new Access(modeStr));
+
+            // Extract Allow/Deny nodes
+            const std::string subnodeName( modeStr == "deny all" ? "Allow" : "Deny" ); // Either Allow or Deny
+            pugi::xml_object_range nodeChildren = accessNode.children( subnodeName.c_str() );
+
+            for (const pugi::xml_node& childNode : nodeChildren) {
+                try {
+                    pAccess->insertIP( parseSanitizedIP(childNode) );
+                } catch (std::invalid_argument&) {
+                    std::cerr << "Failed to parse config file, " << subnodeName << " node has an invalid IP address.\n";
+                    return nullptr;
+                }
+            }
+
+            // Add pAccess to Match
+            pMatch->setAccessControl(std::move(pAccess));
+        } else {
+            // Not present, set to nullptr
+            pMatch->setAccessControl(nullptr);
         }
-
-        pMatch->setShowDirectoryIndexes( showDirectoryIndexStr == "on" );
 
         // Return Match ptr
         return pMatch;
