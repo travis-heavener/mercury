@@ -169,7 +169,6 @@ bool createTempFile(std::string& outPath) {
     } while (++i < TMP_FILE_MAX_RETRIES && std::filesystem::exists(outPath));
 
     // Return true if the filename is available
-    std::cout << outPath << std::endl;
     return !std::filesystem::exists(outPath);
 }
 
