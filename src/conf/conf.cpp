@@ -62,7 +62,7 @@ namespace conf {
     int loadOnOff(const pugi::xml_node& root, bool& var, const std::string& nodeName);
     int loadBindAddress(const pugi::xml_node& root, const bool isIPv6);
     int loadTrueFalse(const pugi::xml_node& root, bool& var, const std::string& nodeName);
-    int loadPath(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName);
+    int loadPath(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName, const bool isLogFile=false);
     int loadDirectoryAndCanonicalize(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName);
     int loadTempFileDirectory();
 
@@ -172,10 +172,10 @@ namespace conf {
 
         /************************** LOAD PATHS **************************/
 
-        if (loadPath(root, ACCESS_LOG_FILE, "AccessLogFile") == CONF_FAILURE)
+        if (loadPath(root, ACCESS_LOG_FILE, "AccessLogFile", true) == CONF_FAILURE)
             return CONF_FAILURE;
 
-        if (loadPath(root, ERROR_LOG_FILE, "ErrorLogFile") == CONF_FAILURE)
+        if (loadPath(root, ERROR_LOG_FILE, "ErrorLogFile", true) == CONF_FAILURE)
             return CONF_FAILURE;
 
         #ifdef _WIN32
@@ -221,15 +221,11 @@ namespace conf {
 
         /************************** Open log files **************************/
 
-        createLogDirectoryIfMissing(ACCESS_LOG_FILE);
-
         accessLogHandle = std::ofstream(ACCESS_LOG_FILE, std::ios_base::app);
         if (!accessLogHandle.is_open()) {
             std::cerr << "Failed to open Access Log File." << std::endl;
             return CONF_FAILURE;
         }
-
-        createLogDirectoryIfMissing(ERROR_LOG_FILE);
 
         errorLogHandle = std::ofstream(ERROR_LOG_FILE, std::ios_base::app);
         if (!errorLogHandle.is_open()) {
@@ -396,7 +392,7 @@ namespace conf {
         return CONF_SUCCESS;
     }
 
-    int loadPath(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName) {
+    int loadPath(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName, const bool isLogFile) {
         pugi::xml_node node = root.child(nodeName);
         if (!node) {
             std::cerr << "Failed to parse config file, missing " << nodeName << '.' << std::endl;
@@ -414,16 +410,20 @@ namespace conf {
         // Format string
         if (value.find("./") == 0) { // Use relative path
             var = CWD / value.substr(2);
+            if (isLogFile) createLogDirectoryIfMissing(var);
         } else { // Try as absolute path
             var = std::filesystem::path(value);
+            if (isLogFile) createLogDirectoryIfMissing(var);
 
             if (!std::filesystem::exists(var)) {
                 // Try as relative path (ex. "path" instead of "./path")
                 var = CWD / value;
+                if (isLogFile) createLogDirectoryIfMissing(var);
             }
         }
 
-        if (!std::filesystem::exists(var)) {
+        // Skip exists check for log files (handled separately)
+        if (!isLogFile && !std::filesystem::exists(var)) {
             std::cerr << "Failed to parse config file, path provided for " << nodeName << " could not be found." << std::endl;
             return CONF_FAILURE;
         }
