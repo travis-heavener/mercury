@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.17.0
+- Fixed bad URI handling for legacy HTTP versions
+- Dramatically reduced memory usage when parsing Requests
+    - Down from 4 STL string copies to 0
+
 ## v0.16.0
 - Refactored & streamlined config loader script (#128)
     - Now gracefully handles invalid formatting for lines in mimes.conf

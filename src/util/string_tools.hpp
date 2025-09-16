@@ -21,6 +21,11 @@ void trimString(std::string&);
 void decodeURI(std::string&);
 void formatHeaderCasing(std::string&);
 
+// Reads from the input string until the next line or end,
+// starting at startIndex and updating it in place (by ref).
+// Returns true if there was data read, false otherwise.
+bool readLine(const std::string& input, std::string& lineBuf, size_t& startIndex);
+
 bool isMostlyAscii(const std::string&, double=0.95);
 
 #endif

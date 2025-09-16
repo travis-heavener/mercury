@@ -22,6 +22,8 @@ namespace http {
     typedef std::unordered_map<std::string, std::string> headers_map_t;
     void loadEarlyHeaders(headers_map_t&, const std::string&);
 
+    typedef std::vector<std::pair<size_t, size_t>> byte_range_t;
+
     class Request {
         public:
             Request(headers_map_t& headers, const std::string&, std::string, const bool, const bool);
@@ -37,13 +39,14 @@ namespace http {
             inline int getCompressMethod() const { return compressMethod; };
 
             inline const headers_map_t& getHeaders() const { return headers; };
+            inline const std::vector<std::pair<size_t, size_t>>& getByteRanges() const { return byteRanges; };
 
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
             inline bool usesHTTPS() const { return isHTTPS; };
             inline bool isContentTooLarge() const { return _isContentTooLarge; };
-            inline bool isURIBad() const { return hasBadURI; };
-            inline bool getHasExplicitlyDefinedHTTPVersion0_9() const { return hasExplicitlyDefinedHTTPVersion0_9; };
+            inline bool has400Error() const { return _has400Error; };
+            inline bool hasExplicitHTTP0_9() const { return _hasExplicitHTTP0_9; };
 
             bool isFileValid(Response& response, const File& file) const;
             bool isInDocumentRoot(Response&, const std::string&) const;
@@ -54,6 +57,7 @@ namespace http {
 
             std::unordered_set<std::string> acceptedMIMETypes;
             std::unordered_set<std::string> acceptedEncodings;
+            byte_range_t byteRanges;
 
             std::string ipStr;
             bool isHTTPS;
@@ -64,8 +68,8 @@ namespace http {
 
             std::string pathStr;
             std::string rawPathStr; // The path BEFORE URI decoding
-            bool hasBadURI = false; // Set to true if the decodeURI method fails, handled by Response object
-            bool hasExplicitlyDefinedHTTPVersion0_9; // Set to true if the status line has HTTP/0.9 explicitly in it (not allowed)
+            bool _hasExplicitHTTP0_9; // Set to true if the status line has HTTP/0.9 explicitly in it (not allowed)
+            bool _has400Error = false; // If true, handle as 400 Bad Request
 
             std::string httpVersionStr;
 

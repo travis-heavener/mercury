@@ -17,6 +17,12 @@ namespace http::version::handler_0_9 {
             return pResponse;
         }
 
+        // Verify no 400 errors have been met
+        if ( request.has400Error() ) {
+            pResponse->loadBodyFromErrorDoc(400);
+            return pResponse;
+        }
+
         // Verify access is permitted
         if (!conf::matchConfigs.empty()) {
             // Format raw path & remove query string

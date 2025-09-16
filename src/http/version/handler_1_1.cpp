@@ -31,9 +31,9 @@ namespace http {
                     return pResponse;
                 }
 
-                // Verify Host header is present for HTTP/1.1+ (RFC 2616) & URI isn't malformed
-                if ( request.getHeader("HOST") == nullptr || request.isURIBad() ) {
-                    setStatusMaybeErrorDoc(request, *pResponse, 400);
+                // Verify no 400 errors have been met
+                if ( request.has400Error() ) {
+                    pResponse->loadBodyFromErrorDoc(400);
                     return pResponse;
                 }
 
