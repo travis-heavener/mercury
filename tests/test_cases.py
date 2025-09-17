@@ -83,20 +83,34 @@ cases = [
     TestCase(method="HEAD", path="..\\",            expected_status=400),
     TestCase(method="HEAD", path="/../",            expected_status=400),
     TestCase(method="HEAD", path="\\..\\",          expected_status=400),
-
     TestCase(method="HEAD", path="\\..\\",          expected_status=400),
     TestCase(method="HEAD", path="%2e%2e%2f",       expected_status=400),
     TestCase(method="HEAD", path="%2e%2e%5c",       expected_status=400),
     TestCase(method="HEAD", path="%2e%2e/",         expected_status=400),
     TestCase(method="HEAD", path="..%2f",           expected_status=400),
-
     TestCase(method="HEAD", path="%2e%2e\\",        expected_status=400),
     TestCase(method="HEAD", path="%252e%252e%255c", expected_status=400),
     TestCase(method="HEAD", path="..%255c",         expected_status=400),
 
+    TestCase(method="HEAD", path=".",               expected_status=400, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="../",             expected_status=400, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="..\\",            expected_status=400, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="/../",            expected_status=400, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="\\..\\",          expected_status=400, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="\\..\\",          expected_status=400, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="%2e%2e%2f",       expected_status=400, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="%2e%2e%5c",       expected_status=400, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="%2e%2e/",         expected_status=400, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="..%2f",           expected_status=400, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="%2e%2e\\",        expected_status=400, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="%252e%252e%255c", expected_status=400, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="..%255c",         expected_status=400, http_ver="HTTP/1.0"),
+
     # CRLF injection test cases
     TestCase(method="HEAD", path="/%0D%0A",                 expected_status=404),
     TestCase(method="HEAD", path="/index.html?q=%0D%0A",    expected_status=200),
+    TestCase(method="HEAD", path="/%0D%0A",                 expected_status=404, http_ver="HTTP/1.0"),
+    TestCase(method="HEAD", path="/index.html?q=%0D%0A",    expected_status=200, http_ver="HTTP/1.0"),
 
     # Success cases
     TestCase(method="HEAD", path="/",           expected_status=200),
