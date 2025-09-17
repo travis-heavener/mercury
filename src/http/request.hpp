@@ -3,6 +3,7 @@
 
 #include "../pch/common.hpp"
 
+#include "byte_range.hpp"
 #include "response.hpp"
 
 namespace http {
@@ -21,8 +22,6 @@ namespace http {
     // Used to extract headers and status info from partial request
     typedef std::unordered_map<std::string, std::string> headers_map_t;
     void loadEarlyHeaders(headers_map_t&, const std::string&);
-
-    typedef std::vector<std::pair<size_t, size_t>> byte_range_t;
 
     class Request {
         public:
@@ -57,7 +56,7 @@ namespace http {
 
             std::unordered_set<std::string> acceptedMIMETypes;
             std::unordered_set<std::string> acceptedEncodings;
-            byte_range_t byteRanges;
+            std::vector<byte_range_t> byteRanges;
 
             std::string ipStr;
             bool isHTTPS;

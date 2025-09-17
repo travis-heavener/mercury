@@ -36,7 +36,7 @@ namespace http {
 
     // Fwd. decs
     void parseAcceptHeader(std::unordered_set<std::string>&, std::string&);
-    void parseRangeHeader(byte_range_t&, std::string&);
+    void parseRangeHeader(std::vector<byte_range_t>&, std::string&);
 
     Request::Request(headers_map_t& headers, const std::string& raw, std::string clientIP, const bool isHTTPS, const bool isContentTooLarge)
         : headers(headers) {
@@ -225,7 +225,7 @@ namespace http {
             splitVec.insert(mime.substr(0, mime.find(';')));
     }
 
-    void parseRangeHeader(byte_range_t& splitVec, std::string& rawHeader) {
+    void parseRangeHeader(std::vector<byte_range_t>& splitVec, std::string& rawHeader) {
         trimString(rawHeader);
         size_t unitStart = rawHeader.find("bytes");
         if (unitStart == std::string::npos) return;
@@ -265,7 +265,7 @@ namespace http {
             }
 
             // Emplace byte range
-            splitVec.emplace_back( std::pair<size_t, size_t>(startIndex, endIndex) );
+            splitVec.emplace_back( byte_range_t(startIndex, endIndex) );
         }
     }
 

@@ -2,11 +2,14 @@
 #define __HTTP_BODY_STREAM_HPP
 
 #include <fstream>
+#include <queue>
 #include <string>
 #include <vector>
 
 #include <brotli/encode.h>
 #include <zlib.h>
+
+#include "byte_range.hpp"
 
 #define STREAM_SUCCESS 0
 #define STREAM_FAILURE 1
@@ -71,8 +74,19 @@ namespace http {
 
             // Returns true if the stream is already compressed
             virtual bool isPrecompressed() const { return false; };
+
+            // Adds a new byte range
+            void addByteRange(byte_range_t byteRange);
+
+            // Returns true if there are more byte ranges left
+            inline size_t getTotalNumByteRanges() const { return byteRanges.size(); };
+
+            // Returns the byte range at index i, but does NOT check if one exists (will fail if empty)
+            inline const byte_range_t& getByteRange(size_t i) const { return byteRanges[i]; };
         protected:
             int _status = STREAM_SUCCESS;
+            std::vector<byte_range_t> byteRanges;
+            size_t byteRangeIndex = 0;
     };
 
     class FileStream : public IBodyStream {

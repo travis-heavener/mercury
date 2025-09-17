@@ -13,6 +13,7 @@
 #include "../io/file.hpp"
 #include "../util/string_tools.hpp"
 #include "body_stream.hpp"
+#include "byte_range.hpp"
 
 // The minimum size for a body to be compressed
 #define MIN_COMPRESSION_SIZE 750
@@ -27,6 +28,7 @@ namespace http {
             inline uint16_t getStatus() const { return httpVersion == "HTTP/0.9" ? 0 : statusCode; };
             void setHeader(std::string name, const std::string& value);
             void clearHeader(std::string);
+            void clearHeaders() { headers.clear(); };
             void setCompressMethod(const int compressMethod);
 
             int loadBodyFromErrorDoc(const uint16_t statusCode);
@@ -40,6 +42,9 @@ namespace http {
             int getContentLength() const;
 
             ssize_t beginStreamingBody(const bool isHTMLAccepted, const bool omitBody, std::function<ssize_t(const char*, const size_t)>&);
+
+            // Returns true if the ranges are valid, false otherwise
+            bool extendByteRanges(const std::vector<byte_range_t>& byteRanges);
         private:
             bool precompressBody();
 
@@ -49,6 +54,11 @@ namespace http {
             int compressMethod = NO_COMPRESS;
 
             std::unordered_map<std::string, std::string> headers;
+
+            // For precompressed bodies
+            std::vector<byte_range_t> originalByteRanges;
+            size_t originalBodySize = 0;
+            size_t totalByteRangeSize = 0; // The total size of all the byte range data
     };
 
 };
