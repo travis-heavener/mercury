@@ -18,4 +18,12 @@ Invoke-WebRequest -Uri $DownloadUrl -OutFile $ZipFile -UseBasicParsing
 Expand-Archive -Path $ZipFile -DestinationPath "php" -Force
 Remove-Item -Path $ZipFile -Force
 
+# Copy php.ini
+Copy-Item php/php.ini-development php/php.ini
+
+# Update tmp directory
+$content = Get-Content php/php.ini -Raw
+$content = [System.Text.RegularExpressions.Regex]::Replace($content, ';upload_tmp_dir\s*=.*', 'upload_tmp_dir = ../tmp')
+Set-Content -Path php/php.ini -Value $content
+
 Pop-Location
