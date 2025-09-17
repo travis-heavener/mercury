@@ -11,6 +11,7 @@
 - Now partially supports Range header (#142)
     - Returns 416 Range Not Satisfiable if attempting to use multipart byte ranges but WILL still merge overlapping ranges if possible
         - May look into multipart byte range support later
+- Improved internal heap memory handling (#136)
 
 ## v0.16.0
 - Refactored & streamlined config loader script (#128)

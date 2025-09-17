@@ -328,7 +328,7 @@ namespace http {
             if (isForceClosed) break; // Handle connection closed by client
 
             // Parse request
-            Response* pResponse = nullptr;
+            std::unique_ptr<Response> pResponse = nullptr;
             try {
                 Request request(reqHeaders, requestStr, clientIPStr, useTLS, isContentTooLarge);
 
@@ -373,12 +373,8 @@ namespace http {
                 if (sendStatus < 0 || pResponse->getStatus() == 413)
                     break;
             } catch (http::Exception& e) {
-                if (pResponse != nullptr) delete pResponse;
                 break; // Handles invalid requests syntax (ie. non-CRLF)
             }
-
-            // Free Response
-            delete pResponse;
         }
 
         // Close client socket & cleanup TLS
@@ -388,9 +384,9 @@ namespace http {
         delete[] readBuffer;
     }
 
-    Response* Server::genResponse(Request& request) {
+    std::unique_ptr<Response> Server::genResponse(Request& request) {
         // Handle different HTTP versions
-        Response* pResponse;
+        std::unique_ptr<Response> pResponse = nullptr;
 
         if (request.getVersion() == "HTTP/1.1") {
             pResponse = version::handler_1_1::genResponse(request);
@@ -400,7 +396,7 @@ namespace http {
             && !request.hasExplicitHTTP0_9()) {
             pResponse = version::handler_0_9::genResponse(request);
         } else {
-            pResponse = new Response("HTTP/1.1"); // Default version
+            pResponse = std::unique_ptr<Response>(new Response("HTTP/1.1")); // Default version
 
             // Handle with HTML if possible
             pResponse->setStatus(505);
