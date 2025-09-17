@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.17.0
+- Fixed bad URI handling for legacy HTTP versions
+- Dramatically reduced memory usage when parsing Requests
+- Now skips Chunked Transfer Encoding for bodies smaller than the response buffer size
+- Fixed sending Content-Encoding with precompressed bodies
+    - Applies to HTTP/1.0 & sufficiently small HTTP/1.1 bodies
+- Fixed sending Content-Length with Chunked Transfer Encoding responses
+- Max response size now only applies to MemoryStreams, FileStreams are exempt (uses Chunked Transfer Encoding for large files)
+- Now partially supports Range header (#142)
+    - Returns 416 Range Not Satisfiable if attempting to use multipart byte ranges but WILL still merge overlapping ranges if possible
+        - May look into multipart byte range support later
+- Improved internal heap memory handling (#136)
+- Windows PHP setup script now initializes php.ini
+    - Now properly initializes PHP's upload_tmp_dir to tmp in the Mercury root
+
 ## v0.16.0
 - Refactored & streamlined config loader script (#128)
     - Now gracefully handles invalid formatting for lines in mimes.conf

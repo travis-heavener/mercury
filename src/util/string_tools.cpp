@@ -83,6 +83,22 @@ void formatHeaderCasing(std::string& header) {
     }
 }
 
+// Reads from the input string until the next line or end,
+// starting at startIndex and updating it in place (by ref).
+// Returns true if there was data read, false otherwise.
+bool readLine(const std::string& input, std::string& lineBuf, size_t& startIndex) {
+    // Check if at end
+    if (startIndex == input.length()) return false;
+
+    // Otherwise, read the next line
+    size_t endIndex = input.find('\n', startIndex);
+    lineBuf = input.substr(startIndex, endIndex - startIndex);
+
+    // Update startIndex
+    startIndex = (endIndex == std::string::npos) ? input.length() : (endIndex + 1);
+    return true;
+}
+
 bool isMostlyAscii(const std::string& data, double thresh) {
     int asciiCount = 0;
 

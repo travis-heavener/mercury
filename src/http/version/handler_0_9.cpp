@@ -6,14 +6,20 @@
 
 namespace http::version::handler_0_9 {
 
-    Response* genResponse(Request& request) {
+    std::unique_ptr<Response> genResponse(Request& request) {
         // Create Response object
-        Response* pResponse = new Response("HTTP/0.9");
+        std::unique_ptr<Response> pResponse = std::unique_ptr<Response>(new Response("HTTP/0.9"));
 
         // Check if method is valid
         const METHOD method = request.getMethod();
         if (method != METHOD::GET) {
             pResponse->loadBodyFromErrorDoc(501); // Not Implemented
+            return pResponse;
+        }
+
+        // Verify no 400 errors have been met
+        if ( request.has400Error() ) {
+            pResponse->loadBodyFromErrorDoc(400);
             return pResponse;
         }
 

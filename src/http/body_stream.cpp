@@ -161,9 +161,34 @@ namespace http {
         return nullptr;
     }
 
+    // Adds a new byte range
+    void IBodyStream::addByteRange(byte_range_t byteRange) {
+        this->byteRanges.emplace_back( std::move(byteRange) );
+    }
+
     size_t MemoryStream::read(char* buffer, size_t maxBytes) {
-        const size_t remaining = data.size() - offset;
-        const size_t toRead = (std::min)(remaining, maxBytes);
+        // Handle byte ranges
+        if (byteRangeIndex < byteRanges.size() && !byteRanges.empty() && offset > byteRanges[byteRangeIndex].second) {
+            ++byteRangeIndex;
+            return 0;
+        }
+
+        size_t remaining;
+        if (!byteRanges.empty()) {
+            if (byteRangeIndex + 1 == byteRanges.size()) return 0;
+
+            byte_range_t& front = byteRanges[byteRangeIndex];
+            if (offset < front.first) offset = front.first; // Reset the offset if needed
+
+            size_t totalRangeSize = front.second - front.first + 1;
+            remaining = totalRangeSize - (offset - front.first);
+        } else {
+            remaining = data.size() - offset;
+        }
+
+        size_t toRead = (std::min)(remaining, maxBytes);
+        if (toRead == 0) return 0; // Skip no-op memcpy
+
         memcpy(buffer, data.c_str() + offset, toRead);
         offset += toRead;
         return toRead;
@@ -192,9 +217,44 @@ namespace http {
     }
 
     size_t FileStream::read(char* buffer, size_t maxBytes) {
-        if (handle.eof()) return 0;
-        handle.read(buffer, maxBytes);
-        return handle.gcount();
+        // Handle byte ranges
+        while (byteRangeIndex < byteRanges.size() && !byteRanges.empty()) {
+            byte_range_t& front = byteRanges[byteRangeIndex];
+
+            // Pop file pointer if past range
+            if (handle.tellg() != -1 && static_cast<size_t>(handle.tellg()) > front.second) {
+                ++byteRangeIndex;
+                return 0;
+            }
+
+            // Align file pointer to range start, if needed
+            if (handle.tellg() != -1 && static_cast<size_t>(handle.tellg()) < front.first) {
+                handle.clear(); // Clear any EOFs
+                handle.seekg(static_cast<std::streamoff>(front.first), std::ios::beg);
+            }
+
+            break;
+        }
+
+        // Verify byte ranges exist if needed
+        if (byteRangeIndex == byteRanges.size() && !byteRanges.empty()) return 0;
+
+        // Determine remaining bytes to read
+        size_t remaining;
+        if (byteRangeIndex < byteRanges.size() && !byteRanges.empty()) {
+            byte_range_t& front = byteRanges[byteRangeIndex];
+            std::streamoff currentPos = handle.tellg();
+            if (currentPos == -1) return 0; // Internal error
+            remaining = front.second - static_cast<size_t>(currentPos) + 1;
+        } else {
+            remaining = _size - static_cast<size_t>(handle.tellg());
+        }
+
+        size_t toRead = (std::min)(remaining, maxBytes);
+        if (toRead == 0) return 0;
+
+        handle.read(buffer, toRead);
+        return static_cast<size_t>(handle.gcount());
     }
 
 }

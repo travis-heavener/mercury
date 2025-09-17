@@ -12,6 +12,7 @@
     #include <poll.h>
 #endif
 
+#include <memory>
 #include <shared_mutex>
 
 #include "../pch/common.hpp"
@@ -44,7 +45,7 @@ namespace http {
             void acceptLoop();
             void handleReqs(const int, const std::string);
             void kill();
-            Response* genResponse(Request&);
+            std::unique_ptr<Response> genResponse(Request&);
         protected:
             // Socket methods
             inline void clearBuffer(char*);

@@ -12,15 +12,16 @@
 - [Table of Contents](#table-of-contents)
 - [About](#about)
 - [Getting Started](#getting-started)
-    - [Setting Up PHP](#setting-up-php)
     - [Config Files](#config-files)
     - [Log Files](#log-files)
-- [Build Info](#build-info)
-    - [Linux & Windows Builds](#linux--windows-builds)
+    - [Setting Up PHP](#setting-up-php)
     - [TLS Certs](#tls-certs)
         - [For Linux](#for-linux)
         - [For Windows](#for-windows)
         - [For Developers](#for-developers)
+    - [Troubleshooting](#troubleshooting)
+- [Build Info](#build-info)
+    - [Linux & Windows Builds](#linux--windows-builds)
     - [Compatibility](#compatibility)
     - [Making Releases](#making-releases)
 - [Testing Suite](#testing-suite)
@@ -78,26 +79,6 @@ Windows users have the option to use their own PHP installation instead by modif
 
 **Note: By default, in "mercury.conf" PHP support is disabled. Enable PHP by changing the value of the EnablePHPCGI node to on.**
 
-## Build Info
-
-The `/build_tools/` directory contains all necessary shell scripts for building static binaries.
-
-Binaries are placed in the `/bin/` directory, `mercury` for Linux and `mercury.exe` for Windows.
-
-**Note: Mercury binaries must be run from within the `/bin/` directory as resources & config files are loaded relative to the working directory.**
-
-### Linux & Windows Builds
-
-To build for Linux and/or Windows, use the following steps:
-
-1. Install all necessary dependencies & extract static libraries.
-
-    `make libs`.
-
-2. Using GNU Make, build for your desired platform(s) via `make linux`, `make windows`, or `make all`.
-
-Note: see [Compatibility](#compatibility) section for software compatibility.
-
 ### TLS Certs
 
 Self-signed TLS 1.3 certs are now available with OpenSSL.
@@ -117,6 +98,39 @@ Update the `$OPENSSL_PATH` variable in `/conf/ssl/makecert.ps1` with your correc
 #### For Developers
 In your Linux/Debian environment, use `make cert` in the root directory of this project and enter your information to automatically create a new certificate pair.
 Your certificate will be located at `/conf/ssl/cert.pem` and your private key at `/conf/ssl/key.pem`.
+
+**Note: By default, in "mercury.conf" TLS is disabled. Enable TLS by changing the value of the TLSPort node to a port like 443.**
+
+### Troubleshooting
+
+Currently, Powershell scripts distributed on Windows distributions are blocked from running if they are downloaded from the internet.
+If you encounter issues running these scripts, run the following Powershell command to unblock these files to allow them to work.
+
+```
+Unblock-File /path/to/your/file.ps1
+```
+
+This will allow files like the TLS certificate maker (/conf/ssl/makecert.ps1) and PHP installer (/conf/setup_php.ps1) to run properly.
+
+## Build Info
+
+The `/build_tools/` directory contains all necessary shell scripts for building static binaries.
+
+Binaries are placed in the `/bin/` directory, `mercury` for Linux and `mercury.exe` for Windows.
+
+**Note: Mercury binaries must be run from within the `/bin/` directory as resources & config files are loaded relative to the working directory.**
+
+### Linux & Windows Builds
+
+To build for Linux and/or Windows, use the following steps:
+
+1. Install all necessary dependencies & extract static libraries.
+
+    `make libs`.
+
+2. Using GNU Make, build for your desired platform(s) via `make linux`, `make windows`, or `make all`.
+
+Note: see [Compatibility](#compatibility) section for software compatibility.
 
 ### Compatibility
 
