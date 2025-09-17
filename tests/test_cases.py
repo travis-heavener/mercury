@@ -146,5 +146,11 @@ cases = [
 
     # Test server-wide OPTIONS
     TestCase(method="HEAD", path="*", expected_status=400, http_ver="HTTP/1.1"),
-    TestCase(method="OPTIONS", path="*", expected_status=204, http_ver="HTTP/1.1")
+    TestCase(method="OPTIONS", path="*", expected_status=204, http_ver="HTTP/1.1"),
+
+    # Test Range header
+    TestCase(method="HEAD", path="/", expected_status=206, http_ver="HTTP/1.1", headers={"RANGE": "bytes=0-13"}),
+    TestCase(method="HEAD", path="/", expected_status=416, http_ver="HTTP/1.1", headers={"RANGE": "bytes=0-13, -19"}),
+    TestCase(method="HEAD", path="/", expected_status=206, http_ver="HTTP/1.0", headers={"RANGE": "bytes=0-13"}),
+    TestCase(method="HEAD", path="/", expected_status=416, http_ver="HTTP/1.0", headers={"RANGE": "bytes=0-13, -19"})
 ]
