@@ -11,33 +11,6 @@
 #include "../conf/conf.hpp"
 #include "../pch/common.hpp"
 
-int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) {
-    std::string buffer;
-    std::filesystem::path cwd = conf::CWD / "conf" / "html" / "err.html";
-
-    // Open file
-    std::ifstream handle( cwd.string(), std::ios::binary | std::ios::ate );
-    if (!handle.is_open()) return IO_FAILURE;
-
-    // Read file to buffer
-    std::streamsize size = handle.tellg();
-    handle.seekg(0, std::ios::beg);
-    buffer = std::string(size, '\0');
-    handle.read(buffer.data(), size);
-
-    // Close file
-    handle.close();
-
-    // Replace status code & descriptor
-    stringReplaceAll(buffer, "%title%", getReasonFromStatusCode(status));
-    stringReplaceAll(buffer, "%status%", std::to_string(status));
-    stringReplaceAll(buffer, "%version%", conf::VERSION);
-
-    // Load to MemoryStream
-    pStream = std::unique_ptr<http::IBodyStream>( new http::MemoryStream(buffer) );
-    return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
-}
-
 void formatFileSize(size_t fileSize, std::string& buffer) {
     long double truncatedSize;
     std::stringstream ss;
@@ -79,22 +52,50 @@ void formatDate(std::filesystem::file_time_type dur, std::string& buffer) {
     buffer = ss.str();
 }
 
-int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std::string& path, const std::string& rawPath) {
-    std::string buffer;
-    std::filesystem::path directoryListing = conf::CWD / "conf" / "html" / "dir_index.html";
+int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) {
+    const std::filesystem::path templatePath = conf::CWD / "conf/html/err.html";
 
-    // Read directory listing file
-    std::ifstream handle( directoryListing.string(), std::ios::binary | std::ios::ate );
+    // Open file
+    std::ifstream handle( templatePath.string(), std::ios::binary | std::ios::ate );
     if (!handle.is_open()) return IO_FAILURE;
 
     // Read file to buffer
     std::streamsize size = handle.tellg();
     handle.seekg(0, std::ios::beg);
-    buffer = std::string(size, '\0');
+    std::string buffer(size, '\0');
     handle.read(buffer.data(), size);
 
     // Close file
     handle.close();
+
+    // Replace status code & descriptor
+    stringReplaceAll(buffer, "%title%", getReasonFromStatusCode(status));
+    stringReplaceAll(buffer, "%status%", std::to_string(status));
+    stringReplaceAll(buffer, "%version%", conf::VERSION);
+
+    // Load to MemoryStream
+    pStream = std::unique_ptr<http::IBodyStream>( new http::MemoryStream(buffer) );
+    return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
+}
+
+int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std::string& path, const std::string& rawPath) {
+    const std::filesystem::path templatePath = conf::CWD / "conf/html/dir_index.html";
+
+    // Read directory listing file
+    std::ifstream handle( templatePath.string(), std::ios::binary | std::ios::ate );
+    if (!handle.is_open()) return IO_FAILURE;
+
+    // Read file to buffer
+    std::streamsize size = handle.tellg();
+    handle.seekg(0, std::ios::beg);
+    std::string buffer(size, '\0');
+    handle.read(buffer.data(), size);
+
+    // Close file
+    handle.close();
+
+    // Replace version
+    stringReplaceAll(buffer, "%version%", conf::VERSION);
 
     // Gather data from desired path
     std::stringstream rowsBuffer;
