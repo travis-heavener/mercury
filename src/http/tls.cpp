@@ -2,6 +2,12 @@
 
 #include <string>
 
+#include "../conf/conf.hpp"
+#include "../logs/logger.hpp"
+
+#define CERT_PATH "conf/ssl/cert.pem"
+#define KEY_PATH "conf/ssl/key.pem"
+
 SSL_CTX* initTLSContext() {
     OPENSSL_no_config();
 
@@ -32,3 +38,6 @@ SSL_CTX* initTLSContext() {
     // Return new path
     return ctx;
 }
+
+#undef CERT_PATH
+#undef KEY_PATH

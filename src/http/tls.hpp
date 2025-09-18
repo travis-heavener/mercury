@@ -3,12 +3,6 @@
 
 #include <openssl/ssl.h>
 
-#include "../conf/conf.hpp"
-#include "../logs/logger.hpp"
-
-#define CERT_PATH "conf/ssl/cert.pem"
-#define KEY_PATH "conf/ssl/key.pem"
-
 SSL_CTX* initTLSContext();
 
 #endif

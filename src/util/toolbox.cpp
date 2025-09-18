@@ -193,7 +193,7 @@ std::string getCurrentGMTString() {
     return ss.str();
 }
 
-std::string getReasonFromStatusCode(uint16_t code) {
+const char* getReasonFromStatusCode(uint16_t code) {
     switch (code) {
         case 200: return "OK";
         case 201: return "Created";

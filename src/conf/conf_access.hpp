@@ -1,6 +1,7 @@
 #ifndef __CONF_ACCESS_HPP
 #define __CONF_ACCESS_HPP
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -26,7 +27,7 @@ namespace conf {
             // Returns true if the IP is allowed access by the exceptions list
             bool isIPAccepted(SanitizedIP& ip) const;
 
-            void insertIP(SanitizedIP ip);
+            inline void insertIP(SanitizedIP ip) { exceptions.push_back(ip); }
         private:
             const bool isDenyFirst;
             std::vector<SanitizedIP> exceptions;

@@ -60,7 +60,7 @@ namespace conf {
 
     // Static methods
     int loadConfig();
-    void cleanupConfig();
+    inline void cleanupConfig() { matchConfigs.clear(); }
 }
 
 #endif

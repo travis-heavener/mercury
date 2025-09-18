@@ -1,7 +1,6 @@
 #ifndef __HTTP_RESPONSE_HPP
 #define __HTTP_RESPONSE_HPP
 
-#include <algorithm>
 #include <functional>
 #include <memory>
 
@@ -13,7 +12,7 @@
 #include "../io/file.hpp"
 #include "../util/string_tools.hpp"
 #include "body_stream.hpp"
-#include "byte_range.hpp"
+#include "http_tools.hpp"
 
 // The minimum size for a body to be compressed
 #define MIN_COMPRESSION_SIZE 750
@@ -22,13 +21,14 @@ namespace http {
 
     class Response {
         public:
-            Response(const std::string&);
+            Response(const std::string& httpVersion);
 
-            void setStatus(const uint16_t statusCode);
+            inline void setStatus(const uint16_t statusCode) { this->statusCode = statusCode; };
             inline uint16_t getStatus() const { return httpVersion == "HTTP/0.9" ? 0 : statusCode; };
+
             void setHeader(std::string name, const std::string& value);
-            void clearHeader(std::string);
-            void clearHeaders() { headers.clear(); };
+            void clearHeader(std::string name);
+            inline void clearHeaders() { headers.clear(); };
             void setCompressMethod(const int compressMethod);
 
             int loadBodyFromErrorDoc(const uint16_t statusCode);
@@ -39,9 +39,10 @@ namespace http {
                 this->setHeader("Content-Type", type);
             }
             const std::string getContentType() const;
-            int getContentLength() const;
 
-            ssize_t beginStreamingBody(const bool isHTMLAccepted, const bool omitBody, std::function<ssize_t(const char*, const size_t)>&);
+            size_t getContentLength() const;
+
+            ssize_t streamBody(const bool isHTMLAccepted, const bool omitBody, std::function<ssize_t(const char*, const size_t)>&);
 
             // Returns true if the ranges are valid, false otherwise
             bool extendByteRanges(const std::vector<byte_range_t>& byteRanges);

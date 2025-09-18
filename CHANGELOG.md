@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.17.1
+- Minor performance improvements for frequently used methods
+
 ## v0.17.0
 - Fixed bad URI handling for legacy HTTP versions
 - Dramatically reduced memory usage when parsing Requests

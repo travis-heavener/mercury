@@ -3,10 +3,6 @@
 
 #include "../pch/common.hpp"
 
-// Including conf.hpp technically is a cyclical header but it doesn't introduce any errors
-// Needed for conf::DOCUMENT_ROOT
-#include "../conf/conf.hpp"
-
 #define NOT_SYMLINK 0
 #define IS_SYMLINK 1
 #define FILE_NOT_EXIST 2

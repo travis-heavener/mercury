@@ -1,11 +1,12 @@
 #include "server.hpp"
 
+#include "../conf/conf.hpp"
 #include "../io/file.hpp"
 #include "../logs/logger.hpp"
 #include "../util/string_tools.hpp"
 #include "../util/toolbox.hpp"
 
-#include "exception.hpp"
+#include "http_tools.hpp"
 #include "version/handler_1_1.hpp"
 #include "version/handler_1_0.hpp"
 #include "version/handler_0_9.hpp"
@@ -136,7 +137,7 @@ namespace http {
     }
 
     int Server::closeSocket(const int sock) {
-        #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+        #ifdef _WIN32
             shutdown(sock, SD_BOTH);
             return closesocket(sock);
         #else
@@ -359,7 +360,7 @@ namespace http {
                 };
 
                 // Handle write failure
-                const ssize_t sendStatus = pResponse->beginStreamingBody(request.isMIMEAccepted("text/html"), omitBody, sendFunc);
+                const ssize_t sendStatus = pResponse->streamBody(request.isMIMEAccepted("text/html"), omitBody, sendFunc);
 
                 // Log request
                 ACCESS_LOG << request.getMethodStr() << ' '

@@ -1,6 +1,10 @@
 #ifndef __TOOLBOX_HPP
 #define __TOOLBOX_HPP
 
+#include <chrono>
+#include <memory>
+#include <string>
+
 #include "../http/body_stream.hpp"
 
 #define IO_SUCCESS 0
@@ -19,6 +23,6 @@ std::time_t getFileModTimeT(const std::string&);
 std::string getFileModGMTString(const std::string&);
 std::string getCurrentGMTString();
 
-std::string getReasonFromStatusCode(uint16_t);
+const char* getReasonFromStatusCode(uint16_t code);
 
 #endif

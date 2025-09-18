@@ -1,6 +1,9 @@
 #include "server-ipv6.hpp"
 
+#include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
+
+#define MAX_IPV6_BIND_ATTEMPTS 5
 
 namespace http {
 
@@ -91,3 +94,5 @@ namespace http {
     }
 
 }
+
+#undef MAX_IPV6_BIND_ATTEMPTS

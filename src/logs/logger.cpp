@@ -6,7 +6,6 @@
 #include "../conf/conf.hpp"
 
 Logger::Logger() : isExited(false) {
-    // Create thread
     this->thread = std::thread(&Logger::threadWrite, this);
 }
 
@@ -29,24 +28,6 @@ Logger::~Logger() {
 
     if (conf::errorLogHandle.is_open())
         conf::errorLogHandle.close();
-}
-
-LoggerStream Logger::operator()(const bool isAccess) {
-    return LoggerStream(*this, isAccess);
-}
-
-// Queues access logs
-void Logger::queueAccessLog(const std::string& log) {
-    std::lock_guard<std::mutex> lock(accessQueueMutex);
-    accessQueue.push(log);
-    cv.notify_one();
-}
-
-// Queues error logs
-void Logger::queueErrorLog(const std::string& log) {
-    std::lock_guard<std::mutex> lock(errorQueueMutex);
-    errorQueue.push(log);
-    cv.notify_one();
 }
 
 // Writes from each queue to log files
