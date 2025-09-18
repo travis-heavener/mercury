@@ -147,9 +147,7 @@ namespace http::cgi {
             // Parse headers
             std::unordered_set<std::string> headers;
             splitStringUnique(headers, headersStr, '\n', true);
-            for (const std::string& _line : headers) {
-                std::string line( _line ); // Copy string
-
+            for (std::string line : headers) {
                 // Trim carriage return
                 if (line.back() == '\r')
                     line.pop_back();
