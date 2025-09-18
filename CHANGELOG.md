@@ -4,6 +4,7 @@
 - Minor performance improvements for frequently used methods
 - Improved default public HTML
     - Distinguished index.php from index.html
+- Update default error doc & directory index HTML templates (#155)
 
 ## v0.17.0
 - Fixed bad URI handling for legacy HTTP versions
