@@ -2,6 +2,8 @@
 
 ## v0.18.0
 - Minor performance improvements for frequently used methods
+- Improved default public HTML
+    - Distinguished index.php from index.html
 
 ## v0.17.0
 - Fixed bad URI handling for legacy HTTP versions

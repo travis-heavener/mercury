@@ -54,8 +54,8 @@
     </head>
     <body>
         <div id="container">
-            <h1>It Works!</h1>
-            <h2>Mercury is successfully running on your machine.</h2>
+            <h1>PHP Works!</h1>
+            <h2>Your Mercury installation is successfully parsing PHP via CGI.</h2>
             <p>You can change the <code>DocumentRoot</code> in <code>conf/mercury.conf</code>.</p>
             <div id="footer">Mercury HTTP Server</div>
         </div>
