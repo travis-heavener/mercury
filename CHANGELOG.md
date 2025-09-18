@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.17.1
+## v0.18.0
 - Minor performance improvements for frequently used methods
 
 ## v0.17.0
