@@ -31,6 +31,7 @@ int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) 
     // Replace status code & descriptor
     stringReplaceAll(buffer, "%title%", getReasonFromStatusCode(status));
     stringReplaceAll(buffer, "%status%", std::to_string(status));
+    stringReplaceAll(buffer, "%version%", conf::VERSION);
 
     // Load to MemoryStream
     pStream = std::unique_ptr<http::IBodyStream>( new http::MemoryStream(buffer) );
