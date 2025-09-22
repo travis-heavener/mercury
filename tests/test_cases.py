@@ -7,20 +7,42 @@ READ_BUF_SIZE = 1024 * 16 # Read buffer size for recv
 gmt_now = lambda: datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
 
 class TestCase:
-    def __init__(self, method: str, path: str, expected_status: int,
+    def __init__(self, method: str, path: str, expected: int,
                  headers: dict=None, expected_headers: dict=None,
-                 http_ver: str="HTTP/1.1"):
+                 version: str="1.1"):
         self.method = method
         self.path = path
-        self.http_ver = http_ver
-        self.expected_status = expected_status
+        self.version = "HTTP/" + version
+        self.expected_status = expected
 
         self.headers = {} if headers is None else headers
-        self.headers["Host"] = "Mercury Test Agent"
+        self.headers["Host"] = "localhost"
+        self.headers["User-Agent"] = "Mercury Test Agent"
+        self.headers["Connection"] = "close"
 
         # Format expected_headers
         expected_headers = {} if expected_headers is None else expected_headers
         self.expected_headers = { k.upper(): v for k, v in expected_headers.items() }
+
+    # Generate an inline description of the request
+    def inline_desc(self) -> str:
+        if self.version == "HTTP/0.9":
+            return f"  {self.method} {self.path} [{self.version}]"
+
+        # Base case, HTTP/1.0+
+        s = f"  {self.method} {self.path} [{self.version}]\n"
+        s += f"  Expected Status: {self.expected_status}\n"
+
+        if len(self.headers): s += "  Headers:\n"
+        for k, v in self.headers.items():
+            s += f"    {k}: {v}\n"
+
+        if len(self.expected_headers): s += "  Expected Headers:\n"
+        for k, v in self.expected_headers.items():
+            s += f"    {k}: {'<any>' if v is None else None}\n"
+
+        # Return everything except extra newline
+        return s[:-1]
 
     # Send the payload to the server socket
     def test(self, s: socket.socket, test_desc: str) -> bool:
@@ -30,13 +52,17 @@ class TestCase:
         # Read response
         response = s.recv(READ_BUF_SIZE).decode("utf-8").replace("\r", "")
 
-        if self.http_ver == "HTTP/0.9":
+        if self.version == "HTTP/0.9":
             # Verify something is returned
             if len(response) == 0:
+                print(f"Failed {test_desc}: Empty response to HTTP/0.9")
+                print(self.inline_desc())
                 return False
 
             # Verify this isn't an HTTP/1.1 fallback
             if re.match(r"^HTTP\/1.1 \d+ [\w ]+$", response.split("\n")[0]):
+                print(f"Failed {test_desc}: HTTP/1.1 fallback to HTTP/0.9")
+                print(self.inline_desc())
                 return False
 
             # Base case, success
@@ -56,11 +82,19 @@ class TestCase:
 
             # Check status code
             if status_code != self.expected_status:
+                print(f"Failed {test_desc}: Status mismatch - expected {self.expected_status}, got {status_code}")
+                print(self.inline_desc())
                 return False
 
             # Check headers
             for k, v in self.expected_headers.items():
-                if k not in headers or headers[k] != v:
+                if k not in headers:
+                    print(f"Failed {test_desc}: Missing header \"{k}\"")
+                    print(self.inline_desc())
+                    return False
+                elif v is not None and headers[k] != v:
+                    print(f"Failed {test_desc}: Header mismatch - expected \"{k}\"=\"{v}\", got \"{k}\"=\"{headers[k]}\"")
+                    print(self.inline_desc())
                     return False
 
             # Base case
@@ -68,89 +102,104 @@ class TestCase:
 
     # Stringify the test case
     def __str__(self) -> str:
-        if self.http_ver == "HTTP/0.9":
+        if self.version == "HTTP/0.9":
             return f"{self.method} {self.path}\r\n\r\n"
         else:
-            s = f"{self.method} {self.path} {self.http_ver}\r\n"
+            s = f"{self.method} {self.path} {self.version}\r\n"
             s += "\r\n".join(f"{k}: {v}" for k, v in self.headers.items())
             s += "\r\n" * (2 if len(self.headers) > 0 else 1)
             return s
 
+###########################################################################
+########                                                           ########
+###                            TEST CASES                               ###
+########                                                           ########
+###########################################################################
+
 cases = [
-    # Path injection test cases
-    TestCase(method="HEAD", path=".",               expected_status=400),
-    TestCase(method="HEAD", path="../",             expected_status=400),
-    TestCase(method="HEAD", path="..\\",            expected_status=400),
-    TestCase(method="HEAD", path="/../",            expected_status=400),
-    TestCase(method="HEAD", path="\\..\\",          expected_status=400),
-    TestCase(method="HEAD", path="\\..\\",          expected_status=400),
-    TestCase(method="HEAD", path="%2e%2e%2f",       expected_status=400),
-    TestCase(method="HEAD", path="%2e%2e%5c",       expected_status=400),
-    TestCase(method="HEAD", path="%2e%2e/",         expected_status=400),
-    TestCase(method="HEAD", path="..%2f",           expected_status=400),
-    TestCase(method="HEAD", path="%2e%2e\\",        expected_status=400),
-    TestCase(method="HEAD", path="%252e%252e%255c", expected_status=400),
-    TestCase(method="HEAD", path="..%255c",         expected_status=400),
+    # Test PHP parsing (HTTP/1.1 ONLY)
+    TestCase("GET", "/index.php",    expected=200, version="1.1"),
+    TestCase("HEAD", "/index.php",   expected=200, version="1.1"),
+    TestCase("POST", "/index.php",   expected=200, version="1.1"),
+    TestCase("PUT", "/index.php",    expected=200, version="1.1"),
+    TestCase("PATCH", "/index.php",  expected=200, version="1.1"),
+    TestCase("DELETE", "/index.php", expected=200, version="1.1"),
+    TestCase("POST", "/ASDFGHJKL",   expected=404, version="1.1"),
 
-    TestCase(method="HEAD", path=".",               expected_status=400, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="../",             expected_status=400, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="..\\",            expected_status=400, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="/../",            expected_status=400, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="\\..\\",          expected_status=400, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="\\..\\",          expected_status=400, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="%2e%2e%2f",       expected_status=400, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="%2e%2e%5c",       expected_status=400, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="%2e%2e/",         expected_status=400, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="..%2f",           expected_status=400, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="%2e%2e\\",        expected_status=400, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="%252e%252e%255c", expected_status=400, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="..%255c",         expected_status=400, http_ver="HTTP/1.0"),
+    # Invalid method checking for static files (HTTP/1.1)
+    TestCase("GET", "/",            expected=200, version="1.1"),
+    TestCase("HEAD", "/",           expected=200, version="1.1"),
+    TestCase("HEAD", "*",           expected=400, version="1.1"),
+    TestCase("OPTIONS", "/",        expected=204, version="1.1", expected_headers={"Allow": None}),
+    TestCase("OPTIONS", "*",        expected=204, version="1.1", expected_headers={"Allow": None}),
+    TestCase("POST", "/",           expected=405, version="1.1"),
+    TestCase("PUT", "/",            expected=405, version="1.1"),
+    TestCase("PATCH", "/",          expected=405, version="1.1"),
+    TestCase("DELETE", "/",         expected=405, version="1.1"),
+    TestCase("FOO", "/foo-bar",     expected=501, version="1.1"),
 
-    # CRLF injection test cases
-    TestCase(method="HEAD", path="/%0D%0A",                 expected_status=404),
-    TestCase(method="HEAD", path="/index.html?q=%0D%0A",    expected_status=200),
-    TestCase(method="HEAD", path="/%0D%0A",                 expected_status=404, http_ver="HTTP/1.0"),
-    TestCase(method="HEAD", path="/index.html?q=%0D%0A",    expected_status=200, http_ver="HTTP/1.0"),
+    # Invalid method checking for static files (HTTP/1.0)
+    TestCase("GET", "/",            expected=200, version="1.0"),
+    TestCase("HEAD", "/",           expected=200, version="1.0"),
+    TestCase("HEAD", "*",           expected=400, version="1.0"),
+    TestCase("OPTIONS", "/",        expected=501, version="1.0"),
+    TestCase("OPTIONS", "*",        expected=501, version="1.0"),
+    TestCase("POST", "/",           expected=405, version="1.0"),
+    TestCase("PUT", "/",            expected=501, version="1.0"),
+    TestCase("PATCH", "/",          expected=501, version="1.0"),
+    TestCase("DELETE", "/",         expected=501, version="1.0"),
+    TestCase("FOO", "/foo-bar",     expected=501, version="1.0"),
 
-    # Success cases
-    TestCase(method="HEAD", path="/",           expected_status=200),
-    TestCase(method="HEAD", path="/?q=12",      expected_status=200),
-    TestCase(method="HEAD", path="/index.html", expected_status=200),
-    TestCase(method="HEAD", path="/index.html", expected_status=304, headers={"IF-MODIFIED-SINCE": gmt_now()}),
+    # Invalid method checking for static files (HTTP/0.9)
+    # These really just make sure the server doesn't crash,
+    # the responses are more loosely checked
+    TestCase("GET", "/index.html",  expected=-1, version="0.9"),
+    TestCase("HEAD", "/index.html", expected=-1, version="0.9"),
 
-    # Misc. statuses
-    TestCase(method="HEAD", path="/foobar",     expected_status=404),
-    TestCase(method="HEAD", path="/",           expected_status=406, headers={"Accept": "text/plain"}),
-    TestCase(method="HEAD", path="/",           expected_status=505, http_ver="HTTP/2.0"),
-    TestCase(method="HEAD", path="/",           expected_status=200, http_ver="HTTP/1.0"),
-
-    # Invalid method checking & proper method versions
-    TestCase(method="POST", path="/",           expected_status=405),
-    TestCase(method="OPTIONS", path="/",        expected_status=204, http_ver="HTTP/1.1"),
-    TestCase(method="OPTIONS", path="/",        expected_status=501, http_ver="HTTP/1.0"),
-    TestCase(method="FOO",  path="/foo-bar",    expected_status=501),
-    TestCase(method="FOO",  path="/",           expected_status=501),
-
-    # Invalid query string
-    TestCase(method="HEAD", path="/index.html%", expected_status=400),
-
-    # Test HTTP/0.9
-    # These don't really check responses, just make sure the server doesn't crash lol
-    TestCase(method="GET", path="/index.html", expected_status=-1, http_ver="HTTP/0.9"),
-
-    # Test invalid method handling
-    TestCase(method="HEAD", path="/index.html", expected_status=-1, http_ver="HTTP/0.9"),
-
-    # Test PHP parsing
-    TestCase(method="HEAD", path="/index.php", expected_status=200, http_ver="HTTP/1.1"),
-
-    # Test server-wide OPTIONS
-    TestCase(method="HEAD", path="*", expected_status=400, http_ver="HTTP/1.1"),
-    TestCase(method="OPTIONS", path="*", expected_status=204, http_ver="HTTP/1.1"),
-
-    # Test Range header
-    TestCase(method="HEAD", path="/", expected_status=206, http_ver="HTTP/1.1", headers={"RANGE": "bytes=0-13"}),
-    TestCase(method="HEAD", path="/", expected_status=416, http_ver="HTTP/1.1", headers={"RANGE": "bytes=0-13, -19"}),
-    TestCase(method="HEAD", path="/", expected_status=206, http_ver="HTTP/1.0", headers={"RANGE": "bytes=0-13"}),
-    TestCase(method="HEAD", path="/", expected_status=416, http_ver="HTTP/1.0", headers={"RANGE": "bytes=0-13, -19"})
+    # Test unsupported HTTP methods
+    TestCase("HEAD", "/", expected=505, version="2.0"),
+    TestCase("HEAD", "/", expected=505, version="3.0"),
+    TestCase("HEAD", "/", expected=505, version="4.0")
 ]
+
+# Tests IDENTICAL for HTTP/1.0 and HTTP/1.1
+for ver in ["1.0", "1.1"]:
+    cases.extend([
+        # Path injection
+        TestCase("HEAD", ".",               expected=400, version=ver),
+        TestCase("HEAD", "../",             expected=400, version=ver),
+        TestCase("HEAD", "..\\",            expected=400, version=ver),
+        TestCase("HEAD", "/../",            expected=400, version=ver),
+        TestCase("HEAD", "\\..\\",          expected=400, version=ver),
+        TestCase("HEAD", "\\..\\",          expected=400, version=ver),
+        TestCase("HEAD", "%2e%2e%2f",       expected=400, version=ver),
+        TestCase("HEAD", "%2e%2e%5c",       expected=400, version=ver),
+        TestCase("HEAD", "%2e%2e/",         expected=400, version=ver),
+        TestCase("HEAD", "..%2f",           expected=400, version=ver),
+        TestCase("HEAD", "%2e%2e\\",        expected=400, version=ver),
+        TestCase("HEAD", "%252e%252e%255c", expected=400, version=ver),
+        TestCase("HEAD", "..%255c",         expected=400, version=ver),
+
+        # CRLF injection
+        TestCase("HEAD", "/%0D%0A",                 expected=404, version=ver),
+        TestCase("HEAD", "/index.html?q=%0D%0A",    expected=200, version=ver),
+
+        # Success test cases
+        TestCase("HEAD", "/",           expected=200, version=ver),
+        TestCase("HEAD", "/?q=12",      expected=200, version=ver),
+        TestCase("HEAD", "/index.html", expected=200, version=ver),
+
+        # Test If-Modified-Since & 304 status
+        TestCase("HEAD", "/index.html", expected=304, version=ver, headers={"IF-MODIFIED-SINCE": gmt_now()}),
+
+        # Test byte ranges
+        TestCase("HEAD", "/", expected=206, version=ver, headers={"Range": "bytes=0-13"}, expected_headers={"Content-Length": "14"}),
+        TestCase("HEAD", "/", expected=416, version=ver, headers={"Range": "bytes=0-13, -19"}),
+
+        # Invalid query string
+        TestCase("HEAD", "/index.html%", expected=400, version=ver),
+
+        # Test misc. statuses
+        TestCase("HEAD", "/foobar", expected=404, version=ver),
+        TestCase("HEAD", "/",       expected=406, version=ver, headers={"Accept": "text/plain"})
+    ])

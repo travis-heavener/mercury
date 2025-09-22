@@ -28,14 +28,11 @@ if __name__ == "__main__":
     num_total = len(cases) * 4
     try:
         for i, test_case in enumerate(cases):
-            # Open the socket connection
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((host, port))
 
                 # Send payload & evaluate
-                if not test_case.test(s, f"IPv4 test #{i+1}"):
-                    print(f"Failed IPv4 test #{i+1}")
-                else:
+                if test_case.test(s, f"IPv4 test"):
                     num_passing += 1
     except:
         print("[Note]: IPv4 connection failure")
@@ -43,13 +40,10 @@ if __name__ == "__main__":
     # Run IPv4 SSL test cases
     try:
         for i, test_case in enumerate(cases):
-            # Open the socket connection
             with socket.create_connection((host, ssl_port)) as sock:
                 with ssl_ctx.wrap_socket(sock, server_hostname=host) as s:
                     # Send payload & evaluate
-                    if not test_case.test(s, f"IPv4 SSL test #{i+1}"):
-                        print(f"Failed IPv4 SSL test #{i+1}")
-                    else:
+                    if test_case.test(s, f"IPv4 SSL test"):
                         num_passing += 1
     except:
         print("[Note]: IPv4 SSL connection failure")
@@ -57,14 +51,11 @@ if __name__ == "__main__":
     # Run IPv6 test cases
     try:
         for i, test_case in enumerate(cases):
-            # Open the socket connection
             with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
                 s.connect((host_v6, port))
 
                 # Send payload & evaluate
-                if not test_case.test(s, f"IPv6 test #{i+1}"):
-                    print(f"Failed IPv6 test #{i+1}")
-                else:
+                if test_case.test(s, f"IPv6 test"):
                     num_passing += 1
     except:
         print("[Note]: IPv6 connection failure")
@@ -72,13 +63,10 @@ if __name__ == "__main__":
     # Run IPv6 SSL test cases
     try:
         for i, test_case in enumerate(cases):
-            # Open the socket connection
             with socket.create_connection((host_v6, ssl_port)) as sock:
                 with ssl_ctx.wrap_socket(sock, server_hostname=host_v6) as s:
                     # Send payload & evaluate
-                    if not test_case.test(s, f"IPv6 SSL test #{i+1}"):
-                        print(f"Failed IPv6 SSL test #{i+1}")
-                    else:
+                    if test_case.test(s, f"IPv6 SSL test"):
                         num_passing += 1
     except:
         print("[Note]: IPv6 SSL connection failure")
