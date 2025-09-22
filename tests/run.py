@@ -1,7 +1,14 @@
-#
-# Used to send test requests to the server
-#   Travis Heavener
-#
+"""
+
+Author: Travis Heavener (https://github.com/travis-heavener/)
+
+This file uses the test cases in test_cases.py to test the output of
+  the Mercury HTTP server.
+
+See the note at the top of test_cases.py for more information about
+  how to use and make your own test cases.
+
+"""
 
 import socket
 import ssl

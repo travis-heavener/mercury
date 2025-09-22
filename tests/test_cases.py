@@ -2,6 +2,22 @@ from datetime import datetime, timezone
 import re
 import socket
 
+"""
+
+Author: Travis Heavener (https://github.com/travis-heavener/)
+
+This file contains the defined test cases (as an array of TestCase class objects).
+The test cases are below the class definition at the bottom of this file.
+
+The TestCase class provides structure to specify a desired HTTP status code (or -1 for HTTP/0.9).
+This class allows you to specify request headers (the headers field) and specify
+  desired response headers (the expected_headers field). For expected response headers, if you
+  only wish to check if a header is present without caring about what the value of the header
+  is, use None instead of a string value.
+Use the version field to specify what HTTP version to use for requests.
+
+"""
+
 READ_BUF_SIZE = 1024 * 16 # Read buffer size for recv
 
 gmt_now = lambda: datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
