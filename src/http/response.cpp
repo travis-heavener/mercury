@@ -1,7 +1,9 @@
 #include "response.hpp"
 
+#include <algorithm>
 #include <format>
 
+#include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
 #include "../io/file_tools.hpp"
 #include "../util/toolbox.hpp"
@@ -16,10 +18,6 @@ namespace http {
     Response::Response(const std::string& httpVersion) {
         this->httpVersion = httpVersion;
         this->pBodyStream = std::unique_ptr<IBodyStream>( new MemoryStream("") );
-    }
-
-    void Response::setStatus(const uint16_t statusCode) {
-        this->statusCode = statusCode;
     }
 
     void Response::setHeader(std::string name, const std::string& value) {
@@ -86,10 +84,10 @@ namespace http {
         return type->second;
     }
 
-    int Response::getContentLength() const {
+    size_t Response::getContentLength() const {
         auto type = this->headers.find("Content-Length");
         if (type == this->headers.end()) return -1;
-        return std::stoi(type->second);
+        return std::stoull(type->second);
     }
 
     bool Response::extendByteRanges(const std::vector<byte_range_t>& byteRanges) {
@@ -197,7 +195,7 @@ namespace http {
         return true;
     }
 
-    ssize_t Response::beginStreamingBody(const bool isHTMLAccepted, const bool omitBody, std::function<ssize_t(const char*, const size_t)>& sendFunc) {
+    ssize_t Response::streamBody(const bool isHTMLAccepted, const bool omitBody, std::function<ssize_t(const char*, const size_t)>& sendFunc) {
         std::vector<char> readChunk(conf::RESPONSE_BUFFER_SIZE), compressChunk;
 
         // Handle HTTP/0.9 unique format
@@ -271,6 +269,7 @@ namespace http {
             }
         } else if (originalByteRanges.size() > 1) {
             // Remove Content-Encoding for multipart byte ranges
+            // UNIMPLEMENTED
             this->clearHeader("Content-Encoding");
         }
 

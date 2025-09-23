@@ -7,6 +7,7 @@
 #include <iostream>
 #include <random>
 
+#include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
 
 #define TMP_FILE_MAX_RETRIES 50

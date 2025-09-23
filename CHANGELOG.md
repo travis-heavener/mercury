@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.18.0
+- Minor performance improvements for frequently used methods
+- Improved default public HTML
+    - Distinguished index.php from index.html
+- Update default error doc & directory index HTML templates (#155)
+- Improve directory index & error doc streaming (#148)
+    - Now precompiled into a tmp file and buffered via FileStream
+- Updated Windows PHP path to an archived 8.4.12 version
+    - This recently broke as PHP updated to 8.4.13, but this archived version should remain parked
+
 ## v0.17.0
 - Fixed bad URI handling for legacy HTTP versions
 - Dramatically reduced memory usage when parsing Requests

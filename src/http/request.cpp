@@ -1,6 +1,5 @@
 #include "request.hpp"
 
-#include "exception.hpp"
 #include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
 #include "../util/string_tools.hpp"

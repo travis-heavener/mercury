@@ -9,7 +9,7 @@
 #include <brotli/encode.h>
 #include <zlib.h>
 
-#include "byte_range.hpp"
+#include "http_tools.hpp"
 
 #define STREAM_SUCCESS 0
 #define STREAM_FAILURE 1
@@ -28,7 +28,7 @@ namespace http {
             virtual size_t finish(std::vector<char>& dest) = 0;
 
             // Returns true or false if the stream failed to open/start
-            int status() const { return _status; };
+            inline int status() const { return _status; };
         protected:
             int _status = STREAM_SUCCESS;
     };
@@ -67,13 +67,13 @@ namespace http {
             virtual size_t read(char* buffer, size_t maxBytes) = 0;
 
             // Returns the size of the entire output buffer
-            virtual size_t size() const = 0;
+            inline virtual size_t size() const = 0;
 
             // Returns true or false if the stream failed to open/start
-            int status() const { return _status; };
+            inline int status() const { return _status; };
 
             // Returns true if the stream is already compressed
-            virtual bool isPrecompressed() const { return false; };
+            inline virtual bool isPrecompressed() const { return false; };
 
             // Adds a new byte range
             void addByteRange(byte_range_t byteRange);
@@ -94,10 +94,10 @@ namespace http {
             explicit FileStream(const std::string&, const bool=false);
             ~FileStream();
             size_t read(char* buffer, size_t maxBytes);
-            size_t size() const { return _size; };
-            bool isPrecompressed() const { return isCompressedTempFile; };
+            inline size_t size() const { return _size; };
+            inline bool isPrecompressed() const { return isTempFile; };
         private:
-            bool isCompressedTempFile = false;
+            bool isTempFile = false;
             std::ifstream handle;
             size_t _size;
             const std::string path;
@@ -107,7 +107,7 @@ namespace http {
         public:
             explicit MemoryStream(const std::string& s) : data(std::move(s)), offset(0) {};
             size_t read(char* buffer, size_t maxBytes);
-            size_t size() const { return data.size(); };
+            inline size_t size() const { return data.size(); };
         private:
             std::string data;
             size_t offset;

@@ -1,5 +1,6 @@
 #include "file.hpp"
 
+#include "../conf/conf.hpp"
 #include "../io/file_tools.hpp"
 #include "../util/toolbox.hpp"
 

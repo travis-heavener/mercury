@@ -46,28 +46,18 @@ void splitStringUnique(std::unordered_set<std::string>& set, const std::string& 
     }
 }
 
-void stringReplaceAll(std::string& haystack, const std::string& needle, const std::string& sub) {
-    size_t index;
-    while ((index = haystack.find(needle)) != std::string::npos) {
-        haystack.erase(index, needle.size());
-        haystack.insert(index, sub);
-    }
-}
-
-void trimString(std::string& str) {
-    while (str.size() && std::isspace(str.back()))
-        str.pop_back();
-
-    while (str.size() && std::isspace(str[0]))
-        str = str.substr(1);
-}
-
 void decodeURI(std::string& str) {
     size_t index;
     while ((index = str.find('%')) != std::string::npos) {
-        unsigned short ascii = std::stoul(str.substr(index+1, 2), nullptr, 16);
-        str.erase(index, 2);
-        str[index] = ascii;
+        if (index + 2 < str.size()) {
+            str.replace(
+                index, 3, 1,
+                static_cast<unsigned char>(std::stoi(str.substr(index + 1, 2), nullptr, 16))
+            );
+            ++index;
+        } else {
+            throw std::invalid_argument("");
+        }
     }
 }
 
@@ -77,7 +67,10 @@ void formatHeaderCasing(std::string& header) {
         if (header[i] == '-') {
             isNextCharCapital = true;
         } else {
-            header[i] = isNextCharCapital ? ::toupper(header[i]) : ::tolower(header[i]);
+            if (isNextCharCapital)
+                header[i] = std::toupper(static_cast<unsigned char>(header[i]));
+            else
+                header[i] = std::tolower(static_cast<unsigned char>(header[i]));
             isNextCharCapital = false;
         }
     }

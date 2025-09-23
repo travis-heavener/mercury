@@ -7,6 +7,8 @@
 #endif
 
 #include <cstring>
+#include <stdexcept>
+
 #include "../util/string_tools.hpp"
 
 namespace conf {
@@ -45,10 +47,6 @@ namespace conf {
 
         // Base case, no exceptions met
         return !this->isDenyFirst;
-    }
-
-    void Access::insertIP(SanitizedIP ip) {
-        this->exceptions.push_back(ip);
     }
 
     SanitizedIP parseSanitizedClientIP(const std::string& clientIP) {

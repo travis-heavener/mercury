@@ -1,7 +1,6 @@
 #include <iostream>
 #include <signal.h>
 
-#include "pch/common.hpp"
 #include "conf/conf.hpp"
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"

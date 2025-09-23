@@ -3,7 +3,7 @@
 
 #include "../pch/common.hpp"
 
-#include "byte_range.hpp"
+#include "http_tools.hpp"
 #include "response.hpp"
 
 namespace http {

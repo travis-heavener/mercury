@@ -16,9 +16,27 @@ inline void strToUpper(std::string& str) {
 
 void splitString(std::vector<std::string>&, const std::string&, const char, const bool);
 void splitStringUnique(std::unordered_set<std::string>&, const std::string&, const char, const bool);
-void stringReplaceAll(std::string&, const std::string&, const std::string&);
-void trimString(std::string&);
+
+inline void stringReplaceAll(std::string& haystack, const std::string& needle, const std::string& sub) {
+    if (needle.empty()) return;
+    size_t index = 0;
+    while ((index = haystack.find(needle, index)) != std::string::npos) {
+        haystack.replace(index, needle.size(), sub);
+        index += sub.size();
+    }
+}
+
+inline void trimString(std::string& str) {
+    size_t start = str.find_first_not_of(' ');
+    if (start == std::string::npos) {
+        str.clear();
+        return;
+    }
+    str = str.substr(start, str.find_last_not_of(' ') - start + 1);
+}
+
 void decodeURI(std::string&);
+
 void formatHeaderCasing(std::string&);
 
 // Reads from the input string until the next line or end,

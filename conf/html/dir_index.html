@@ -1,23 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <meta charset="utf-8">
-        <title>Index of %dirname%</title>
+        <meta charset="UTF-8">
+        <title>Index of %A</title>
         <style>
-            th, td { padding: 0 0.75rem; }
+            h1 {
+                margin: 1.5rem 0.75rem 0.5rem 0.75rem;
+                padding-bottom: 0.25rem;
+                border-bottom: 1px solid #ccc;
+            }
+            p {
+                margin-top: 0;
+                color: #444;
+                font-size: 1.025rem;
+                font-style: italic;
+                line-height: 2;
+                padding: 0 0.75rem;
+            }
+            th, td {
+                font-size: 1.025rem;
+                padding: 0 0.75em;
+            }
             td:first-of-type { text-align: left; }
             td:nth-of-type(2), td:nth-of-type(3) { text-align: right; }
         </style>
     </head>
     <body>
-        <h1>Index of %dirname%</h1>
+        <h1>Index of %A</h1>
+        <p>%B</p>
         <table>
             <tr>
                 <th>Name</th>
                 <th>Size</th>
                 <th>Last Modified</th>
             </tr>
-            %files%
+            %C
         </table>
     </body>
 </html>

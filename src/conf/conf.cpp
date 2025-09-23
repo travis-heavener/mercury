@@ -259,10 +259,6 @@ namespace conf {
         return CONF_SUCCESS;
     }
 
-    void cleanupConfig() {
-        matchConfigs.clear();
-    }
-
     /************************* Config loader helpers *************************/
 
     int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName, const bool allowZero) {

@@ -28,6 +28,8 @@
 #define BIND_FAILURE 2
 #define LISTEN_FAILURE 3
 
+typedef unsigned short port_t;
+
 namespace http {
 
     class Server : public std::enable_shared_from_this<Server> {

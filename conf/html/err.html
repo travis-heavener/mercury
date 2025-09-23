@@ -1,10 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <meta charset="utf-8">
-        <title>%title% | %status%</title>
+        <meta charset="UTF-8">
+        <title>%A | %B</title>
+        <style>
+            h1 {
+                margin: 1.5rem 0.75rem 0.5rem 0.75rem;
+                padding-bottom: 0.25rem;
+                border-bottom: 1px solid #ccc;
+            }
+            p {
+                margin-top: 0;
+                font-size: 1.025rem;
+                line-height: 2;
+                padding: 0 0.75rem;
+            }
+            em { color: #444; }
+        </style>
     </head>
     <body>
-        <h1>%title% (%status%)</h1>
+        <h1>%A (%B)</h1>
+        <p>
+            Contact a server administrator if you believe you are seeing this in error.
+            <br>
+            <em>%C</em>
+        </p>
     </body>
 </html>
