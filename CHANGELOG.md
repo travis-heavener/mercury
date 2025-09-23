@@ -5,6 +5,8 @@
 - Improved default public HTML
     - Distinguished index.php from index.html
 - Update default error doc & directory index HTML templates (#155)
+- Improve directory index & error doc streaming (#148)
+    - Now precompiled into a tmp file and buffered via FileStream
 
 ## v0.17.0
 - Fixed bad URI handling for legacy HTTP versions

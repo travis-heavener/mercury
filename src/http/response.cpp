@@ -269,6 +269,7 @@ namespace http {
             }
         } else if (originalByteRanges.size() > 1) {
             // Remove Content-Encoding for multipart byte ranges
+            // UNIMPLEMENTED
             this->clearHeader("Content-Encoding");
         }
 

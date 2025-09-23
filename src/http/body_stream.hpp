@@ -95,9 +95,9 @@ namespace http {
             ~FileStream();
             size_t read(char* buffer, size_t maxBytes);
             inline size_t size() const { return _size; };
-            inline bool isPrecompressed() const { return isCompressedTempFile; };
+            inline bool isPrecompressed() const { return isTempFile; };
         private:
-            bool isCompressedTempFile = false;
+            bool isTempFile = false;
             std::ifstream handle;
             size_t _size;
             const std::string path;

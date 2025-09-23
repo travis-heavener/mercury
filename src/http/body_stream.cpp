@@ -194,8 +194,8 @@ namespace http {
         return toRead;
     }
 
-    FileStream::FileStream(const std::string& path, const bool isCompressedTempFile)
-        : isCompressedTempFile(isCompressedTempFile), path(path) {
+    FileStream::FileStream(const std::string& path, const bool isTempFile)
+        : isTempFile(isTempFile), path(path) {
         this->handle = std::ifstream(path, std::ios::binary | std::ios::ate );
 
         // Check if successful
@@ -212,8 +212,7 @@ namespace http {
         handle.close();
 
         // Remove if needed (for temp files)
-        if (isCompressedTempFile)
-            removeTempFile(path);
+        if (isTempFile) removeTempFile(path);
     }
 
     size_t FileStream::read(char* buffer, size_t maxBytes) {
