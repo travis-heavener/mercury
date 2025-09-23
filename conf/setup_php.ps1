@@ -3,7 +3,7 @@ Push-Location
 # CD into project directory
 Set-Location -Path "$PSScriptRoot/.."
 
-$DownloadUrl = "https://downloads.php.net/~windows/releases/php-8.4.12-Win32-vs17-x64.zip"
+$DownloadUrl = "https://downloads.php.net/~windows/releases/archives/php-8.4.12-Win32-vs17-x64.zip"
 $ZipFile = "php-8.4.12-Win32-vs17-x64.zip"
 
 # Remove existing PHP directory
