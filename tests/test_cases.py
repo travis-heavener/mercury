@@ -13,7 +13,8 @@ The TestCase class provides structure to specify a desired HTTP status code (or 
 This class allows you to specify request headers (the headers field) and specify
   desired response headers (the expected_headers field). For expected response headers, if you
   only wish to check if a header is present without caring about what the value of the header
-  is, use None instead of a string value.
+  is, use None instead of a string value. Additionally, if you want to make sure a header ISN'T
+  present, use False.
 Use the version field to specify what HTTP version to use for requests.
 
 """
@@ -25,7 +26,7 @@ gmt_now = lambda: datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT
 class TestCase:
     def __init__(self, method: str, path: str, expected: int,
                  headers: dict=None, expected_headers: dict=None,
-                 version: str="1.1"):
+                 version: str="1.1", https_only=False):
         self.method = method
         self.path = path
         self.version = "HTTP/" + version
@@ -40,28 +41,33 @@ class TestCase:
         expected_headers = {} if expected_headers is None else expected_headers
         self.expected_headers = { k.upper(): v for k, v in expected_headers.items() }
 
+        self.https_only = https_only
+
     # Generate an inline description of the request
     def inline_desc(self) -> str:
         if self.version == "HTTP/0.9":
-            return f"  {self.method} {self.path} [{self.version}]"
+            return f"  {self.method} {self.path} {self.version}"
 
         # Base case, HTTP/1.0+
-        s = f"  {self.method} {self.path} [{self.version}]\n"
+        s = f"  {self.method} {self.path} {self.version}\n"
         s += f"  Expected Status: {self.expected_status}\n"
 
-        if len(self.headers): s += "  Headers:\n"
+        if len(self.headers): s += "  Req. Headers:\n"
         for k, v in self.headers.items():
             s += f"    {k}: {v}\n"
 
-        if len(self.expected_headers): s += "  Expected Headers:\n"
+        if len(self.expected_headers): s += "  Expected Res. Headers:\n"
         for k, v in self.expected_headers.items():
-            s += f"    {k}: {'<any>' if v is None else v}\n"
+            s += f"    {k}: {'<any>' if v is None else ("<unset>" if v == False else v)}\n"
 
         # Return everything except extra newline
         return s[:-1]
 
     # Send the payload to the server socket
     def test(self, s: socket.socket, test_desc: str) -> bool:
+        # Auto-pass for HTTPS only requests
+        if self.https_only and "SSL" not in test_desc: return True
+
         # Send payload
         s.sendall(str(self).encode("utf-8"))
 
@@ -104,11 +110,15 @@ class TestCase:
 
             # Check headers
             for k, v in self.expected_headers.items():
-                if k not in headers:
+                if v == False and k in headers:
+                    print(f"Failed {test_desc}: Has forbidden header \"{k}\"=\"{headers[k]}\"")
+                    print(self.inline_desc())
+                    return False
+                elif v != False and k not in headers:
                     print(f"Failed {test_desc}: Missing header \"{k}\"")
                     print(self.inline_desc())
                     return False
-                elif v is not None and headers[k] != v:
+                elif v is not None and k in headers and headers[k] != v:
                     print(f"Failed {test_desc}: Header mismatch - expected \"{k}\"=\"{v}\", got \"{k}\"=\"{headers[k]}\"")
                     print(self.inline_desc())
                     return False
@@ -217,5 +227,11 @@ for ver in ["1.0", "1.1"]:
 
         # Test misc. statuses
         TestCase("HEAD", "/foobar", expected=404, version=ver),
-        TestCase("HEAD", "/",       expected=406, version=ver, headers={"Accept": "text/plain"})
+        TestCase("HEAD", "/",       expected=406, version=ver, headers={"Accept": "text/plain"}),
+
+        # Test compression (doesn't actually check the body currently)
+        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "br"},      expected_headers={"Content-Encoding": "br"}, https_only=True),
+        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "gzip"},    expected_headers={"Content-Encoding": "gzip"}),
+        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "deflate"}, expected_headers={"Content-Encoding": "deflate"}),
+        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "foobar"},  expected_headers={"Content-Encoding": False})
     ])
