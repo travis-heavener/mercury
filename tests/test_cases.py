@@ -55,7 +55,7 @@ class TestCase:
 
         if len(self.expected_headers): s += "  Expected Headers:\n"
         for k, v in self.expected_headers.items():
-            s += f"    {k}: {'<any>' if v is None else None}\n"
+            s += f"    {k}: {'<any>' if v is None else v}\n"
 
         # Return everything except extra newline
         return s[:-1]
