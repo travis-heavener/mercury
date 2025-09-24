@@ -127,6 +127,8 @@ namespace http {
     }
 
     bool Response::precompressBody() {
+        if (this->compressMethod == NO_COMPRESS) return true;
+
         // Get path to a temp file
         std::string tmpPath;
         if (!createTempFile(tmpPath)) return false;
@@ -156,6 +158,7 @@ namespace http {
                     bytesRead = pCompressor->finish(compressChunk);
                     if (pCompressor->status() != STREAM_SUCCESS) {
                         ERROR_LOG << "Precompression error (end flush)." << std::endl;
+                        removeTempFile(tmpPath);
                         return false;
                     }
 
@@ -172,6 +175,7 @@ namespace http {
                 bytesRead = pCompressor->compress(readChunk.data(), compressChunk, bytesRead);
                 if (pCompressor->status() != STREAM_SUCCESS) {
                     ERROR_LOG << "Precompression error." << std::endl;
+                    removeTempFile(tmpPath);
                     return false;
                 }
 
