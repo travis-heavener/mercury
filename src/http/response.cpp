@@ -127,7 +127,7 @@ namespace http {
     }
 
     bool Response::precompressBody() {
-        if (this->compressMethod == NO_COMPRESS) return true;
+        if (this->compressMethod == NO_COMPRESS && this->originalByteRanges.empty()) return true;
 
         // Get path to a temp file
         std::string tmpPath;
