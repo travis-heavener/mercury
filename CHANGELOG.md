@@ -5,6 +5,8 @@
     - Added Support Mercury section
     - Cleaned Table of Contents
     - Added Privacy Commitment section
+- Added RedactLogIPs config node (#169)
+- Subtly improved error handling for mercury.conf with value hints
 
 ## v0.18.1
 - Fixed precompression making an extra temp file if no compression method was to be used (#166)

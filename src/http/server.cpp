@@ -364,7 +364,7 @@ namespace http {
 
                 // Log request
                 ACCESS_LOG << request.getMethodStr() << ' '
-                        << request.getIPStr() << ' '
+                        << (conf::REDACT_LOG_IPS ? "<Anonymous IP>" : request.getIPStr()) << ' '
                         << request.getPathStr()
                         << " -- (" << pResponse->getStatus() << ") ["
                         << request.getVersion() << ']'

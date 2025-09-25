@@ -31,6 +31,7 @@ namespace conf {
 
     std::filesystem::path ACCESS_LOG_FILE;
     std::filesystem::path ERROR_LOG_FILE;
+    bool REDACT_LOG_IPS;
 
     bool USE_TLS;
     port_t TLS_PORT;
@@ -61,7 +62,7 @@ namespace conf {
     int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName, const bool allowZero=true);
     int loadOnOff(const pugi::xml_node& root, bool& var, const std::string& nodeName);
     int loadBindAddress(const pugi::xml_node& root, const bool isIPv6);
-    int loadTrueFalse(const pugi::xml_node& root, bool& var, const std::string& nodeName);
+    int loadBool(const pugi::xml_node& root, bool& var, const std::string& nodeName);
     int loadPath(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName, const bool isLogFile=false);
     int loadDirectoryAndCanonicalize(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName);
     int loadTempFileDirectory();
@@ -120,10 +121,13 @@ namespace conf {
         if (loadOnOff(root, IS_PHP_ENABLED, "EnablePHPCGI") == CONF_FAILURE)
             return CONF_FAILURE;
 
-        if (loadTrueFalse(root, SHOW_WELCOME_BANNER, "ShowWelcomeBanner") == CONF_FAILURE)
+        if (loadBool(root, REDACT_LOG_IPS, "RedactLogIPs") == CONF_FAILURE)
             return CONF_FAILURE;
 
-        if (loadTrueFalse(root, CHECK_LATEST_RELEASE, "StartupCheckLatestRelease") == CONF_FAILURE)
+        if (loadBool(root, SHOW_WELCOME_BANNER, "ShowWelcomeBanner") == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadBool(root, CHECK_LATEST_RELEASE, "StartupCheckLatestRelease") == CONF_FAILURE)
             return CONF_FAILURE;
 
         /************************** Load IndexFiles **************************/
@@ -280,7 +284,7 @@ namespace conf {
             var = std::stoull(valueStr);
             if (!allowZero && var == 0) throw std::invalid_argument("");
         } catch (std::invalid_argument&) {
-            std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+            std::cerr << "Failed to parse config file, invalid unsigned integer value for " << nodeName << '.' << std::endl;
             return CONF_FAILURE;
         }
 
@@ -306,7 +310,7 @@ namespace conf {
             var = std::stoul(valueStr);
             if (!allowZero && var == 0) throw std::invalid_argument("");
         } catch (std::invalid_argument&) {
-            std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+            std::cerr << "Failed to parse config file, invalid unsigned integer value for " << nodeName << '.' << std::endl;
             return CONF_FAILURE;
         }
 
@@ -326,7 +330,7 @@ namespace conf {
 
         // Verify valid value provided
         if (valueStr != "on" && valueStr != "off") {
-            std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+            std::cerr << "Failed to parse config file, invalid on/off value for " << nodeName << '.' << std::endl;
             return CONF_FAILURE;
         }
 
@@ -368,7 +372,7 @@ namespace conf {
         return CONF_SUCCESS;
     }
 
-    int loadTrueFalse(const pugi::xml_node& root, bool& var, const std::string& nodeName) {
+    int loadBool(const pugi::xml_node& root, bool& var, const std::string& nodeName) {
         pugi::xml_node node = root.child(nodeName);
         if (!node) {
             std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
@@ -380,7 +384,7 @@ namespace conf {
 
         // Verify valid value provided
         if (valueStr != "true" && valueStr != "false") {
-            std::cerr << "Failed to parse config file, invalid value for " << nodeName << '.' << std::endl;
+            std::cerr << "Failed to parse config file, invalid true/false value for " << nodeName << '.' << std::endl;
             return CONF_FAILURE;
         }
 
