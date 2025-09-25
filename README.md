@@ -7,7 +7,7 @@
     <img src="https://img.shields.io/badge/Language-C%2B%2B-orange">
     <img src="https://img.shields.io/github/stars/travis-heavener/mercury?style=flat&label=Stars&color=orange">
     <br>
-    <h3 style="margin-top: 0.3em; margin-bottom: -0.5em; font-size: 2.25rem">Mercury</h3>
+    <p style="margin-top: 0.3em; margin-bottom: -0.5em; font-size: 2.25rem; font-weight: 700">Mercury</p>
     <h3 style="font-weight: 400; font-size: 1.1em;"><em>A lightweight, configurable HTTP server.</em></h3>
 </div>
 
