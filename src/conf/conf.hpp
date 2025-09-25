@@ -40,6 +40,7 @@ namespace conf {
 
     extern std::filesystem::path ACCESS_LOG_FILE;
     extern std::filesystem::path ERROR_LOG_FILE;
+    extern bool REDACT_LOG_IPS;
 
     extern bool USE_TLS;
     extern port_t TLS_PORT;
