@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.18.2
+- Stylistic README updates
+    - Added Support Mercury section
+    - Cleaned Table of Contents
+    - Added Privacy Commitment section
+
 ## v0.18.1
 - Fixed precompression making an extra temp file if no compression method was to be used (#166)
 - More thoroughly removes temp files if precompression fails
