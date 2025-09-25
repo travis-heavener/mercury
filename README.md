@@ -1,9 +1,7 @@
 <div align="center">
     <img src="docs/og-image.jpg" width="300" height="158">
     <br>
-    <a href="https://opensource.org/licenses/MIT">
-        <img src="https://img.shields.io/badge/License-MIT-orange.svg">
-    </a>
+    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-orange.svg"></a>
     <img src="https://img.shields.io/badge/Language-C%2B%2B-orange">
     <img src="https://img.shields.io/github/stars/travis-heavener/mercury?style=flat&label=Stars&color=orange">
     <br>
@@ -11,9 +9,7 @@
 </div>
 
 <div align="center">
-    <a href="https://github.com/travis-heavener/mercury/actions/workflows/build.yml">
-        <img style="margin-top: 0.5rem; margin-bottom: 0" src="https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg">
-    </a>
+    <a href="https://github.com/travis-heavener/mercury/actions/workflows/build.yml"><img style="margin-top: 0.5rem; margin-bottom: 0" src="https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg"></a>
     <h3><em>A lightweight, configurable HTTP server</em></h3>
     <h3>Project by Travis Heavener</h3>
 </div>
