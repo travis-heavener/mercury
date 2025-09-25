@@ -20,6 +20,7 @@
 ## Table of Contents
 
 - [About](#about)
+    - [Privacy Commitment](#privacy-commitment)
 - [Getting Started](#getting-started)
     - [Config Files](#config-files)
     - [Log Files](#log-files)
@@ -45,6 +46,22 @@ Mercury is a lightweight, configurable HTTP server made in C++ for Windows and L
 
 \* Most (if not all) of the supported Linux distributions are for Debian (or any other distribution using APT packages).
 Additionally, most of these distributions come with glibc, which is required to be locally installed for Mercury to run.
+
+### Privacy Commitment
+
+As netizens (*noun*. a user of the internet), it is our due diligence to be aware of our presence online and to keep our personal information secure.
+
+**Mercury does not and will never collect any of your personal information.**
+
+That is the bottom line.
+
+The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([wowtravis.com](https://wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf).
+
+All of Mercury's source code is freely available for curious users to view and poke at on GitHub via [https://github.com/travis-heavener/mercury](https://github.com/travis-heavener/mercury).
+
+That being said, Mercury is a living software, and security patches are rolled out alongside feature updates. As such, any update prefixed with v0.X.X (ex. v0.18.2) are pre-release. These pre-release versions are not guaranteed to be bug-proof (nor should any software ever claim to be bug-proof).
+
+If you notice any security issues or have a suggestion, please refer to [SECURITY.md](SECURITY.md).
 
 ## Getting Started
 
