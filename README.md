@@ -7,12 +7,17 @@
     <img src="https://img.shields.io/badge/Language-C%2B%2B-orange">
     <img src="https://img.shields.io/github/stars/travis-heavener/mercury?style=flat&label=Stars&color=orange">
     <br>
-    <h1 style="margin-top: 0.3em; margin-bottom: -0.8em; border-bottom: 0px; font-size: 2.25rem">Mercury</h1>
-    <h2 style="font-weight: 400; padding-bottom: 0.5em; font-size: 1.1em;"><em>A lightweight, configurable HTTP server.</em></h2>
+    <h3 style="margin-top: 0.3em; margin-bottom: -0.5em; font-size: 2.25rem">Mercury</h3>
+    <h3 style="font-weight: 400; font-size: 1.1em;"><em>A lightweight, configurable HTTP server.</em></h3>
+</div>
+
+---
+
+<div align="center">
     <a href="https://github.com/travis-heavener/mercury/actions/workflows/build.yml">
-        <img src="https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg">
+        <img style="margin-top: 0.5rem; margin-bottom: 0" src="https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg">
     </a>
-    <h2 style="margin-top: 0.5em">A project by Travis Heavener</h2>
+    <h2 style="margin-top: 0.5rem">A project by Travis Heavener</h2>
 </div>
 
 ## Table of Contents
