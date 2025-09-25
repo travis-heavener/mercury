@@ -1,37 +1,43 @@
-# Mercury
-
-### A project by Travis Heavener
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-![Static Badge](https://img.shields.io/badge/Language-C%2B%2B-blue)
-[![Build](https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg)](https://github.com/travis-heavener/mercury/actions/workflows/build.yml)
-[![Docs Minify/Validate](https://github.com/travis-heavener/mercury/actions/workflows/docs-minify-validate.yml/badge.svg)](https://github.com/travis-heavener/mercury/actions/workflows/docs-minify-validate.yml)
+<div align="center">
+    <img src="docs/og-image.jpg" width="300" height="158">
+    <br>
+    <h1>Mercury</h1>
+    <a href="https://opensource.org/licenses/MIT">
+        <img src="https://img.shields.io/badge/License-MIT-orange.svg">
+    </a>
+    <img src="https://img.shields.io/badge/Language-C%2B%2B-orange">
+    <img src="https://img.shields.io/github/stars/travis-heavener/mercury?style=flat&label=Stars&color=orange">
+    <br>
+    <a href="https://github.com/travis-heavener/mercury/actions/workflows/build.yml">
+        <img src="https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg">
+    </a>
+    <a href="https://github.com/travis-heavener/mercury/actions/workflows/docs-minify-validate.yml">
+        <img src="https://github.com/travis-heavener/mercury/actions/workflows/docs-minify-validate.yml/badge.svg">
+    </a>
+    <h2 style="border-bottom: 0px">A project by Travis Heavener</h2>
+</div>
 
 ## Table of Contents
 
-- [Table of Contents](#table-of-contents)
 - [About](#about)
 - [Getting Started](#getting-started)
     - [Config Files](#config-files)
     - [Log Files](#log-files)
     - [Setting Up PHP](#setting-up-php)
     - [TLS Certs](#tls-certs)
-        - [For Linux](#for-linux)
-        - [For Windows](#for-windows)
-        - [For Developers](#for-developers)
     - [Troubleshooting](#troubleshooting)
 - [Build Info](#build-info)
-    - [Linux & Windows Builds](#linux--windows-builds)
+    - [Linux & Windows](#linux--windows)
     - [Compatibility](#compatibility)
     - [Making Releases](#making-releases)
 - [Testing Suite](#testing-suite)
 - [Contributing](#contributing)
-    - [Creating Issues & Pull Requests](#creating-issues--pull-requests)
-    - [Creating Issues for Bugs](#creating-issues-for-bugs)
+    - [Issues & Pull Requests](#issues--pull-requests)
     - [Branch Cleanup](#branch-cleanup)
     - [Reviewing Pull Requests](#reviewing-pull-requests)
 - [Changelog](#changelog)
 - [Credits](#credits)
+- [Support Mercury](#support-mercury)
 
 ## About
 
@@ -83,10 +89,12 @@ Windows users have the option to use their own PHP installation instead by modif
 
 Self-signed TLS 1.3 certs are now available with OpenSSL.
 
-#### For Linux
+#### For Linux:
+
 1. Run `./conf/ssl/makecert.sh` and enter the following information to fill out the certificate.
 
-#### For Windows
+#### For Windows:
+
 1. Download [Git for Windows](https://git-scm.com/downloads/win) if not already installed.
 It's crucial that Git is installed since it comes bundled with OpenSSL.
 
@@ -95,13 +103,16 @@ Update the `$OPENSSL_PATH` variable in `/conf/ssl/makecert.ps1` with your correc
 
 3. Run `/conf/ssl/makecert.ps1` and enter the following information to fill out the certificate.
 
-#### For Developers
+#### For Developers:
+
 In your Linux/Debian environment, use `make cert` in the root directory of this project and enter your information to automatically create a new certificate pair.
 Your certificate will be located at `/conf/ssl/cert.pem` and your private key at `/conf/ssl/key.pem`.
 
 **Note: By default, in "mercury.conf" TLS is disabled. Enable TLS by changing the value of the TLSPort node to a port like 443.**
 
 ### Troubleshooting
+
+#### Powershell Scripts
 
 Currently, Powershell scripts distributed on Windows distributions are blocked from running if they are downloaded from the internet.
 If you encounter issues running these scripts, run the following Powershell command to unblock these files to allow them to work.
@@ -112,6 +123,10 @@ Unblock-File /path/to/your/file.ps1
 
 This will allow files like the TLS certificate maker (/conf/ssl/makecert.ps1) and PHP installer (/conf/setup_php.ps1) to run properly.
 
+#### Further Troubleshooting
+
+If you encounter any other issues or unexpected behavior, please consider opening an Issue (see [Contributing](#contributing)) or contacting [Travis Heavener](https://github.com/travis-heavener).
+
 ## Build Info
 
 The `/build_tools/` directory contains all necessary shell scripts for building static binaries.
@@ -120,7 +135,7 @@ Binaries are placed in the `/bin/` directory, `mercury` for Linux and `mercury.e
 
 **Note: Mercury binaries must be run from within the `/bin/` directory as resources & config files are loaded relative to the working directory.**
 
-### Linux & Windows Builds
+### Linux & Windows
 
 To build for Linux and/or Windows, use the following steps:
 
@@ -165,17 +180,16 @@ With Python installed, fire up the Mercury server, cd into the tests directory, 
 Contributions to the Mercury project are always welcome and appreciated.
 Embracing help is crucial to maintaining a project and a healthy development community.
 
-### Creating Issues & Pull Requests
+### Issues & Pull Requests
 The following sentence describes the thought process that should go into opening a new issue or pull request and is intentionally written subjectively:
 
 > Each issue and pull request should contain enough information to understand its purpose and goal.
 
+Creating issues for bugs are a bit more specific. It's best to include details about the environment to help recreate the conditions in which a bug has occured. But fear not, if you forget something in your issue, nobody is perfect. Just edit the issue. :)
+
 That's really all there is to it. I ([Travis Heavener](https://github.com/travis-heavener)) will not actively police the formatting of issues and/or PRs. However, including certain Markdown headers such as `## About` and `## Screenshots` are a practice that I use myself and would encourage on this project. Additionally, include something like `[Bug]`, `[Feature]`, or `[Question]` at the beginning of the issue or pull request title to more easily distinguish different issue categories (aside from labels).
 
 Please make use of available labels for issues and pull requests, they are there for a reason.
-
-### Creating Issues for Bugs
-Creating issues for bugs are a bit more specific. It's best to include details about the environment to help recreate the conditions in which a bug has occured. But fear not, if you forget something in your issue, nobody is perfect. Just edit the issue. :)
 
 ### Branch Cleanup
 When closing a pull request, it is encouraged that you delete your branch from the remote (GitHub). While this isn't a hard *requirement*, it is strongly encouraged as it improves the clarity of what branches are open or not.
@@ -190,3 +204,15 @@ See [CHANGELOG.md](CHANGELOG.md)
 
 ## Credits
 See [CREDITS.md](CREDITS.md)
+
+## Support Mercury
+
+If Mercury has helped you in any way, be sure to star it on GitHub!
+
+![GitHub Repo stars](https://img.shields.io/github/stars/travis-heavener/mercury?style=flat&label=Stars&color=orange)
+
+And, if you are a Mercury superfan, consider supporting me directly!
+
+Contributions play a critical role in covering hosting costs and keeping my projects like Mercury alive.
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/travis.heavener)
