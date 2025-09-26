@@ -3,7 +3,7 @@ name: Bug report
 about: Create a report to help us improve Mercury
 title: "[Bug] <Your Title Here>"
 labels: bug
-assignees: ''
+assignees: 'travis-heavener'
 
 ---
 
