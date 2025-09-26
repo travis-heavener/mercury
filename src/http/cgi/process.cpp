@@ -353,14 +353,14 @@ namespace http::cgi {
 
         // Spawn CGI process
         bool Process::spawnCGIProcess(env_block_t& envBlock) {
-            int stderrPipe[2]; // separate pipe for STDERR
-    if (pipe(stderrPipe) < 0) return false;
+            int stderrPipe[2]; // Separate pipe for STDERR
+            if (pipe(stderrPipe) < 0) return false;
 
-    pid_t pid = fork();
-    if (pid < 0) {
-        close(stderrPipe[0]); close(stderrPipe[1]);
-        return false;
-    }
+            pid_t pid = fork();
+            if (pid < 0) {
+                close(stderrPipe[0]); close(stderrPipe[1]);
+                return false;
+            }
 
             if (pid == 0) { // This is the child
                 // Open pipes
@@ -370,7 +370,7 @@ namespace http::cgi {
 
                 // Close unused fds in child
                 close(stdinRead); close(stdoutWrite); close(stdinWrite); close(stdoutRead);
-                close(stderrPipe[0]); close(stderrPipe[1]);
+                close(stderrPipe[0]);
 
                 // Prepare argv
                 const char* phpCgiPath = "php-cgi"; // Resolved from PATH
@@ -384,6 +384,11 @@ namespace http::cgi {
 
                 // execve replaces process
                 execvpe(phpCgiPath, argv, envp.data());
+
+                // Execve failed, send EOF
+                char c = 1;
+                write(stderrPipe[1], &c, 1);
+                close(stderrPipe[1]);
 
                 // Exit if execve fails
                 ERROR_LOG << "Failed to spawn PHP CGI worker process" << std::endl;
@@ -399,6 +404,16 @@ namespace http::cgi {
                 // Pipe stderr to stdout
                 close(stderrPipe[1]);
                 stderrRead = stderrPipe[0];
+
+                // Check if execve failed
+                char c;
+                ssize_t n = read(stderrPipe[0], &c, 1);
+                close(stderrPipe[0]);
+                if (n > 0) { // Got EOF, execve failed
+                    int status;
+                    waitpid(pid, &status, 0); // Reap child
+                    return false;
+                }
 
                 return true;
             }
