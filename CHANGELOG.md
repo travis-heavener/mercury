@@ -5,6 +5,7 @@
 - Added support for UNC paths in DocumentRoot (#186)
     - Allows Windows executable execution from within a WSL environment
 - Fixed PHP scripts returning 204 No Content instead of 502 Bad Gateway on Linux if PHP-CGI is not installed (#183)
+- Improved plaintext viewing for README.md (now README.txt) in releases (#176)
 
 ## v0.18.2
 - Stylistic README updates
