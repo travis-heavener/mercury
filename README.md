@@ -196,17 +196,10 @@ With Python installed, fire up the Mercury server, cd into the tests directory, 
 
 ## Contributing
 Contributions to the Mercury project are always welcome and appreciated.
-Embracing help is crucial to maintaining a project and a healthy development community.
 
 ### Issues & Pull Requests
-The following sentence describes the thought process that should go into opening a new issue or pull request and is intentionally written subjectively:
-
-> Each issue and pull request should contain enough information to understand its purpose and goal.
-
-Creating issues for bugs are a bit more specific. It's best to include details about the environment to help recreate the conditions in which a bug has occured. But fear not, if you forget something in your issue, nobody is perfect. Just edit the issue. :)
-
-That's really all there is to it. I ([Travis Heavener](https://github.com/travis-heavener)) will not actively police the formatting of issues and/or PRs. However, including certain Markdown headers such as `## About` and `## Screenshots` are a practice that I use myself and would encourage on this project. Additionally, include something like `[Bug]`, `[Feature]`, or `[Question]` at the beginning of the issue or pull request title to more easily distinguish different issue categories (aside from labels).
-
+There are two available Issue templates on the Mercury GitHub repository: one for bug reports and one for feature requests.
+If you'd like to go rogue and make your own Issue without a template that is allowed, but please stick to the available templates unless you know what you're doing.
 Please make use of available labels for issues and pull requests, they are there for a reason.
 
 ### Branch Cleanup
