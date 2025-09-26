@@ -49,6 +49,11 @@ cp -r ../{public,licenses} "./$VERSION/"
 # Create binary folder
 mkdir "./$VERSION/bin"
 
+# ==== Update README.md to README.txt ====
+
+python3 ../build_tools/release_readme_maker.py "./$VERSION/README.md"
+mv "./$VERSION/README.md" "./$VERSION/README.txt"
+
 # ==== Linux Build ====
 
 # Copy binary

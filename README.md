@@ -41,7 +41,7 @@
 
 ## About
 
-Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux*.
+Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux\*.
 
 \* Most (if not all) of the supported Linux distributions are for Debian (or any other distribution using APT packages).
 Additionally, most of these distributions come with glibc, which is required to be locally installed for Mercury to run.
@@ -75,7 +75,7 @@ New versions are continuously being produced and may include crucial bug fixes o
 
 Any version of Mercury marked as a "pre-release" (versions starting with "v0.x.x") is not a finalized product.
 Therefore, bugs and security vulnerabilities are still possible.
-If you encounter any unexpected behavior, please start an Issue on [github.com/travis-heavener/mercury/issues](https://github.com/travis-heavener/mercury/issues).
+If you encounter any unexpected behavior, please start an Issue on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury/issues).
 
 **Note: Mercury binaries must be run from within the `/bin/` directory as resources & config files are loaded relative to the working directory.**
 
@@ -143,7 +143,7 @@ This will allow files like the TLS certificate maker (/conf/ssl/makecert.ps1) an
 
 #### Further Troubleshooting
 
-If you encounter any other issues or unexpected behavior, please consider opening an Issue (see [Contributing](#contributing)) or contacting [Travis Heavener](https://github.com/travis-heavener).
+If you encounter any other issues or unexpected behavior, please consider opening an Issue on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury/issues/new/choose) or contacting [Travis Heavener](https://github.com/travis-heavener).
 
 ## Build Info
 
@@ -227,7 +227,7 @@ See [CREDITS.md](CREDITS.md)
 
 If Mercury has helped you in any way, be sure to star it on GitHub!
 
-![GitHub Repo stars](https://img.shields.io/github/stars/travis-heavener/mercury?style=flat&label=Stars&color=orange)
+[![GitHub Repo stars](https://img.shields.io/github/stars/travis-heavener/mercury?style=flat&label=Stars&color=orange)](https://github.com/travis-heavener/mercury)
 
 And, if you are a Mercury superfan, consider supporting me directly!
 
