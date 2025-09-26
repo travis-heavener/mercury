@@ -15,7 +15,7 @@ cd static_libs
 
 # Declare versions
 BROTLI_VERSION="1.1.0"
-OPENSSL_VERSION="3.5.2"
+OPENSSL_VERSION="3.5.3"
 ZLIB_VERSION="1.3.1"
 
 GPP_VERSION="13.3.0"
