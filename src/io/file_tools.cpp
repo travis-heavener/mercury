@@ -4,7 +4,6 @@
     #include "../winheader.hpp"
 #endif
 
-#include <iostream>
 #include <random>
 
 #include "../conf/conf.hpp"
@@ -55,7 +54,7 @@ int isSymlinked(const std::filesystem::path& path) {
         return IS_SYMLINK;
 
     // Walk from document root to path, checking for symlinks & reparse points
-    const fs::path relativeToRoot = fs::relative(absolutePath, canonicalRoot);
+    const fs::path relativeToRoot = absolutePath.lexically_relative(canonicalRoot);
     fs::path currentParts = canonicalRoot;
     for (const auto& part : relativeToRoot) {
         // Check if individual part is a symlink
@@ -114,9 +113,14 @@ std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path) {
 
         // Remove \\?\ prefix if present
         std::wstring resolvedPathStr(finalPathStr);
-        const std::wstring prefix = L"\\\\?\\";
+        std::wstring prefix = L"\\\\?\\";
         if (resolvedPathStr.compare(0, prefix.length(), prefix) == 0)
             resolvedPathStr = resolvedPathStr.substr(prefix.length());
+
+        // Remove UNC prefix if present
+        prefix = L"UNC";
+        if (resolvedPathStr.compare(0, prefix.length(), prefix) == 0)
+            resolvedPathStr = L"\\" + resolvedPathStr.substr(prefix.length());
 
         return std::filesystem::path(resolvedPathStr);
     #else

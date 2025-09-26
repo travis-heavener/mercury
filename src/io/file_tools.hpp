@@ -8,6 +8,13 @@
 #define FILE_NOT_EXIST 2
 #define INTERNAL_ERROR 3
 
+// Windows-only, checks for UNC path after canonicalization
+#ifdef _WIN32
+    inline bool isUNCPath(const std::filesystem::path& path) {
+        return path.wstring().find(L"\\\\") == 0;
+    }
+#endif
+
 bool doesFileExist(const std::string&, const bool);
 bool doesDirectoryExist(const std::string&, const bool);
 int isSymlinked(const std::filesystem::path&);

@@ -15,7 +15,7 @@ cd static_libs
 LIB_PATH=$(pwd)
 
 # Update artifacts.lock
-version="3.5.2"
+version="3.5.3"
 if [ ! -e "artifacts.lock" ]; then
     touch artifacts.lock
     echo "" | gzip | base64 > artifacts.lock
