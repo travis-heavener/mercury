@@ -3,7 +3,7 @@ name: Feature request
 about: Suggest an idea or improvement for Mercury
 title: "[Feature] <Your Title Here>"
 labels: feature
-assignees: ''
+assignees: 'travis-heavener'
 
 ---
 
