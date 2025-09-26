@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.18.3
+- Removed canonicalization of tmp directory
+- Added support for UNC paths in DocumentRoot (#186)
+    - Allows Windows executable execution from within a WSL environment
+
 ## v0.18.2
 - Stylistic README updates
     - Added Support Mercury section

@@ -438,12 +438,21 @@ namespace conf {
         try {
             var = resolveCanonicalPath(var);
 
+            #ifdef _WIN32
+                if (!var.string().empty() && isUNCPath(var) && var.string().back() == '\\') {
+                    std::string buf = var.string();
+                    buf.pop_back();
+                    buf += '/';
+                    var = buf;
+                }
+            #endif
+
             // Affix trailing slash
-            if (var.string().size() > 0 && var.string().back() != '/')
+            if (!var.string().empty() && var.string().back() != '/')
                 var = var.string() + '/';
 
             // Validate path exists and is a directory (passthru to catch block if failed)
-            if (var.string().size() == 0 || !std::filesystem::exists(var) || !std::filesystem::is_directory(var))
+            if (var.string().empty() || !std::filesystem::exists(var) || !std::filesystem::is_directory(var))
                 throw std::runtime_error("");
         } catch (...) {
             /**
@@ -470,14 +479,6 @@ namespace conf {
             }
         } catch (std::filesystem::filesystem_error&) {
             std::cerr << "Failed to create \"tmp\" directory in the Mercury root directory." << std::endl;
-            return CONF_FAILURE;
-        }
-
-        // Canonicalize the tmp path
-        try {
-            TMP_PATH = resolveCanonicalPath(tmpPathStr);
-        } catch (...) {
-            std::cerr << "Failed to canonicalize \"tmp\" directory." << std::endl;
             return CONF_FAILURE;
         }
 
