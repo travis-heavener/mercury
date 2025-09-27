@@ -485,6 +485,9 @@ namespace conf {
             return CONF_FAILURE;
         }
 
+        // Set the temp path
+        TMP_PATH = tmpPathStr;
+
         return CONF_SUCCESS;
     }
 }
