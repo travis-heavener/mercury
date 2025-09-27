@@ -408,7 +408,10 @@ namespace conf {
         }
 
         // Format string
-        if (value.find("./") == 0) { // Use relative path
+        if (value == ".") { // Use relative path
+            var = CWD;
+            if (isLogFile) return CONF_FAILURE; // Cannot be a directory
+        } else if (value.find("./") == 0) { // Use relative path
             var = CWD / value.substr(2);
             if (isLogFile) createLogDirectoryIfMissing(var);
         } else { // Try as absolute path
@@ -481,6 +484,9 @@ namespace conf {
             std::cerr << "Failed to create \"tmp\" directory in the Mercury root directory." << std::endl;
             return CONF_FAILURE;
         }
+
+        // Set the temp path
+        TMP_PATH = tmpPathStr;
 
         return CONF_SUCCESS;
     }

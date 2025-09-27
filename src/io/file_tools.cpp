@@ -4,6 +4,7 @@
     #include "../winheader.hpp"
 #endif
 
+#include <algorithm>
 #include <random>
 
 #include "../conf/conf.hpp"
@@ -12,10 +13,17 @@
 #define TMP_FILE_MAX_RETRIES 50
 #define TMP_FILE_NAME_LEN 12
 
+void normalizeBackslashes(std::string& path) {
+    if (isUNCPath(path) && path.size() > 2)
+        std::replace( path.begin() + 2, path.end(), '\\', '/' );
+    else
+        std::replace( path.begin(), path.end(), '\\', '/' );
+}
+
 bool doesFileExist(const std::string& path, const bool forceInDocumentRoot) {
     const bool isFile = std::filesystem::is_regular_file(path);
     std::string docRootStr = conf::DOCUMENT_ROOT.string();
-    std::replace( docRootStr.begin(), docRootStr.end(), '\\', '/' );
+    normalizeBackslashes( docRootStr );
     return isFile && (!forceInDocumentRoot || path.find(docRootStr) == 0);
 }
 
@@ -24,7 +32,7 @@ bool doesDirectoryExist(const std::string& path, const bool forceInDocumentRoot)
         return std::filesystem::is_directory(path);
     } else { // Match document root at start of filename
         std::string docRootStr = conf::DOCUMENT_ROOT.string();
-        std::replace( docRootStr.begin(), docRootStr.end(), '\\', '/' );
+        normalizeBackslashes( docRootStr );
         return std::filesystem::is_directory(path) && path.find(docRootStr) == 0;
     }
 }
@@ -46,8 +54,8 @@ int isSymlinked(const std::filesystem::path& path) {
     // Verify canonical path is within document root (could escape via symlink)
     std::string rootStr = canonicalRoot.string();
     std::string absStr = absolutePath.string();
-    std::replace( rootStr.begin(), rootStr.end(), '\\', '/' );
-    std::replace( absStr.begin(), absStr.end(), '\\', '/' );
+    normalizeBackslashes( rootStr );
+    normalizeBackslashes( absStr );
 
     if (rootStr.back() == '/') rootStr.pop_back();
     if (absStr.find(rootStr) != 0)

@@ -71,7 +71,7 @@ namespace http {
         const int bodyStatus = file.loadToBuffer(pBodyStream);
 
         // Get last modified GMT string
-        if (bodyStatus == IO_SUCCESS)
+        if (bodyStatus == IO_SUCCESS && !file.isDirectory)
             this->setHeader("Last-Modified", file.getLastModifiedGMT());
 
         this->setHeader("Content-Length", std::to_string(this->pBodyStream->size()));
