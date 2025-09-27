@@ -6,6 +6,7 @@
 - Fixed document root `.` not running in Mercury root (#200)
 - Fixed temp files being created in the bin directory (#202)
 - Migrate Contributing section to CONTRIBUTING.md (#197)
+- Reviewed and updated SECURITY.md security policy (#199)
 
 ## v0.18.3
 - Removed canonicalization of tmp directory
