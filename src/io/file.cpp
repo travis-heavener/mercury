@@ -11,9 +11,7 @@ File::File(const std::string& rawPath) {
     // Update the actual path
     if ((rawPath.size() == 1 || rawPath[1] == '?') && rawPath[0] == '/') {
         this->path = conf::DOCUMENT_ROOT.string();
-
-        // Replace any backslashes w/ fwd slashes
-        std::replace( this->path.begin(), this->path.end(), '\\', '/' );
+        normalizeBackslashes( path ); // Replace any backslashes w/ fwd slashes
     } else {
         try {
             this->path = resolveCanonicalPath( // Canonicalize
@@ -28,7 +26,7 @@ File::File(const std::string& rawPath) {
         }
 
         // Replace any backslashes w/ fwd slashes
-        std::replace( this->path.begin(), this->path.end(), '\\', '/' );
+        normalizeBackslashes(path);
 
         // Re-append slash if directory
         if (doesDirectoryExist(this->path, true)) this->path += '/';
@@ -44,8 +42,8 @@ File::File(const std::string& rawPath) {
     // Check for index file
     if (this->path.back() == '/') {
         for (const std::string& indexFile : conf::INDEX_FILES) {
-            if (std::filesystem::exists(this->path + indexFile) &&
-                !std::filesystem::is_directory(this->path + indexFile)) {
+            if (std::filesystem::exists(path + indexFile) &&
+                !std::filesystem::is_directory(path + indexFile)) {
                 this->path += indexFile;
                 break;
             }

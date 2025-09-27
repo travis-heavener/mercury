@@ -9,11 +9,17 @@
 #define INTERNAL_ERROR 3
 
 // Windows-only, checks for UNC path after canonicalization
-#ifdef _WIN32
-    inline bool isUNCPath(const std::filesystem::path& path) {
+// On Linux, returns false always
+inline bool isUNCPath(const std::filesystem::path& path) {
+    #ifdef _WIN32
         return path.wstring().find(L"\\\\") == 0;
-    }
-#endif
+    #else
+        (void)path;
+        return false;
+    #endif
+}
+
+void normalizeBackslashes(std::string& path);
 
 bool doesFileExist(const std::string&, const bool);
 bool doesDirectoryExist(const std::string&, const bool);

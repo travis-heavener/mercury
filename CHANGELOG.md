@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.18.4
+- Fixed directory index lookups on UNC paths (#201)
+- Fixed directory index listings returning last modified GMT timestamps (#201)
+
 ## v0.18.3
 - Removed canonicalization of tmp directory
 - Added support for UNC paths in DocumentRoot (#186)
