@@ -91,13 +91,3 @@ bool readLine(const std::string& input, std::string& lineBuf, size_t& startIndex
     startIndex = (endIndex == std::string::npos) ? input.length() : (endIndex + 1);
     return true;
 }
-
-bool isMostlyAscii(const std::string& data, double thresh) {
-    int asciiCount = 0;
-
-    for (const unsigned char c : data)
-        if ((c >= 0x20 && c <= 0x7E) || c == '\n' || c == '\r' || c == '\t')
-            ++asciiCount;
-
-    return (double)asciiCount / data.size() >= thresh;
-}

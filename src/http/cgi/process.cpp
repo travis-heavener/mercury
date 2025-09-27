@@ -9,10 +9,12 @@
     #include <unistd.h>
 #endif
 
+#include <cstring>
 #include <map>
 
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
+#include "../../io/file_tools.hpp"
 #include "../../util/string_tools.hpp"
 #include "../../util/toolbox.hpp"
 
@@ -20,16 +22,46 @@
 namespace http::cgi {
 
     // Lazily infer Content-Type
-    void inferContentType(const std::string& body, Response& res) {
-        if (body[0] == '{' || body[0] == '[') { // JSON
-            res.setContentType("application/json");
-        } else if (body[0] == '<') { // HTML or XML
-            res.setContentType(body.find("<html") != std::string::npos ? "text/html" : "application/xml");
-        } else if (isMostlyAscii(body)) { // plaintext
-            res.setContentType("text/plain; charset=utf-8");
-        } else { // BLOB
-            res.setContentType("application/octet-stream");
+    void inferContentType(const std::string& filePath, Response& res) {
+        // Set default Content-Type
+        res.setContentType("application/octet-stream");
+
+        // Attempt to open temp file
+        std::ifstream handle( filePath, std::ios::binary );
+        if (!handle.is_open()) return;
+
+        // Read in chunks
+        const int bufferSize = 4096;
+        char buffer[bufferSize] = {0};
+
+        bool isFirstLine = true;
+        size_t numAsciiChars = 0;
+        size_t numChars = 0;
+        while (!handle.eof()) {
+            handle.read(buffer, bufferSize);
+            size_t bytesRead = handle.gcount();
+            numChars += bytesRead;
+
+            // Check first line
+            if (isFirstLine) {
+                isFirstLine = false;
+                if (buffer[0] == '{' || buffer[0] == '[') { // JSON
+                    res.setContentType("application/json");
+                    handle.close();
+                    return;
+                } else if (buffer[0] == '<') { // HTML or XML
+                    res.setContentType(std::strstr(buffer, "<html") ? "text/html" : "application/xml");
+                    return;
+                }
+            }
+
+            // Otherwise, count ASCII
+            numAsciiChars = countAscii(buffer, bytesRead);
         }
+
+        // Evaluate ascii chars
+        if (((long double)numAsciiChars / numChars) >= 0.95) // Plaintext
+            res.setContentType("text/plain; charset=utf-8");
     }
 
     // Take platform independent input and load the env block
@@ -119,6 +151,20 @@ namespace http::cgi {
 
     // Handles a one-off, CGI request
     void handlePHPRequest(const File& file, const Request& req, Response& res) {
+        // Create temp file
+        std::string tmpPath;
+        if (!createTempFile(tmpPath)) {
+            res.setStatus(500);
+            return;
+        }
+
+        std::ofstream tmpOutHandle( tmpPath, std::ios::binary );
+        if (!tmpOutHandle.is_open()) {
+            res.setStatus(500);
+            removeTempFile(tmpPath);
+            return;
+        }
+
         // Generate env block
         env_block_t envBlock;
         loadEnvBlock(envBlock, file, req);
@@ -127,73 +173,109 @@ namespace http::cgi {
         Process process(envBlock);
         if (!process.hasSucceeded()) {
             res.setStatus(502); // Bad Gateway
+            removeTempFile(tmpPath);
             return;
         }
 
         // Send data to Process
-        std::string cgiResp;
-        process.send(req.getBody(), cgiResp);
+        process.send(req.getBody(), tmpOutHandle);
+
+        // Read from temp file
+        tmpOutHandle.close();
+        std::ifstream tmpInHandle( tmpPath );
+        if (!tmpInHandle.is_open()) {
+            res.setStatus(500);
+            removeTempFile(tmpPath);
+            return;
+        }
+
+        // Create new temp file for the body
+        std::string tmpBodyPath;
+        if (!createTempFile(tmpBodyPath)) {
+            res.setStatus(500);
+            removeTempFile(tmpPath);
+            tmpOutHandle.close();
+            return;
+        }
+
+        std::ofstream tmpBodyHandle( tmpBodyPath );
+        if (!tmpBodyHandle.is_open()) {
+            res.setStatus(500);
+            removeTempFile(tmpPath);
+            removeTempFile(tmpBodyPath);
+            tmpOutHandle.close();
+            return;
+        }
 
         // Separate headers from body
-        size_t pos = cgiResp.find("\r\n\r\n");
-        if (pos == std::string::npos)
-            pos = cgiResp.find("\n\n");
+        bool hasWrittenHeaders = false;
+        std::string line;
+        while (std::getline(tmpInHandle, line)) {
+            if (line.back() == '\r')
+                line.pop_back();
 
-        // Read response
-        if (pos != std::string::npos) {
-            const std::string headersStr = cgiResp.substr(0, pos);
-            const std::string bodyStr = cgiResp.substr(pos + 4);
+            if (line.empty()) break;
 
-            // Parse headers
-            std::unordered_set<std::string> headers;
-            splitStringUnique(headers, headersStr, '\n', true);
-            for (std::string line : headers) {
-                // Trim carriage return
-                if (line.back() == '\r')
-                    line.pop_back();
-
-                // Set default status
-                res.setStatus(200);
-
-                // Parse headers
-                const size_t colonIndex = line.find(':');
-                if (colonIndex != std::string::npos) {
-                    std::string key = line.substr(0, colonIndex);
-                    std::string val = line.substr(colonIndex + 1);
-
-                    trimString(key); trimString(val);
-                    formatHeaderCasing(key);
-
-                    if (key == "Status")
-                        res.setStatus(std::stoi(val));
-                    else
-                        res.setHeader(key, val);
-                }
+            // Reading first header
+            if (!hasWrittenHeaders) {
+                hasWrittenHeaders = true;
+                res.setStatus(200); // Set default status
             }
 
-            // Set body
-            res.setBodyStream( std::unique_ptr<IBodyStream>( new MemoryStream(bodyStr) ) );
+            // Read header
+            const size_t colonIndex = line.find(':');
+            if (colonIndex != std::string::npos) {
+                std::string key = line.substr(0, colonIndex);
+                std::string val = line.substr(colonIndex + 1);
 
-            // Force set Content-Length
-            res.setHeader("Content-Length", std::to_string(bodyStr.size()));
+                trimString(key); trimString(val);
+                formatHeaderCasing(key);
 
-            // Check Content-Type
-            if (bodyStr.size() == 0)
-                res.clearHeader("Content-Type"); // Clear if no content
-            else if (res.getContentType() == "text/html; charset=UTF-8")
-                inferContentType(bodyStr, res); // Infer if default MIME is set
-        } else {
-            // Fallback if no headers, just return body
-            if (cgiResp.size() == 0) {
-                res.setStatus(204);
-                res.setHeader("Content-Length", "0");
-            } else {
-                res.setStatus(200);
-                res.setBodyStream( std::unique_ptr<IBodyStream>( new MemoryStream(cgiResp) ) );
-                res.setHeader("Content-Length", std::to_string(cgiResp.size()));
-                inferContentType(cgiResp, res);
+                if (key == "Status")
+                    res.setStatus(std::stoi(val));
+                else
+                    res.setHeader(key, val);
             }
         }
+
+        // Read remainder of the body to the body temp file
+        while (std::getline(tmpInHandle, line))
+            tmpBodyHandle << line;
+
+        // Close file handles
+        tmpBodyHandle.close();
+        tmpInHandle.close();
+
+        // Fallback if no headers, just return body
+        if (!hasWrittenHeaders) {
+            // Check size of the raw CGI response (tmpPath)
+            if (std::filesystem::file_size(tmpPath) == 0) {
+                res.setStatus(204);
+                res.setHeader("Content-Length", "0");
+                removeTempFile(tmpBodyPath);
+            } else {
+                res.setStatus(200);
+                res.setBodyStream( std::unique_ptr<IBodyStream>( new FileStream(tmpBodyPath, true) ) );
+                res.setHeader("Content-Length", std::to_string( std::filesystem::file_size(tmpBodyPath) ));
+                inferContentType(tmpBodyPath, res);
+            }
+        } else {
+            // Update the body stream
+            res.setBodyStream( std::unique_ptr<IBodyStream>( new FileStream(tmpBodyPath, true) ) );
+
+            // Force set Content-Length
+            const size_t bodySize = std::filesystem::file_size(tmpBodyPath);
+            res.setHeader("Content-Length", std::to_string( bodySize ));
+
+            // Check Content-Type
+            if (bodySize == 0)
+                res.clearHeader("Content-Type"); // Clear if no content
+            else if (res.getContentType() == "text/html; charset=UTF-8")
+                inferContentType(tmpBodyPath, res); // Infer if default MIME is set
+        }
+
+        // Remove original temp file
+        removeTempFile(tmpPath);
     }
 
     /************************************************************************/
@@ -208,11 +290,11 @@ namespace http::cgi {
         }
 
         // Reads everything from a pipe until EOF
-        void readFromPipe(HANDLE hPipe, std::string& result) {
+        void readFromPipe(HANDLE hPipe, std::ofstream& tmpHandle) {
             char buffer[4096];
             DWORD bytesRead;
             while (ReadFile(hPipe, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0)
-                result.append(buffer, bytesRead);
+                tmpHandle.write(buffer, bytesRead);
         }
 
         // Creates the pipes for the worker
@@ -287,7 +369,7 @@ namespace http::cgi {
         }
 
         // Sends the string of text (from loadCGIRequestToString) to the CGI
-        void Process::send(const std::string& input, std::string& outBuffer) {
+        void Process::send(const std::string& input, std::ofstream& tmpHandle) {
             // Write request body to stdin
             writeToPipe(stdinWrite, input);
 
@@ -296,7 +378,7 @@ namespace http::cgi {
             stdinWrite = NULL;
 
             // Read response from CGI
-            readFromPipe(stdoutRead, outBuffer);
+            readFromPipe(stdoutRead, tmpHandle);
 
             // After reading, also close the read end
             CloseHandle(stdoutRead);
@@ -317,12 +399,12 @@ namespace http::cgi {
         }
 
         // Reads until EOF from fd
-        static void readFromPipe(int fd, std::string& result) {
+        static void readFromPipe(int fd, std::ofstream& tmpHandle) {
             char buffer[4096];
             ssize_t bytesRead;
 
             while ((bytesRead = ::read(fd, buffer, sizeof(buffer))) > 0)
-                result.append(buffer, bytesRead);
+                tmpHandle.write(buffer, bytesRead);
         }
 
         // Create pipes for worker
@@ -429,15 +511,16 @@ namespace http::cgi {
         }
 
         // Send input and read response
-        void Process::send(const std::string& input, std::string& outBuffer) {
+        void Process::send(const std::string& input, std::ofstream& tmpHandle) {
             writeToPipe(stdinWrite, input);
             close(stdinWrite); stdinWrite = -1;
 
-            readFromPipe(stdoutRead, outBuffer);
+            // Read to tmp file
+            readFromPipe(stdoutRead, tmpHandle);
             close(stdoutRead); stdoutRead = -1;
 
             // Concat stderr to stdout
-            readFromPipe(stderrRead, outBuffer);
+            readFromPipe(stderrRead, tmpHandle);
             close(stderrRead); stderrRead = -1;
         }
     #endif

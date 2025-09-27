@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.19.0
+- Added streaming for PHP CGI response bodies (#147)
+
 ## v0.18.4
 - Fixed directory index lookups on UNC paths (#201)
 - Fixed directory index listings returning last modified GMT timestamps (#201)
