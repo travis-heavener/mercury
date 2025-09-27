@@ -408,7 +408,10 @@ namespace conf {
         }
 
         // Format string
-        if (value.find("./") == 0) { // Use relative path
+        if (value == ".") { // Use relative path
+            var = CWD;
+            if (isLogFile) return CONF_FAILURE; // Cannot be a directory
+        } else if (value.find("./") == 0) { // Use relative path
             var = CWD / value.substr(2);
             if (isLogFile) createLogDirectoryIfMissing(var);
         } else { // Try as absolute path
