@@ -37,6 +37,10 @@ namespace http {
         // Free SSL ptrs
         if (this->useTLS)
             SSL_CTX_free(this->pSSL_CTX);
+
+        // Signal to threads to wrap it up yo
+        this->isExiting.store(true);
+        this->threadPool.stop();
     }
 
     int Server::bindSocket() {
@@ -203,11 +207,22 @@ namespace http {
     }
 
     int Server::acceptConnection(struct sockaddr_storage& clientAddr, socklen_t& clientLen) {
+        fd_set fds;
+        FD_ZERO(&fds);
+        FD_SET(this->sock, &fds);
+
+        struct timeval tv;
+        tv.tv_sec = 1; // 1 second timeout
+        tv.tv_usec = 0;
+
+        int rv = select(this->sock + 1, &fds, nullptr, nullptr, &tv);
+        if (rv <= 0) return -1; // Timeout or error
+
         return accept(this->sock, (struct sockaddr*)&clientAddr, &clientLen);
     }
 
     void Server::acceptLoop() {
-        while (true) {
+        while (!this->isExiting) {
             struct sockaddr_storage clientAddr;
             socklen_t clientLen = sizeof(clientAddr);
             char clientIPStr[INET6_ADDRSTRLEN];

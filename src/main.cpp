@@ -1,3 +1,4 @@
+#include <atomic>
 #include <iostream>
 #include <signal.h>
 
@@ -6,17 +7,16 @@
 #include "http/server-ipv6.hpp"
 #include "logs/logger.hpp"
 #include "http/version_checker.hpp"
+#include "util/string_tools.hpp"
+
+// Global termination flag (atomic)
+std::atomic<bool> isExiting{false};
 
 std::vector<std::shared_ptr<http::Server>> serversVec;
 
 /******************** SIGNAL HANDLERS & CLEANUP ********************/
 
-void cleanExit(); // Fwd declaration
-void catchSig(int s) {
-    std::cout << "\nIntercepted exit signal " << s << ", closing...\n";
-    cleanExit();
-    exit(0);
-}
+void catchSig(int) { isExiting.store(true); }
 
 void initSigHandler() {
     #ifdef _WIN32
@@ -38,10 +38,6 @@ void initSigHandler() {
 }
 
 void cleanExit() {
-    for (auto pServer : serversVec) {
-        pServer->kill(); // Kill the server
-    }
-
     #ifdef _WIN32
         WSACleanup();
     #endif
@@ -51,6 +47,17 @@ void cleanExit() {
 
     // Cleanup config resources
     conf::cleanupConfig();
+}
+
+void awaitExitCin() {
+    // Otherwise, read from cin
+    std::string buf;
+    std::getline(std::cin, buf);
+    trimString(buf); strToUpper(buf);
+
+    // Clean exit
+    if (buf == "EXIT")
+        isExiting.store(true);
 }
 
 /******************** WELCOME BANNER METHODS ********************/
@@ -66,7 +73,7 @@ void printWelcomeBanner() {
     std::cout << "------------------------------------\n";
     printCenteredVersion();
     std::cout << "|           ...........            |\n"
-                 "|         Ctrl+C to close.         |\n"
+                 "|         \"Exit\" to close.         |\n"
                  "------------------------------------\n";
     ACCESS_LOG << conf::VERSION << " started successfully." << std::endl;
 }
@@ -140,6 +147,17 @@ int main() {
     std::vector<std::thread> threads;
     for (auto& server : serversVec)
         threads.emplace_back(std::thread([server]() { server->acceptLoop(); }));
+
+    // Wait for "exit" in cin (sets isExiting if "exit" is found)
+    while (!isExiting.load())
+        awaitExitCin();
+
+    /******* Reached if closing the program *******/
+    std::cout << "\nShutting down..." << std::endl;
+
+    // Kill the server
+    for (auto& server : serversVec)
+        server->kill();
 
     // Join all threads
     for (std::thread& t : threads)

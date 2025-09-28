@@ -12,6 +12,7 @@
     #include <poll.h>
 #endif
 
+#include <atomic>
 #include <memory>
 #include <shared_mutex>
 
@@ -78,6 +79,9 @@ namespace http {
             // OpenSSL
             bool useTLS;
             SSL_CTX* pSSL_CTX = nullptr;
+
+            // Used to gracefully close acceptLoop threads
+            std::atomic<bool> isExiting{false};
     };
 
     // For logs
