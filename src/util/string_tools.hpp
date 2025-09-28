@@ -44,6 +44,12 @@ void formatHeaderCasing(std::string&);
 // Returns true if there was data read, false otherwise.
 bool readLine(const std::string& input, std::string& lineBuf, size_t& startIndex);
 
-bool isMostlyAscii(const std::string&, double=0.95);
+inline size_t countAscii(const char* pData, const size_t size) {
+    size_t asciiCount = 0;
+    for (const char* p = pData; p < pData+size; ++p)
+        if ((*p >= 0x20 && *p <= 0x7E) || *p == '\n' || *p == '\r' || *p == '\t')
+            ++asciiCount;
+    return asciiCount;
+}
 
 #endif

@@ -1,6 +1,8 @@
 #ifndef __HTTP_CGI_PROCESS_HPP
 #define __HTTP_CGI_PROCESS_HPP
 
+#include <fstream>
+
 #include "../../pch/common.hpp"
 
 #include "../request.hpp"
@@ -25,7 +27,7 @@ namespace http::cgi {
             Process(env_block_t& envBlock);
             ~Process();
 
-            void send(const std::string& input, std::string& outBuffer);
+            void send(const std::string& input, std::ofstream& tmpHandle);
             bool hasSucceeded() const { return isSuccess; };
         private:
             bool createPipes(); // Creates the pipes for the worker

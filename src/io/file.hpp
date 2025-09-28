@@ -16,7 +16,7 @@ class File {
         bool isLinked = false; // True if symlink or hardlink
         bool isDirectory = false;
         bool ioFailure = false; // True if an IO failure occured
-
+        
         std::string MIME;
 
         // The FULL, absolute path to the file
@@ -27,6 +27,9 @@ class File {
 
         // The query string
         std::string queryStr;
+
+        // The PHP path info string, for PHP files only
+        std::string phpPathInfo;
 };
 
 #endif

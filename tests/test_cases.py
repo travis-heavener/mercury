@@ -15,7 +15,9 @@ This class allows you to specify request headers (the headers field) and specify
   only wish to check if a header is present without caring about what the value of the header
   is, use None instead of a string value. Additionally, if you want to make sure a header ISN'T
   present, use False.
-Use the version field to specify what HTTP version to use for requests.
+Use the version field to specify what HTTP version to use for requests WITHOUT the "HTTP/" prefix
+  (ex. 0.9, 1.0, 1.1).
+Use the body_match field to exactly match the response body.
 
 """
 
@@ -26,7 +28,7 @@ gmt_now = lambda: datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT
 class TestCase:
     def __init__(self, method: str, path: str, expected: int,
                  headers: dict=None, expected_headers: dict=None,
-                 version: str="1.1", https_only=False):
+                 version: str="1.1", https_only=False, body_match=None):
         self.method = method
         self.path = path
         self.version = "HTTP/" + version
@@ -42,6 +44,7 @@ class TestCase:
         self.expected_headers = { k.upper(): v for k, v in expected_headers.items() }
 
         self.https_only = https_only
+        self.body_match = body_match
 
     # Generate an inline description of the request
     def inline_desc(self) -> str:
@@ -72,7 +75,10 @@ class TestCase:
         s.sendall(str(self).encode("utf-8"))
 
         # Read response
-        response = s.recv(READ_BUF_SIZE).decode("utf-8").replace("\r", "")
+        raw = s.recv(READ_BUF_SIZE)
+        http_0_9_body = raw
+        raw = raw.decode("utf-8")
+        response = raw.replace("\r", "")
 
         if self.version == "HTTP/0.9":
             # Verify something is returned
@@ -85,6 +91,14 @@ class TestCase:
             if re.match(r"^HTTP\/1.1 \d+ [\w ]+$", response.split("\n")[0]):
                 print(f"Failed {test_desc}: HTTP/1.1 fallback to HTTP/0.9")
                 print(self.inline_desc())
+                return False
+
+            # Match body
+            if self.body_match is not None and raw != self.body_match:
+                print(f"Failed {test_desc}: Body mismatch")
+                print(self.inline_desc())
+                print("  Body:", http_0_9_body[0:48], end="")
+                print("..." if len(http_0_9_body) > 48 else "")
                 return False
 
             # Base case, success
@@ -123,6 +137,31 @@ class TestCase:
                     print(self.inline_desc())
                     return False
 
+            # Match body
+            if self.body_match is not None:
+                # Read all body
+                content_len = int(headers["CONTENT-LENGTH"]) if "CONTENT-LENGTH" in headers else 0
+                body = raw[ raw.find("\r\n\r\n")+4: ]
+
+                try:
+                    start = datetime.now().timestamp()
+                    while len(body) < content_len:
+                        body += s.recv(READ_BUF_SIZE).decode("utf-8")
+
+                        if len(body) < content_len and datetime.now().timestamp() > start + 5:
+                            print(f"Failed {test_desc}: Connection timed out reading body")
+                            print(self.inline_desc())
+                            return False
+
+                    if body != self.body_match:
+                        print(f"Failed {test_desc}: Body mismatch")
+                        print(self.inline_desc())
+                        print("  Body:", body[0:48], end="")
+                        print("..." if len(body) > 48 else "")
+                        return False
+                except Exception as e:
+                    print(e)
+
             # Base case
             return True
 
@@ -146,11 +185,16 @@ cases = [
     # Test PHP parsing (HTTP/1.1 ONLY)
     TestCase("GET", "/index.php",    expected=200, version="1.1"),
     TestCase("HEAD", "/index.php",   expected=200, version="1.1"),
+    TestCase("OPTIONS", "/index.php",expected=200, version="1.1"),
     TestCase("POST", "/index.php",   expected=200, version="1.1"),
     TestCase("PUT", "/index.php",    expected=200, version="1.1"),
     TestCase("PATCH", "/index.php",  expected=200, version="1.1"),
     TestCase("DELETE", "/index.php", expected=200, version="1.1"),
     TestCase("POST", "/ASDFGHJKL",   expected=404, version="1.1"),
+
+    # Test PHP path info URIs
+    TestCase("GET", "/path_info_test.php/foo/bar", expected=200, version="1.1", body_match="/foo/bar"),
+    TestCase("GET", "/index.html/foo/bar", expected=404, version="1.1"),
 
     # Invalid method checking for static files (HTTP/1.1)
     TestCase("GET", "/",            expected=200, version="1.1"),
@@ -228,6 +272,7 @@ for ver in ["1.0", "1.1"]:
         # Test misc. statuses
         TestCase("HEAD", "/foobar", expected=404, version=ver),
         TestCase("HEAD", "/",       expected=406, version=ver, headers={"Accept": "text/plain"}),
+        TestCase("HEAD", "/",       expected=406, version=ver, headers={"Accept": "foobar;bar,;123"}),
 
         # Test compression (doesn't actually check the body currently)
         TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "br"},      expected_headers={"Content-Encoding": "br"}, https_only=True),
