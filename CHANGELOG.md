@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.20.1
+- Fix Windows port checking if WinPHPCGIPath exists even if EnablePHPCGI is set to off (#217)
+
 ## v0.20.0
 - Migrate PugiXML to build_tools install with all other libs (#212)
 - Add Zstandard (Zstd) compression (#159)
