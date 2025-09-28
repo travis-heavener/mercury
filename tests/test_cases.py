@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 import re
 import socket
-import textwrap
 
 """
 
@@ -142,18 +141,26 @@ class TestCase:
             if self.body_match is not None:
                 # Read all body
                 content_len = int(headers["CONTENT-LENGTH"]) if "CONTENT-LENGTH" in headers else 0
-                body_raw = b""
+                body = raw[ raw.find("\r\n\r\n")+4: ]
 
-                while len(body_raw) < content_len:
-                    body_raw += s.recv(READ_BUF_SIZE)
+                try:
+                    start = datetime.now().timestamp()
+                    while len(body) < content_len:
+                        body += s.recv(READ_BUF_SIZE).decode("utf-8")
 
-                body = body_raw.decode("utf-8")
-                if body != self.body_match:
-                    print(f"Failed {test_desc}: Body mismatch")
-                    print(self.inline_desc())
-                    print("  Body:", body_raw[0:48], end="")
-                    print("..." if len(body) > 48 else "")
-                    return False
+                        if len(body) < content_len and datetime.now().timestamp() > start + 5:
+                            print(f"Failed {test_desc}: Connection timed out reading body")
+                            print(self.inline_desc())
+                            return False
+
+                    if body != self.body_match:
+                        print(f"Failed {test_desc}: Body mismatch")
+                        print(self.inline_desc())
+                        print("  Body:", body[0:48], end="")
+                        print("..." if len(body) > 48 else "")
+                        return False
+                except Exception as e:
+                    print(e)
 
             # Base case
             return True
