@@ -9,9 +9,9 @@
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1
 
-#define CONF_FILE "../conf/mercury.conf"
-#define MIMES_FILE "../conf/mimes.conf"
-#define VERSION_FILE "../version.txt"
+#define CONF_FILE "conf/mercury.conf"
+#define MIMES_FILE "conf/mimes.conf"
+#define VERSION_FILE "version.txt"
 
 typedef unsigned short port_t;
 
@@ -61,7 +61,8 @@ namespace conf {
 
     // Static methods
     int loadConfig();
-    inline void cleanupConfig() { matchConfigs.clear(); }
+    void cleanupConfig();
+    bool isVersionOutdated(const std::string& latestRemoteVersion);
 }
 
 #endif

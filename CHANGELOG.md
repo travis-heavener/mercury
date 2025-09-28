@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.21.0
+- Add support for running Mercury outside the `bin` directory (#215)
+    - Working across UNC paths for Windows as well
+- Added support for typing "exit" to exit (#221)
+    - Greatly improve thread closure handling
+- Now checks the individual version pattern (vX.X.X) when comparing against remote latest version (#195)
+- Stylistically improved welcome banner :)
+
 ## v0.20.1
 - Fix Windows port checking if WinPHPCGIPath exists even if EnablePHPCGI is set to off (#217)
 

@@ -74,8 +74,6 @@ Any version of Mercury marked as a "pre-release" (versions starting with "v0.x.x
 Therefore, bugs and security vulnerabilities are still possible.
 If you encounter any unexpected behavior, please start an Issue on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury/issues).
 
-**Note: Mercury binaries must be run from within the `/bin/` directory as resources & config files are loaded relative to the working directory.**
-
 ### Config Files
 
 In the `conf` directory are two config files: "mercury.conf" for server config and "mimes.conf" for a list of supported MIME types.
@@ -147,8 +145,6 @@ If you encounter any other issues or unexpected behavior, please consider openin
 The `/build_tools/` directory contains all necessary shell scripts for building static binaries.
 
 Binaries are placed in the `/bin/` directory, `mercury` for Linux and `mercury.exe` for Windows.
-
-**Note: Mercury binaries must be run from within the `/bin/` directory as resources & config files are loaded relative to the working directory.**
 
 ### Linux & Windows
 
