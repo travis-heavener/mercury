@@ -33,6 +33,7 @@ jobs:
           sslPort=8082
 
           # Update conf/mercury.conf
+          sed -i "s|<DocumentRoot>[[:space:]]*.*[[:space:]]*</DocumentRoot>|<DocumentRoot> ./tests/files/ </DocumentRoot>|" conf/mercury.conf
           sed -i "s|<Port>[[:space:]]*[0-9]\+[[:space:]]*</Port>|<Port> $port </Port>|" conf/mercury.conf
           sed -i "s|<TLSPort>[[:space:]]*.*[[:space:]]*</TLSPort>|<TLSPort> $sslPort </TLSPort>|" conf/mercury.conf
           sed -i "s|<EnablePHPCGI>[[:space:]]*off[[:space:]]*</EnablePHPCGI>|<EnablePHPCGI> on </EnablePHPCGI>|" conf/mercury.conf
