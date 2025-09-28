@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.20.0
+- Migrate PugiXML to build_tools install with all other libs (#212)
+
 ## v0.19.0
 - Added streaming for PHP CGI response bodies (#147)
 - Added support for PHP path info URIs (#127)
