@@ -184,7 +184,7 @@ namespace conf {
             return CONF_FAILURE;
 
         #ifdef _WIN32
-            if (loadPath(root, PHP_CGI_EXE_PATH, "WinPHPCGIPath") == CONF_FAILURE)
+            if (IS_PHP_ENABLED && loadPath(root, PHP_CGI_EXE_PATH, "WinPHPCGIPath") == CONF_FAILURE)
                 return CONF_FAILURE;
         #endif
 
