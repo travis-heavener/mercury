@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <brotli/encode.h>
+#include <zstd.h>
 #include <zlib.h>
 
 #include "http_tools.hpp"
@@ -53,6 +54,16 @@ namespace http {
         private:
             BrotliEncoderState* state = nullptr;
             std::vector<char> internalBuffer;
+    };
+
+    class ZstdCompressor : public ICompressor {
+        public:
+            ZstdCompressor();
+            ~ZstdCompressor();
+            size_t compress(const char* src, std::vector<char>& dest, const size_t size, const int flags=0);
+            size_t finish(std::vector<char>& dest);
+        private:
+            ZSTD_CStream* cstream = nullptr;
     };
 
     // Creates and returns a pointer to an ICompressor object
