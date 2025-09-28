@@ -4,18 +4,40 @@
 #include "../io/file_tools.hpp"
 #include "../util/toolbox.hpp"
 
-File::File(const std::string& rawPath) {
-    this->rawPath = rawPath;
+File::File(const std::string& _rawPath) {
+    this->rawPath = _rawPath;
     size_t queryIndex = rawPath.find('?');
 
+    // Extract PHP path info
+    std::filesystem::path rawPathNoPathInfo;
+    std::filesystem::path rawPathCopy = std::filesystem::path(rawPath.substr(0, queryIndex));
+    bool hasPathInfo = false;
+    for (const auto& part : rawPathCopy) {
+        if (!hasPathInfo) {
+            rawPathNoPathInfo /= part;
+            if (part.string().ends_with(".php") &&
+                std::filesystem::is_regular_file(conf::DOCUMENT_ROOT / rawPathNoPathInfo.string().substr(1)))
+                hasPathInfo = true;
+        } else {
+            // Add path info parts
+            this->phpPathInfo += '/' + part.string();
+        }
+    }
+
+    if (hasPathInfo) {
+        // Remove path info from rawPath
+        this->rawPath = rawPathNoPathInfo.string() + (queryIndex == std::string::npos ? "" : this->rawPath.substr(queryIndex));
+        queryIndex = this->rawPath.find('?');
+    }
+
     // Update the actual path
-    if ((rawPath.size() == 1 || rawPath[1] == '?') && rawPath[0] == '/') {
+    if ((this->rawPath.size() == 1 || this->rawPath[1] == '?') && this->rawPath[0] == '/') {
         this->path = conf::DOCUMENT_ROOT.string();
         normalizeBackslashes( path ); // Replace any backslashes w/ fwd slashes
     } else {
         try {
             this->path = resolveCanonicalPath( // Canonicalize
-                conf::DOCUMENT_ROOT / rawPath.substr(1, queryIndex-1) // Prepend document root
+                conf::DOCUMENT_ROOT / this->rawPath.substr(1, queryIndex-1) // Prepend document root
             ).string();
         } catch (std::filesystem::filesystem_error&) {
             this->exists = false;

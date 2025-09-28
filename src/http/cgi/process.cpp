@@ -89,7 +89,8 @@ namespace http::cgi {
         }
 
         envsMap["GATEWAY_INTERFACE"] = "CGI/1.1";
-        envsMap["PATH_INFO"] = envsMap["PATH_TRANSLATED"] = "";
+        envsMap["PATH_INFO"] = file.phpPathInfo;
+        envsMap["PATH_TRANSLATED"] = (conf::DOCUMENT_ROOT / file.phpPathInfo).string();
         envsMap["QUERY_STRING"] = file.queryStr;
 
         envsMap["REMOTE_ADDR"] = envsMap["REMOTE_HOST"] = req.getIPStr();

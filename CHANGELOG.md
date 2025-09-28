@@ -2,6 +2,7 @@
 
 ## v0.19.0
 - Added streaming for PHP CGI response bodies (#147)
+- Added support for PHP path info URIs (#127)
 
 ## v0.18.4
 - Fixed directory index lookups on UNC paths (#201)
