@@ -2,9 +2,10 @@
 
 #include <iostream>
 
+#include <pugixml.hpp>
+
 #include "../io/file_tools.hpp"
 #include "../util/string_tools.hpp"
-#include "../../lib/pugixml.hpp"
 
 /****** EXTERNAL FIELDS ******/
 
@@ -266,7 +267,7 @@ namespace conf {
     /************************* Config loader helpers *************************/
 
     int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName, const bool allowZero) {
-        const pugi::xml_node node = root.child(nodeName);
+        const pugi::xml_node node = root.child(nodeName.c_str());
         if (!node) {
             std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
             return CONF_FAILURE;
@@ -292,7 +293,7 @@ namespace conf {
     }
 
     int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName, const bool allowZero) {
-        const pugi::xml_node node = root.child(nodeName);
+        const pugi::xml_node node = root.child(nodeName.c_str());
         if (!node) {
             std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
             return CONF_FAILURE;
@@ -318,7 +319,7 @@ namespace conf {
     }
 
     int loadOnOff(const pugi::xml_node& root, bool& var, const std::string& nodeName) {
-        pugi::xml_node node = root.child(nodeName);
+        pugi::xml_node node = root.child(nodeName.c_str());
         if (!node) {
             std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
             return CONF_FAILURE;
@@ -340,7 +341,7 @@ namespace conf {
 
     int loadBindAddress(const pugi::xml_node& root, const bool isIPv6) {
         const std::string nodeName = isIPv6 ? "BindAddressIPv6" : "BindAddressIPv4";
-        pugi::xml_node node = root.child(nodeName);
+        pugi::xml_node node = root.child(nodeName.c_str());
         if (!node) {
             std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
             return CONF_FAILURE;
@@ -373,7 +374,7 @@ namespace conf {
     }
 
     int loadBool(const pugi::xml_node& root, bool& var, const std::string& nodeName) {
-        pugi::xml_node node = root.child(nodeName);
+        pugi::xml_node node = root.child(nodeName.c_str());
         if (!node) {
             std::cerr << "Failed to parse config file, missing " << nodeName << " node." << std::endl;
             return CONF_FAILURE;
@@ -393,7 +394,7 @@ namespace conf {
     }
 
     int loadPath(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName, const bool isLogFile) {
-        pugi::xml_node node = root.child(nodeName);
+        pugi::xml_node node = root.child(nodeName.c_str());
         if (!node) {
             std::cerr << "Failed to parse config file, missing " << nodeName << '.' << std::endl;
             return CONF_FAILURE;

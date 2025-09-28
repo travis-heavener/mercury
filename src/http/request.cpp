@@ -112,7 +112,9 @@ namespace http {
             parseRangeHeader(byteRanges, this->headers["RANGE"]);
 
         // Determine compression method
-        if (this->isHTTPS && this->isEncodingAccepted("br"))
+        if (this->isEncodingAccepted("zstd"))
+            this->compressMethod = COMPRESS_ZSTD;
+        else if (this->isHTTPS && this->isEncodingAccepted("br"))
             this->compressMethod = COMPRESS_BROTLI;
         else if (this->isEncodingAccepted("gzip"))
             this->compressMethod = COMPRESS_GZIP;

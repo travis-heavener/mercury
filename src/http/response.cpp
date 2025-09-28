@@ -46,6 +46,9 @@ namespace http {
         // Determine compression method
         this->compressMethod = compressMethod;
         switch (this->compressMethod) {
+            case COMPRESS_ZSTD:
+                this->setHeader("Content-Encoding", "zstd");
+                break;
             case COMPRESS_BROTLI:
                 this->setHeader("Content-Encoding", "br");
                 break;

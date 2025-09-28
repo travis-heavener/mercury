@@ -3,11 +3,11 @@
 # CD into project directory
 cd "$(dirname "$0")/../"
 
-if [ ! -d "static_libs" ]; then
-    mkdir static_libs
+if [ ! -d "libs" ]; then
+    mkdir libs
 fi
 
-cd static_libs
+cd libs
 LIB_PATH=$(pwd)
 
 # Update artifacts.lock
@@ -98,4 +98,4 @@ mv $LIB_PATH/brotli-repo/c/include $LIB_PATH/brotli/windows/include
 cd $LIB_PATH
 rm -rf $LIB_PATH/brotli-repo
 
-echo "✅ Successfully built static Brotli binaries."
+echo "✅ Successfully built Brotli v$version library."

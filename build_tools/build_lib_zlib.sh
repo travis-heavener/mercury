@@ -3,11 +3,11 @@
 # CD into project directory
 cd "$(dirname "$0")/../"
 
-if [ ! -d "static_libs" ]; then
-    mkdir static_libs
+if [ ! -d "libs" ]; then
+    mkdir libs
 fi
 
-cd static_libs
+cd libs
 LIB_PATH=$(pwd)
 
 # Update artifacts.lock
@@ -67,4 +67,4 @@ sudo make -B -f win32/Makefile.gcc install \
 # ==== Clean Up ====
 rm -rf "$ZLIB_DIR"
 
-echo "✅ Successfully built static zlib binaries."
+echo "✅ Successfully built Zlib v$version library."

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "../../lib/pugixml.hpp"
+#include <pugixml.hpp>
 
 namespace conf {
 

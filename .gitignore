@@ -2,7 +2,7 @@
 logs/*
 temp_release/*
 __pycache__/
-static_libs/*
+libs/*
 *.gch
 *.pem
 releases/*

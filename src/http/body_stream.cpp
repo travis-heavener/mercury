@@ -150,9 +150,89 @@ namespace http {
         return dest.size();
     }
 
+    ZstdCompressor::ZstdCompressor() {
+        // Create compressor stream
+        cstream = ZSTD_createCStream();
+        if (!cstream) {
+            _status = STREAM_FAILURE;
+            return;
+        }
+
+        // Initialize compressor stream
+        size_t initResult = ZSTD_initCStream(cstream, 3);
+        if (ZSTD_isError(initResult)) {
+            _status = STREAM_FAILURE;
+            ZSTD_freeCStream(cstream);
+            cstream = nullptr;
+        }
+    }
+
+    ZstdCompressor::~ZstdCompressor() {
+        if (cstream != nullptr)
+            ZSTD_freeCStream(cstream);
+    }
+
+    size_t ZstdCompressor::compress(const char* src, std::vector<char>& dest, const size_t size, const int) {
+        if (!cstream) return 0;
+
+        ZSTD_inBuffer in = { src, size, 0 };
+        size_t totalWritten = 0;
+
+        while (in.pos < in.size) {
+            // Reserve sufficient space
+            size_t chunkSize = ZSTD_CStreamOutSize();
+            size_t oldSize = dest.size();
+            dest.resize(oldSize + chunkSize);
+
+            // Compress
+            ZSTD_outBuffer out = { dest.data() + oldSize, chunkSize, 0 };
+            size_t ret = ZSTD_compressStream(cstream, &out, &in);
+            if (ZSTD_isError(ret)) {
+                _status = STREAM_FAILURE;
+                break;
+            }
+
+            // Resize according to space used
+            dest.resize(oldSize + out.pos);
+            totalWritten += out.pos;
+        }
+
+        return totalWritten;
+    }
+
+    size_t ZstdCompressor::finish(std::vector<char>& dest) {
+        if (!cstream) return 0;
+
+        size_t totalWritten = 0;
+        size_t remaining = 0;
+
+        do {
+            // Reserve sufficient space
+            size_t chunkSize = ZSTD_CStreamOutSize();
+            size_t oldSize = dest.size();
+            dest.resize(oldSize + chunkSize);
+
+            // Compress
+            ZSTD_outBuffer out = { dest.data() + oldSize, chunkSize, 0 };
+            remaining = ZSTD_endStream(cstream, &out);
+            if (ZSTD_isError(remaining)) {
+                _status = STREAM_FAILURE;
+                break;
+            }
+
+            // Resize according to space used
+            dest.resize(oldSize + out.pos);
+            totalWritten += out.pos;
+
+        } while (remaining != 0);
+
+        return totalWritten;
+    }
+
     // Creates and returns a pointer to an ICompressor object
     ICompressor* createCompressorStream(int method) {
         switch (method) {
+            case COMPRESS_ZSTD: return new ZstdCompressor();
             case COMPRESS_BROTLI: return new BrotliCompressor();
             case COMPRESS_GZIP:
             case COMPRESS_DEFLATE: return new ZlibCompressor(method);

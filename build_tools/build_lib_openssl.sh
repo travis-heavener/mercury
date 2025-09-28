@@ -3,15 +3,11 @@
 # CD into project directory
 cd "$(dirname "$0")/../"
 
-if [ -d "openssl" ]; then
-    rm -rf openssl
+if [ ! -d "libs" ]; then
+    mkdir libs
 fi
 
-if [ ! -d "static_libs" ]; then
-    mkdir static_libs
-fi
-
-cd static_libs
+cd libs
 LIB_PATH=$(pwd)
 
 # Update artifacts.lock
@@ -35,6 +31,10 @@ cat artifacts.raw | gzip | base64 > artifacts.lock
 rm -f artifacts.raw
 
 # Clean existing
+if [ -d "openssl" ]; then
+    rm -rf openssl
+fi
+
 if [ -d "openssl-$version" ]; then
     rm -rf openssl-$version
 fi
@@ -92,4 +92,4 @@ rm -rf openssl-$version
 
 rm -f $LIB_PATH/openssl-$version.tar.gz
 
-echo "✅ Successfully built static OpenSSL binaries."
+echo "✅ Successfully built OpenSSL v$version library."

@@ -94,7 +94,7 @@ To install:
 - For Linux, run `sudo apt install php-cgi`.
 - For Windows, run `/conf/setup_php.ps1`.
 
-Developer environments also come with php-cgi installed after running `make static_deps` or `make libs`.
+Developer environments also come with php-cgi installed after running `make lib_deps` or `make libs`.
 
 Windows users have the option to use their own PHP installation instead by modifying the path to php-cgi in "mercury.conf" under the WinPHPCGIPath node.
 

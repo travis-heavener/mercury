@@ -275,6 +275,7 @@ for ver in ["1.0", "1.1"]:
         TestCase("HEAD", "/",       expected=406, version=ver, headers={"Accept": "foobar;bar,;123"}),
 
         # Test compression (doesn't actually check the body currently)
+        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "zstd"},    expected_headers={"Content-Encoding": "zstd"}),
         TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "br"},      expected_headers={"Content-Encoding": "br"}, https_only=True),
         TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "gzip"},    expected_headers={"Content-Encoding": "gzip"}),
         TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "deflate"}, expected_headers={"Content-Encoding": "deflate"}),
