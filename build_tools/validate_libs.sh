@@ -18,6 +18,7 @@ BROTLI_VERSION="1.1.0"
 OPENSSL_VERSION="3.5.3"
 ZLIB_VERSION="1.3.1"
 PUGIXML_VERSION="1.15"
+ZSTD_VERSION="1.5.7"
 
 GPP_VERSION="13.3.0"
 MINGW_W64_VERSION="11.0.1"
@@ -60,7 +61,14 @@ fi
 # === PugiXML ===
 
 if ! grep -q "^pugixml=${PUGIXML_VERSION}\$" artifacts.raw; then
-    echo "Update pugixml to $PUGIXML_VERSION via \`make lib_pugixml\`"
+    echo "Update PugiXML to $PUGIXML_VERSION via \`make lib_pugixml\`"
+    HAS_FAILED="true"
+fi
+
+# === Zstandard ===
+
+if ! grep -q "^zstd=${ZSTD_VERSION}\$" artifacts.raw; then
+    echo "Update Zstandard to $ZSTD_VERSION via \`make lib_zstd\`"
     HAS_FAILED="true"
 fi
 
