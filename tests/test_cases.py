@@ -272,6 +272,7 @@ for ver in ["1.0", "1.1"]:
         # Test misc. statuses
         TestCase("HEAD", "/foobar", expected=404, version=ver),
         TestCase("HEAD", "/",       expected=406, version=ver, headers={"Accept": "text/plain"}),
+        TestCase("HEAD", "/",       expected=406, version=ver, headers={"Accept": "foobar;bar,;123"}),
 
         # Test compression (doesn't actually check the body currently)
         TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "br"},      expected_headers={"Content-Encoding": "br"}, https_only=True),
