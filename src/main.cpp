@@ -70,11 +70,11 @@ void printCenteredVersion() {
 }
 
 void printWelcomeBanner() {
-    std::cout << "------------------------------------\n";
+    std::cout << "------------------------------------" << std::endl;
     printCenteredVersion();
-    std::cout << "|           ...........            |\n"
-                 "|         \"Exit\" to close.         |\n"
-                 "------------------------------------\n";
+    std::cout << "|           ...........            |" << std::endl <<
+                 "|         \"Exit\" to close.         |" << std::endl <<
+                 "------------------------------------" << std::endl;
     ACCESS_LOG << conf::VERSION << " started successfully." << std::endl;
 }
 
@@ -102,8 +102,12 @@ int main() {
     // Check for new version at startup
     if (conf::CHECK_LATEST_RELEASE) {
         const std::string latestVersion = fetchLatestVersion();
-        if (latestVersion.length() > 0 && latestVersion != conf::VERSION)
-            std::cout << "Update available! (" << latestVersion.substr(8) << ")\nSee https://wowtravis.com/mercury" << std::endl;
+        try {
+            if (latestVersion.length() > 0 && conf::isVersionOutdated(latestVersion))
+                std::cout << "Update available! (" << latestVersion.substr(8) << ")\nSee https://wowtravis.com/mercury" << std::endl;
+        } catch (std::invalid_argument&) {
+            std::cout << "Failed to compare local and remote versions!" << std::endl;
+        }
     }
 
     // Init server

@@ -302,6 +302,31 @@ namespace conf {
         std::filesystem::current_path( previousCWD );
     }
 
+    void getMajorMinorPatchFromVersion(std::string ver, int& major, int& minor, int& patch) {
+        ver = ver.substr(9); // Remove "Mercury v"
+
+        const size_t firstDot = ver.find('.');
+        const size_t secondDot = ver.find('.', firstDot+1);
+
+        major = std::stoi( ver.substr(0, firstDot) );
+        minor = std::stoi( ver.substr(firstDot+1, secondDot - firstDot) );
+        patch = std::stoi( ver.substr(secondDot+1) );
+    }
+
+    // Compares the current version to the latest on the remote
+    bool isVersionOutdated(const std::string& latestRemoteVersion) {
+        int remoteMajor, remoteMinor, remotePatch;
+        getMajorMinorPatchFromVersion(latestRemoteVersion, remoteMajor, remoteMinor, remotePatch);
+
+        int thisMajor, thisMinor, thisPatch;
+        getMajorMinorPatchFromVersion(conf::VERSION, thisMajor, thisMinor, thisPatch);
+
+        // Compare versions
+        return thisMajor < remoteMajor ||
+            (thisMajor == remoteMajor  && thisMinor < remoteMinor) ||
+            (thisMajor == remoteMajor  && thisMinor == remoteMinor && thisPatch < remotePatch);
+    }
+
     /************************* Config loader helpers *************************/
 
     int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName, const bool allowZero) {

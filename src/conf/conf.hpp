@@ -62,6 +62,7 @@ namespace conf {
     // Static methods
     int loadConfig();
     void cleanupConfig();
+    bool isVersionOutdated(const std::string& latestRemoteVersion);
 }
 
 #endif
