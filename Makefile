@@ -2,10 +2,11 @@ SHELL := /bin/bash
 
 GPP_FLAGS = -Wall -Wextra -Winvalid-pch
 
-STATIC_LIBS_DIR = static_libs
-OPENSSL_DIR = $(STATIC_LIBS_DIR)/openssl
-BROTLI_DIR = $(STATIC_LIBS_DIR)/brotli
-ARTIFACTS_LOCK = $(STATIC_LIBS_DIR)/artifacts.lock
+LIBS_DIR = libs
+OPENSSL_DIR = $(LIBS_DIR)/openssl
+BROTLI_DIR = $(LIBS_DIR)/brotli
+PUGIXML_DIR = $(LIBS_DIR)/pugixml
+ARTIFACTS_LOCK = $(LIBS_DIR)/artifacts.lock
 PCH_DIR = src/pch
 
 STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -std=c++20
@@ -20,14 +21,14 @@ SRCS = src/conf/*.cpp \
 	src/http/*.cpp src/http/version/*.cpp src/http/cgi/*.cpp \
 	src/util/*.cpp \
 	src/io/*.cpp \
-	src/logs/*.cpp \
-	lib/*.cpp
+	$(PUGIXML_DIR)/*.cpp \
+	src/logs/*.cpp
 DEPS = src/conf/*.hpp \
 	src/http/*.hpp src/http/version/*.hpp src/http/cgi/*.hpp \
 	src/util/*.hpp \
 	src/io/*.hpp \
 	src/logs/*.hpp \
-	lib/*.hpp \
+	$(PUGIXML_DIR)/*.hpp \
 	src/pch/*.hpp \
 	$(SRCS)
 
@@ -43,7 +44,7 @@ $(TARGET): $(DEPS) $(ARTIFACTS_LOCK)
 		-include $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.hpp \
 		$(SRCS) -o $(TARGET) \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
-		-I$(OPENSSL_DIR)/linux/include -I$(BROTLI_DIR)/linux/include \
+		-I$(OPENSSL_DIR)/linux/include -I$(BROTLI_DIR)/linux/include -I$(PUGIXML_DIR) \
 		-L$(OPENSSL_DIR)/linux/lib64 -L$(BROTLI_DIR)/linux/lib \
 		$(LIB_FLAGS) \
 		$(BROTLI_FLAGS) \
@@ -60,7 +61,7 @@ $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
 		-include $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp \
 		$(SRCS) $(TARGET_WIN_ICON) -o $(TARGET_WIN) \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
-		-I$(OPENSSL_DIR)/windows/include -I$(BROTLI_DIR)/windows/include \
+		-I$(OPENSSL_DIR)/windows/include -I$(BROTLI_DIR)/windows/include -I$(PUGIXML_DIR) \
 		-L$(OPENSSL_DIR)/windows/lib64 -L$(BROTLI_DIR)/windows/lib \
 		$(LIB_FLAGS) \
 		$(BROTLI_FLAGS) \
@@ -110,19 +111,22 @@ $(ARTIFACTS_LOCK):
 		echo "" | gzip | base64 > $(ARTIFACTS_LOCK); \
 	fi
 
-libs: static_deps static_brotli static_openssl static_zlib win_php
+libs: lib_deps lib_brotli lib_openssl lib_zlib win_php
 
-static_deps:
+lib_deps:
 	@./build_tools/install_deps.sh
 
-static_brotli:
-	@./build_tools/build_static_brotli.sh
+lib_brotli:
+	@./build_tools/build_lib_brotli.sh
 
-static_openssl:
-	@./build_tools/build_static_openssl.sh
+lib_openssl:
+	@./build_tools/build_lib_openssl.sh
 
-static_zlib:
-	@./build_tools/build_static_zlib.sh
+lib_zlib:
+	@./build_tools/build_lib_zlib.sh
+
+lib_pugixml:
+	@./build_tools/fetch_lib_pugixml.sh
 
 win_php:
 	@./build_tools/setup_win_php.sh

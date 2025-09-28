@@ -24,8 +24,8 @@ jobs:
       - name: Cache Library Artifacts
         uses: actions/cache@v4
         with:
-          path: ./static_libs
-          key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/build_static_brotli.sh', '**/build_tools/build_static_openssl.sh') }}
+          path: ./libs
+          key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/build_lib_brotli.sh', '**/build_tools/build_lib_openssl.sh') }}
 
       # Make executables
       - name: Make Executable Shell Scripts
@@ -36,13 +36,13 @@ jobs:
         run: |
           # Run w/o make (not installed yet)
           sudo ./build_tools/install_deps.sh
-          if [ ! -d static_libs ] || [ -z "$(ls -A static_libs)" ]; then
-            make static_brotli
-            make static_openssl
+          if [ ! -d libs ] || [ -z "$(ls -A libs)" ]; then
+            make lib_brotli
+            make lib_openssl
           fi
 
           # Build static zlib anyways (can't cache, takes < 10 sec)
-          make static_zlib
+          make lib_zlib
 
       # Build
       - name: Build Mercury Binaries
@@ -60,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: static-libs
-          path: ./static_libs
+          path: ./libs
 
   Run-Linux-Tests:
     needs: Build

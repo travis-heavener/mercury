@@ -35,7 +35,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: static-libs
-          path: ./static_libs
+          path: ./libs
 
       # Make executables
       - name: Make Executable Shell Scripts
@@ -49,7 +49,7 @@ jobs:
       - name: Make Release
         run: |
           make -t all # Force to be up-to-date
-          make static_deps
+          make lib_deps
           make release
 
       # Read version from version.txt

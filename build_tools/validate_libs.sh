@@ -7,16 +7,17 @@
 # CD into project directory
 cd "$(dirname "$0")/../"
 
-if [ ! -d "static_libs" ]; then
-    mkdir static_libs
+if [ ! -d "libs" ]; then
+    mkdir libs
 fi
 
-cd static_libs
+cd libs
 
 # Declare versions
 BROTLI_VERSION="1.1.0"
 OPENSSL_VERSION="3.5.3"
 ZLIB_VERSION="1.3.1"
+PUGIXML_VERSION="1.15"
 
 GPP_VERSION="13.3.0"
 MINGW_W64_VERSION="11.0.1"
@@ -38,21 +39,28 @@ sed -i 's/\r//g' artifacts.raw
 HAS_FAILED="false"
 
 if ! grep -q "^brotli=${BROTLI_VERSION}\$" artifacts.raw; then
-    echo "Update Brotli to $BROTLI_VERSION via \`make static_brotli\`"
+    echo "Update Brotli to $BROTLI_VERSION via \`make lib_brotli\`"
     HAS_FAILED="true"
 fi
 
 # === OpenSSL ===
 
 if ! grep -q "^openssl=${OPENSSL_VERSION}\$" artifacts.raw; then
-    echo "Update OpenSSL to $OPENSSL_VERSION via \`make static_openssl\`"
+    echo "Update OpenSSL to $OPENSSL_VERSION via \`make lib_openssl\`"
     HAS_FAILED="true"
 fi
 
 # === zlib ===
 
 if ! grep -q "^zlib=${ZLIB_VERSION}\$" artifacts.raw; then
-    echo "Update zlib to $ZLIB_VERSION via \`make static_zlib\`"
+    echo "Update zlib to $ZLIB_VERSION via \`make lib_zlib\`"
+    HAS_FAILED="true"
+fi
+
+# === PugiXML ===
+
+if ! grep -q "^pugixml=${PUGIXML_VERSION}\$" artifacts.raw; then
+    echo "Update pugixml to $PUGIXML_VERSION via \`make lib_pugixml\`"
     HAS_FAILED="true"
 fi
 
