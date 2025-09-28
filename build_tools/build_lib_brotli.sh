@@ -98,4 +98,4 @@ mv $LIB_PATH/brotli-repo/c/include $LIB_PATH/brotli/windows/include
 cd $LIB_PATH
 rm -rf $LIB_PATH/brotli-repo
 
-echo "✅ Successfully built static Brotli binaries."
+echo "✅ Successfully built Brotli v$version library."

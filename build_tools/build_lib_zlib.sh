@@ -67,4 +67,4 @@ sudo make -B -f win32/Makefile.gcc install \
 # ==== Clean Up ====
 rm -rf "$ZLIB_DIR"
 
-echo "✅ Successfully built static zlib binaries."
+echo "✅ Successfully built Zlib v$version library."

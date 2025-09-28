@@ -85,4 +85,4 @@ rm -rf zstd-$version
 
 rm -f $LIB_PATH/zstd-$version.tar.gz
 
-echo "✅ Successfully built static Zstandard binaries."
+echo "✅ Successfully built Zstandard v$version library."

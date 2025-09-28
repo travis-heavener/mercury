@@ -2,6 +2,8 @@
 
 ## v0.20.0
 - Migrate PugiXML to build_tools install with all other libs (#212)
+- Add Zstandard (Zstd) compression (#159)
+    - New compression preference order goes Zstd -> Brotli (if HTTPS) -> gzip -> deflate -> plaintext
 
 ## v0.19.0
 - Added streaming for PHP CGI response bodies (#147)

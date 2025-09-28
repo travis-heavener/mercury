@@ -92,4 +92,4 @@ rm -rf openssl-$version
 
 rm -f $LIB_PATH/openssl-$version.tar.gz
 
-echo "✅ Successfully built static OpenSSL binaries."
+echo "✅ Successfully built OpenSSL v$version library."
