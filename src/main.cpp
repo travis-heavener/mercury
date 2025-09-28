@@ -51,6 +51,7 @@ void cleanExit() {
 
 void awaitExitCin() {
     // Otherwise, read from cin
+    std::cout << "> ";
     std::string buf;
     std::getline(std::cin, buf);
     trimString(buf); strToUpper(buf);
@@ -66,15 +67,47 @@ void printCenteredVersion() {
     const int leftPadding = (34 - conf::VERSION.length()) / 2;
     const int rightPadding = 34 - conf::VERSION.length() - leftPadding;
 
-    std::cout << '|' << std::string(leftPadding, ' ') << conf::VERSION << std::string(rightPadding, ' ') << '|' << '\n';
+    #ifdef _WIN32
+        std::wcout << L'\u00B3';
+        std::cout << std::string(leftPadding, ' ') << conf::VERSION << std::string(rightPadding, ' ');
+        std::wcout << L'\u00B3';
+        std::cout << std::endl;
+    #else
+        std::cout << "\u2502" << std::string(leftPadding, ' ') << conf::VERSION << std::string(rightPadding, ' ') << "\u2502" << std::endl;
+    #endif
 }
 
 void printWelcomeBanner() {
-    std::cout << "------------------------------------" << std::endl;
-    printCenteredVersion();
-    std::cout << "|           ...........            |" << std::endl <<
-                 "|         \"Exit\" to close.         |" << std::endl <<
-                 "------------------------------------" << std::endl;
+    /**
+     * Prints the following message:
+     * 
+     * ┌──────────────────────────────────┐
+     * │          Mercury vX.X.X          │
+     * │           ════════════           │
+     * │         "Exit" to close.         │
+     * └──────────────────────────────────┘
+     */
+    #ifdef _WIN32
+        std::wcout << L'\u00DA';
+        for (int i = 0; i < 34; ++i) std::wcout << L'\u00C4';
+        std::wcout << L'\u00BF' << std::endl;
+        printCenteredVersion();
+        std::wcout << L"\u00B3           \u00CD\u00CD\u00CD\u00CD\u00CD\u00CD\u00CD\u00CD\u00CD\u00CD\u00CD\u00CD           \u00B3\n"
+                      L"\u00B3         \"Exit\" to close.         \u00B3\n"
+                      L"\u00C0";
+        for (int i = 0; i < 34; ++i) std::wcout << L'\u00C4';
+        std::wcout << L'\u00D9' << std::endl;
+    #else
+        std::cout << "\u250C";
+        for (int i = 0; i < 34; ++i) std::cout << "\u2500";
+        std::cout << "\u2510" << std::endl;
+        printCenteredVersion();
+        std::cout << "\u2502           \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550           \u2502\n"
+                      "\u2502         \"Exit\" to close.         \u2502\n"
+                      "\u2514";
+        for (int i = 0; i < 34; ++i) std::cout << "\u2500";
+        std::cout << "\u2518" << std::endl;
+    #endif
     ACCESS_LOG << conf::VERSION << " started successfully." << std::endl;
 }
 
@@ -82,7 +115,7 @@ void printWelcomeBanner() {
 
 int main() {
     // Initialize Winsock API
-    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+    #ifdef _WIN32
         WSADATA wsa;
         if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
             std::cerr << "Failed to initialize Winsock API.\n";
