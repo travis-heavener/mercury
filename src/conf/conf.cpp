@@ -4,6 +4,10 @@
 
 #include <pugixml.hpp>
 
+#ifdef _WIN32
+    #include "../winheader.hpp"
+#endif
+
 #include "../io/file_tools.hpp"
 #include "../util/string_tools.hpp"
 
@@ -51,7 +55,7 @@ namespace conf {
     std::unordered_map<std::string, std::string> MIMES;
 
     // CWD in root directory of repo
-    std::filesystem::path CWD = std::filesystem::current_path().parent_path();
+    std::filesystem::path CWD, previousCWD = std::filesystem::current_path();
 
     /**********************************************************/
     /********************* STATIC METHODS *********************/
@@ -68,7 +72,33 @@ namespace conf {
     int loadDirectoryAndCanonicalize(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName);
     int loadTempFileDirectory();
 
+    // Loads the directory of the running executable to path
+    // Returns true if successful or false otherwise
+    bool loadExecutableDirectory(std::filesystem::path& path) {
+        #ifdef _WIN32
+            std::string buf(MAX_PATH, '\0');
+            if (!GetModuleFileNameA(NULL, &buf[0], MAX_PATH)) return false;
+            path = std::filesystem::path(buf).parent_path();
+        #else
+            // Get the directory of the running executable
+            try {
+                path = std::filesystem::canonical("/proc/self/exe").parent_path();
+            } catch (std::filesystem::filesystem_error&) {
+                return false;
+            }
+        #endif
+        return true;
+    }
+
     int loadConfig() {
+        // Set CWD to Mercury project root
+        if (!loadExecutableDirectory(CWD)) {
+            std::cerr << "Failed to set current working directory." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        std::filesystem::current_path( CWD = CWD.parent_path() );
+
         // Read XML config file
         pugi::xml_document doc;
         pugi::xml_parse_result result = doc.load_file(CONF_FILE);
@@ -262,6 +292,14 @@ namespace conf {
         mimeHandle.close();
 
         return CONF_SUCCESS;
+    }
+
+    void cleanupConfig() {
+        // Clear match configs
+        matchConfigs.clear();
+
+        // Reset CWD
+        std::filesystem::current_path( previousCWD );
     }
 
     /************************* Config loader helpers *************************/

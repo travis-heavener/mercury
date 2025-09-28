@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.21.0
+- Add support for running Mercury outside the `bin` directory (#215)
+    - Working across UNC paths for Windows as well
+
 ## v0.20.1
 - Fix Windows port checking if WinPHPCGIPath exists even if EnablePHPCGI is set to off (#217)
 
