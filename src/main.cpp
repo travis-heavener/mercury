@@ -16,7 +16,10 @@ std::vector<std::shared_ptr<http::Server>> serversVec;
 
 /******************** SIGNAL HANDLERS & CLEANUP ********************/
 
-void catchSig(int) { isExiting.store(true); }
+void catchSig(int) {
+    std::cout << std::endl;
+    isExiting.store(true);
+}
 
 void initSigHandler() {
     #ifdef _WIN32
@@ -51,7 +54,7 @@ void cleanExit() {
 
 void awaitExitCin() {
     // Otherwise, read from cin
-    std::cout << "> ";
+    std::cout << "< ";
     std::string buf;
     std::getline(std::cin, buf);
     trimString(buf); strToUpper(buf);
@@ -186,11 +189,15 @@ int main() {
         threads.emplace_back(std::thread([server]() { server->acceptLoop(); }));
 
     // Wait for "exit" in cin (sets isExiting if "exit" is found)
-    while (!isExiting.load())
+    while (!isExiting) {
         awaitExitCin();
 
+        // Sleep to allow isExiting to update
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+
     /******* Reached if closing the program *******/
-    std::cout << "\nShutting down..." << std::endl;
+    std::cout << "> Shutting down..." << std::endl;
 
     // Kill the server
     for (auto& server : serversVec)

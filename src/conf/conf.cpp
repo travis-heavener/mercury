@@ -298,6 +298,10 @@ namespace conf {
         // Clear match configs
         matchConfigs.clear();
 
+        // Remove any stray temp files
+        while (!currentTempFiles.empty())
+            removeTempFile(*currentTempFiles.begin());
+
         // Reset CWD
         std::filesystem::current_path( previousCWD );
     }
