@@ -6,6 +6,7 @@
 - Added temporary thread creation when the connection backlog grows (#225)
     - Greatly reduces latency under bursts or heavy load
 - Added mention of testing suite DocumentRoot `./tests/files/` (#229)
+- Update CONTRIBUTING.md with new Issue templates (#227)
 
 ## v0.21.0
 - Add support for running Mercury outside the `bin` directory (#215)
