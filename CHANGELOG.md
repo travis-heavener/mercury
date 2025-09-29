@@ -5,6 +5,7 @@
 - Fix printing extra "< " after a shutdown is requested
 - Added temporary thread creation when the connection backlog grows (#225)
     - Greatly reduces latency under bursts or heavy load
+- Added mention of testing suite DocumentRoot `./tests/files/` (#229)
 
 ## v0.21.0
 - Add support for running Mercury outside the `bin` directory (#215)

@@ -187,6 +187,8 @@ The test runner is available in the `tests` directory.
 
 With Python installed, fire up the Mercury server, cd into the tests directory, and use the `run.py` file to run a number of tests against the server.
 
+Note that in mercury.conf, the DocumentRoot should point to `./tests/files/` as the testing suite has its own set of documents to run tests against.
+
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)
 
