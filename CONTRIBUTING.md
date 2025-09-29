@@ -2,7 +2,7 @@
 Contributions to the Mercury project are always welcome and appreciated.
 
 ## Issues & Pull Requests
-There are two available Issue templates on the Mercury GitHub repository: one for bug reports and one for feature requests.
+There are currently four available Issue templates on the Mercury GitHub repository: one for bug reports, one for feature requests, one for documentation improvements, and one for general questions.
 If you'd like to go rogue and make your own Issue without a template that is allowed, but please stick to the available templates unless you know what you're doing.
 Please make use of available labels for issues and pull requests, they are there for a reason.
 
