@@ -3,6 +3,8 @@
 ## v0.22.0
 - Add thread-safe temp file tracker (#211)
 - Fix printing extra "< " after a shutdown is requested
+- Added temporary thread creation when the connection backlog grows (#225)
+    - Greatly reduces latency under bursts or heavy load
 
 ## v0.21.0
 - Add support for running Mercury outside the `bin` directory (#215)

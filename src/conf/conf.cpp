@@ -30,7 +30,7 @@ namespace conf {
     unsigned short MAX_REQUEST_BACKLOG;
     unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
     unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
-    unsigned int THREADS_PER_CHILD;
+    unsigned int IDLE_THREADS_PER_CHILD, MAX_THREADS_PER_CHILD;
     std::vector<std::unique_ptr<Match>> matchConfigs;
     std::vector<std::string> INDEX_FILES;
 
@@ -202,8 +202,16 @@ namespace conf {
         if (loadUint(root, MAX_RESPONSE_BODY, "MaxResponseBody") == CONF_FAILURE)
             return CONF_FAILURE;
 
-        if (loadUint(root, THREADS_PER_CHILD, "ThreadsPerChild", false) == CONF_FAILURE)
+        if (loadUint(root, IDLE_THREADS_PER_CHILD, "IdleThreadsPerChild", false) == CONF_FAILURE)
             return CONF_FAILURE;
+
+        if (loadUint(root, MAX_THREADS_PER_CHILD, "MaxThreadsPerChild", false) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (MAX_THREADS_PER_CHILD <= IDLE_THREADS_PER_CHILD) {
+            std::cerr << "Failed to parse config file, MaxThreadsPerChild must be greater than IdleThreadsPerChild.";
+            return CONF_FAILURE;
+        }
 
         /************************** LOAD PATHS **************************/
 

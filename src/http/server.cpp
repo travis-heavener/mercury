@@ -19,7 +19,7 @@
 namespace http {
 
     Server::Server(const port_t port, const bool useTLS) : port(port),
-        threadPool(conf::THREADS_PER_CHILD), useTLS(useTLS) {};
+        threadPool(), useTLS(useTLS) {};
 
     void Server::kill() {
         // Close sockets
