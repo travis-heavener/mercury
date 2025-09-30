@@ -123,6 +123,17 @@ Your certificate will be located at `/conf/ssl/cert.pem` and your private key at
 
 **Note: By default, in "mercury.conf" TLS is disabled. Enable TLS by changing the value of the TLSPort node to a port like 443.**
 
+### CLI
+
+As of Mercury v0.22.0, a basic CLI is available to the user. Here is a list of available commands:
+
+| Command | Description |
+|-----|-----|
+| exit | Exit Mercury |
+| help | List available commands |
+| info | View current utilization |
+| ping | ??? |
+
 ### Troubleshooting
 
 #### Powershell Scripts
