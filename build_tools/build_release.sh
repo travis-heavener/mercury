@@ -74,10 +74,11 @@ echo "✅ Linux release archive created: $LINUX_ARCHIVE"
 rm "./$VERSION/bin/mercury"
 cp ../bin/mercury.exe "./$VERSION/bin"
 
-# Copy makecert
+# Copy Powershell scripts
 rm "./$VERSION/conf/ssl/makecert.sh"
 cp "../conf/ssl/makecert.ps1" "./$VERSION/conf/ssl/"
 cp "../conf/setup_php.ps1" "./$VERSION/conf/"
+cp "../conf/update.ps1" "./$VERSION/conf/"
 
 # Create zip archive
 zip -r "$WIN_ARCHIVE" * &> /dev/null
