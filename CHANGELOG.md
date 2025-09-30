@@ -7,6 +7,8 @@
     - Greatly reduces latency under bursts or heavy load
 - Added mention of testing suite DocumentRoot `./tests/files/` (#229)
 - Update CONTRIBUTING.md with new Issue templates (#227)
+- Added CLI commands (#226)
+    - Documentation in README under "CLI"
 
 ## v0.21.0
 - Add support for running Mercury outside the `bin` directory (#215)

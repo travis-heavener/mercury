@@ -49,6 +49,7 @@ namespace http {
             void handleReqs(const int, const std::string);
             void kill();
             std::unique_ptr<Response> genResponse(Request&);
+            void getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections);
         protected:
             // Socket methods
             void clearBuffer(char*);

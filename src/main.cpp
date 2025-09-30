@@ -9,6 +9,8 @@
 #include "http/version_checker.hpp"
 #include "util/string_tools.hpp"
 
+#define SLEEP_BETWEEN_CLI std::this_thread::sleep_for(std::chrono::milliseconds(200))
+
 // Global termination flag (atomic)
 std::atomic<bool> isExiting{false};
 
@@ -52,16 +54,44 @@ void cleanExit() {
     conf::cleanupConfig();
 }
 
-void awaitExitCin() {
+/******************** CLI HANDLING ********************/
+
+void awaitCLI() {
     // Otherwise, read from cin
     std::cout << "< ";
     std::string buf;
     std::getline(std::cin, buf);
     trimString(buf); strToUpper(buf);
 
+    if (buf.empty()) {
+        SLEEP_BETWEEN_CLI;
+        return;
+    }
+
     // Clean exit
-    if (buf == "EXIT")
+    if (buf == "EXIT") {
         isExiting.store(true);
+    } else if (buf == "INFO") {
+        // Print usage info
+        size_t usedThreads = 0, totalThreads = 0, pendingConnections = 0;
+        for (auto& pServer : serversVec)
+            pServer->getUsageInfo(usedThreads, totalThreads, pendingConnections);
+
+        std::cout << std::fixed << std::setprecision(1) << "> "
+            << std::min(static_cast<double>(usedThreads) / totalThreads * 100, 100.0) << "% usage ("
+            << usedThreads << '/' << totalThreads << " threads, " << pendingConnections << " pending connections)"
+            << std::endl;
+    } else if (buf == "PING") {
+        std::cout << "> Pong!" << std::endl;
+    } else if (buf == "HELP") {
+        std::cout << "> Exit: Exit Mercury\n"
+            "  Help: List available commands\n"
+            "  Info: View current utilization\n"
+            "  Ping: ???"
+            << std::endl;
+    } else if (!isExiting) {
+        std::cout << "> Unknown command, try \"help\"" << std::endl;
+    }
 }
 
 /******************** WELCOME BANNER METHODS ********************/
@@ -190,10 +220,11 @@ int main() {
 
     // Wait for "exit" in cin (sets isExiting if "exit" is found)
     while (!isExiting) {
-        awaitExitCin();
+        awaitCLI();
 
         // Sleep to allow isExiting to update
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        if (isExiting)
+            SLEEP_BETWEEN_CLI;
     }
 
     /******* Reached if closing the program *******/

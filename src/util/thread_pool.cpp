@@ -54,7 +54,9 @@ void ThreadPool::workerLoop(ThreadWrapper& thisThread) {
             tasks.pop();
         }
 
+        thisThread.isInUse = true;
         task(); // Run task
+        thisThread.isInUse = false;
 
         // If this is a temporary thread and the backlog is decreasing in size, destroy self
         {
@@ -110,4 +112,14 @@ void ThreadPool::stop() {
         // Destroy ThreadWrapper
         workers.pop_back();
     }
+}
+
+// Gathers usage info for this ThreadPool
+void ThreadPool::getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections) {
+    // Protect against consecutive IO to workers
+    std::lock_guard<std::mutex> lock(queueMutex);
+    for (const ThreadWrapper& tw : workers)
+        usedThreads += tw.isInUse ? 1 : 0;
+    totalThreads += workers.size();
+    pendingConnections += tasks.size();
 }

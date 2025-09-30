@@ -18,6 +18,7 @@ class ThreadWrapper {
         std::thread& getThread() { return thread; };
         bool isTemporary;
         bool isDone = false;
+        bool isInUse = false;
     private:
         std::thread thread;
 };
@@ -29,6 +30,7 @@ class ThreadPool {
 
         void enqueue(std::function<void()> task);
         void stop();
+        void getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections);
     private:
         void workerLoop(ThreadWrapper& thisThread);
         void pruneTempThreads();

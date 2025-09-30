@@ -13,7 +13,7 @@
 
 #define SOCKET_DRAIN_BUFFER_SIZE 8192
 
-#define KEEP_ALIVE_TIMEOUT_MS 3000
+#define KEEP_ALIVE_TIMEOUT_MS 15000
 #define KEEP_ALIVE_MAX_REQ 100
 
 namespace http {
@@ -424,6 +424,10 @@ namespace http {
         pResponse->setCompressMethod(request.getCompressMethod());
 
         return pResponse;
+    }
+
+    void Server::getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections) {
+        threadPool.getUsageInfo(usedThreads, totalThreads, pendingConnections);
     }
 
     void Server::clearBuffer(char* readBuffer) {
