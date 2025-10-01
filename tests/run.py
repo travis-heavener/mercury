@@ -10,6 +10,8 @@ See the note at the top of test_cases.py for more information about
 
 """
 
+import pathlib
+import re
 import socket
 import ssl
 import sys
@@ -27,6 +29,20 @@ def init_ssl():
     return context
 
 if __name__ == "__main__":
+    # Verify DocumentRoot
+    try:
+        script_dir = pathlib.Path(__file__).parent.resolve()
+        path = script_dir.joinpath("../conf/mercury.conf")
+        with open(path) as f:
+            raw = f.read()
+            match = re.search(r"\<DocumentRoot\>\s*(.*?)\s*\<\/DocumentRoot\>", raw).groups()[0]
+            if script_dir.joinpath("../" + match).resolve() != script_dir.joinpath("files"):
+                print("DocumentRoot does not point to ./tests/files, aborting...")
+                exit(1)
+    except:
+        print("Failed to parse mercury.conf")
+        exit(1)
+
     # Init SSL
     ssl_ctx = init_ssl()
 

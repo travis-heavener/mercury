@@ -49,9 +49,10 @@ namespace http {
             void handleReqs(const int, const std::string);
             void kill();
             std::unique_ptr<Response> genResponse(Request&);
+            void getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections);
         protected:
             // Socket methods
-            inline void clearBuffer(char*);
+            void clearBuffer(char*);
             ssize_t readClientSock(char*, const int, SSL*);
             ssize_t writeClientSock(const int, SSL*, const char*, const size_t);
             int closeSocket(const int);
@@ -61,11 +62,11 @@ namespace http {
             // Request loop helper methods
             void extractClientIP(struct sockaddr_storage&, char*) const;
             ssize_t waitForClientData(struct pollfd&, const int);
-            inline int acceptConnection(struct sockaddr_storage&, socklen_t&);
+            int acceptConnection(struct sockaddr_storage&, socklen_t&);
 
             // Client socket tracking methods
-            inline void trackClient(const int);
-            inline void untrackClient(const int);
+            void trackClient(const int);
+            void untrackClient(const int);
 
             // Protected fields
             const port_t port;

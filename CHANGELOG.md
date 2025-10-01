@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.22.0
+- Add thread-safe temp file tracker (#211)
+- Fix printing extra "< " after a shutdown is requested
+- Added temporary thread creation when the connection backlog grows (#225)
+    - Greatly reduces latency under bursts or heavy load
+- Added mention of testing suite DocumentRoot `./tests/files/` (#229)
+- Update CONTRIBUTING.md with new Issue templates (#227)
+- Added CLI commands (#226)
+    - Documentation in README under "CLI"
+- Added update script (#195)
+    - update.ps1 on Windows
+    - update.sh on Linux
+
 ## v0.21.0
 - Add support for running Mercury outside the `bin` directory (#215)
     - Working across UNC paths for Windows as well

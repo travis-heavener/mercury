@@ -9,6 +9,8 @@
 #include "http/version_checker.hpp"
 #include "util/string_tools.hpp"
 
+#define SLEEP_BETWEEN_CLI std::this_thread::sleep_for(std::chrono::milliseconds(200))
+
 // Global termination flag (atomic)
 std::atomic<bool> isExiting{false};
 
@@ -16,7 +18,10 @@ std::vector<std::shared_ptr<http::Server>> serversVec;
 
 /******************** SIGNAL HANDLERS & CLEANUP ********************/
 
-void catchSig(int) { isExiting.store(true); }
+void catchSig(int) {
+    std::cout << std::endl;
+    isExiting.store(true);
+}
 
 void initSigHandler() {
     #ifdef _WIN32
@@ -49,16 +54,44 @@ void cleanExit() {
     conf::cleanupConfig();
 }
 
-void awaitExitCin() {
+/******************** CLI HANDLING ********************/
+
+void awaitCLI() {
     // Otherwise, read from cin
-    std::cout << "> ";
+    std::cout << "< ";
     std::string buf;
     std::getline(std::cin, buf);
     trimString(buf); strToUpper(buf);
 
+    if (buf.empty()) {
+        SLEEP_BETWEEN_CLI;
+        return;
+    }
+
     // Clean exit
-    if (buf == "EXIT")
+    if (buf == "EXIT") {
         isExiting.store(true);
+    } else if (buf == "INFO") {
+        // Print usage info
+        size_t usedThreads = 0, totalThreads = 0, pendingConnections = 0;
+        for (auto& pServer : serversVec)
+            pServer->getUsageInfo(usedThreads, totalThreads, pendingConnections);
+
+        std::cout << std::fixed << std::setprecision(1) << "> "
+            << std::min(static_cast<double>(usedThreads) / totalThreads * 100, 100.0) << "% usage ("
+            << usedThreads << '/' << totalThreads << " threads, " << pendingConnections << " pending connections)"
+            << std::endl;
+    } else if (buf == "PING") {
+        std::cout << "> Pong!" << std::endl;
+    } else if (buf == "HELP") {
+        std::cout << "> Exit: Exit Mercury\n"
+            "  Help: List available commands\n"
+            "  Info: View current utilization\n"
+            "  Ping: ???"
+            << std::endl;
+    } else if (!isExiting) {
+        std::cout << "> Unknown command, try \"help\"" << std::endl;
+    }
 }
 
 /******************** WELCOME BANNER METHODS ********************/
@@ -137,7 +170,11 @@ int main() {
         const std::string latestVersion = fetchLatestVersion();
         try {
             if (latestVersion.length() > 0 && conf::isVersionOutdated(latestVersion))
-                std::cout << "Update available! (" << latestVersion.substr(8) << ")\nSee https://wowtravis.com/mercury" << std::endl;
+                #ifdef _WIN32
+                    std::cout << "Update available! (" << latestVersion.substr(8) << ")\n - Visit https://wowtravis.com/mercury\n   OR\n - Run update.ps1" << std::endl;
+                #else
+                    std::cout << "Update available! (" << latestVersion.substr(8) << ")\n - Visit https://wowtravis.com/mercury\n   OR\n - Run update.sh" << std::endl;
+                #endif
         } catch (std::invalid_argument&) {
             std::cout << "Failed to compare local and remote versions!" << std::endl;
         }
@@ -186,11 +223,16 @@ int main() {
         threads.emplace_back(std::thread([server]() { server->acceptLoop(); }));
 
     // Wait for "exit" in cin (sets isExiting if "exit" is found)
-    while (!isExiting.load())
-        awaitExitCin();
+    while (!isExiting) {
+        awaitCLI();
+
+        // Sleep to allow isExiting to update
+        if (isExiting)
+            SLEEP_BETWEEN_CLI;
+    }
 
     /******* Reached if closing the program *******/
-    std::cout << "\nShutting down..." << std::endl;
+    std::cout << "> Shutting down..." << std::endl;
 
     // Kill the server
     for (auto& server : serversVec)

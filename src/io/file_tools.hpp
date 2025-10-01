@@ -1,6 +1,8 @@
 #ifndef __FILE_TOOLS_HPP
 #define __FILE_TOOLS_HPP
 
+#include <shared_mutex>
+
 #include "../pch/common.hpp"
 
 #define NOT_SYMLINK 0
@@ -29,6 +31,10 @@ std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path);
 
 // Creates the immediate directory for log files if missing, will silently fail
 void createLogDirectoryIfMissing(const std::filesystem::path& path);
+
+// Temp file managers
+extern std::unordered_set<std::string> currentTempFiles;
+extern std::shared_mutex tempFileSetMutex;
 
 // Creates and returns the full, absolute path to a new tmp file, returning true if successful
 bool createTempFile(std::string& outPath);

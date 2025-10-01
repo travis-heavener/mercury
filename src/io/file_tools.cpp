@@ -169,6 +169,10 @@ void genRandomString(std::string& result, size_t length) {
         result += randomCharset[dist(gen)];
 }
 
+// Temp file managers
+std::unordered_set<std::string> currentTempFiles;
+std::shared_mutex tempFileSetMutex;
+
 // Creates and returns the full, absolute path to a new tmp file, returning true if successful
 bool createTempFile(std::string& outPath) {
     std::string buffer;
@@ -182,7 +186,12 @@ bool createTempFile(std::string& outPath) {
     } while (++i < TMP_FILE_MAX_RETRIES && std::filesystem::exists(outPath));
 
     // Return true if the filename is available
-    return !std::filesystem::exists(outPath);
+    bool isAvailable = !std::filesystem::exists(outPath);
+    if (isAvailable) {
+        std::unique_lock lock(tempFileSetMutex);
+        currentTempFiles.insert(outPath);
+    }
+    return isAvailable;
 }
 
 // Attempts to remove the temp file, returns true if successful
@@ -192,6 +201,12 @@ bool removeTempFile(const std::string& tmpPath) {
     } catch (...) {
         ERROR_LOG << "Failed to remove temp file: " << tmpPath << std::endl;
         return false;
+    }
+
+    // Remove from current temp files
+    {
+        std::unique_lock lock(tempFileSetMutex);
+        currentTempFiles.erase(tmpPath);
     }
     return true;
 }

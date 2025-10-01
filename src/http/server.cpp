@@ -19,7 +19,7 @@
 namespace http {
 
     Server::Server(const port_t port, const bool useTLS) : port(port),
-        threadPool(conf::THREADS_PER_CHILD), useTLS(useTLS) {};
+        threadPool(), useTLS(useTLS) {};
 
     void Server::kill() {
         // Close sockets
@@ -424,6 +424,10 @@ namespace http {
         pResponse->setCompressMethod(request.getCompressMethod());
 
         return pResponse;
+    }
+
+    void Server::getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections) {
+        threadPool.getUsageInfo(usedThreads, totalThreads, pendingConnections);
     }
 
     void Server::clearBuffer(char* readBuffer) {
