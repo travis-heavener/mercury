@@ -35,12 +35,15 @@ jobs:
       - name: Install APT Deps
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: build-essential mingw-w64 nasm zlib1g-dev php-cgi
+          packages: build-essential nasm zlib1g-dev php-cgi
           version: 1.0
 
       # Install deps & build static binaries
       - name: Build Libs
         run: |
+          # Run w/o make (not installed yet)
+          sudo ./build_tools/install_workflow_deps.sh
+
           if [ ! -d libs ] || [ -z "$(ls -A libs)" ]; then
             make lib_brotli
             make lib_openssl
