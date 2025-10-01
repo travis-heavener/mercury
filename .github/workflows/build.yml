@@ -35,7 +35,7 @@ jobs:
       - name: Install Deps & Build Libs
         run: |
           # Run w/o make (not installed yet)
-          sudo ./build_tools/install_deps.sh
+          sudo ./build_tools/install_workflow_deps.sh
           if [ ! -d libs ] || [ -z "$(ls -A libs)" ]; then
             make lib_brotli
             make lib_openssl
