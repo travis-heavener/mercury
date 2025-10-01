@@ -61,6 +61,7 @@ cp ../bin/mercury "./$VERSION/bin"
 
 # Copy makecert
 cp "../conf/ssl/makecert.sh" "./$VERSION/conf/ssl/"
+# cp "../conf/update.sh" "./$VERSION/"
 rm -f "./$VERSION/conf/setup_php.ps1"
 
 # Create tar.gz archive
@@ -78,7 +79,7 @@ cp ../bin/mercury.exe "./$VERSION/bin"
 rm "./$VERSION/conf/ssl/makecert.sh"
 cp "../conf/ssl/makecert.ps1" "./$VERSION/conf/ssl/"
 cp "../conf/setup_php.ps1" "./$VERSION/conf/"
-cp "../conf/update.ps1" "./$VERSION/conf/"
+cp "../conf/update.ps1" "./$VERSION/"
 
 # Create zip archive
 zip -r "$WIN_ARCHIVE" * &> /dev/null

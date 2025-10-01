@@ -1,7 +1,21 @@
 Push-Location
 
-# CD into project directory
-Set-Location -Path "$PSScriptRoot/.."
+if (((Split-Path -Leaf $PSScriptRoot) -eq "conf") -and (Test-Path "$PSScriptRoot/../.git")) {
+    Write-Output "It appears that you're in a dev environment"
+
+    do {
+        $userInput = Read-Host "Do you want to proceed? (Y/N)"
+    } while ($userInput -notmatch '^[YyNn]$')
+
+    if ($userInput -match '^[Nn]$') {
+        Write-Output "Aborting..."
+        Pop-Location
+        exit
+    }
+
+    # CD into Mercury root
+    Set-Location -Path (Join-Path $PSScriptRoot "..")
+}
 
 # Confirm from user
 do {
@@ -13,7 +27,6 @@ do {
 } while ($userInput -notmatch '^[YyNn]$')
 
 if ($userInput -match '^[Nn]$') {
-    # Abort or stop the process
     Write-Output "Aborting..."
     Pop-Location
     exit
@@ -57,12 +70,31 @@ Get-ChildItem -Path $basePath -Force |
 Where-Object { $_.Name -ne $archiveDir -and $_.Extension -ne ".pem" } |
 Remove-Item -Recurse -Force
 
-Move-Item "$archiveDir/*" "."
+# Copy all new files except the update script
+Get-ChildItem "$archiveDir" -Recurse | 
+    Where-Object { $_.Name -ne "update.ps1" } |
+    ForEach-Object {
+        $dest = Join-Path "." $_.Name
+        Move-Item $_.FullName $dest -Force
+    }
 
 # Restore SSL certs
 Move-Item "*.pem" "conf/ssl/"
 
-# Clean up
-Remove-Item -Recurse $archiveDir
+# Detach PS window to finish updating the update script
+$scriptDir   = Split-Path -Parent $MyInvocation.MyCommand.Path
+$archivePath = Join-Path (Get-Location) $archiveDir
+$finalScript = @"
+Start-Sleep -Seconds 2
+if (Test-Path '$archivePath\update.ps1') {
+    Move-Item -Force '$archivePath\update.ps1' '$scriptDir\update.ps1'
+}
+Remove-Item -Recurse -Force '$archivePath'
+"@
 
+# Launch the cleanup process
+Start-Process powershell -ArgumentList "-NoProfile -Command $finalScript"
+
+# Restore location and exit main updater
 Pop-Location
+exit
