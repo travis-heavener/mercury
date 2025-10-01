@@ -9,6 +9,9 @@
 - Update CONTRIBUTING.md with new Issue templates (#227)
 - Added CLI commands (#226)
     - Documentation in README under "CLI"
+- Added update script (#195)
+    - update.ps1 on Windows
+    - update.sh on Linux
 
 ## v0.21.0
 - Add support for running Mercury outside the `bin` directory (#215)
