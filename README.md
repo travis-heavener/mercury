@@ -136,20 +136,34 @@ As of Mercury v0.22.0, a basic CLI is available to the user. Here is a list of a
 
 ### Troubleshooting
 
+#### Windows Executables
+
+Windows executable of Mercury are blocked by default from running on client devices.
+
+If you encounter a message along the lines of:
+> Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.
+
+Select "More info" and then "Run anyway".
+
 #### Powershell Scripts
 
-Currently, Powershell scripts distributed on Windows distributions are blocked from running if they are downloaded from the internet.
-If you encounter issues running these scripts, run the following Powershell command to unblock these files to allow them to work.
+Powershell scripts are blocked by default from running on client devices.
+If you encounter:
+> Do you want to open this file?
 
+Select "Open".
+
+If you still encounter issues running a Powershell script, open a new Powershell terminal and enter:
 ```
-Unblock-File /path/to/your/file.ps1
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
-This will allow files like the TLS certificate maker (/conf/ssl/makecert.ps1) and PHP installer (/conf/setup_php.ps1) to run properly.
+Now run the Powershell script from that same Powershell terminal.
+The above `Set-ExecutionPolicy` will temporarily allow the Powershell scripts to run while the terminal is open, and will reset to the system default policy when closed.
 
 #### Further Troubleshooting
 
-If you encounter any other issues or unexpected behavior, please consider opening an Issue on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury/issues/new/choose) or contacting [Travis Heavener](https://github.com/travis-heavener).
+If you encounter any other issues or unexpected behavior, please consider opening an Issue on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury/issues/new/choose).
 
 ## Build Info
 
