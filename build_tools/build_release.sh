@@ -61,7 +61,7 @@ cp ../bin/mercury "./$VERSION/bin"
 
 # Copy makecert
 cp "../conf/ssl/makecert.sh" "./$VERSION/conf/ssl/"
-# cp "../conf/update.sh" "./$VERSION/"
+cp "../conf/update.sh" "./$VERSION/"
 rm -f "./$VERSION/conf/setup_php.ps1"
 
 # Create tar.gz archive
