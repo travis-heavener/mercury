@@ -22,10 +22,12 @@ jobs:
       - name: Copy Default Config
         run: cp ./conf/default/*.conf ./conf
 
+      # Install & cache APT deps
       - name: Install PHP-CGI
-        run: |
-          sudo apt update
-          sudo apt install php-cgi
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: php-cgi
+          version: 1.0
 
       - name: Configure Ports & Enable IPv6/TLS
         run: |
