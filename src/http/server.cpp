@@ -257,8 +257,8 @@ namespace http {
             }
         }
 
-        // Create read buffer
-        char* readBuffer = new char[conf::REQUEST_BUFFER_SIZE];
+        // Create read buffer per-thread
+        thread_local std::vector<char> readBuffer(conf::REQUEST_BUFFER_SIZE);
         this->clearBuffer(readBuffer);
 
         // Track keep-alive requests for a given connection
@@ -266,7 +266,8 @@ namespace http {
         int keepAliveReqsLeft = KEEP_ALIVE_MAX_REQ;
         while (keepAliveReqsLeft > 0 && !isContentTooLarge) {
             // Read buffer until headers have loaded
-            std::string requestStr;
+            thread_local std::string requestStr;
+            requestStr.clear(); // Clear previous content from thread_local
             requestStr.reserve(conf::REQUEST_BUFFER_SIZE);
 
             // Poll for data
@@ -285,9 +286,9 @@ namespace http {
                 // Read buffer (regardless of TLS or not, keep looping if TLS)
                 do {
                     this->clearBuffer(readBuffer); // Clear read buffer
-                    const ssize_t bytesReceived = this->readClientSock(readBuffer, client, pSSL);
+                    const ssize_t bytesReceived = this->readClientSock(readBuffer.data(), client, pSSL);
                     if (bytesReceived <= 0) { isForceClosed = true; break; } // Connection closed by client
-                    requestStr.append(readBuffer, bytesReceived); // Concat string
+                    requestStr.append(readBuffer.data(), bytesReceived); // Concat string
                 } while (this->useTLS && SSL_pending(pSSL) > 0);
             }
 
@@ -330,9 +331,9 @@ namespace http {
                 // Read buffer (regardless of TLS or not, keep looping if TLS)
                 do {
                     this->clearBuffer(readBuffer);
-                    const ssize_t bytesReceived = this->readClientSock(readBuffer, client, pSSL);
+                    const ssize_t bytesReceived = this->readClientSock(readBuffer.data(), client, pSSL);
                     if (bytesReceived <= 0) { isForceClosed = true; break; } // Connection closed by client
-                    requestStr.append(readBuffer, bytesReceived); // Concat string
+                    requestStr.append(readBuffer.data(), bytesReceived); // Concat string
 
                     // Update remaining content length
                     contentLength = (contentLength > static_cast<size_t>(bytesReceived)) ?
@@ -395,9 +396,6 @@ namespace http {
 
         // Close client socket & cleanup TLS
         this->closeClientSocket(client, pSSL);
-
-        // Free read buffer
-        delete[] readBuffer;
     }
 
     std::unique_ptr<Response> Server::genResponse(Request& request) {
@@ -430,9 +428,8 @@ namespace http {
         threadPool.getUsageInfo(usedThreads, totalThreads, pendingConnections);
     }
 
-    void Server::clearBuffer(char* readBuffer) {
-        for (unsigned int i = 0; i < conf::REQUEST_BUFFER_SIZE; ++i)
-            readBuffer[i] = 0;
+    void Server::clearBuffer(std::vector<char>& readBuffer) {
+        std::fill(readBuffer.begin(), readBuffer.end(), 0);
     }
 
     std::ostream& operator<<(std::ostream& os, const Server& server) {
