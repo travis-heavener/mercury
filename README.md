@@ -19,12 +19,14 @@
 ## Table of Contents
 
 - [About](#about)
+    - [Performance](#performance)
     - [Privacy Commitment](#privacy-commitment)
 - [Getting Started](#getting-started)
     - [Config Files](#config-files)
     - [Log Files](#log-files)
     - [Setting Up PHP](#setting-up-php)
     - [TLS Certs](#tls-certs)
+    - [CLI](#cli)
     - [Troubleshooting](#troubleshooting)
 - [Build Info](#build-info)
     - [Linux & Windows](#linux--windows)
@@ -42,6 +44,29 @@ Mercury is a lightweight, configurable HTTP server made in C++ for Windows and L
 
 \* Most (if not all) of the supported Linux distributions are for Debian (or any other distribution using APT packages).
 Additionally, most of these distributions come with glibc, which is required to be locally installed for Mercury to run.
+
+### Performance
+
+Mercury is a lighter-weight alternative to popular HTTP servers like Apache:
+
+#### Linux
+
+|                  | Mercury      | Apache   | Comparison                  |
+|------------------|--------------|----------|:---------------------------:|
+| Avg. Idle Memory | **9216 KB**  | 21906 KB | **Mercury is 58% lighter!** |
+| Avg. Load Memory | **27914 KB** | 31198 KB | **Mercury is 11% lighter!** |
+
+#### Windows
+
+|                  | Mercury      | Apache   | Comparison                  |
+|------------------|--------------|----------|:---------------------------:|
+| Avg. Idle Memory | **16320 KB** | 30026 KB | **Mercury is 46% lighter!** |
+| Avg. Load Memory | **20331 KB** | 32658 KB | **Mercury is 38% lighter!** |
+
+*Note: tests were conducted over IPv4 & IPv6 connections w/ and w/o SSL.
+Each value is the average of five separate trials using the Python test cases in the Mercury repository under `tests`.*
+
+*Actual performance will vary between systems; this data is a baseline.*
 
 ### Privacy Commitment
 
