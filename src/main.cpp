@@ -170,11 +170,7 @@ int main() {
         const std::string latestVersion = fetchLatestVersion();
         try {
             if (latestVersion.length() > 0 && conf::isVersionOutdated(latestVersion))
-                #ifdef _WIN32
-                    std::cout << "Update available! (" << latestVersion.substr(8) << ")\n - Visit https://wowtravis.com/mercury\n   OR\n - Run update.ps1" << std::endl;
-                #else
-                    std::cout << "Update available! (" << latestVersion.substr(8) << ")\n - Visit https://wowtravis.com/mercury\n   OR\n - Run update.sh" << std::endl;
-                #endif
+                std::cout << "Update available! (" << latestVersion.substr(8) << ")\nVisit https://wowtravis.com/mercury" << std::endl;
         } catch (std::invalid_argument&) {
             std::cout << "Failed to compare local and remote versions!" << std::endl;
         }

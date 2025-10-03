@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.22.2
+- Removed update.ps1 and update.sh update scripts
+    - Introduced a number of problems and disk I/O risks
+    - Could lock up and crash if the directory was open by another program
+
 ## v0.22.1
 - Minor performance boost for repeated mallocs with server buffers
 - Added performance comparison w/ Apache to README (#220)
