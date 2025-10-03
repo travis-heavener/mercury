@@ -1,6 +1,7 @@
 # Changelog
 
 ## v0.22.1
+- Minor performance boost for repeated mallocs with server buffers
 - Added performance comparison w/ Apache to README (#220)
 - Added "CLI" section to README Table of Contents (#236)
 
