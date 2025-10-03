@@ -77,6 +77,7 @@ cp ../bin/mercury.exe "./$VERSION/bin"
 
 # Copy Powershell scripts
 rm "./$VERSION/conf/ssl/makecert.sh"
+rm "./$VERSION/conf/update.sh"
 cp "../conf/ssl/makecert.ps1" "./$VERSION/conf/ssl/"
 cp "../conf/setup_php.ps1" "./$VERSION/conf/"
 cp "../conf/update.ps1" "./$VERSION/"
