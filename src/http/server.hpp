@@ -52,7 +52,7 @@ namespace http {
             void getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections);
         protected:
             // Socket methods
-            void clearBuffer(char*);
+            void clearBuffer(std::vector<char>&);
             ssize_t readClientSock(char*, const int, SSL*);
             ssize_t writeClientSock(const int, SSL*, const char*, const size_t);
             int closeSocket(const int);
