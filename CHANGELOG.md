@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.22.1
+- Added performance comparison w/ Apache to README (#220)
+- Added "CLI" section to README Table of Contents (#236)
+
 ## v0.22.0
 - Add thread-safe temp file tracker (#211)
 - Fix printing extra "< " after a shutdown is requested
