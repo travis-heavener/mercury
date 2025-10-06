@@ -30,6 +30,11 @@ namespace conf {
     extern bool IS_IPV6_ENABLED;
     extern std::optional<SanitizedIP> BIND_ADDR_IPV6;
 
+    extern bool IS_KEEP_ALIVE_ENABLED;
+    extern unsigned int KEEP_ALIVE_TIMEOUT;
+    extern unsigned int MAX_KEEP_ALIVE_REQUESTS;
+    extern unsigned int MIN_COMPRESSION_SIZE;
+
     extern bool ENABLE_LEGACY_HTTP;
     extern unsigned short MAX_REQUEST_BACKLOG;
     extern unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;

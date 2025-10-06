@@ -11,6 +11,8 @@
 #include "../io/file_tools.hpp"
 #include "../util/string_tools.hpp"
 
+#define LOAD_UINT_FORBID_ZERO false
+
 /****** EXTERNAL FIELDS ******/
 
 namespace conf {
@@ -25,6 +27,11 @@ namespace conf {
     std::optional<SanitizedIP> BIND_ADDR_IPV4;
     bool IS_IPV6_ENABLED;
     std::optional<SanitizedIP> BIND_ADDR_IPV6;
+
+    bool IS_KEEP_ALIVE_ENABLED;
+    unsigned int KEEP_ALIVE_TIMEOUT;
+    unsigned int MAX_KEEP_ALIVE_REQUESTS;
+    unsigned int MIN_COMPRESSION_SIZE;
 
     bool ENABLE_LEGACY_HTTP;
     unsigned short MAX_REQUEST_BACKLOG;
@@ -152,6 +159,9 @@ namespace conf {
         if (loadOnOff(root, IS_PHP_ENABLED, "EnablePHPCGI") == CONF_FAILURE)
             return CONF_FAILURE;
 
+        if (loadOnOff(root, IS_KEEP_ALIVE_ENABLED, "KeepAlive") == CONF_FAILURE)
+            return CONF_FAILURE;
+
         if (loadBool(root, REDACT_LOG_IPS, "RedactLogIPs") == CONF_FAILURE)
             return CONF_FAILURE;
 
@@ -184,16 +194,16 @@ namespace conf {
 
         /************ LOAD UINTS/USHORTS ************/
 
-        if (loadUint(root, PORT, "Port", false) == CONF_FAILURE)
+        if (loadUint(root, PORT, "Port", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
             return CONF_FAILURE;
 
-        if (loadUint(root, MAX_REQUEST_BACKLOG, "MaxRequestBacklog", false) == CONF_FAILURE)
+        if (loadUint(root, MAX_REQUEST_BACKLOG, "MaxRequestBacklog", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
             return CONF_FAILURE;
 
-        if (loadUint(root, REQUEST_BUFFER_SIZE, "RequestBufferSize", false) == CONF_FAILURE)
+        if (loadUint(root, REQUEST_BUFFER_SIZE, "RequestBufferSize", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
             return CONF_FAILURE;
 
-        if (loadUint(root, RESPONSE_BUFFER_SIZE, "ResponseBufferSize", false) == CONF_FAILURE)
+        if (loadUint(root, RESPONSE_BUFFER_SIZE, "ResponseBufferSize", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
             return CONF_FAILURE;
 
         if (loadUint(root, MAX_REQUEST_BODY, "MaxRequestBody") == CONF_FAILURE)
@@ -202,16 +212,25 @@ namespace conf {
         if (loadUint(root, MAX_RESPONSE_BODY, "MaxResponseBody") == CONF_FAILURE)
             return CONF_FAILURE;
 
-        if (loadUint(root, IDLE_THREADS_PER_CHILD, "IdleThreadsPerChild", false) == CONF_FAILURE)
+        if (loadUint(root, IDLE_THREADS_PER_CHILD, "IdleThreadsPerChild", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
             return CONF_FAILURE;
 
-        if (loadUint(root, MAX_THREADS_PER_CHILD, "MaxThreadsPerChild", false) == CONF_FAILURE)
+        if (loadUint(root, MAX_THREADS_PER_CHILD, "MaxThreadsPerChild", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
             return CONF_FAILURE;
 
         if (MAX_THREADS_PER_CHILD <= IDLE_THREADS_PER_CHILD) {
             std::cerr << "Failed to parse config file, MaxThreadsPerChild must be greater than IdleThreadsPerChild.";
             return CONF_FAILURE;
         }
+
+        if (loadUint(root, KEEP_ALIVE_TIMEOUT, "KeepAliveMaxTimeout", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, MAX_KEEP_ALIVE_REQUESTS, "KeepAliveMaxRequests", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, MIN_COMPRESSION_SIZE, "MinResponseCompressionSize") == CONF_FAILURE)
+            return CONF_FAILURE;
 
         /************************** LOAD PATHS **************************/
 
@@ -567,3 +586,5 @@ namespace conf {
         return CONF_SUCCESS;
     }
 }
+
+#undef LOAD_UINT_FORBID_ZERO
