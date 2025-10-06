@@ -18,6 +18,7 @@ This class allows you to specify request headers (the headers field) and specify
 Use the version field to specify what HTTP version to use for requests WITHOUT the "HTTP/" prefix
   (ex. 0.9, 1.0, 1.1).
 Use the body_match field to exactly match the response body.
+Use the keep_alive boolean field to control whether the connection is kept alive or is closed.
 
 """
 
@@ -28,7 +29,7 @@ gmt_now = lambda: datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT
 class TestCase:
     def __init__(self, method: str, path: str, expected: int,
                  headers: dict=None, expected_headers: dict=None,
-                 version: str="1.1", https_only=False, body_match=None):
+                 version: str="1.1", https_only=False, body_match=None, keep_alive=False):
         self.method = method
         self.path = path
         self.version = "HTTP/" + version
@@ -37,7 +38,7 @@ class TestCase:
         self.headers = {} if headers is None else headers
         self.headers["Host"] = "localhost"
         self.headers["User-Agent"] = "Mercury Test Agent"
-        self.headers["Connection"] = "close"
+        self.headers["Connection"] = "close" if not keep_alive else "keep-alive"
 
         # Format expected_headers
         expected_headers = {} if expected_headers is None else expected_headers
@@ -279,5 +280,9 @@ for ver in ["1.0", "1.1"]:
         TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "br"},      expected_headers={"Content-Encoding": "br"}, https_only=True),
         TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "gzip"},    expected_headers={"Content-Encoding": "gzip"}),
         TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "deflate"}, expected_headers={"Content-Encoding": "deflate"}),
-        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "foobar"},  expected_headers={"Content-Encoding": False})
+        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "foobar"},  expected_headers={"Content-Encoding": False}),
+
+        # Keep-alive tests
+        TestCase("HEAD", "/", expected=200, version=ver, keep_alive=True, expected_headers={"Keep-Alive": None}),
+        TestCase("HEAD", "/", expected=200, version=ver, keep_alive=False, expected_headers={"Keep-Alive": False})
     ])
