@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.23.0
+- Justified CLI table in README (#240)
+- Updated Performance section in README to include what version was tested
+
 ## v0.22.2
 - Removed update.ps1 and update.sh update scripts
     - Introduced a number of problems and disk I/O risks

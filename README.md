@@ -63,7 +63,7 @@ Mercury is a lighter-weight alternative to popular HTTP servers like Apache:
 | Avg. Idle Memory | **16320 KB** | 30026 KB | **Mercury is 46% lighter!** |
 | Avg. Load Memory | **20331 KB** | 32658 KB | **Mercury is 38% lighter!** |
 
-*Note: tests were conducted over IPv4 & IPv6 connections w/ and w/o SSL.
+*Note: tests were conducted over IPv4 & IPv6 connections w/ and w/o SSL (using Mercury v0.22.2).
 Each value is the average of five separate trials using the Python test cases in the Mercury repository under `tests`.*
 
 *Actual performance will vary between systems; this data is a baseline.*
@@ -152,12 +152,12 @@ Your certificate will be located at `/conf/ssl/cert.pem` and your private key at
 
 As of Mercury v0.22.0, a basic CLI is available to the user. Here is a list of available commands:
 
-| Command | Description |
-|-----|-----|
-| exit | Exit Mercury |
-| help | List available commands |
-| info | View current utilization |
-| ping | ??? |
+| Command | Description              |
+|---------|--------------------------|
+| exit    | Exit Mercury             |
+| help    | List available commands  |
+| info    | View current utilization |
+| ping    | ???                      |
 
 ### Troubleshooting
 
