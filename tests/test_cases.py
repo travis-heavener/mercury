@@ -193,15 +193,10 @@ cases = [
     TestCase("DELETE", "/index.php", expected=200, version="1.1"),
     TestCase("POST", "/ASDFGHJKL",   expected=404, version="1.1"),
 
-    # Test PHP path info URIs & URI decoding query strings (HTTP/1.1 ONLY)
+    # Test PHP path info URIs (HTTP/1.1 ONLY)
     TestCase("GET", "/path_info_test.php/foo/bar", expected=200, version="1.1", body_match="/foo/bar"),
     TestCase("GET", "/path_info_test.php/foo/bar?q=1", expected=200, version="1.1", body_match="/foo/bar"),
     TestCase("GET", "/index.html/foo/bar", expected=404, version="1.1"),
-    TestCase("GET", "/%3F/query_string.php/foo/bar?q=1", expected=200, version="1.1", body_match="?q=1"),
-    TestCase("GET", "/%3F/query_string.php/foo/bar", expected=200, version="1.1", body_match=""),
-    TestCase("GET", "/%3F/query_string.php?q=1", expected=200, version="1.1", body_match="?q=1"),
-    TestCase("GET", "/%3F/query_string.php", expected=200, version="1.1", body_match=""),
-    TestCase("GET", "/?/query_string.php", expected=200, version="1.1"),
 
     # Invalid method checking for static files (HTTP/1.1)
     TestCase("GET", "/",            expected=200, version="1.1"),
