@@ -1,0 +1,22 @@
+name: Compare Changelog Version
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  Compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compare Changelog Version With version.txt
+        run: |
+          CHANGELOG_VERSION=$( cat CHANGELOG.md | grep -Po "(?<=^## )v\d+\.\d+\.\d+$" | head -1 )
+          STORED_VERSION=$( cat version.txt | grep -Po "(?<=^Mercury )v\d+\.\d+\.\d+$" | head -1 )
+
+          if [ "$CHANGELOG_VERSION" != "$STORED_VERSION" ]; then
+            exit 1
+          fi
