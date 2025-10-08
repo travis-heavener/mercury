@@ -2,15 +2,26 @@
 
 #include "../conf/conf.hpp"
 #include "../io/file_tools.hpp"
+#include "../util/string_tools.hpp"
 #include "../util/toolbox.hpp"
 
 File::File(const std::string& _rawPath) {
-    this->rawPath = _rawPath;
-    size_t queryIndex = rawPath.find('?');
+    // URI decode and remove query string
+    const size_t queryIndex = _rawPath.find('?');
+    if (queryIndex == std::string::npos) {
+        this->rawPath = _rawPath; // Raw path from request, but URI decoded
+    } else {
+        this->rawPath = _rawPath.substr(0, queryIndex); // Raw path from request, but URI decoded
+        this->queryStr = _rawPath.substr(queryIndex);
+    }
+
+    // Doesn't need try-catch, already checked in Request constructor
+    decodeURI(this->rawPath);
+    decodeURI(this->queryStr);
 
     // Extract PHP path info
     std::filesystem::path rawPathNoPathInfo;
-    std::filesystem::path rawPathCopy = std::filesystem::path(rawPath.substr(0, queryIndex));
+    std::filesystem::path rawPathCopy = std::filesystem::path(rawPath);
     bool hasPathInfo = false;
     for (const auto& part : rawPathCopy) {
         if (!hasPathInfo) {
@@ -24,21 +35,17 @@ File::File(const std::string& _rawPath) {
         }
     }
 
-    if (hasPathInfo) {
-        // Remove path info from rawPath
-        this->rawPath = rawPathNoPathInfo.string() + (queryIndex == std::string::npos ? "" : this->rawPath.substr(queryIndex));
-        queryIndex = this->rawPath.find('?');
-    }
+    // Remove path info from rawPath
+    if (hasPathInfo)
+        this->rawPath = rawPathNoPathInfo.string();
 
     // Update the actual path
-    if ((this->rawPath.size() == 1 || this->rawPath[1] == '?') && this->rawPath[0] == '/') {
+    if (this->rawPath == "/") {
         this->path = conf::DOCUMENT_ROOT.string();
         normalizeBackslashes( path ); // Replace any backslashes w/ fwd slashes
     } else {
         try {
-            this->path = resolveCanonicalPath( // Canonicalize
-                conf::DOCUMENT_ROOT / this->rawPath.substr(1, queryIndex-1) // Prepend document root
-            ).string();
+            this->path = resolveCanonicalPath( conf::DOCUMENT_ROOT / this->rawPath.substr(1) ).string();
         } catch (std::filesystem::filesystem_error&) {
             this->exists = false;
             return;
@@ -52,13 +59,6 @@ File::File(const std::string& _rawPath) {
 
         // Re-append slash if directory
         if (doesDirectoryExist(this->path, true)) this->path += '/';
-    }
-
-    // Handle query string
-    if (queryIndex != std::string::npos) {
-        // Remove query string from raw path
-        this->rawPath = rawPath.substr(0, queryIndex);
-        this->queryStr = rawPath.substr(queryIndex);
     }
 
     // Check for index file
@@ -75,7 +75,7 @@ File::File(const std::string& _rawPath) {
     // Handle the MIME type if this is a directory
     if (doesDirectoryExist(this->path, true)) {
         // Prepare directory index listing
-        this->MIME = "text/html";
+        this->MIME = "text/html; charset=UTF-8";
         this->exists = true;
         this->isDirectory = true;
     } else {

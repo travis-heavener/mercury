@@ -13,9 +13,6 @@
 
 #define SOCKET_DRAIN_BUFFER_SIZE 8192
 
-#define KEEP_ALIVE_TIMEOUT_MS 3000
-#define KEEP_ALIVE_MAX_REQ 100
-
 namespace http {
 
     Server::Server(const port_t port, const bool useTLS) : port(port),
@@ -263,7 +260,7 @@ namespace http {
 
         // Track keep-alive requests for a given connection
         bool isContentTooLarge = false;
-        int keepAliveReqsLeft = KEEP_ALIVE_MAX_REQ;
+        int keepAliveReqsLeft = static_cast<int>( conf::MAX_KEEP_ALIVE_REQUESTS );
         while (keepAliveReqsLeft > 0 && !isContentTooLarge) {
             // Read buffer until headers have loaded
             thread_local std::string requestStr;
@@ -275,7 +272,7 @@ namespace http {
             while (requestStr.find("\r\n\r\n") == std::string::npos &&
                 !isForceClosed && isDataReady) {
                 struct pollfd pfd; pfd.fd = client;
-                const ssize_t pollStatus = this->waitForClientData(pfd, KEEP_ALIVE_TIMEOUT_MS);
+                const ssize_t pollStatus = this->waitForClientData(pfd, conf::KEEP_ALIVE_TIMEOUT * 1000);
                 if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR))) {
                     isForceClosed = true; break; // Fatal error or timeout
                 }
@@ -320,7 +317,7 @@ namespace http {
             // Read remaining body
             while (contentLength > 0 && !isForceClosed && isDataReady) {
                 struct pollfd pfd; pfd.fd = client;
-                const ssize_t pollStatus = this->waitForClientData(pfd, KEEP_ALIVE_TIMEOUT_MS);
+                const ssize_t pollStatus = this->waitForClientData(pfd, conf::KEEP_ALIVE_TIMEOUT * 1000);
                 if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR))) {
                     isForceClosed = true; break; // Fatal error or timeout
                 }
@@ -356,13 +353,13 @@ namespace http {
                 const std::string* pConnHeader = request.getHeader("Connection");
                 std::string connHeader = (pConnHeader != nullptr) ? *pConnHeader : ""; // Copy string
                 strToUpper(connHeader); // Format copied string
-                if (!isContentTooLarge &&
+                if (conf::IS_KEEP_ALIVE_ENABLED && !isContentTooLarge &&
                     (connHeader == "KEEP-ALIVE" || (connHeader == "" && request.getVersion() == "HTTP/1.1"))) {
                     // HTTP/1.1 defaults to keep-alive
                     pResponse->setHeader("Connection", "keep-alive");
                     pResponse->setHeader("Keep-Alive",
-                                "timeout=" + std::to_string(KEEP_ALIVE_TIMEOUT_MS/1000) +
-                                ", max=" + std::to_string(KEEP_ALIVE_MAX_REQ));
+                                "timeout=" + std::to_string(conf::KEEP_ALIVE_TIMEOUT) +
+                                ", max=" + std::to_string(conf::MAX_KEEP_ALIVE_REQUESTS));
                     --keepAliveReqsLeft;
                 } else { // Close connection
                     pResponse->setHeader("Connection", "close");
@@ -381,7 +378,7 @@ namespace http {
                 // Log request
                 ACCESS_LOG << request.getMethodStr() << ' '
                         << (conf::REDACT_LOG_IPS ? "<Anonymous IP>" : request.getIPStr()) << ' '
-                        << request.getPathStr()
+                        << request.getRawPathStr()
                         << " -- (" << pResponse->getStatus() << ") ["
                         << request.getVersion() << ']'
                         << std::endl; // Flush w/ endl vs newline

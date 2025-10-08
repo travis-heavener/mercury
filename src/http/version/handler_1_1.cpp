@@ -39,7 +39,7 @@ namespace http::version::handler_1_1 {
         if (!conf::matchConfigs.empty()) {
             // Format raw path & remove query string
             std::string rawPath = request.getPathStr();
-            const size_t queryIndex = rawPath.find('/');
+            const size_t queryIndex = rawPath.find('?');
             while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
                 rawPath.pop_back();
 
@@ -70,7 +70,29 @@ namespace http::version::handler_1_1 {
             return pResponse;
         }
 
-        File file(request.getPathStr());
+        // Handle redirects
+        if (!conf::redirectRules.empty()) {
+            // Format raw path & break off query string
+            std::string rawPath = request.getPathStr();
+            const size_t queryIndex = rawPath.find('?');
+            const std::string queryString = queryIndex != std::string::npos ? rawPath.substr(queryIndex) : "";
+            while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
+                rawPath.pop_back();
+
+            // Check redirect rule patterns
+            std::string locationBuf;
+            for (const std::unique_ptr<conf::Redirect>& pRedirect : conf::redirectRules) {
+                pRedirect->loadRedirectedPath(rawPath, locationBuf);
+                if (locationBuf.empty()) continue;
+
+                // New location found, set status
+                pResponse->setStatus( pRedirect->getStatus() );
+                pResponse->setHeader( "Location", locationBuf );
+                return pResponse;
+            }
+        }
+
+        File file(request.getRawPathStr());
 
         // Bypass document root checks, file checks, and PHP for OPTIONS * (server-wide edge case)
         if (method != METHOD::OPTIONS || request.getRawPathStr() != "*") {

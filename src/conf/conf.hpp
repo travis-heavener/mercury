@@ -5,6 +5,7 @@
 
 #include "../pch/common.hpp"
 #include "conf_match.hpp"
+#include "conf_redirect.hpp"
 
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1
@@ -30,6 +31,11 @@ namespace conf {
     extern bool IS_IPV6_ENABLED;
     extern std::optional<SanitizedIP> BIND_ADDR_IPV6;
 
+    extern bool IS_KEEP_ALIVE_ENABLED;
+    extern unsigned int KEEP_ALIVE_TIMEOUT;
+    extern unsigned int MAX_KEEP_ALIVE_REQUESTS;
+    extern unsigned int MIN_COMPRESSION_SIZE;
+
     extern bool ENABLE_LEGACY_HTTP;
     extern unsigned short MAX_REQUEST_BACKLOG;
     extern unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
@@ -37,6 +43,7 @@ namespace conf {
     extern unsigned int IDLE_THREADS_PER_CHILD, MAX_THREADS_PER_CHILD;
     extern std::vector<std::unique_ptr<Match>> matchConfigs;
     extern std::vector<std::string> INDEX_FILES;
+    extern std::vector<std::unique_ptr<Redirect>> redirectRules;
 
     extern std::filesystem::path ACCESS_LOG_FILE;
     extern std::filesystem::path ERROR_LOG_FILE;

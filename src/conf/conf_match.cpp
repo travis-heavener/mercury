@@ -14,7 +14,7 @@ namespace conf {
         // Extract regex
         pugi::xml_attribute patternAttr = root.attribute("pattern");
         if (!patternAttr) {
-            std::cerr << "Failed to parse config file, Match node missing pattern attribute.\n";
+            std::cerr << "Failed to parse config file, Match node missing \"pattern\" attribute." << std::endl;
             return nullptr;
         }
 
@@ -23,7 +23,7 @@ namespace conf {
         try {
             pMatch = std::make_unique<Match>( patternAttr.as_string() );
         } catch (std::regex_error&) {
-            std::cerr << "Failed to parse config file, bad Match pattern.\n";
+            std::cerr << "Failed to parse config file, bad Match pattern." << std::endl;
             return nullptr;
         }
 
@@ -35,7 +35,7 @@ namespace conf {
             // Parse header node
             pugi::xml_attribute nameAttr = headerNode.attribute("name");
             if (!nameAttr) {
-                std::cerr << "Failed to parse config file, Header node missing name attribute.\n";
+                std::cerr << "Failed to parse config file, Header node missing name attribute." << std::endl;
                 return nullptr;
             }
 
@@ -56,7 +56,7 @@ namespace conf {
 
             // Verify valid value provided
             if (showDirectoryIndexStr != "on" && showDirectoryIndexStr != "off") {
-                std::cerr << "Failed to parse config file, invalid value for ShowDirectoryIndexes node in Match.\n";
+                std::cerr << "Failed to parse config file, invalid value for ShowDirectoryIndexes node in Match." << std::endl;
                 return nullptr;
             }
 
@@ -73,13 +73,13 @@ namespace conf {
             // Extract mode
             pugi::xml_attribute modeAttr = accessNode.attribute("mode");
             if (!modeAttr) {
-                std::cerr << "Failed to parse config file, Access node missing name attribute.\n";
+                std::cerr << "Failed to parse config file, Access node missing name attribute." << std::endl;
                 return nullptr;
             }
 
             const std::string modeStr( modeAttr.as_string() );
             if (modeStr != "deny all" && modeStr != "allow all") {
-                std::cerr << "Failed to parse config file, Access node has invalid mode, must be either \"deny all\" or \"allow all\".\n";
+                std::cerr << "Failed to parse config file, Access node has invalid mode, must be either \"deny all\" or \"allow all\"." << std::endl;
                 return nullptr;
             }
 
@@ -93,7 +93,7 @@ namespace conf {
                 try {
                     pAccess->insertIP( parseSanitizedIP(childNode) );
                 } catch (std::invalid_argument&) {
-                    std::cerr << "Failed to parse config file, " << subnodeName << " node has an invalid IP address.\n";
+                    std::cerr << "Failed to parse config file, " << subnodeName << " node has an invalid IP address." << std::endl;
                     return nullptr;
                 }
             }
@@ -101,8 +101,8 @@ namespace conf {
             // Add pAccess to Match
             pMatch->setAccessControl(std::move(pAccess));
         } else {
-            // Not present, set to nullptr
-            pMatch->setAccessControl(nullptr);
+            // Not present, set to a blank Access node that allows all
+            pMatch->setAccessControl( std::unique_ptr<Access>(new Access("allow all")) );
         }
 
         // Return Match ptr

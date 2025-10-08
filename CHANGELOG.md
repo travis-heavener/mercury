@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.23.0
+- Justified CLI table in README (#240)
+- Updated Performance section in README to include what version was tested
+- Add config controls for keep-alive connections & minimum response body size for compression (#237)
+- Add Redirect node in config file (#170)
+    - See example attached in /conf/default/mercury.conf
+- Fixed Match node pattern lookups (previously was comparing empty strings)
+- Fixed Match nodes requiring Access nodes within them
+    - Was dereferencing a nullptr :(
+- Access logs now include the raw incoming path instead of the parsed path
+- Fixed URI-encoded question marks breaking query string parsing in Match (and the new Redirect) nodes (#246)
+
 ## v0.22.2
 - Removed update.ps1 and update.sh update scripts
     - Introduced a number of problems and disk I/O risks

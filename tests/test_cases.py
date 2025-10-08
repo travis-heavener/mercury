@@ -18,6 +18,7 @@ This class allows you to specify request headers (the headers field) and specify
 Use the version field to specify what HTTP version to use for requests WITHOUT the "HTTP/" prefix
   (ex. 0.9, 1.0, 1.1).
 Use the body_match field to exactly match the response body.
+Use the keep_alive boolean field to control whether the connection is kept alive or is closed.
 
 """
 
@@ -28,7 +29,7 @@ gmt_now = lambda: datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT
 class TestCase:
     def __init__(self, method: str, path: str, expected: int,
                  headers: dict=None, expected_headers: dict=None,
-                 version: str="1.1", https_only=False, body_match=None):
+                 version: str="1.1", https_only=False, body_match=None, keep_alive=False):
         self.method = method
         self.path = path
         self.version = "HTTP/" + version
@@ -37,7 +38,7 @@ class TestCase:
         self.headers = {} if headers is None else headers
         self.headers["Host"] = "localhost"
         self.headers["User-Agent"] = "Mercury Test Agent"
-        self.headers["Connection"] = "close"
+        self.headers["Connection"] = "close" if not keep_alive else "keep-alive"
 
         # Format expected_headers
         expected_headers = {} if expected_headers is None else expected_headers
@@ -192,8 +193,9 @@ cases = [
     TestCase("DELETE", "/index.php", expected=200, version="1.1"),
     TestCase("POST", "/ASDFGHJKL",   expected=404, version="1.1"),
 
-    # Test PHP path info URIs
+    # Test PHP path info URIs (HTTP/1.1 ONLY)
     TestCase("GET", "/path_info_test.php/foo/bar", expected=200, version="1.1", body_match="/foo/bar"),
+    TestCase("GET", "/path_info_test.php/foo/bar?q=1", expected=200, version="1.1", body_match="/foo/bar"),
     TestCase("GET", "/index.html/foo/bar", expected=404, version="1.1"),
 
     # Invalid method checking for static files (HTTP/1.1)
@@ -229,7 +231,17 @@ cases = [
     # Test unsupported HTTP methods
     TestCase("HEAD", "/", expected=505, version="2.0"),
     TestCase("HEAD", "/", expected=505, version="3.0"),
-    TestCase("HEAD", "/", expected=505, version="4.0")
+    TestCase("HEAD", "/", expected=505, version="4.0"),
+
+    # Redirect Rule tests
+    TestCase("HEAD", "/redirect_from/foo.txt",         expected=301, version="1.1", expected_headers={"Location": "/redirect_to/foo.txt"}),
+    TestCase("HEAD", "/redirect_from/bar.txt",         expected=301, version="1.0", expected_headers={"Location": "/redirect_to/bar.txt"}),
+    TestCase("HEAD", "/redirect_from/foo.txt",         expected=301, version="1.1", expected_headers={"Location": "/redirect_to/foo.txt"}),
+    TestCase("HEAD", "/redirect_from/bar.txt",         expected=301, version="1.0", expected_headers={"Location": "/redirect_to/bar.txt"}),
+
+    # Test Redirect Rule restriction to 300-302 in HTTP/1.0 (falls back to 302 Found)
+    TestCase("HEAD", "/redirect_http1.1_only/foo.txt", expected=308, version="1.1", expected_headers={"Location": "/redirect_to/foo.txt"}),
+    TestCase("HEAD", "/redirect_http1.1_only/foo.txt", expected=302, version="1.0", expected_headers={"Location": "/redirect_to/foo.txt"})
 ]
 
 # Tests IDENTICAL for HTTP/1.0 and HTTP/1.1
@@ -279,5 +291,17 @@ for ver in ["1.0", "1.1"]:
         TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "br"},      expected_headers={"Content-Encoding": "br"}, https_only=True),
         TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "gzip"},    expected_headers={"Content-Encoding": "gzip"}),
         TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "deflate"}, expected_headers={"Content-Encoding": "deflate"}),
-        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "foobar"},  expected_headers={"Content-Encoding": False})
+        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "foobar"},  expected_headers={"Content-Encoding": False}),
+
+        # Keep-alive tests
+        TestCase("HEAD", "/", expected=200, version=ver, keep_alive=True, expected_headers={"Keep-Alive": None}),
+        TestCase("HEAD", "/", expected=200, version=ver, keep_alive=False, expected_headers={"Keep-Alive": False})
+    ])
+
+# Tests IDENTICAL for all versions
+for ver in ["0.9", "1.0", "1.1"]:
+    cases.extend([
+        # Match node pattern tests
+        TestCase("GET", "/index.php", expected=200, version=ver, expected_headers={"X-Match-Test-Header": False}),
+        TestCase("GET", "/index.html", expected=200, version=ver, expected_headers={"X-Match-Test-Header": "1"})
     ])
