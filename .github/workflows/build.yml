@@ -20,6 +20,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Cache build outputs by commit hash
+      - name: Cache Linux Binaries (Overwritten by Make -B Don't Worry)
+        uses: actions/cache@v4
+        with:
+          path: ./bin/mercury
+          key: mercury-linux-binaries-${{ github.sha }}
+
+      - name: Cache Windows Binaries (Overwritten by Make -B Don't Worry)
+        uses: actions/cache@v4
+        with:
+          path: ./bin/mercury.exe
+          key: mercury-windows-binaries-${{ github.sha }}
+          enableCrossOsArchive: true
+
       # Mark artifacts for caching
       - name: Cache Library Artifacts
         uses: actions/cache@v4
@@ -56,21 +70,8 @@ jobs:
 
       # Build
       - name: Build Mercury Binaries
-        run: sudo make -B
-
-      # Upload build artifacts
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mercury-binaries-${{ github.sha }}
-          path: ./bin
-
-      # Upload static libs
-      - name: Upload Static Libraries for workflow_call
-        uses: actions/upload-artifact@v4
-        with:
-          name: static-libs-${{ github.sha }}
-          path: ./libs
+        run: |
+          sudo make -B
 
   Run-Linux-Tests:
     needs: Build
