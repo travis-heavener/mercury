@@ -64,7 +64,9 @@ jobs:
 
       # Build
       - name: Build Mercury Binaries
-        run: sudo make -B
+        run: |
+          sudo make -B
+          ls -la bin
 
   Run-Linux-Tests:
     needs: Build
