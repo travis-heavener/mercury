@@ -21,11 +21,17 @@ jobs:
       - uses: actions/checkout@v4
 
       # Cache build outputs by commit hash
-      - name: Cache Binaries
+      - name: Cache Linux Binaries
         uses: actions/cache@v4
         with:
-          path: ./bin
-          key: mercury-binaries-${{ github.sha }}
+          path: ./bin/mercury
+          key: mercury-linux-binaries-${{ github.sha }}
+
+      - name: Cache Windows Binaries
+        uses: actions/cache@v4
+        with:
+          path: ./bin/mercury.exe
+          key: mercury-windows-binaries-${{ github.sha }}
           enableCrossOsArchive: true
 
       # Mark artifacts for caching
