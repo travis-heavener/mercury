@@ -21,6 +21,9 @@ jobs:
           key: mercury-binaries-${{ github.sha }}
           enableCrossOsArchive: true
 
+      - name: Debug Step
+        run: dir
+
       - name: Copy Default Config
         run: |
           Copy-Item ./conf/default/mimes.conf ./conf/mimes.conf
@@ -59,6 +62,7 @@ jobs:
       # Start Mercury
       - name: Start Mercury
         run: |
+          dir
           cd bin
           powershell -command 'Start-Process .\mercury.exe -NoNewWindow -PassThru | ForEach-Object { $_.Id } > ..\pid.txt'
 
