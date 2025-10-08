@@ -58,16 +58,22 @@ jobs:
           git config user.name "Mercury Release Workflow"
           git config user.email "mercury-release-workflow@users.noreply.github.com"
 
-      - name: Build Cache if Miss
+      - name: Build Cache If Miss
         if: needs.check-cache.outputs.hit == 'false'
         uses: ./.github/workflows/build.yml
 
       # Download binaries & static libs
-      - name: Restore Cached Binaries
+      - name: Restore Linux Binaries
         uses: actions/cache@v4
         with:
-          path: ./bin
-          key: mercury-binaries-${{ github.sha }}
+          path: ./bin/mercury
+          key: mercury-linux-binaries-${{ github.sha }}
+
+      - name: Restore Windows Binaries
+        uses: actions/cache@v4
+        with:
+          path: ./bin/mercury.exe
+          key: mercury-windows-binaries-${{ github.sha }}
           enableCrossOsArchive: true
 
       - name: Restore Cached Libs
