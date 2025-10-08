@@ -11,7 +11,7 @@ cd libs
 LIB_PATH=$(pwd)
 
 # Update artifacts.lock
-version="3.5.3"
+version="3.6.0"
 if [ ! -e "artifacts.lock" ]; then
     touch artifacts.lock
     echo "" | gzip | base64 > artifacts.lock

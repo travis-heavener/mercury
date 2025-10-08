@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.23.1
+- Bump OpenSSL to v3.6.0 (#258)
+
 ## v0.23.0
 - Justified CLI table in README (#240)
 - Updated Performance section in README to include what version was tested
