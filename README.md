@@ -239,6 +239,8 @@ With Python installed, fire up the Mercury server, cd into the tests directory, 
 
 Note that in mercury.conf, the DocumentRoot should point to `./tests/files/` as the testing suite has its own set of documents to run tests against.
 
+See `./tests/files/mercury.conf.sample` for a sample config file to use for the testing script.
+
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)
 

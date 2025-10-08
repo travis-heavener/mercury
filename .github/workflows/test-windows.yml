@@ -20,7 +20,9 @@ jobs:
           path: ./bin
 
       - name: Copy Default Config
-        run: Copy-Item ./conf/default/*.conf ./conf
+        run: |
+          Copy-Item ./conf/default/mimes.conf ./conf/mimes.conf
+          Copy-Item ./tests/mercury.conf.sample ./conf/mercury.conf
 
       - name: Setup PHP
         run: ./conf/setup_php.ps1
@@ -33,10 +35,8 @@ jobs:
           $filePath = "conf/mercury.conf"
           $content = Get-Content $filePath -Raw
 
-          $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<DocumentRoot>\s*.+?\s*</DocumentRoot>', "<DocumentRoot> ./tests/files/ </DocumentRoot>")
           $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<Port>\s*\d+\s*</Port>', "<Port> $port </Port>")
           $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<TLSPort>\s*.+?\s*</TLSPort>', "<TLSPort> $sslPort </TLSPort>")
-          $content = [System.Text.RegularExpressions.Regex]::Replace($content, '<EnablePHPCGI>\s*off\s*</EnablePHPCGI>', '<EnablePHPCGI> on </EnablePHPCGI>')
 
           Set-Content -Path $filePath -Value $content
 

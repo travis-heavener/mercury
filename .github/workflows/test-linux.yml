@@ -20,7 +20,9 @@ jobs:
           path: ./bin
 
       - name: Copy Default Config
-        run: cp ./conf/default/*.conf ./conf
+        run: |
+          cp conf/default/mimes.conf conf/mimes.conf
+          cp tests/mercury.conf.sample conf/mercury.conf
 
       # Install & cache APT deps
       - name: Install PHP-CGI
@@ -35,10 +37,8 @@ jobs:
           sslPort=8082
 
           # Update conf/mercury.conf
-          sed -i "s|<DocumentRoot>[[:space:]]*.*[[:space:]]*</DocumentRoot>|<DocumentRoot> ./tests/files/ </DocumentRoot>|" conf/mercury.conf
           sed -i "s|<Port>[[:space:]]*[0-9]\+[[:space:]]*</Port>|<Port> $port </Port>|" conf/mercury.conf
           sed -i "s|<TLSPort>[[:space:]]*.*[[:space:]]*</TLSPort>|<TLSPort> $sslPort </TLSPort>|" conf/mercury.conf
-          sed -i "s|<EnablePHPCGI>[[:space:]]*off[[:space:]]*</EnablePHPCGI>|<EnablePHPCGI> on </EnablePHPCGI>|" conf/mercury.conf
 
           # Update tests/run.py
           sed -i "s|port[[:space:]]*=[[:space:]]*.*|port = $port|" tests/run.py

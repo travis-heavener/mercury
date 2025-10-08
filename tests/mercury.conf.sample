@@ -1,7 +1,7 @@
 <Mercury>
     # Specifies where files are served from, relative to the Mercury directory
     #   Default: ./public/
-    <DocumentRoot> ./public/ </DocumentRoot>
+    <DocumentRoot> ./tests/files/ </DocumentRoot>
 
     # Controls the socket bind addresses for IPv4 and IPv6, or "off" if disabled
     #   IPv4 Default: 0.0.0.0
@@ -16,7 +16,7 @@
     # Specifies which port to serve SSL/TLS traffic over, or "off" if disabled
     # See ./conf/ssl/cert.pem and ./conf/ssl/key.pem
     #   Default: off
-    <TLSPort> off </TLSPort>
+    <TLSPort> 443 </TLSPort>
 
     # Enables or disables legacy HTTP versions (HTTP/0.9, HTTP/1.0)
     #   Default: on
@@ -40,7 +40,7 @@
     # Whether or not to pass through requests for PHP files to a PHP-CGI process.
     # If disabled, the value of the WinPHPCGIPath node is ignored.
     #   Default: off
-    <EnablePHPCGI> off </EnablePHPCGI>
+    <EnablePHPCGI> on </EnablePHPCGI>
 
     # NOTE: This node applies to Windows only
     # Points to the php-cgi.exe executable to handle PHP requests on.
@@ -70,15 +70,18 @@
         </Access>
     </Match>
 
+    <Match pattern=".*.html">
+        <Header name="X-Match-Test-Header"> 1 </Header>
+    </Match>
+
     # Controls temporary or permanent redirects for specific files or paths.
     # You can use capture groups like $1 and $2 to reference specific capture groups in the pattern (or $0 for the whole matched string).
     # Note: the "to" attribute is NOT a regular expression, but does support referencing capture groups
     # from the pattern.
     # The example below permanently redirects any HTML files in any directory under /foo/bar to the
     # corresponding HTML file and directory in /baz/qux (see commented-out example below)
-    <!--
-    <Redirect pattern="/foo/bar/(.*?)/(.*?).html" to="/baz/qux/$1/$2.html"> 308 </Redirect>
-    -->
+    <Redirect pattern="^/redirect_from/(.*?)$" to="/redirect_to/$1"> 301 </Redirect>
+    <Redirect pattern="^/redirect_http1.1_only/(.*?)$" to="/redirect_to/$1"> 308 </Redirect>
 
     # Controls whether or not to honor keep-alive headers in requests to maintain
     # a connection that later requests can come through

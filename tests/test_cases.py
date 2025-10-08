@@ -230,7 +230,17 @@ cases = [
     # Test unsupported HTTP methods
     TestCase("HEAD", "/", expected=505, version="2.0"),
     TestCase("HEAD", "/", expected=505, version="3.0"),
-    TestCase("HEAD", "/", expected=505, version="4.0")
+    TestCase("HEAD", "/", expected=505, version="4.0"),
+
+    # Redirect Rule tests
+    TestCase("HEAD", "/redirect_from/foo.txt",         expected=301, version="1.1", expected_headers={"Location": "/redirect_to/foo.txt"}),
+    TestCase("HEAD", "/redirect_from/bar.txt",         expected=301, version="1.0", expected_headers={"Location": "/redirect_to/bar.txt"}),
+    TestCase("HEAD", "/redirect_from/foo.txt",         expected=301, version="1.1", expected_headers={"Location": "/redirect_to/foo.txt"}),
+    TestCase("HEAD", "/redirect_from/bar.txt",         expected=301, version="1.0", expected_headers={"Location": "/redirect_to/bar.txt"}),
+
+    # Test Redirect Rule restriction to 300-302 in HTTP/1.0 (falls back to 302 Found)
+    TestCase("HEAD", "/redirect_http1.1_only/foo.txt", expected=308, version="1.1", expected_headers={"Location": "/redirect_to/foo.txt"}),
+    TestCase("HEAD", "/redirect_http1.1_only/foo.txt", expected=302, version="1.0", expected_headers={"Location": "/redirect_to/foo.txt"})
 ]
 
 # Tests IDENTICAL for HTTP/1.0 and HTTP/1.1
@@ -285,4 +295,12 @@ for ver in ["1.0", "1.1"]:
         # Keep-alive tests
         TestCase("HEAD", "/", expected=200, version=ver, keep_alive=True, expected_headers={"Keep-Alive": None}),
         TestCase("HEAD", "/", expected=200, version=ver, keep_alive=False, expected_headers={"Keep-Alive": False})
+    ])
+
+# Tests IDENTICAL for all versions
+for ver in ["0.9", "1.0", "1.1"]:
+    cases.extend([
+        # Match node pattern tests
+        TestCase("GET", "/index.php", expected=200, version=ver, expected_headers={"X-Match-Test-Header": False}),
+        TestCase("GET", "/index.html", expected=200, version=ver, expected_headers={"X-Match-Test-Header": "1"})
     ])

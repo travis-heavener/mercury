@@ -4,6 +4,11 @@
 - Justified CLI table in README (#240)
 - Updated Performance section in README to include what version was tested
 - Add config controls for keep-alive connections & minimum response body size for compression (#237)
+- Add Redirect node in config file (#170)
+    - See example attached in /conf/default/mercury.conf
+- Fixed Match node pattern lookups (previously was comparing empty strings)
+- Fixed Match nodes requiring Access nodes within them
+    - Was dereferencing a nullptr :(
 
 ## v0.22.2
 - Removed update.ps1 and update.sh update scripts

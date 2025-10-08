@@ -27,7 +27,7 @@ namespace http::version::handler_0_9 {
         if (!conf::matchConfigs.empty()) {
             // Format raw path & remove query string
             std::string rawPath = request.getPathStr();
-            const size_t queryIndex = rawPath.find('/');
+            const size_t queryIndex = rawPath.find('?');
             while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
                 rawPath.pop_back();
 

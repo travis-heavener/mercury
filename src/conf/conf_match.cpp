@@ -101,8 +101,8 @@ namespace conf {
             // Add pAccess to Match
             pMatch->setAccessControl(std::move(pAccess));
         } else {
-            // Not present, set to nullptr
-            pMatch->setAccessControl(nullptr);
+            // Not present, set to a blank Access node that allows all
+            pMatch->setAccessControl( std::unique_ptr<Access>(new Access("allow all")) );
         }
 
         // Return Match ptr

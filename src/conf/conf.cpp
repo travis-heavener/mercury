@@ -40,6 +40,7 @@ namespace conf {
     unsigned int IDLE_THREADS_PER_CHILD, MAX_THREADS_PER_CHILD;
     std::vector<std::unique_ptr<Match>> matchConfigs;
     std::vector<std::string> INDEX_FILES;
+    std::vector<std::unique_ptr<Redirect>> redirectRules;
 
     std::filesystem::path ACCESS_LOG_FILE;
     std::filesystem::path ERROR_LOG_FILE;
@@ -245,7 +246,7 @@ namespace conf {
                 return CONF_FAILURE;
         #endif
 
-        /************ LOAD MATCHES & MIMES ************/
+        /************ LOAD MATCHES, REDIRECTS, & MIMES ************/
 
         pugi::xml_object_range matchNodes = root.children("Match");
         for (pugi::xml_node& match : matchNodes) {
@@ -253,6 +254,14 @@ namespace conf {
             std::unique_ptr<Match> pMatch = loadMatch(match);
             if (pMatch == nullptr) return CONF_FAILURE;
             matchConfigs.push_back( std::move(pMatch) );
+        }
+
+        pugi::xml_object_range redirectRuleNodes = root.children("Redirect");
+        for (pugi::xml_node& redirectRule : redirectRuleNodes) {
+            // Parse match
+            std::unique_ptr<Redirect> pRedirect = loadRedirect(redirectRule);
+            if (pRedirect == nullptr) return CONF_FAILURE;
+            redirectRules.push_back( std::move(pRedirect) );
         }
 
         if (loadMIMES() == CONF_FAILURE)

@@ -5,6 +5,7 @@
 
 #include "../pch/common.hpp"
 #include "conf_match.hpp"
+#include "conf_redirect.hpp"
 
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1
@@ -42,6 +43,7 @@ namespace conf {
     extern unsigned int IDLE_THREADS_PER_CHILD, MAX_THREADS_PER_CHILD;
     extern std::vector<std::unique_ptr<Match>> matchConfigs;
     extern std::vector<std::string> INDEX_FILES;
+    extern std::vector<std::unique_ptr<Redirect>> redirectRules;
 
     extern std::filesystem::path ACCESS_LOG_FILE;
     extern std::filesystem::path ERROR_LOG_FILE;
