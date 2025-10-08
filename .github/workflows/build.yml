@@ -26,6 +26,7 @@ jobs:
         with:
           path: ./bin
           key: mercury-binaries-${{ github.sha }}
+          enableCrossOsArchive: true
 
       # Mark artifacts for caching
       - name: Cache Library Artifacts
