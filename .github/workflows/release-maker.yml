@@ -20,6 +20,7 @@ jobs:
         with:
           path: ./bin
           key: mercury-binaries-${{ github.sha }}
+          enableCrossOsArchive: true
 
       - name: Try restoring cached libs
         id: lib-cache
@@ -63,6 +64,7 @@ jobs:
         with:
           path: ./bin
           key: mercury-binaries-${{ github.sha }}
+          enableCrossOsArchive: true
 
       - name: Restore Cached Libs
         uses: actions/cache@v4

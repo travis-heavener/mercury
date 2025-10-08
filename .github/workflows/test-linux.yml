@@ -19,6 +19,7 @@ jobs:
         with:
           path: ./bin
           key: mercury-binaries-${{ github.sha }}
+          enableCrossOsArchive: true
 
       - name: Copy Default Config
         run: |
