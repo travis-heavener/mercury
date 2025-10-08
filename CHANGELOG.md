@@ -10,6 +10,7 @@
 - Fixed Match nodes requiring Access nodes within them
     - Was dereferencing a nullptr :(
 - Access logs now include the raw incoming path instead of the parsed path
+- Fixed URI-encoded question marks breaking query string parsing in Match (and the new Redirect) nodes (#246)
 
 ## v0.22.2
 - Removed update.ps1 and update.sh update scripts

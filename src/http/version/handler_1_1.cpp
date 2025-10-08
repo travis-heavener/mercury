@@ -92,7 +92,7 @@ namespace http::version::handler_1_1 {
             }
         }
 
-        File file(request.getPathStr());
+        File file(request.getRawPathStr());
 
         // Bypass document root checks, file checks, and PHP for OPTIONS * (server-wide edge case)
         if (method != METHOD::OPTIONS || request.getRawPathStr() != "*") {

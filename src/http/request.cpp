@@ -136,7 +136,7 @@ namespace http {
     // This method exists to combine common methods from the version handlers
     bool Request::isInDocumentRoot(Response& response, const std::string& allowedMethods) const {
         // Decode URI after removing query string
-        std::string querylessPath = rawPathStr.substr(0, rawPathStr.find("?"));
+        std::string querylessPath = rawPathStr.substr(0, rawPathStr.find('?'));
         decodeURI(querylessPath); // Doesn't need try-catch, already checked in Request constructor
 
         // Prevent lookups to files outside of the document root

@@ -22,7 +22,7 @@ class File {
         // The FULL, absolute path to the file
         std::string path;
 
-        // The RAW path from the HTTP request
+        // The RAW path from the HTTP request (URI decoded)
         std::string rawPath;
 
         // The query string

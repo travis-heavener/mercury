@@ -95,7 +95,7 @@ namespace http::version::handler_1_0 {
             return pResponse;
 
         // Lookup file & validate it doesn't have anything wrong with it
-        File file(request.getPathStr());
+        File file(request.getRawPathStr());
         if (!request.isFileValid(*pResponse, file))
             return pResponse;
 
