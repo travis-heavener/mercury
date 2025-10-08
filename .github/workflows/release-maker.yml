@@ -7,39 +7,39 @@ permissions:
   contents: write
 
 jobs:
-  check-artifacts:
+  check-cache:
     runs-on: ubuntu-24.04
     outputs:
-      found: ${{ steps.check.outputs.found }}
+      hit: ${{ steps.check.outputs.hit }}
     steps:
-      - name: Attempt to Download Latest Mercury Binaries
-        id: binaries
-        continue-on-error: true
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+
+      - name: Try restoring cached binaries
+        id: bin-cache
+        uses: actions/cache@v4
         with:
-          name: mercury-binaries-${{ github.sha }}
           path: ./bin
+          key: mercury-binaries-${{ github.sha }}
 
-      - name: Attempt to Download Static Libs
-        id: libs
-        continue-on-error: true
-        uses: actions/download-artifact@v4
+      - name: Try restoring cached libs
+        id: lib-cache
+        uses: actions/cache@v4
         with:
-          name: static-libs-${{ github.sha }}
           path: ./libs
+          key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/build_lib_brotli.sh', '**/build_tools/build_lib_openssl.sh', '**/build_tools/fetch_lib_pugixml.sh', '**/build_tools/build_lib_zstd.sh') }}
 
-      - name: Confirm Both Artifacts Exist
+      - name: Determine if both caches exist
         id: check
         run: |
           if [ -d "./bin" ] && [ -d "./libs" ]; then
-            echo "found=true" >> $GITHUB_OUTPUT
+            echo "hit=true" >> $GITHUB_OUTPUT
           else
-            echo "found=false" >> $GITHUB_OUTPUT
+            echo "hit=false" >> $GITHUB_OUTPUT
           fi
 
   build:
-    needs: check-artifacts
-    if: needs.check-artifacts.outputs.found == 'false'
+    needs: check-cache
+    if: needs.check-cache.outputs.hit == 'false'
     uses: ./.github/workflows/build.yml
 
   release:
@@ -57,21 +57,18 @@ jobs:
           git config user.name "Mercury Release Workflow"
           git config user.email "mercury-release-workflow@users.noreply.github.com"
 
-      # Download binaries
-      - name: Download Binaries (If Rebuilt)
-        if: needs.check-artifacts.outputs.found == 'false'
-        uses: actions/download-artifact@v4
+      # Download binaries & static libs
+      - name: Restore Cached Binaries
+        uses: actions/cache@v4
         with:
-          name: mercury-binaries-${{ github.sha }}
           path: ./bin
+          key: mercury-binaries-${{ github.sha }}
 
-      # Download static libs
-      - name: Download Libs (If Rebuilt)
-        uses: actions/download-artifact@v4
-        if: needs.check-artifacts.outputs.found == 'false'
+      - name: Restore Cached Libs
+        uses: actions/cache@v4
         with:
-          name: static-libs-${{ github.sha }}
           path: ./libs
+          key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/build_lib_brotli.sh', '**/build_tools/build_lib_openssl.sh', '**/build_tools/fetch_lib_pugixml.sh', '**/build_tools/build_lib_zstd.sh') }}
 
       # Make executables
       - name: Make Executable Shell Scripts

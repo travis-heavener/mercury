@@ -20,6 +20,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Cache build outputs by commit hash
+      - name: Cache Binaries
+        uses: actions/cache@v4
+        with:
+          path: ./bin
+          key: mercury-binaries-${{ github.sha }}
+
       # Mark artifacts for caching
       - name: Cache Library Artifacts
         uses: actions/cache@v4
@@ -57,20 +64,6 @@ jobs:
       # Build
       - name: Build Mercury Binaries
         run: sudo make -B
-
-      # Upload build artifacts
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mercury-binaries-${{ github.sha }}
-          path: ./bin
-
-      # Upload static libs
-      - name: Upload Static Libraries for workflow_call
-        uses: actions/upload-artifact@v4
-        with:
-          name: static-libs-${{ github.sha }}
-          path: ./libs
 
   Run-Linux-Tests:
     needs: Build
