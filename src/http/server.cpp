@@ -378,7 +378,7 @@ namespace http {
                 // Log request
                 ACCESS_LOG << request.getMethodStr() << ' '
                         << (conf::REDACT_LOG_IPS ? "<Anonymous IP>" : request.getIPStr()) << ' '
-                        << request.getPathStr()
+                        << request.getRawPathStr()
                         << " -- (" << pResponse->getStatus() << ") ["
                         << request.getVersion() << ']'
                         << std::endl; // Flush w/ endl vs newline

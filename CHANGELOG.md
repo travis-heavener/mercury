@@ -9,6 +9,7 @@
 - Fixed Match node pattern lookups (previously was comparing empty strings)
 - Fixed Match nodes requiring Access nodes within them
     - Was dereferencing a nullptr :(
+- Access logs now include the raw incoming path instead of the parsed path
 
 ## v0.22.2
 - Removed update.ps1 and update.sh update scripts
