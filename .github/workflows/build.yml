@@ -21,13 +21,13 @@ jobs:
       - uses: actions/checkout@v4
 
       # Cache build outputs by commit hash
-      - name: Cache Linux Binaries
+      - name: Cache Linux Binaries (Overwritten by Make -B Don't Worry)
         uses: actions/cache@v4
         with:
           path: ./bin/mercury
           key: mercury-linux-binaries-${{ github.sha }}
 
-      - name: Cache Windows Binaries
+      - name: Cache Windows Binaries (Overwritten by Make -B Don't Worry)
         uses: actions/cache@v4
         with:
           path: ./bin/mercury.exe
@@ -72,7 +72,6 @@ jobs:
       - name: Build Mercury Binaries
         run: |
           sudo make -B
-          ls -la bin
 
   Run-Linux-Tests:
     needs: Build
