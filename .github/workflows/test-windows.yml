@@ -22,7 +22,7 @@ jobs:
           enableCrossOsArchive: true
 
       - name: Debug Step
-        run: dir
+        run: dir bin
 
       - name: Copy Default Config
         run: |
@@ -62,7 +62,7 @@ jobs:
       # Start Mercury
       - name: Start Mercury
         run: |
-          dir
+          dir bin
           cd bin
           powershell -command 'Start-Process .\mercury.exe -NoNewWindow -PassThru | ForEach-Object { $_.Id } > ..\pid.txt'
 
