@@ -16,7 +16,7 @@ jobs:
       # Download binaries
       - uses: actions/download-artifact@v4
         with:
-          name: mercury-binaries
+          name: mercury-binaries-${{ github.sha }}
           path: ./bin
 
       - name: Copy Default Config
