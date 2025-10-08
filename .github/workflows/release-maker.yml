@@ -43,8 +43,14 @@ jobs:
             echo "hit=false" >> $GITHUB_OUTPUT
           fi
 
-  release:
+  build:
     needs: check-cache
+    if: needs.check-cache.outputs.hit == 'false'
+    uses: ./.github/workflows/build.yml
+
+  release:
+    needs: build
+    if: ${{ always() }} # Run even if cache hits
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -57,10 +63,6 @@ jobs:
         run: |
           git config user.name "Mercury Release Workflow"
           git config user.email "mercury-release-workflow@users.noreply.github.com"
-
-      - name: Build Cache If Miss
-        if: needs.check-cache.outputs.hit == 'false'
-        uses: ./.github/workflows/build.yml
 
       # Download binaries & static libs
       - name: Restore Linux Binaries
