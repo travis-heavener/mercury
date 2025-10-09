@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.24.0
+## v0.23.4
 - Improve consistency of file paths in docs (#284)
 
 ## v0.23.3
