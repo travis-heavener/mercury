@@ -46,7 +46,7 @@ $(TARGET): $(DEPS) $(ARTIFACTS_LOCK)
 		$(SRCS) -o $(TARGET) \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
 		-I$(OPENSSL_DIR)/linux/include -I$(BROTLI_DIR)/linux/include -I$(ZSTD_DIR)/linux/include -I$(PUGIXML_DIR) \
-		-L$(OPENSSL_DIR)/linux/lib64 -L$(BROTLI_DIR)/linux/lib -L$(ZSTD_DIR)/linux/lib \
+		-L$(OPENSSL_DIR)/linux/lib -L$(BROTLI_DIR)/linux/lib -L$(ZSTD_DIR)/linux/lib \
 		$(LIB_FLAGS) \
 		$(BROTLI_FLAGS) \
 		2> >(grep -v -E "BIO_lookup_ex|getaddrinfo|gethostbyname|fetchLatestVersion")
@@ -63,7 +63,7 @@ $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
 		$(SRCS) $(TARGET_WIN_ICON) -o $(TARGET_WIN) \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
 		-I$(OPENSSL_DIR)/windows/include -I$(BROTLI_DIR)/windows/include -I$(ZSTD_DIR)/windows/include -I$(PUGIXML_DIR) \
-		-L$(OPENSSL_DIR)/windows/lib64 -L$(BROTLI_DIR)/windows/lib -L$(ZSTD_DIR)/windows/lib \
+		-L$(OPENSSL_DIR)/windows/lib -L$(BROTLI_DIR)/windows/lib -L$(ZSTD_DIR)/windows/lib \
 		$(LIB_FLAGS) \
 		$(BROTLI_FLAGS) \
 		-lcrypt32 -lbcrypt -lws2_32 \
@@ -83,7 +83,7 @@ $(PCH_DIR)/common-linux.hpp.gch: $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.h
 	@g++ -x c++-header \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
 		-I$(OPENSSL_DIR)/linux/include -I$(BROTLI_DIR)/linux/include -I$(ZSTD_DIR)/linux/include -I$(PUGIXML_DIR) \
-		-L$(OPENSSL_DIR)/linux/lib64 -L$(BROTLI_DIR)/linux/lib -L$(ZSTD_DIR)/linux/lib \
+		-L$(OPENSSL_DIR)/linux/lib -L$(BROTLI_DIR)/linux/lib -L$(ZSTD_DIR)/linux/lib \
 		$(LIB_FLAGS) \
 		$(BROTLI_FLAGS) \
 		-c $(PCH_DIR)/common.hpp \
@@ -97,7 +97,7 @@ $(PCH_DIR)/common-win.hpp.gch: $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp $
 	@x86_64-w64-mingw32-g++-posix -x c++-header \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
 		-I$(OPENSSL_DIR)/windows/include -I$(BROTLI_DIR)/windows/include -I$(ZSTD_DIR)/windows/include -I$(PUGIXML_DIR) \
-		-L$(OPENSSL_DIR)/windows/lib64 -L$(BROTLI_DIR)/windows/lib -L$(ZSTD_DIR)/windows/lib \
+		-L$(OPENSSL_DIR)/windows/lib -L$(BROTLI_DIR)/windows/lib -L$(ZSTD_DIR)/windows/lib \
 		$(LIB_FLAGS) \
 		$(BROTLI_FLAGS) \
 		-c $(PCH_DIR)/common.hpp \
