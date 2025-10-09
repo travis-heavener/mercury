@@ -38,9 +38,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
         run: |
+          PR_BODY=$( echo -e "Automated dependencies bump for ${{ steps.version.outputs.deps_changed }}.\n\n**NOTE**: Manual CHANGELOG.md and version.txt updates are required." )
+
           gh pr create \
             --title "[Deps.] Automated Deps. Bump: ${{ steps.version.outputs.deps_changed }}" \
-            --body "Automated dependencies bump for ${{ steps.version.outputs.deps_changed }}.${{ '\n\n' }}**NOTE**: Manual CHANGELOG.md and version.txt updates are required." \
+            --body "$PR_BODY" \
             --base main \
             --assignee "travis-heavener" \
             --head auto-deps-update-${{ github.run_id }} \
