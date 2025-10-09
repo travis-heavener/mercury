@@ -17,7 +17,7 @@ All third-party licenses are included in the `/licenses/` directory.*
 
 ## Additional Software
 
-Mercury for Windows versions >= v0.15.0 include a Powershell script (`conf/setup_php.ps1`) to download and configure PHP 8.4.12.
+Windows versions of Mercury (v0.15.0 and later) include a Powershell script (conf/setup_php.ps1) to download and configure PHP 8.4.12.
 
 Mercury does **not** bundle or redistribute PHP binaries directly, but because PHP is required for some runtime functionality, its license is provided for reference:
 
