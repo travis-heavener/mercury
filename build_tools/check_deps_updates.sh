@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # CD into project directory
 cd "$(dirname "$0")/../"
