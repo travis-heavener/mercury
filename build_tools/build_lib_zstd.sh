@@ -36,15 +36,15 @@ if [ -d "zstd" ]; then
 fi
 
 if [ -d "zstd-$version" ]; then
-    rm -rf zstd-$version
+    rm -rf "zstd-$version"
 fi
 
 if [ -f "zstd-$version.tar.gz" ]; then
-    rm -f zstd-$version.tar.gz
+    rm -f "zstd-$version.tar.gz"
 fi
 
 # Get Zstandard source
-wget -q --no-check-certificate https://github.com/facebook/zstd/releases/download/v$version/zstd-$version.tar.gz
+wget -q --no-check-certificate "https://github.com/facebook/zstd/releases/download/v$version/zstd-$version.tar.gz"
 echo "Fetched Zstandard archive."
 
 mkdir zstd
@@ -52,9 +52,9 @@ mkdir zstd/linux zstd/linux/include zstd/linux/lib
 mkdir zstd/windows zstd/windows/include zstd/windows/lib
 
 # Unpack tarball
-tar -xzf zstd-$version.tar.gz
+tar -xzf "zstd-$version.tar.gz"
 echo "Extracted archive."
-cd zstd-$version/lib
+cd "zstd-$version/lib"
 
 # ==== Linux Build ====
 
@@ -62,8 +62,8 @@ cd zstd-$version/lib
 make libzstd.a
 
 # Copy include headers & static lib
-cp *.h $LIB_PATH/zstd/linux/include
-mv libzstd.a $LIB_PATH/zstd/linux/lib
+cp *.h "$LIB_PATH/zstd/linux/include"
+mv libzstd.a "$LIB_PATH/zstd/linux/lib"
 
 echo "Built Linux binaries."
 
@@ -73,16 +73,16 @@ echo "Built Linux binaries."
 make libzstd.a CC=x86_64-w64-mingw32-gcc
 
 # Copy include headers & static lib
-cp *.h $LIB_PATH/zstd/windows/include
-mv libzstd.a $LIB_PATH/zstd/windows/lib
+cp *.h "$LIB_PATH/zstd/windows/include"
+mv libzstd.a "$LIB_PATH/zstd/windows/lib"
 
 echo "Built Windows binaries."
 
 # ==== Clean Up ====
 
 cd ../..
-rm -rf zstd-$version
+rm -rf "zstd-$version"
 
-rm -f $LIB_PATH/zstd-$version.tar.gz
+rm -f "$LIB_PATH/zstd-$version.tar.gz"
 
 echo "✅ Successfully built Zstandard v$version library."

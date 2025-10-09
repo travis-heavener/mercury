@@ -36,19 +36,19 @@ if [ -d "pugixml" ]; then
 fi
 
 if [ -d "pugixml-$version" ]; then
-    rm -rf pugixml-$version
+    rm -rf "pugixml-$version"
 fi
 
 if [ -f "pugixml-$version.tar.gz" ]; then
-    rm -f pugixml-$version.tar.gz
+    rm -f "pugixml-$version.tar.gz"
 fi
 
 # ==== Download ====
 wget -q --no-check-certificate "https://github.com/zeux/pugixml/releases/download/v$version/pugixml-$version.tar.gz"
 
 # Extract & remove tarball
-tar -xzf pugixml-$version.tar.gz
-rm pugixml-$version.tar.gz
+tar -xzf "pugixml-$version.tar.gz"
+rm "pugixml-$version.tar.gz"
 
 # Make lib directory
 mkdir pugixml
@@ -57,6 +57,6 @@ mkdir pugixml
 mv pugixml-$version/src/* pugixml
 
 # ==== Clean Up ====
-rm -rf pugixml-$version
+rm -rf "pugixml-$version"
 
 echo "✅ Successfully fetched PugiXML v$version source."
