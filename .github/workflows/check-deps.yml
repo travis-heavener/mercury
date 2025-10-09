@@ -1,0 +1,46 @@
+name: Check Dependencies For Updates
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 0" # Check every Sunday at midnight
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set User
+        run: |
+          git config user.name "Mercury Release Workflow"
+          git config user.email "mercury-release-workflow@users.noreply.github.com"
+
+      - name: Check & Update Library Deps List
+        id: version
+        run: |
+          DEPS_CHANGED=$(./build_tools/check_deps_updates.sh | tail -1)
+          echo "deps_changed=$DEPS_CHANGED" >> $GITHUB_OUTPUT
+
+      - name: Create Library Deps Update Branch
+        if: ${{ steps.version.outputs.deps_changed != 'None' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
+        run: |
+          # Create branch & commit
+          git checkout -b auto-deps-update-${{ github.run_id }}
+          git add build_tools/dependencies.txt
+          git commit -m "Automatic update of dependencies.txt" || echo "No changes to commit"
+          git push origin HEAD
+
+      - name: Create PR
+        if: ${{ steps.version.outputs.deps_changed != 'None' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.MERCURY_PAT }}
+        run: |
+          gh pr create \
+            --title "[Deps.] Automated Deps. Bump: ${{ steps.version.outputs.deps_changed }}" \
+            --body "Automated dependencies bump for ${{ steps.version.outputs.deps_changed }}. Manual CHANGELOG.md and version.txt updates are required." \
+            --base main \
+            --head auto-deps-update-${{ github.run_id }} \
+            --label "feature,repo,top-priority"
