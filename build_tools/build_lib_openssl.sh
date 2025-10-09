@@ -11,7 +11,7 @@ cd libs
 LIB_PATH=$(pwd)
 
 # Update artifacts.lock
-version="3.6.0"
+version=$( cat ../build_tools/dependencies.txt | grep -Po "(?<=^OPENSSL=)(.*)$" )
 if [ ! -e "artifacts.lock" ]; then
     touch artifacts.lock
     echo "" | gzip | base64 > artifacts.lock
