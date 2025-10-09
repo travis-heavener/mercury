@@ -36,6 +36,7 @@
 - [Contributing](#contributing)
 - [Changelog](#changelog)
 - [Credits](#credits)
+- [Fun Facts](#fun-facts)
 - [Support Mercury](#support-mercury)
 
 ## About
@@ -249,6 +250,14 @@ See [CHANGELOG.md](CHANGELOG.md)
 
 ## Credits
 See [CREDITS.md](CREDITS.md)
+
+## Fun Facts
+
+- Mercury was initially named "Mars", however the name was changed to "Mercury" before the first version was released.
+- The project itself was nearly abandoned after v0.2.7, however more bugs became apparent and I became extra sentimental.
+- This is the first project I've ever properly "licensed" (see [LICENSE.txt](LICENSE.txt)).
+- Mercury almost had a CGI-powered Node JS extension for serving non-static content, however it was scrapped and PHP support was later added (see [Branch: archive/node-driver](https://github.com/travis-heavener/mercury/tree/archive/node-driver)).
+- Mercury is my most consistently active and arguably most successful project to date!
 
 ## Support Mercury
 
