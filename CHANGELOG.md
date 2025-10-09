@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.23.3
+- Fix broken website hyperlink (#273)
+
 ## v0.23.2
 - Add Fun Facts section to README (#132)
 - Fix typo in README Privacy Commitment (#267)
