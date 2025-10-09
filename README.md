@@ -78,7 +78,7 @@ That is the bottom line.
 
 The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([wowtravis.com](https://wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf).
 
-In addition, the Mercury log access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs **UNLESS** the RedactLogIPs config variable is set to true (see mercury.conf). Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.
+In addition, the Mercury access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs **UNLESS** the RedactLogIPs config variable is set to true (see mercury.conf). Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.
 
 All of Mercury's source code is freely available for curious users to view and poke at on GitHub via [https://github.com/travis-heavener/mercury](https://github.com/travis-heavener/mercury).
 
