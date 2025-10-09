@@ -40,7 +40,7 @@ jobs:
         run: |
           gh pr create \
             --title "[Deps.] Automated Deps. Bump: ${{ steps.version.outputs.deps_changed }}" \
-            --body "Automated dependencies bump for ${{ steps.version.outputs.deps_changed }}." \
+            --body "Automated dependencies bump for ${{ steps.version.outputs.deps_changed }}. Manual CHANGELOG.md and version.txt updates are required." \
             --base main \
             --head auto-deps-update-${{ github.run_id }} \
             --label "feature,repo,top-priority"
