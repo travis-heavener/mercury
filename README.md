@@ -89,7 +89,7 @@ If you notice any security issues or have a suggestion, please refer to [SECURIT
 
 ## Getting Started
 
-Once you've downloaded your own Mercury release, navigate to the `/bin/` directory.
+Once you've downloaded your own Mercury release, navigate to the `bin/` directory.
 If running on Linux, start `mercury` from the terminal; if running on Windows, start `mercury.exe`.
 
 A full list of Mercury versions is available on our website, [wowtravis.com/mercury](https://wowtravis.com/mercury).
@@ -116,7 +116,7 @@ PHP is now supported via php-cgi for Windows and Linux!
 
 To install:
 - For Linux, run `sudo apt install php-cgi`.
-- For Windows, run `/conf/setup_php.ps1`.
+- For Windows, run `conf/setup_php.ps1`.
 
 Developer environments also come with php-cgi installed after running `make lib_deps` or `make libs`.
 
@@ -138,14 +138,14 @@ Self-signed TLS 1.3 certs are now available with OpenSSL.
 It's crucial that Git is installed since it comes bundled with OpenSSL.
 
 2. Double check the install location of Git. OpenSSL should be installed in the `<Git location>/usr/bin` directory.
-Update the `$OPENSSL_PATH` variable in `/conf/ssl/makecert.ps1` with your correct path if needed.
+Update the `$OPENSSL_PATH` variable in `conf/ssl/makecert.ps1` with your correct path if needed.
 
-3. Run `/conf/ssl/makecert.ps1` and enter the following information to fill out the certificate.
+3. Run `conf/ssl/makecert.ps1` and enter the following information to fill out the certificate.
 
 #### For Developers:
 
 In your Linux/Debian environment, use `make cert` in the root directory of this project and enter your information to automatically create a new certificate pair.
-Your certificate will be located at `/conf/ssl/cert.pem` and your private key at `/conf/ssl/key.pem`.
+Your certificate will be located at `conf/ssl/cert.pem` and your private key at `conf/ssl/key.pem`.
 
 **Note: By default, in "mercury.conf" TLS is disabled. Enable TLS by changing the value of the TLSPort node to a port like 443.**
 
@@ -193,9 +193,9 @@ If you encounter any other issues or unexpected behavior, please consider openin
 
 ## Build Info
 
-The `/build_tools/` directory contains all necessary shell scripts for building static binaries.
+The `build_tools/` directory contains all necessary shell scripts for building static binaries.
 
-Binaries are placed in the `/bin/` directory, `mercury` for Linux and `mercury.exe` for Windows.
+Binaries are placed in the `bin/` directory, `mercury` for Linux and `mercury.exe` for Windows.
 
 ### Linux & Windows
 

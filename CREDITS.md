@@ -13,7 +13,7 @@ Mercury is made possible with the following third-party libraries:
 ---
 
 *Mercury includes and statically links these libraries where applicable.
-All third-party licenses are included in the `/licenses/` directory.*
+All third-party licenses are included in the `licenses/` directory.*
 
 ## Additional Software
 
@@ -26,4 +26,4 @@ Mercury does **not** bundle or redistribute PHP binaries directly, but because P
 ---
 
 *Mercury does not modify PHP in any way and is not affiliated with the PHP Group.
-All third-party licenses are included in the `/licenses/` directory.*
+All third-party licenses are included in the `licenses/` directory.*
