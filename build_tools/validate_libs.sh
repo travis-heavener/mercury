@@ -7,21 +7,20 @@
 # CD into project directory
 cd "$(dirname "$0")/../"
 
+# Declare versions
+BROTLI_VERSION=$(    cat ./build_tools/dependencies.txt | grep -Po "(?<=^BROTLI=)(.*)$" )
+OPENSSL_VERSION=$(   cat ./build_tools/dependencies.txt | grep -Po "(?<=^OPENSSL=)(.*)$" )
+ZLIB_VERSION=$(      cat ./build_tools/dependencies.txt | grep -Po "(?<=^ZLIB=)(.*)$" )
+PUGIXML_VERSION=$(   cat ./build_tools/dependencies.txt | grep -Po "(?<=^PUGIXML=)(.*)$" )
+ZSTD_VERSION=$(      cat ./build_tools/dependencies.txt | grep -Po "(?<=^ZSTD=)(.*)$" )
+GPP_VERSION=$(       cat ./build_tools/dependencies.txt | grep -Po "(?<=^GPP=)(.*)$" )
+MINGW_W64_VERSION=$( cat ./build_tools/dependencies.txt | grep -Po "(?<=^MINGW_W64=)(.*)$" )
+
 if [ ! -d "libs" ]; then
     mkdir libs
 fi
 
 cd libs
-
-# Declare versions
-BROTLI_VERSION="1.1.0"
-OPENSSL_VERSION="3.6.0"
-ZLIB_VERSION="1.3.1"
-PUGIXML_VERSION="1.15"
-ZSTD_VERSION="1.5.7"
-
-GPP_VERSION="13.3.0"
-MINGW_W64_VERSION="11.0.1"
 
 # Verify artifacts.lock exists
 if [ ! -e "artifacts.lock" ]; then
