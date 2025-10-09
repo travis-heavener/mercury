@@ -76,6 +76,12 @@ tar -xzf openssl-$version.tar.gz
 echo "Extracted archive."
 cd openssl-$version
 
+# Patch Mingw bug for 3.6.0
+# See https://github.com/openssl/openssl/issues/28679
+if [ "$version" == "3.6.0" ]; then
+    sed -i '545c#if defined\(OPENSSL_SYS_WINDOWS\) && \!defined\(__MINGW32__\)' test/bioprinttest.c
+fi
+
 # Reconfigure for Windows build
 echo "Configuring build... This may take a minute."
 ./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix=$LIB_PATH/openssl/windows 1> /dev/null
