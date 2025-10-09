@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.24.0
+- Improve consistency of file paths in docs (#284)
+
 ## v0.23.3
 - Fix broken website hyperlink (#273)
 
