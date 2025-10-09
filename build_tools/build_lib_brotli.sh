@@ -40,16 +40,16 @@ if [ -d "brotli-repo" ]; then
 fi
 
 # Download Brotli tarball
-wget -q --no-check-certificate https://github.com/google/brotli/archive/refs/tags/v$version.tar.gz -O brotli-repo.tar.gz
+wget -q --no-check-certificate "https://github.com/google/brotli/archive/refs/tags/v$version.tar.gz" -O brotli-repo.tar.gz
 tar -xzf brotli-repo.tar.gz
 echo "Fetched Brotli archive."
 
 # Remove tarball & rename
 rm -f brotli-repo.tar.gz
-mv brotli-$version brotli-repo
+mv "brotli-$version" brotli-repo
 cd brotli-repo
 
-mkdir -p $LIB_PATH/brotli
+mkdir -p "$LIB_PATH/brotli"
 mkdir build && cd build
 
 # ==== Linux Build ====
@@ -64,10 +64,10 @@ cmake .. \
 make
 
 # Extract resources
-mkdir $LIB_PATH/brotli/linux $LIB_PATH/brotli/linux/lib
+mkdir "$LIB_PATH/brotli/linux" "$LIB_PATH/brotli/linux/lib"
 
-mv *.a $LIB_PATH/brotli/linux/lib
-cp -r $LIB_PATH/brotli-repo/c/include $LIB_PATH/brotli/linux/include
+mv *.a "$LIB_PATH/brotli/linux/lib"
+cp -r "$LIB_PATH/brotli-repo/c/include" "$LIB_PATH/brotli/linux/include"
 
 cd ..
 # ==== Windows Build ====
@@ -89,13 +89,13 @@ cmake .. \
 make
 
 # Extract headers & linker files
-mkdir $LIB_PATH/brotli/windows $LIB_PATH/brotli/windows/lib
+mkdir "$LIB_PATH/brotli/windows" "$LIB_PATH/brotli/windows/lib"
 
-mv *.a $LIB_PATH/brotli/windows/lib
-mv $LIB_PATH/brotli-repo/c/include $LIB_PATH/brotli/windows/include
+mv *.a "$LIB_PATH/brotli/windows/lib"
+mv "$LIB_PATH/brotli-repo/c/include" "$LIB_PATH/brotli/windows/include"
 
 # ==== Clean Up ====
-cd $LIB_PATH
-rm -rf $LIB_PATH/brotli-repo
+cd "$LIB_PATH"
+rm -rf "$LIB_PATH/brotli-repo"
 
 echo "✅ Successfully built Brotli v$version library."

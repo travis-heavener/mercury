@@ -34,13 +34,13 @@ rm -f artifacts.raw
 ZLIB_DIR="$LIB_PATH/zlib-repo"
 MINGW_DIR="/usr/x86_64-w64-mingw32"
 
-wget -q --no-check-certificate https://zlib.net/zlib-$version.tar.gz
-tar -xzf zlib-$version.tar.gz
+wget -q --no-check-certificate "https://zlib.net/zlib-$version.tar.gz"
+tar -xzf "zlib-$version.tar.gz"
 echo "Extracted archive."
 
 # Remove tarball & rename
-rm zlib-$version.tar.gz
-mv zlib-$version "$ZLIB_DIR" && cd "$ZLIB_DIR"
+rm "zlib-$version.tar.gz"
+mv "zlib-$version" "$ZLIB_DIR" && cd "$ZLIB_DIR"
 
 # ==== Patch Makefile.gcc ====
 MAKEFILE_PATH="win32/Makefile.gcc"
