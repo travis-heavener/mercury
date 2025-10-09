@@ -92,7 +92,7 @@ If you notice any security issues or have a suggestion, please refer to [SECURIT
 Once you've downloaded your own Mercury release, navigate to the `/bin/` directory.
 If running on Linux, start `mercury` from the terminal; if running on Windows, start `mercury.exe`.
 
-A full list of Mercury versions is available on our website, [wowtravis.com/mercury](https://wowtravis.com/mercruy).
+A full list of Mercury versions is available on our website, [wowtravis.com/mercury](https://wowtravis.com/mercury).
 If you start up Mercury and are met with an "Update available!" notification, navigate to our website to download a new copy.
 New versions are continuously being produced and may include crucial bug fixes or security improvements.
 
