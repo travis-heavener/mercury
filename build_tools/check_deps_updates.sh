@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 # CD into project directory
 cd "$(dirname "$0")/../"
@@ -49,8 +48,10 @@ if [[ -n "$ZSTD_LATEST" && "$ZSTD_CURRENT" != "$ZSTD_LATEST" ]]; then
 fi
 
 # Echo all changed deps
+echo "Updated the following dependency requirements:"
 if [[ ${#DEPS_CHANGED[@]} -gt 0 ]]; then
-    echo "Updated the following dependency requirements:"
     printf -v joined '%s, ' "${DEPS_CHANGED[@]}"
     echo "${joined%, }"
+else
+    echo "None"
 fi
