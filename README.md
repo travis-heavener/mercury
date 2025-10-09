@@ -36,6 +36,7 @@
 - [Contributing](#contributing)
 - [Changelog](#changelog)
 - [Credits](#credits)
+- [Fun Facts](#fun-facts)
 - [Support Mercury](#support-mercury)
 
 ## About
@@ -78,7 +79,7 @@ That is the bottom line.
 
 The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([wowtravis.com](https://wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf).
 
-In addition, the Mercury log access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs **UNLESS** the RedactLogIPs config variable is set to true (see mercury.conf). Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.
+In addition, the Mercury access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs **UNLESS** the RedactLogIPs config variable is set to true (see mercury.conf). Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.
 
 All of Mercury's source code is freely available for curious users to view and poke at on GitHub via [https://github.com/travis-heavener/mercury](https://github.com/travis-heavener/mercury).
 
@@ -129,7 +130,7 @@ Self-signed TLS 1.3 certs are now available with OpenSSL.
 
 #### For Linux:
 
-1. Run `./conf/ssl/makecert.sh` and enter the following information to fill out the certificate.
+1. Run `conf/ssl/makecert.sh` and enter the following information to fill out the certificate.
 
 #### For Windows:
 
@@ -237,9 +238,9 @@ The test runner is available in the `tests` directory.
 
 With Python installed, fire up the Mercury server, cd into the tests directory, and use the `run.py` file to run a number of tests against the server.
 
-Note that in mercury.conf, the DocumentRoot should point to `./tests/files/` as the testing suite has its own set of documents to run tests against.
+Note that in mercury.conf, the DocumentRoot should point to `tests/files/` as the testing suite has its own set of documents to run tests against.
 
-See `./tests/files/mercury.conf.sample` for a sample config file to use for the testing script.
+See `tests/mercury.conf.sample` for a sample config file to use for the testing script.
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)
@@ -249,6 +250,14 @@ See [CHANGELOG.md](CHANGELOG.md)
 
 ## Credits
 See [CREDITS.md](CREDITS.md)
+
+## Fun Facts
+
+- Mercury was initially named "Mars", however the name was changed to "Mercury" before the first version was released.
+- The project itself was nearly abandoned after v0.2.7, however more bugs became apparent and I became extra sentimental.
+- This is the first project I've ever properly "licensed" (see [LICENSE.txt](LICENSE.txt)).
+- Mercury almost had a CGI-powered Node JS extension for serving non-static content, however it was scrapped and PHP support was later added (see [Branch: archive/node-driver](https://github.com/travis-heavener/mercury/tree/archive/node-driver)).
+- Mercury is my most consistently active and arguably most successful project to date!
 
 ## Support Mercury
 

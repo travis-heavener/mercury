@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.23.2
+- Add Fun Facts section to README (#132)
+- Fix typo in README Privacy Commitment (#267)
+- Fix test suite config file path in README (#268)
+- Fixed phrasing in CREDITS.md for PHP usage (#269)
+- Normalized "Issue" and "Pull Request" capitalization in docs (#270)
+
 ## v0.23.1
 - Bump OpenSSL to v3.6.0 (#258)
 
