@@ -129,7 +129,7 @@ Self-signed TLS 1.3 certs are now available with OpenSSL.
 
 #### For Linux:
 
-1. Run `./conf/ssl/makecert.sh` and enter the following information to fill out the certificate.
+1. Run `conf/ssl/makecert.sh` and enter the following information to fill out the certificate.
 
 #### For Windows:
 
@@ -237,9 +237,9 @@ The test runner is available in the `tests` directory.
 
 With Python installed, fire up the Mercury server, cd into the tests directory, and use the `run.py` file to run a number of tests against the server.
 
-Note that in mercury.conf, the DocumentRoot should point to `./tests/files/` as the testing suite has its own set of documents to run tests against.
+Note that in mercury.conf, the DocumentRoot should point to `tests/files/` as the testing suite has its own set of documents to run tests against.
 
-See `./tests/files/mercury.conf.sample` for a sample config file to use for the testing script.
+See `tests/mercury.conf.sample` for a sample config file to use for the testing script.
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)
