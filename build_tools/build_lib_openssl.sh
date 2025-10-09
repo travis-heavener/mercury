@@ -36,27 +36,32 @@ if [ -d "openssl" ]; then
 fi
 
 if [ -d "openssl-$version" ]; then
-    rm -rf openssl-$version
+    rm -rf "openssl-$version"
 fi
 
 if [ -f "openssl-$version.tar.gz" ]; then
-    rm -f openssl-$version.tar.gz
+    rm -f "openssl-$version.tar.gz"
 fi
 
 # Get OpenSSL source
-wget -q --no-check-certificate https://www.openssl.org/source/openssl-$version.tar.gz
+wget -q --no-check-certificate "https://www.openssl.org/source/openssl-$version.tar.gz"
 echo "Fetched OpenSSL archive."
 
 # ==== Linux Build ====
 
 # Unpack tar
-tar -xzf openssl-$version.tar.gz
+tar -xzf "openssl-$version.tar.gz"
 echo "Extracted archive."
-cd openssl-$version
+cd "openssl-$version"
 
 # Configure static build
 echo "Configuring build... This may take a minute."
-./Configure linux-x86_64 no-shared no-dso no-ssl3 no-comp --prefix=$LIB_PATH/openssl/linux 1> /dev/null
+./Configure linux-x86_64 no-shared no-dso no-ssl3 no-comp "--prefix=$LIB_PATH/openssl/linux" 1> /dev/null
+
+# Move library files
+mkdir "$LIB_PATH/openssl/windows/lib"
+mv "$LIB_PATH/openssl/windows/lib64/*.a" "$LIB_PATH/openssl/windows/lib"
+rm -rf "$LIB_PATH/openssl/windows/lib64"
 
 # Build static
 make -j$(nproc) 1> /dev/null
@@ -84,7 +89,12 @@ fi
 
 # Reconfigure for Windows build
 echo "Configuring build... This may take a minute."
-./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix=$LIB_PATH/openssl/windows 1> /dev/null
+./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 "--prefix=$LIB_PATH/openssl/windows" 1> /dev/null
+
+# Move library files
+mkdir "$LIB_PATH/openssl/windows/lib"
+mv "$LIB_PATH/openssl/windows/lib64/*.a" "$LIB_PATH/openssl/windows/lib"
+rm -rf "$LIB_PATH/openssl/windows/lib64"
 
 # Build OpenSSL static for Windows
 make -j$(nproc) 1> /dev/null
@@ -92,10 +102,10 @@ make install_sw 1> /dev/null
 echo "Built Windows binaries."
 
 cd ..
-rm -rf openssl-$version
+rm -rf "openssl-$version"
 
 # ==== Clean Up ====
 
-rm -f $LIB_PATH/openssl-$version.tar.gz
+rm -f "$LIB_PATH/openssl-$version.tar.gz"
 
 echo "✅ Successfully built OpenSSL v$version library."
