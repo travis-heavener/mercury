@@ -56,30 +56,32 @@ cd "openssl-$version"
 
 # Configure static build
 echo "Configuring build... This may take a minute."
-./Configure linux-x86_64 no-shared no-dso no-ssl3 no-comp "--prefix=$LIB_PATH/openssl/linux" 1> /dev/null
-
-# Move library files
-mkdir "$LIB_PATH/openssl/windows/lib"
-mv "$LIB_PATH/openssl/windows/lib64/*.a" "$LIB_PATH/openssl/windows/lib"
-rm -rf "$LIB_PATH/openssl/windows/lib64"
+./Configure linux-x86_64 no-shared no-dso no-ssl3 no-comp --prefix="$LIB_PATH/openssl/linux" 1> /dev/null
 
 # Build static
 make -j$(nproc) 1> /dev/null
 
 # Install binaries
 make install_sw 1> /dev/null
+
+# Move library files
+mkdir "$LIB_PATH/openssl/linux/lib"
+mv "$LIB_PATH/openssl/linux/lib64/"*.a "$LIB_PATH/openssl/linux/lib"
+rm -rf "$LIB_PATH/openssl/linux/lib64"
+rm -rf "$LIB_PATH/openssl/linux/bin"
+
 echo "Built Linux binaries."
 
 # Reset for Windows build
 cd ..
-rm -rf openssl-$version
+rm -rf "openssl-$version"
 
 # ==== Windows Build ====
 
 # Unpack tar
-tar -xzf openssl-$version.tar.gz
+tar -xzf "openssl-$version.tar.gz"
 echo "Extracted archive."
-cd openssl-$version
+cd "openssl-$version"
 
 # Patch Mingw bug for 3.6.0
 # See https://github.com/openssl/openssl/issues/28679
@@ -89,16 +91,18 @@ fi
 
 # Reconfigure for Windows build
 echo "Configuring build... This may take a minute."
-./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 "--prefix=$LIB_PATH/openssl/windows" 1> /dev/null
-
-# Move library files
-mkdir "$LIB_PATH/openssl/windows/lib"
-mv "$LIB_PATH/openssl/windows/lib64/*.a" "$LIB_PATH/openssl/windows/lib"
-rm -rf "$LIB_PATH/openssl/windows/lib64"
+./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" 1> /dev/null
 
 # Build OpenSSL static for Windows
 make -j$(nproc) 1> /dev/null
 make install_sw 1> /dev/null
+
+# Move library files
+mkdir "$LIB_PATH/openssl/windows/lib"
+mv "$LIB_PATH/openssl/windows/lib64/"*.a "$LIB_PATH/openssl/windows/lib"
+rm -rf "$LIB_PATH/openssl/windows/lib64"
+rm -rf "$LIB_PATH/openssl/windows/bin"
+
 echo "Built Windows binaries."
 
 cd ..

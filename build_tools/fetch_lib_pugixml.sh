@@ -54,7 +54,7 @@ rm "pugixml-$version.tar.gz"
 mkdir pugixml
 
 # Move source
-mv pugixml-$version/src/* pugixml
+mv "pugixml-$version/src/"* pugixml
 
 # ==== Clean Up ====
 rm -rf "pugixml-$version"
