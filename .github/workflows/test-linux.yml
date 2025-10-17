@@ -25,11 +25,10 @@ jobs:
           cp conf/default/mimes.conf conf/mimes.conf
           cp tests/mercury.conf.sample conf/mercury.conf
 
-      # Install & cache APT deps
-      - name: Install PHP-CGI
+      - name: Install Deps
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: php-cgi
+          packages: php-cgi python3-zstd python3-brotli
           version: 1.0
 
       - name: Configure Ports & Enable IPv6/TLS
