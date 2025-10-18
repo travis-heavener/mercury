@@ -104,6 +104,10 @@ If you encounter any unexpected behavior, please start an Issue on the [Mercury 
 
 In the `conf` directory are two config files: "mercury.conf" for server config and "mimes.conf" for a list of supported MIME types.
 
+The "mercury.conf" file contains a thorough documentation of each configuration setting/node, including accepted values and usage examples.
+
+The `conf/default/` directory contains default copies of "mercury.conf" and "mimes.conf".
+
 ### Log Files
 
 Once you start Mercury, a `logs` directory will be created, with an access and error log.
@@ -129,6 +133,10 @@ Windows users have the option to use their own PHP installation instead by modif
 Self-signed TLS 1.3 certs are now available with OpenSSL.
 
 #### For Linux:
+
+OpenSSL comes installed on most Linux distributions.
+Use `sudo apt install openssl` if you need to install OpenSSL and your distribution supports APT.
+If your distribution doesn't support APT, refer to your package manager's instructions on installing OpenSSL.
 
 1. Run `conf/ssl/makecert.sh` and enter the following information to fill out the certificate.
 
