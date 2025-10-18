@@ -9,6 +9,7 @@ sudo apt install upx \
     zlib1g-dev \
     g++ \
     zip \
+    openssl \
     python3 python3-brotli python3-zstandard \
     gzip \
     php-cgi -y
