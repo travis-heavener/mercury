@@ -130,6 +130,10 @@ Self-signed TLS 1.3 certs are now available with OpenSSL.
 
 #### For Linux:
 
+OpenSSL comes installed on most Linux distributions.
+Use `sudo apt install openssl` if you need to install OpenSSL and your distribution supports APT.
+If your distribution doesn't support APT, refer to your package manager's instructions on installing OpenSSL.
+
 1. Run `conf/ssl/makecert.sh` and enter the following information to fill out the certificate.
 
 #### For Windows:
