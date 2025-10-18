@@ -1,6 +1,11 @@
+import brotli
 from datetime import datetime, timezone
+import io
+import pathlib
 import re
 import socket
+import zlib
+import zstandard as zstd
 
 """
 
@@ -78,10 +83,11 @@ class TestCase:
         # Read response
         raw = s.recv(READ_BUF_SIZE)
         http_0_9_body = raw
-        raw = raw.decode("utf-8")
-        response = raw.replace("\r", "")
 
         if self.version == "HTTP/0.9":
+            raw = raw.decode("utf-8")
+            response = raw.replace("\r", "")
+
             # Verify something is returned
             if len(response) == 0:
                 print(f"Failed {test_desc}: Empty response to HTTP/0.9")
@@ -105,12 +111,14 @@ class TestCase:
             # Base case, success
             return True
         else:
-            status_code = int(response.split(" ")[1])
+            response = raw.replace(b"\r", b"")
+            status_code = int(response.split(b" ")[1])
 
             # Extract headers
-            header_lines = response.partition("\n\n")[0].split("\n")[1:]
+            header_lines = response.partition(b"\n\n")[0].split(b"\n")[1:]
             headers = {}
             for line in header_lines:
+                line = line.decode("utf-8")
                 index = line.find(":")
                 key, value = line[:index], line[index+1:]
                 headers[ key.strip().upper() ] = value.strip()
@@ -138,30 +146,38 @@ class TestCase:
                     print(self.inline_desc())
                     return False
 
+            # Read all body
+            body = ""
+            if self.method != "HEAD":
+                content_len = int(headers["CONTENT-LENGTH"]) if "CONTENT-LENGTH" in headers else 0
+                body = http_0_9_body[ http_0_9_body.find(b"\r\n\r\n")+4: ]
+
+                start = datetime.now().timestamp()
+                while len(body) < content_len:
+                    body += s.recv(READ_BUF_SIZE)
+
+                    if len(body) < content_len and datetime.now().timestamp() > start + 5:
+                        print(f"Failed {test_desc}: Connection timed out reading body")
+                        print(self.inline_desc())
+                        return False
+
             # Match body
             if self.body_match is not None:
-                # Read all body
-                content_len = int(headers["CONTENT-LENGTH"]) if "CONTENT-LENGTH" in headers else 0
-                body = raw[ raw.find("\r\n\r\n")+4: ]
+                if self.body_match is not None and body.decode("utf-8") != self.body_match:
+                    print(f"Failed {test_desc}: Body mismatch")
+                    print(self.inline_desc())
+                    print("  Body:", body[0:48], end="")
+                    print("..." if len(body) > 48 else "")
+                    return False
 
-                try:
-                    start = datetime.now().timestamp()
-                    while len(body) < content_len:
-                        body += s.recv(READ_BUF_SIZE).decode("utf-8")
-
-                        if len(body) < content_len and datetime.now().timestamp() > start + 5:
-                            print(f"Failed {test_desc}: Connection timed out reading body")
-                            print(self.inline_desc())
-                            return False
-
-                    if body != self.body_match:
-                        print(f"Failed {test_desc}: Body mismatch")
-                        print(self.inline_desc())
-                        print("  Body:", body[0:48], end="")
-                        print("..." if len(body) > 48 else "")
-                        return False
-                except Exception as e:
-                    print(e)
+            # Check content encoding
+            if "CONTENT-ENCODING" in self.expected_headers and self.expected_headers["CONTENT-ENCODING"] is not None and self.expected_headers["CONTENT-ENCODING"] != False:
+                script_dir = pathlib.Path(__file__).parent.resolve()
+                path = script_dir.joinpath("files").joinpath(self.path[1:])
+                if not self._verify_decode( path, body, self.expected_headers["CONTENT-ENCODING"] ):
+                    print(f"Failed {test_desc}: Content-Encoding decode failed ({self.expected_headers['CONTENT-ENCODING']})")
+                    print(self.inline_desc())
+                    return False
 
             # Base case
             return True
@@ -175,6 +191,28 @@ class TestCase:
             s += "\r\n".join(f"{k}: {v}" for k, v in self.headers.items())
             s += "\r\n" * (2 if len(self.headers) > 0 else 1)
             return s
+
+    # Verify a file is decoded properly
+    def _verify_decode(self, path: str, body: str, enc: str) -> bool:
+        orig_body = None
+        try:
+            with open(path, "rb") as f:
+                orig_body = f.read()
+        except Exception:
+            return False
+
+        # Decode incoming body
+        match enc:
+            case "deflate":
+                return zlib.decompress(body, wbits=15) == orig_body
+            case "gzip":
+                return zlib.decompress(body, wbits=31) == orig_body
+            case "br":
+                return brotli.decompress(body) == orig_body
+            case "zstd":
+                dctx = zstd.ZstdDecompressor()
+                with dctx.stream_reader(io.BytesIO(body)) as reader:
+                    return reader.read() == orig_body
 
 ###########################################################################
 ########                                                           ########
@@ -286,12 +324,12 @@ for ver in ["1.0", "1.1"]:
         TestCase("HEAD", "/",       expected=406, version=ver, headers={"Accept": "text/plain"}),
         TestCase("HEAD", "/",       expected=406, version=ver, headers={"Accept": "foobar;bar,;123"}),
 
-        # Test compression (doesn't actually check the body currently)
-        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "zstd"},    expected_headers={"Content-Encoding": "zstd"}),
-        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "br"},      expected_headers={"Content-Encoding": "br"}, https_only=True),
-        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "gzip"},    expected_headers={"Content-Encoding": "gzip"}),
-        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "deflate"}, expected_headers={"Content-Encoding": "deflate"}),
-        TestCase("HEAD", "/", expected=200, version=ver, headers={"Accept-Encoding": "foobar"},  expected_headers={"Content-Encoding": False}),
+        # Test compression (specify full file path with filename)
+        TestCase("GET", "/index.html", expected=200, version=ver, headers={"Accept-Encoding": "zstd"},    expected_headers={"Content-Encoding": "zstd"}),
+        TestCase("GET", "/index.html", expected=200, version=ver, headers={"Accept-Encoding": "br"},      expected_headers={"Content-Encoding": "br"}, https_only=True),
+        TestCase("GET", "/index.html", expected=200, version=ver, headers={"Accept-Encoding": "gzip"},    expected_headers={"Content-Encoding": "gzip"}),
+        TestCase("GET", "/index.html", expected=200, version=ver, headers={"Accept-Encoding": "deflate"}, expected_headers={"Content-Encoding": "deflate"}),
+        TestCase("GET", "/index.html", expected=200, version=ver, headers={"Accept-Encoding": "foobar"},  expected_headers={"Content-Encoding": False}),
 
         # Keep-alive tests
         TestCase("HEAD", "/", expected=200, version=ver, keep_alive=True, expected_headers={"Keep-Alive": None}),

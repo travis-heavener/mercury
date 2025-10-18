@@ -236,9 +236,11 @@ Please refrain from building a release from commits not yet pushed to main--any 
 This project has its own Python test runner complete with passes for IPv4 & IPv6 traffic with and without TLS enabled.
 The test runner is available in the `tests` directory.
 
-With Python installed, fire up the Mercury server, cd into the tests directory, and use the `run.py` file to run a number of tests against the server.
+Using any recent version of Python 3, make sure that `brotli` and `zstandard` Python packages are installed.
+- Use `sudo apt install python3-brotli python3-zstandard` on Linux
+- Use `py -m pip install brotli zstandard` on Windows
 
-Note that in mercury.conf, the DocumentRoot should point to `tests/files/` as the testing suite has its own set of documents to run tests against.
+With Python and its dependencies installed, fire up the Mercury server, cd into the tests directory, and use the `run.py` file to run a number of tests against the server.
 
 See `tests/mercury.conf.sample` for a sample config file to use for the testing script.
 
