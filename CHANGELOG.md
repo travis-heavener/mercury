@@ -1,6 +1,8 @@
 # Changelog
 
 ## v0.23.5
+- Fixed Windows PHP setup script using relative `tmp` path (#299)
+    - Previously broke file uploads
 - Fixed HTTP body uploads for PHP files on Linux caused by pipe deadlock (#301)
 
 ## v0.23.4

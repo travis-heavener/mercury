@@ -112,7 +112,7 @@ $(ARTIFACTS_LOCK):
 		echo "" | gzip | base64 > $(ARTIFACTS_LOCK); \
 	fi
 
-libs: lib_deps lib_brotli lib_openssl lib_zlib lib_pugixml lib_zstd win_php
+libs: lib_deps lib_brotli lib_openssl lib_zlib lib_pugixml lib_zstd
 
 lib_deps:
 	@./build_tools/install_deps.sh
@@ -131,9 +131,6 @@ lib_pugixml:
 
 lib_zstd:
 	@./build_tools/build_lib_zstd.sh
-
-win_php:
-	@./build_tools/setup_win_php.sh
 
 release:
 	@./build_tools/validate_libs.sh --q
