@@ -1,7 +1,6 @@
 #include "version_checker.hpp"
 
 #include <cstring>
-#include <iostream>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>

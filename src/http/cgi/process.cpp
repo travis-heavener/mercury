@@ -4,6 +4,7 @@
     #include "../../winheader.hpp"
 #else
     #include <fcntl.h>
+    #include <poll.h>
     #include <sys/types.h>
     #include <sys/wait.h>
     #include <unistd.h>
@@ -486,19 +487,47 @@ namespace http::cgi {
 
                 // Pipe stderr to stdout
                 close(stderrPipe[1]);
+
+                // Make err pipe read non-blocking
+                const int flags = fcntl(stderrPipe[0], F_GETFL, 0);
+                if (flags >= 0) fcntl(stderrPipe[0], F_SETFL, flags | O_NONBLOCK);
+
                 stderrRead = stderrPipe[0];
 
+                struct pollfd pfd = { .fd = stderrRead, .events = POLLIN, .revents = 0 };
+                const int pollRet = poll(&pfd, 1, 100);
+
                 // Check if execve failed
-                char c;
-                ssize_t n = read(stderrPipe[0], &c, 1);
-                close(stderrPipe[0]);
-                if (n > 0) { // Got EOF, execve failed
+                if (pollRet > 0) {
+                    if (pfd.revents & POLLIN) { // Data available, execve failed
+                        // Empty pipe
+                        char c;
+                        read(stderrRead, &c, 1);
+
+                        close(stderrRead);
+                        stderrRead = -1;
+
+                        int status;
+                        waitpid(pid, &status, 0);
+                        return false;
+                    } else if (pfd.revents & POLLHUP) { // Pipe closed w/o write, success
+                        return true;
+                    } else { // Poll error
+                        close(stderrRead);
+                        stderrRead = -1;
+                        int status;
+                        waitpid(pid, &status, 0);
+                        return false;
+                    }
+                } else if (pollRet == 0) { // Timeout, execve succeeded
+                    return true;
+                } else { // Poll error
+                    close(stderrRead);
+                    stderrRead = -1;
                     int status;
-                    waitpid(pid, &status, 0); // Reap child
+                    waitpid(pid, &status, 0);
                     return false;
                 }
-
-                return true;
             }
         }
 
