@@ -104,6 +104,10 @@ If you encounter any unexpected behavior, please start an Issue on the [Mercury 
 
 In the `conf` directory are two config files: "mercury.conf" for server config and "mimes.conf" for a list of supported MIME types.
 
+The "mercury.conf" file contains a thorough documentation of each configuration setting/node, including accepted values and usage examples.
+
+The `conf/default/` directory contains default copies of "mercury.conf" and "mimes.conf".
+
 ### Log Files
 
 Once you start Mercury, a `logs` directory will be created, with an access and error log.
