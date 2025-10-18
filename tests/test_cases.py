@@ -202,17 +202,19 @@ class TestCase:
             return False
 
         # Decode incoming body
-        match enc:
-            case "deflate":
-                return zlib.decompress(body, wbits=15) == orig_body
-            case "gzip":
-                return zlib.decompress(body, wbits=31) == orig_body
-            case "br":
-                return brotli.decompress(body) == orig_body
-            case "zstd":
-                dctx = zstd.ZstdDecompressor()
-                with dctx.stream_reader(io.BytesIO(body)) as reader:
-                    return reader.read() == orig_body
+        if enc == "deflate":
+            return zlib.decompress(body, wbits=15) == orig_body
+        elif enc == "gzip":
+            return zlib.decompress(body, wbits=31) == orig_body
+        elif enc == "br":
+            return brotli.decompress(body) == orig_body
+        elif enc == "zstd":
+            dctx = zstd.ZstdDecompressor()
+            with dctx.stream_reader(io.BytesIO(body)) as reader:
+                return reader.read() == orig_body
+
+        # Base case, uncaught enc type
+        return False
 
 ###########################################################################
 ########                                                           ########
