@@ -28,7 +28,7 @@ jobs:
       - name: Install Deps
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: php-cgi python3-zstd python3-brotli
+          packages: php-cgi python3-zstandard python3-brotli
           version: 1.0
 
       - name: Configure Ports & Enable IPv6/TLS
