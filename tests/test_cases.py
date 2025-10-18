@@ -316,6 +316,10 @@ for ver in ["1.0", "1.1"]:
         TestCase("HEAD", "%252e%252e%255c", expected=400, version=ver),
         TestCase("HEAD", "..%255c",         expected=400, version=ver),
 
+        TestCase("GET", "\\index.html",     expected=200, version=ver),
+        TestCase("GET", "\\\\index.html",   expected=200, version=ver),
+        TestCase("GET", "//index.html",     expected=200, version=ver),
+
         # CRLF injection
         TestCase("HEAD", "/%0D%0A",                 expected=404, version=ver),
         TestCase("HEAD", "/index.html?q=%0D%0A",    expected=200, version=ver),

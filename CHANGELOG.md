@@ -1,6 +1,7 @@
 # Changelog
 
 ## v0.23.5
+- Now resolves `//` as `/` in request paths (#298)
 - Fixed Windows PHP setup script using relative `tmp` path (#299)
     - Previously broke file uploads
 - Fixed HTTP body uploads for PHP files on Linux caused by pipe deadlock (#301)

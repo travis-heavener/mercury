@@ -23,7 +23,7 @@ inline void stringReplaceAll(std::string& haystack, const std::string& needle, c
     size_t index = 0;
     while ((index = haystack.find(needle, index)) != std::string::npos) {
         haystack.replace(index, needle.size(), sub);
-        index += sub.size();
+        index += sub.size()-1;
     }
 }
 

@@ -43,7 +43,12 @@ File::File(const std::string& _rawPath) {
     if (this->rawPath == "/") {
         this->path = conf::DOCUMENT_ROOT.string();
         normalizeBackslashes( path ); // Replace any backslashes w/ fwd slashes
+        stringReplaceAll(path, "//", "/"); // Replace all '//' with '/'
     } else {
+        // Replace all '//' with '/'
+        normalizeBackslashes(rawPath);
+        stringReplaceAll(rawPath, "//", "/");
+
         try {
             this->path = resolveCanonicalPath( conf::DOCUMENT_ROOT / this->rawPath.substr(1) ).string();
         } catch (std::filesystem::filesystem_error&) {
@@ -55,6 +60,7 @@ File::File(const std::string& _rawPath) {
         }
 
         // Replace any backslashes w/ fwd slashes
+        // Do this again because on Windows, resolveCanonicalPath returns \ directory separators
         normalizeBackslashes(path);
 
         // Re-append slash if directory
