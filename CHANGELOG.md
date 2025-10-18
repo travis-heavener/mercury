@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.23.5
+- Fixed HTTP body uploads for PHP files on Linux caused by pipe deadlock (#301)
+
 ## v0.23.4
 - Improve consistency of file paths in docs (#284)
 
