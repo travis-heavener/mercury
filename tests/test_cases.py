@@ -32,11 +32,12 @@ READ_BUF_SIZE = 1024 * 16 # Read buffer size for recv
 gmt_now = lambda: datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
 
 class TestCase:
-    def __init__(self, method: str, path: str, expected: int,
+    def __init__(self, method: str, path: str, expected: int, body: str="",
                  headers: dict=None, expected_headers: dict=None,
                  version: str="1.1", https_only=False, body_match=None, keep_alive=False):
         self.method = method
         self.path = path
+        self.body = body
         self.version = "HTTP/" + version
         self.expected_status = expected
 
@@ -44,6 +45,9 @@ class TestCase:
         self.headers["Host"] = "localhost"
         self.headers["User-Agent"] = "Mercury Test Agent"
         self.headers["Connection"] = "close" if not keep_alive else "keep-alive"
+
+        if len(self.body) > 0:
+            self.headers["Content-Length"] = f"{len(self.body)}"
 
         # Format expected_headers
         expected_headers = {} if expected_headers is None else expected_headers
@@ -190,6 +194,7 @@ class TestCase:
             s = f"{self.method} {self.path} {self.version}\r\n"
             s += "\r\n".join(f"{k}: {v}" for k, v in self.headers.items())
             s += "\r\n" * (2 if len(self.headers) > 0 else 1)
+            s += self.body
             return s
 
     # Verify a file is decoded properly
@@ -237,6 +242,15 @@ cases = [
     TestCase("GET", "/path_info_test.php/foo/bar", expected=200, version="1.1", body_match="/foo/bar"),
     TestCase("GET", "/path_info_test.php/foo/bar?q=1", expected=200, version="1.1", body_match="/foo/bar"),
     TestCase("GET", "/index.html/foo/bar", expected=404, version="1.1"),
+
+    # Test HTTP body via PHP (HTTP/1.1 checks only, essentially benign on HTTP/1.0)
+    TestCase("POST", "/body_tests/raw.php", expected=200, version="1.1", body="field1=value1&field2=value2", body_match="field1=value1&field2=value2"), # x-www-form-urlencoded
+    TestCase("POST", "/body_tests/raw.php", expected=200, version="1.1", body="foobar", body_match="foobar"), # Raw body
+    TestCase("POST", "/body_tests/form_data.php", expected=200, version="1.1", # Raw body
+             headers={"Content-Type": "multipart/form-data;boundary=\"testDelimiter\""},
+             body="--testDelimiter\nContent-Disposition: form-data; name=\"field1\"\n\nvalue1\n--testDelimiter\nContent-Disposition: form-data; name=\"field2\"; filename=\"example.txt\"\n\nvalue2\n--testDelimiter--",
+             body_match="field1: value1, file contents (example.txt): value2"
+    ),
 
     # Invalid method checking for static files (HTTP/1.1)
     TestCase("GET", "/",            expected=200, version="1.1"),
