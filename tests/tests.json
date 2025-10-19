@@ -1,0 +1,215 @@
+[
+    {
+        "desc": "Test PHP (HTTP/1.1 ONLY)",
+        "versions": [ "1.1" ],
+        "cases": [
+            { "method": "GET", "path": "/index.html", "expectedStatus": 200 },
+            { "method": "HEAD", "path": "/index.php", "expectedStatus": 200 },
+            { "method": "OPTIONS", "path": "/index.php", "expectedStatus": 200 },
+            { "method": "POST", "path": "/index.php", "expectedStatus": 200 },
+            { "method": "PUT", "path": "/index.php", "expectedStatus": 200 },
+            { "method": "PATCH", "path": "/index.php", "expectedStatus": 200 },
+            { "method": "DELETE", "path": "/index.php", "expectedStatus": 200 },
+            { "method": "POST", "path": "/ASDFGHJKL", "expectedStatus": 404 },
+
+            { "method": "GET", "path": "/path_info_test.php/foo/bar", "expectedStatus": 200, "expectedBody": "/foo/bar" },
+            { "method": "GET", "path": "/path_info_test.php/foo/bar?q=1", "expectedStatus": 200, "expectedBody": "/foo/bar" },
+            { "method": "GET", "path": "/index.html/foo/bar", "expectedStatus": 404 },
+            { "method": "GET", "path": "/index.html/foo/bar?q=1", "expectedStatus": 404 },
+
+            { "method": "POST", "path": "/body_tests/raw.php", "expectedStatus": 200, "body": "field1=value1&field2=value2", "expectedBody": "field1=value1&field2=value2" },
+            { "method": "POST", "path": "/body_tests/raw.php", "expectedStatus": 200, "body": "foobar", "expectedBody": "foobar" },
+            {
+                "method": "POST", "path": "/body_tests/form_data.php", "expectedStatus": 200,
+                "headers": {"Content-Type": "multipart/form-data;boundary=\"testDelimiter\""},
+                "body": "--testDelimiter\nContent-Disposition: form-data; name=\"field1\"\n\nvalue1\n--testDelimiter\nContent-Disposition: form-data; name=\"field2\"; filename=\"example.txt\"\n\nvalue2\n--testDelimiter--",
+                "expectedBody": "field1: value1, file contents (example.txt): value2"
+            }
+        ]
+    },
+
+    {
+        "desc": "Test Invalid Methods (HTTP/1.1)",
+        "versions": [ "1.1" ],
+        "cases": [
+            { "method": "GET", "path": "/", "expectedStatus": 200 },
+            { "method": "HEAD", "path": "/", "expectedStatus": 200 },
+            { "method": "HEAD", "path": "*", "expectedStatus": 400 },
+            { "method": "OPTIONS", "path": "/", "expectedStatus": 204, "expectedHeaders": {"Allow": null} },
+            { "method": "OPTIONS", "path": "*", "expectedStatus": 204, "expectedHeaders": {"Allow": null} },
+            { "method": "POST", "path": "/", "expectedStatus": 405 },
+            { "method": "PUT", "path": "/", "expectedStatus": 405 },
+            { "method": "PATCH", "path": "/", "expectedStatus": 405 },
+            { "method": "DELETE", "path": "/", "expectedStatus": 405 },
+            { "method": "FOO", "path": "/", "expectedStatus": 501 },
+            { "method": "FOO", "path": "/foo-bar", "expectedStatus": 501 }
+        ]
+    },
+
+    {
+        "desc": "Test Invalid Methods (HTTP/1.0)",
+        "versions": [ "1.0" ],
+        "cases": [
+            { "method": "GET", "path": "/", "expectedStatus": 200 },
+            { "method": "HEAD", "path": "/", "expectedStatus": 200 },
+            { "method": "HEAD", "path": "*", "expectedStatus": 400 },
+            { "method": "OPTIONS", "path": "/", "expectedStatus": 501 },
+            { "method": "OPTIONS", "path": "*", "expectedStatus": 501 },
+            { "method": "POST", "path": "/", "expectedStatus": 405 },
+            { "method": "PUT", "path": "/", "expectedStatus": 501 },
+            { "method": "PATCH", "path": "/", "expectedStatus": 501 },
+            { "method": "DELETE", "path": "/", "expectedStatus": 501 },
+            { "method": "FOO", "path": "/", "expectedStatus": 501 },
+            { "method": "FOO", "path": "/foo-bar", "expectedStatus": 501 }
+        ]
+    },
+
+    {
+        "desc": "HTTP/0.9 Tests",
+        "versions": [ "0.9" ],
+        "cases": [
+            { "method": "GET", "path": "/index.html", "expectedStatus": -1 },
+            { "method": "HEAD", "path": "/index.html", "expectedStatus": -1 }
+        ]
+    },
+
+    {
+        "desc": "Test HTTP/2.0",
+        "versions": [ "2.0" ],
+        "cases": [
+            { "method": "HEAD", "path": "/", "expectedStatus": 505 }
+        ]
+    },
+
+    {
+        "desc": "Test HTTP/3.0",
+        "versions": [ "3.0" ],
+        "cases": [
+            { "method": "HEAD", "path": "/", "expectedStatus": 505 }
+        ]
+    },
+
+    {
+        "desc": "Test HTTP/4.0",
+        "versions": [ "4.0" ],
+        "cases": [
+            { "method": "HEAD", "path": "/", "expectedStatus": 505 }
+        ]
+    },
+
+    {
+        "desc": "Redirect Rules (HTTP/1.1)",
+        "versions": [ "1.1" ],
+        "cases": [
+            { "method": "HEAD", "path": "/redirect_from/foo.txt", "expectedStatus": 301, "expectedHeaders": {"Location": "/redirect_to/foo.txt"} },
+            { "method": "HEAD", "path": "/redirect_from/bar.txt", "expectedStatus": 301, "expectedHeaders": {"Location": "/redirect_to/bar.txt"} },
+            { "method": "HEAD", "path": "/redirect_http1.1_only/foo.txt", "expectedStatus": 308, "expectedHeaders": {"Location": "/redirect_to/foo.txt"} }
+        ]
+    },
+
+    {
+        "desc": "Redirect Rules (HTTP/1.0)",
+        "versions": [ "1.0" ],
+        "cases": [
+            { "method": "HEAD", "path": "/redirect_from/foo.txt", "expectedStatus": 301, "expectedHeaders": {"Location": "/redirect_to/foo.txt"} },
+            { "method": "HEAD", "path": "/redirect_from/bar.txt", "expectedStatus": 301, "expectedHeaders": {"Location": "/redirect_to/bar.txt"} },
+            { "method": "HEAD", "path": "/redirect_http1.1_only/foo.txt", "expectedStatus": 302, "expectedHeaders": {"Location": "/redirect_to/foo.txt"} }
+        ]
+    },
+
+    {
+        "desc": "Path Tests & CRLF Injection",
+        "versions": [ "1.0", "1.1" ],
+        "cases": [
+            { "method": "HEAD", "path": ".", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "../", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "..\\", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "/../", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "\\..\\", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "%2e%2e%2f", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "%2e%2e%5c", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "%2e%2e/", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "%2e%2e\\", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "..%2f", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "..%5c", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "%252e%252e%255c", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "..%255c", "expectedStatus": 400 },
+            { "method": "HEAD", "path": "/index.html%", "expectedStatus": 400 },
+
+            { "method": "GET", "path": "\\index.html", "expectedStatus": 200 },
+            { "method": "GET", "path": "\\\\index.html", "expectedStatus": 200 },
+            { "method": "GET", "path": "//index.html", "expectedStatus": 200 },
+
+            { "method": "HEAD", "path": "/%0D%0A", "expectedStatus": 404 },
+            { "method": "HEAD", "path": "/index.html?q=%0D%0A", "expectedStatus": 200 }
+        ]
+    },
+
+    {
+        "desc": "Success Tests",
+        "versions": [ "1.0", "1.1" ],
+        "cases": [
+            { "method": "HEAD", "path": "/", "expectedStatus": 200 },
+            { "method": "HEAD", "path": "/?q=12", "expectedStatus": 200 },
+            { "method": "HEAD", "path": "/index.html", "expectedStatus": 200 },
+
+            { "method": "HEAD", "path": "/index.html", "expectedStatus": 304, "headers": {"If-Modified-Since": "Tue, 31 Dec 2999 05:00:00 GMT"} }
+        ]
+    },
+
+    {
+        "desc": "Byte Ranges",
+        "versions": [ "1.0", "1.1" ],
+        "cases": [
+            { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=0-13"}, "expectedHeaders": {"Content-Length": "14"} },
+            { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=-14"}, "expectedHeaders": {"Content-Length": "14"} },
+            { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=22-"}, "expectedHeaders": {"Content-Length": "1776"} },
+            { "method": "HEAD", "path": "/", "expectedStatus": 416, "headers": {"Range": "bytes=0-13, -19"} }
+        ]
+    },
+
+    {
+        "desc": "Misc. Statuses",
+        "versions": [ "1.0", "1.1" ],
+        "cases": [
+            { "method": "HEAD", "path": "/foobar", "expectedStatus": 404 },
+            { "method": "HEAD", "path": "/", "expectedStatus": 406, "headers": {"Accept": "text/plain"} },
+            { "method": "HEAD", "path": "/", "expectedStatus": 406, "headers": {"Accept": "foobar;bar,;123"} },
+
+            { "method": "GET", "path": "/index.php", "expectedStatus": 200, "expectedHeaders": {"X-Match-Test-Header": false} },
+            { "method": "GET", "path": "/index.html", "expectedStatus": 200, "expectedHeaders": {"X-Match-Test-Header": "1"} }
+        ]
+    },
+
+    {
+        "desc": "Compression Tests",
+        "versions": [ "1.0", "1.1" ],
+        "cases": [
+            { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd"}, "expectedHeaders": {"Content-Encoding": "zstd"} },
+            { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "br"}, "expectedHeaders": {"Content-Encoding": "br"}, "httpsOnly": true },
+            { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "gzip"}, "expectedHeaders": {"Content-Encoding": "gzip"} },
+            { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "deflate"}, "expectedHeaders": {"Content-Encoding": "deflate"} },
+            { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "foobar"}, "expectedHeaders": {"Content-Encoding": false} }
+        ]
+    },
+
+    {
+        "desc": "Keep-Alive Tests HTTP/1.0",
+        "versions": [ "1.0" ],
+        "cases": [
+            { "method": "HEAD", "path": "/", "expectedStatus": 200, "expectedHeaders": {"Connection": "close"} },
+            { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Connection": "keep-alive"}, "expectedHeaders": {"Connection": "keep-alive"} },
+            { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Connection": "close"}, "expectedHeaders": {"Connection": "close"} }
+        ]
+    },
+
+    {
+        "desc": "Keep-Alive Tests HTTP/1.1",
+        "versions": [ "1.1" ],
+        "cases": [
+            { "method": "HEAD", "path": "/", "expectedStatus": 200, "expectedHeaders": {"Connection": "keep-alive"} },
+            { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Connection": "keep-alive"}, "expectedHeaders": {"Connection": "keep-alive"} },
+            { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Connection": "close"}, "expectedHeaders": {"Connection": "close"} }
+        ]
+    }
+]

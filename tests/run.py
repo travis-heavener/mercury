@@ -15,7 +15,7 @@ import re
 import socket
 import ssl
 import sys
-from test_cases import cases
+from test_case import load_cases
 
 host = "127.0.0.1"
 host_v6 = "::1"
@@ -47,6 +47,7 @@ if __name__ == "__main__":
     ssl_ctx = init_ssl()
 
     # Run IPv4 test cases
+    cases = load_cases()
     num_passing = 0
     num_total = len(cases) * 4
     try:
