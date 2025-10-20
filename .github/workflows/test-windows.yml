@@ -24,6 +24,7 @@ jobs:
       - name: Copy Default Config
         run: |
           Copy-Item ./conf/default/mimes.conf ./conf/mimes.conf
+          Copy-Item ./conf/default/mercury.conf ./conf/mercury.conf
 
       - name: Install Python Deps
         run: python -m pip install brotli zstandard
