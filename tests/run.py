@@ -9,7 +9,6 @@ This file uses the test cases in tests.json to test the output of
 
 import os
 import shutil
-import signal
 import socket
 import ssl
 import subprocess
@@ -80,7 +79,7 @@ def run_tests(cases: list[TestCase], ipv4: bool) -> int:
                 if case.test(s, f"IPv{4 if ipv4 else 6} test"):
                     num_passing += 1
     except:
-        print(f"[Note]: IPv{4 if ipv4 else 6} connection failure")
+        print(f"[Warn]: IPv{4 if ipv4 else 6} connection failure")
 
     # Run SSL test cases
     try:
@@ -91,7 +90,7 @@ def run_tests(cases: list[TestCase], ipv4: bool) -> int:
                     if case.test(s, f"IPv{4 if ipv4 else 6} SSL test"):
                         num_passing += 1
     except:
-        print(f"[Note]: IPv{4 if ipv4 else 6} SSL connection failure")
+        print(f"[Warn]: IPv{4 if ipv4 else 6} SSL connection failure")
 
     return num_passing
 
@@ -135,7 +134,7 @@ if __name__ == "__main__":
             try:
                 os.remove("../conf/mercury.conf")
                 shutil.copy2(f"conf_files/{run['conf_file']}", "../conf/mercury.conf")
-                time.sleep(1) # Allow time for the file to update
+                time.sleep(3) # Allow time for the file to update
             except:
                 print("[Error] Failed to load new config file, aborting remaining tests...")
                 break
