@@ -214,6 +214,18 @@
                     { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Connection": "keep-alive"}, "expectedHeaders": {"Connection": "keep-alive"} },
                     { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Connection": "close"}, "expectedHeaders": {"Connection": "close"} }
                 ]
+            },
+
+            {
+                "desc": "Test Min Compression Size",
+                "versions": [ "1.0", "1.1" ],
+                "cases": [
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd"}, "expectedHeaders": {"Content-Encoding": false} },
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 200, "headers": {"Accept-Encoding": "br"}, "expectedHeaders": {"Content-Encoding": false} },
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 200, "headers": {"Accept-Encoding": "gzip"}, "expectedHeaders": {"Content-Encoding": false} },
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 200, "headers": {"Accept-Encoding": "deflate"}, "expectedHeaders": {"Content-Encoding": false} },
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 200, "headers": {"Accept-Encoding": "foobar"}, "expectedHeaders": {"Content-Encoding": false} }
+                ]
             }
         ]
     },
