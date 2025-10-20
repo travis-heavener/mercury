@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.23.6
+- Debloated README (#307)
+- Fixed min. compression size config control for HTTP/1.0 (#308)
+
 ## v0.23.5
 - Now resolves `//` as `/` in request paths (#298)
 - Fixed Windows PHP setup script using relative `tmp` path (#299)

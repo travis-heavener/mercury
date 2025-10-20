@@ -43,8 +43,7 @@
 
 Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux\*.
 
-\* Most (if not all) of the supported Linux distributions are for Debian (or any other distribution using APT packages).
-Additionally, most of these distributions come with glibc, which is required to be locally installed for Mercury to run.
+\* Linux copies of Mercury require APT packages and glibc to be installed (e.g. Ubuntu, Debian).
 
 ### Performance
 
@@ -79,11 +78,14 @@ That is the bottom line.
 
 The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([wowtravis.com](https://wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf).
 
-In addition, the Mercury access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs **UNLESS** the RedactLogIPs config variable is set to true (see mercury.conf). Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.
+In addition, the Mercury access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs **UNLESS** the RedactLogIPs config variable is set to true (see mercury.conf).
+Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.
 
 All of Mercury's source code is freely available for curious users to view and poke at on GitHub via [https://github.com/travis-heavener/mercury](https://github.com/travis-heavener/mercury).
 
-That being said, Mercury is a living software, and security patches are rolled out alongside feature updates. As such, any update prefixed with v0.X.X (ex. v0.18.2) are pre-release. These pre-release versions are not guaranteed to be bug-proof (nor should any software ever claim to be bug-proof).
+That being said, Mercury is a living software, and security patches are rolled out alongside feature updates.
+As such, any update prefixed with v0.X.X (ex. v0.18.2) are pre-release.
+These pre-release versions are not guaranteed to be bug-proof (nor should any software ever claim to be bug-proof).
 
 If you notice any security issues or have a suggestion, please refer to [SECURITY.md](SECURITY.md).
 
@@ -92,8 +94,7 @@ If you notice any security issues or have a suggestion, please refer to [SECURIT
 Once you've downloaded your own Mercury release, navigate to the `bin/` directory.
 If running on Linux, start `mercury` from the terminal; if running on Windows, start `mercury.exe`.
 
-A full list of Mercury versions is available on our website, [wowtravis.com/mercury](https://wowtravis.com/mercury).
-If you start up Mercury and are met with an "Update available!" notification, navigate to our website to download a new copy.
+A full list of Mercury versions is available on my website, [wowtravis.com/mercury](https://wowtravis.com/mercury).
 New versions are continuously being produced and may include crucial bug fixes or security improvements.
 
 Any version of Mercury marked as a "pre-release" (versions starting with "v0.x.x") is not a finalized product.
@@ -103,10 +104,9 @@ If you encounter any unexpected behavior, please start an Issue on the [Mercury 
 ### Config Files
 
 In the `conf` directory are two config files: "mercury.conf" for server config and "mimes.conf" for a list of supported MIME types.
+The `conf/default/` directory contains default copies these files.
 
 The "mercury.conf" file contains a thorough documentation of each configuration setting/node, including accepted values and usage examples.
-
-The `conf/default/` directory contains default copies of "mercury.conf" and "mimes.conf".
 
 ### Log Files
 
@@ -135,10 +135,9 @@ Self-signed TLS 1.3 certs are now available with OpenSSL.
 #### For Linux:
 
 OpenSSL comes installed on most Linux distributions.
-Use `sudo apt install openssl` if you need to install OpenSSL and your distribution supports APT.
-If your distribution doesn't support APT, refer to your package manager's instructions on installing OpenSSL.
 
 1. Run `conf/ssl/makecert.sh` and enter the following information to fill out the certificate.
+The script will check to make sure OpenSSL is installed before running.
 
 #### For Windows:
 
@@ -152,7 +151,7 @@ Update the `$OPENSSL_PATH` variable in `conf/ssl/makecert.ps1` with your correct
 
 #### For Developers:
 
-In your Linux/Debian environment, use `make cert` in the root directory of this project and enter your information to automatically create a new certificate pair.
+In your Linux environment, use `make cert` in the root directory of this project and enter your information to create a new certificate pair.
 Your certificate will be located at `conf/ssl/cert.pem` and your private key at `conf/ssl/key.pem`.
 
 **Note: By default, in "mercury.conf" TLS is disabled. Enable TLS by changing the value of the TLSPort node to a port like 443.**
@@ -219,16 +218,14 @@ Note: see [Compatibility](#compatibility) section for software compatibility.
 
 ### Compatibility
 
-The following table contains known compatible versions of important software used to build Mercury.
-Older mingw-w64 versions have introduced issues when binding IPv6 sockets with WinAPI.
-The g++ version restriction is likely less crucial, as initially version 11.x.x was in use and was only upgraded as a side effect of an OS upgrade (Ubuntu 24.04 LTS from 22.04 LTS).
-Thus, almost any Linux environment with the following g++ and mingw-w64 versions should be sufficient for building Mercury.
-However, it's important to note that APT and glibc must both be present on development and client Linux devices (hence why most Debian systems are supported).
+The following table contains known compatible versions of software used to build Mercury.
 
 | Name      | Version    |
 |-----------|------------|
 | g++       | 13.3.0     |
 | mingw-w64 | 11.0.1     |
+
+Note: Older mingw-w64 versions had issues when binding IPv6 sockets with WinAPI. Please update to 11.0.1 or later.
 
 ### Making Releases
 
@@ -237,11 +234,10 @@ To build a release, manually dispatch the "Make Release" GitHub Action to automa
 While a release can be manually made locally (via `make release`), this process is now automated and should only be done by dispatching this workflow.
 
 **NOTE**: the "Make Release" workflow will take the most recent changes on main and bundle them with the version committed to main. If you are building a release from a work-in-progress branch, *don't*.
-Please refrain from building a release from commits not yet pushed to main--any such releases will be removed and your contributorship will be reconsidered.
 
 ## Testing Suite
 
-This project has its own Python test runner complete with passes for IPv4 & IPv6 traffic with and without TLS enabled.
+This project has its own Python test script that manages its own config and test files.
 The test runner is available in the `tests` directory.
 
 Using any recent version of Python 3, make sure that `brotli` and `zstandard` Python packages are installed.
@@ -249,7 +245,8 @@ Using any recent version of Python 3, make sure that `brotli` and `zstandard` Py
 - Use `py -m pip install brotli zstandard` on Windows
 
 With Python and its dependencies installed, start `tests/run.py` file to run a number of tests against the server.
-Make sure that Mercury is NOT running when you start the test script--the script will launch several versions of Mercury to test against, but will restore your configuration settings afterwards.
+
+**NOTE:** Make sure that Mercury is ***NOT*** running when you start the test script--the script will launch several versions of Mercury to test against, but will restore your configuration settings afterwards.
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)
@@ -263,10 +260,8 @@ See [CREDITS.md](CREDITS.md)
 ## Fun Facts
 
 - Mercury was initially named "Mars", however the name was changed to "Mercury" before the first version was released.
-- The project itself was nearly abandoned after v0.2.7, however more bugs became apparent and I became extra sentimental.
-- This is the first project I've ever properly "licensed" (see [LICENSE.txt](LICENSE.txt)).
+- The project itself was nearly abandoned after v0.2.7, however more bugs became apparent and I became more invested in Mercury.
 - Mercury almost had a CGI-powered Node JS extension for serving non-static content, however it was scrapped and PHP support was later added (see [Branch: archive/node-driver](https://github.com/travis-heavener/mercury/tree/archive/node-driver)).
-- Mercury is my most consistently active and arguably most successful project to date!
 
 ## Support Mercury
 

@@ -172,6 +172,9 @@ if __name__ == "__main__":
                 if num_passing - run_start_num_passing == len(run["cases"]) * 4:
                     print("✅ Passing")
 
+                # Allow buffer time before terminate
+                time.sleep(1)
+
             # Kill Mercury
             try:
                 if proc is not None:
