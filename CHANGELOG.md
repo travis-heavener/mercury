@@ -1,6 +1,7 @@
 # Changelog
 
 ## v0.23.6
+- Debloated README (#307)
 - Fixed min. compression size config control for HTTP/1.0 (#308)
 
 ## v0.23.5
