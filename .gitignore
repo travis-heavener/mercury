@@ -8,6 +8,7 @@ libs/*
 releases/*
 bin/*
 artifacts.lock
+mercury.conf.lock
 conf/mercury.conf
 conf/mimes.conf
 php/*
