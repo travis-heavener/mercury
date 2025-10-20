@@ -23,26 +23,12 @@ jobs:
       - name: Copy Default Config
         run: |
           cp conf/default/mimes.conf conf/mimes.conf
-          cp tests/mercury.conf.sample conf/mercury.conf
 
       - name: Install Deps
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: php-cgi python3-zstandard python3-brotli
           version: 1.0
-
-      - name: Configure Ports & Enable IPv6/TLS
-        run: |
-          port=8081
-          sslPort=8082
-
-          # Update conf/mercury.conf
-          sed -i "s|<Port>[[:space:]]*[0-9]\+[[:space:]]*</Port>|<Port> $port </Port>|" conf/mercury.conf
-          sed -i "s|<TLSPort>[[:space:]]*.*[[:space:]]*</TLSPort>|<TLSPort> $sslPort </TLSPort>|" conf/mercury.conf
-
-          # Update tests/run.py
-          sed -i "s|port[[:space:]]*=[[:space:]]*.*|port = $port|" tests/run.py
-          sed -i "s|ssl_port[[:space:]]*=[[:space:]]*.*|ssl_port = $sslPort|" tests/run.py
 
       # Make TLS cert
       - name: Make TLS Cert
@@ -56,27 +42,6 @@ jobs:
             -nodes \
             -subj "/C=XX/ST=New York/L=NYC/O=The Mercury Project/OU=GitHub Action Runner/CN=The Mercury Developers"
 
-      # Start Mercury
-      - name: Start Mercury
-        run: |
-          cd bin
-          sudo chmod +x ./mercury
-          sudo ./mercury & echo $! > ../pid.txt
-
       # Run Python test cases
       - name: Python Test Runner
-        run: |
-          cd tests
-          OUTPUT=$(python3 run.py)
-          echo "$OUTPUT"
-          if echo "$OUTPUT" | tail -n 2 | grep -q "Failure"; then
-            kill -INT $(cat ../pid.txt)
-            sleep 5
-            exit 1
-          fi
-
-      # Kill the server
-      - name: Kill Server
-        run: |
-          kill -INT $(cat pid.txt)
-          sleep 5 # Allow time to shutdown
+        run: python3 tests/run.py

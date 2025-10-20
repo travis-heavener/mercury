@@ -15,7 +15,7 @@ gmt_now = lambda: datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT
 class TestCase:
     def __init__(self, method: str, path: str, expectedStatus: int, version: str,
                  headers: dict=None, expected_headers: dict=None,
-                 body: str="", body_match=None, https_only=False):
+                 body: str="", body_match: str=None, body_contains_mode: bool=False, https_only=False):
         self.method = method
         self.path = path
         self.body = body
@@ -36,6 +36,7 @@ class TestCase:
 
         self.https_only = https_only
         self.body_match = body_match
+        self.body_contains_mode = body_contains_mode
 
     # Generate an inline description of the request
     def inline_desc(self) -> str:
@@ -67,40 +68,34 @@ class TestCase:
 
         # Read response
         raw = s.recv(READ_BUF_SIZE)
-        http_0_9_body = raw
 
         if self.version == "HTTP/0.9":
-            raw = raw.decode("utf-8")
-            response = raw.replace("\r", "")
+            body = raw.decode("utf-8").replace("\r", "")
 
             # Verify something is returned
-            if len(response) == 0:
+            if len(raw) == 0:
                 print(f"Failed {test_desc}: Empty response to HTTP/0.9")
                 print(self.inline_desc())
                 return False
 
-            # Verify this isn't an HTTP/1.1 fallback
-            if re.match(r"^HTTP\/1.1 \d+ [\w ]+$", response.split("\n")[0]):
-                print(f"Failed {test_desc}: HTTP/1.1 fallback to HTTP/0.9")
-                print(self.inline_desc())
-                return False
-
             # Match body
-            if self.body_match is not None and raw != self.body_match:
+            does_body_match = (body == self.body_match and not self.body_contains_mode) \
+                or (self.body_match is not None and self.body_match in body and self.body_contains_mode)
+            if not does_body_match:
                 print(f"Failed {test_desc}: Body mismatch")
                 print(self.inline_desc())
-                print("  Body:", http_0_9_body[0:48], end="")
-                print("..." if len(http_0_9_body) > 48 else "")
+                print("  Body:", body[0:48], end="")
+                print("..." if len(body) > 48 else "")
                 return False
 
             # Base case, success
             return True
         else:
-            response = raw.replace(b"\r", b"")
-            status_code = int(response.split(b" ")[1])
+            body = raw.replace(b"\r", b"")
+            status_code = int(body.split(b" ")[1])
 
             # Extract headers
-            header_lines = response.partition(b"\n\n")[0].split(b"\n")[1:]
+            header_lines = body.partition(b"\n\n")[0].split(b"\n")[1:]
             headers = {}
             for line in header_lines:
                 line = line.decode("utf-8")
@@ -135,7 +130,7 @@ class TestCase:
             body = ""
             if self.method != "HEAD":
                 content_len = int(headers["CONTENT-LENGTH"]) if "CONTENT-LENGTH" in headers else 0
-                body = http_0_9_body[ http_0_9_body.find(b"\r\n\r\n")+4: ]
+                body = raw[ raw.find(b"\r\n\r\n")+4: ]
 
                 start = datetime.now().timestamp()
                 while len(body) < content_len:
@@ -148,7 +143,11 @@ class TestCase:
 
             # Match body
             if self.body_match is not None:
-                if self.body_match is not None and body.decode("utf-8") != self.body_match:
+                # Match body
+                body_decoded = body.decode("utf-8") if type(body) is bytes else body
+                does_body_match = (body_decoded == self.body_match and not self.body_contains_mode) \
+                    or (self.body_match in body_decoded and self.body_contains_mode)
+                if not does_body_match:
                     print(f"Failed {test_desc}: Body mismatch")
                     print(self.inline_desc())
                     print("  Body:", body[0:48], end="")
@@ -203,8 +202,8 @@ class TestCase:
         return False
 
 # Used to load all test cases from tests.json
-def load_cases() -> list[TestCase]:
-    cases = []
+def load_runs() -> list[TestCase]:
+    runs = []
 
     # Load JSON
     script_dir = pathlib.Path(__file__).parent.resolve()
@@ -214,17 +213,29 @@ def load_cases() -> list[TestCase]:
         raw = json.load(f)
 
     # Parse JSON
-    for group in raw:
-        for ver in group["versions"]:
-            for case in group["cases"]:
-                cases.append(
-                    TestCase(
-                        case["method"], case["path"], expectedStatus=case["expectedStatus"], version=ver,
-                        headers=case["headers"] if "headers" in case else {},
-                        expected_headers=case["expectedHeaders"] if "expectedHeaders" in case else {},
-                        body=case["body"] if "body" in case else "",
-                        https_only=case["httpsOnly"] if "httpsOnly" in case else False
+    for run in raw:
+        # Load cases for the run
+        cases = []
+        for group in run["cases"]:
+            for ver in group["versions"]:
+                for case in group["cases"]:
+                    cases.append(
+                        TestCase(
+                            case["method"], case["path"], expectedStatus=case["expectedStatus"], version=ver,
+                            headers=case["headers"] if "headers" in case else {},
+                            expected_headers=case["expectedHeaders"] if "expectedHeaders" in case else {},
+                            body=case["body"] if "body" in case else "",
+                            body_match=case["expectedBody"] if "expectedBody" in case else None,
+                            body_contains_mode=case["expectedBodyContainsMode"] if "expectedBodyContainsMode" in case else False,
+                            https_only=case["httpsOnly"] if "httpsOnly" in case else False
+                        )
                     )
-                )
 
-    return cases
+        # Append the run
+        runs.append({
+            "desc": run["desc"],
+            "conf_file": run["confFile"],
+            "cases": cases
+        })
+
+    return runs
