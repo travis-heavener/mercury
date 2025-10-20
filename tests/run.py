@@ -134,7 +134,7 @@ if __name__ == "__main__":
             try:
                 os.remove("../conf/mercury.conf")
                 shutil.copy2(f"conf_files/{run['conf_file']}", "../conf/mercury.conf")
-                time.sleep(3) # Allow time for the file to update
+                time.sleep(1) # Allow time for the file to update
             except:
                 print("[Error] Failed to load new config file, aborting remaining tests...")
                 break

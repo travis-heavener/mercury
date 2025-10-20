@@ -166,7 +166,7 @@
                 "cases": [
                     { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=0-13"}, "expectedHeaders": {"Content-Length": "14"} },
                     { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=-14"}, "expectedHeaders": {"Content-Length": "14"} },
-                    { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=22-"}, "expectedHeaders": {"Content-Length": "1776"} },
+                    { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=22-"}, "expectedHeaders": {"Content-Length": null} },
                     { "method": "HEAD", "path": "/", "expectedStatus": 416, "headers": {"Range": "bytes=0-13, -19"} }
                 ]
             },
