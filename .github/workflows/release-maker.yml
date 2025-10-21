@@ -50,8 +50,13 @@ jobs:
     uses: ./.github/workflows/build.yml
 
   release:
-    needs: build
-    if: github.ref == 'refs/heads/main'
+    needs: [check-cache, build]
+    if: >
+      github.ref == 'refs/heads/main' &&
+      (
+        needs.check-cache.outputs.hit == 'true' ||
+        always() && needs.build.result == 'success'
+      )
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
