@@ -67,6 +67,7 @@ $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
 		$(LIB_FLAGS) \
 		$(BROTLI_FLAGS) \
 		-lcrypt32 -lbcrypt -lws2_32 \
+		-mconsole \
 		-Wl,--subsystem,console
 	@upx $(TARGET_WIN) -qqq
 	@echo "✅ Done."
@@ -101,7 +102,8 @@ $(PCH_DIR)/common-win.hpp.gch: $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp $
 		$(LIB_FLAGS) \
 		$(BROTLI_FLAGS) \
 		-c $(PCH_DIR)/common.hpp \
-		-o $(PCH_DIR)/common-win.hpp.gch
+		-o $(PCH_DIR)/common-win.hpp.gch \
+		-mconsole
 	@echo "✅ Done."
 
 ############################ STATIC BUILD CONFIG ############################

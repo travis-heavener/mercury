@@ -23,11 +23,25 @@ void catchSig(int) {
     isExiting.store(true);
 }
 
+#ifdef _WIN32
+    BOOL WINAPI consoleHandler(DWORD signal) {
+        switch (signal) {
+            case CTRL_C_EVENT:
+            case CTRL_BREAK_EVENT:
+            case CTRL_CLOSE_EVENT:
+            case CTRL_LOGOFF_EVENT:
+            case CTRL_SHUTDOWN_EVENT:
+                catchSig(0);
+                return TRUE;
+            default:
+                return FALSE;
+        }
+    }
+#endif
+
 void initSigHandler() {
     #ifdef _WIN32
-        signal(SIGINT, catchSig);
-        signal(SIGABRT, catchSig);
-        signal(SIGTERM, catchSig);
+        SetConsoleCtrlHandler(consoleHandler, TRUE);
     #else
         struct sigaction sigIntHandler;
 
@@ -36,6 +50,7 @@ void initSigHandler() {
         sigIntHandler.sa_flags = 0;
 
         sigaction(SIGINT, &sigIntHandler, NULL);
+        sigaction(SIGTERM, &sigIntHandler, NULL);
 
         // Ignore SIGPIPE
         signal(SIGPIPE, SIG_IGN);

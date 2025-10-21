@@ -9,6 +9,7 @@ This file uses the test cases in tests.json to test the output of
 
 import os
 import shutil
+import signal
 import socket
 import ssl
 import subprocess
@@ -128,7 +129,7 @@ if __name__ == "__main__":
         # Handle each run
         for run in runs:
             print("=" * 80)
-            print(f"Starting run: {run['desc']}")
+            print(f"Starting run: {run['desc']} ({len(run['cases']) * 4} tests)")
 
             # Update config file
             try:
@@ -144,9 +145,16 @@ if __name__ == "__main__":
             timed_out = False
             try:
                 if sys.platform in ["win32", "cygwin"]:
-                    proc = subprocess.Popen([ "../bin/mercury.exe" ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+                    proc = subprocess.Popen(
+                        [ "../bin/mercury.exe" ],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
+                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+                    )
                 elif sys.platform == "linux":
-                    proc = subprocess.Popen([ "../bin/mercury" ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+                    proc = subprocess.Popen(
+                        [ "../bin/mercury" ],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL
+                    )
                 else:
                     print(f"Unrecognized sys.platform: {sys.platform}")
                     raise Exception()
@@ -178,7 +186,11 @@ if __name__ == "__main__":
             # Kill Mercury
             try:
                 if proc is not None:
-                    proc.terminate()
+                    if sys.platform in ["win32", "cygwin"]:
+                        proc.send_signal(signal.CTRL_BREAK_EVENT)
+                    elif sys.platform == "linux":
+                        proc.send_signal(signal.SIGINT)
+                    proc.wait()
             except:
                 print(f"[Error] Failed to kill Mercury, aborting remaining tests...")
                 break
