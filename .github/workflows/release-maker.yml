@@ -12,6 +12,12 @@ jobs:
     outputs:
       hit: ${{ steps.check.outputs.hit }}
     steps:
+      - name: Restrict Usage to Main Branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "❌ This workflow can only run on the 'main' branch."
+          exit 1
+
       - uses: actions/checkout@v5
 
       - name: Restore Linux Binaries
