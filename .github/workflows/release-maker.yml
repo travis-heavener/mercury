@@ -8,6 +8,7 @@ permissions:
 
 jobs:
   check-cache:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     outputs:
       hit: ${{ steps.check.outputs.hit }}
@@ -45,12 +46,12 @@ jobs:
 
   build:
     needs: check-cache
-    if: needs.check-cache.outputs.hit == 'false'
+    if: github.ref == 'refs/heads/main' && needs.check-cache.outputs.hit == 'false'
     uses: ./.github/workflows/build.yml
 
   release:
     needs: build
-    if: ${{ always() }} # Run even if cache hits
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
