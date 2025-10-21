@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.23.7
+- Now properly intercepts SIGTERM on Linux & exits gracefully
+- Now handles more Windows termination signals instead of POSIX ones
+    - E.g. CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT
+
 ## v0.23.6
 - Debloated README (#307)
 - Fixed min. compression size config control for HTTP/1.0 (#308)

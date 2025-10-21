@@ -178,6 +178,7 @@
                     { "method": "HEAD", "path": "/foobar", "expectedStatus": 404 },
                     { "method": "HEAD", "path": "/", "expectedStatus": 406, "headers": {"Accept": "text/plain"} },
                     { "method": "HEAD", "path": "/", "expectedStatus": 406, "headers": {"Accept": "foobar;bar,;123"} },
+                    { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Accept": "text/html; charset=UTF-8; foo=bar; q=1"} },
 
                     { "method": "GET", "path": "/index.php", "expectedStatus": 200, "expectedHeaders": {"X-Match-Test-Header": false} },
                     { "method": "GET", "path": "/index.html", "expectedStatus": 200, "expectedHeaders": {"X-Match-Test-Header": "1"} }

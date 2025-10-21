@@ -240,9 +240,9 @@ While a release can be manually made locally (via `make release`), this process 
 This project has its own Python test script that manages its own config and test files.
 The test runner is available in the `tests` directory.
 
-Using any recent version of Python 3, make sure that `brotli` and `zstandard` Python packages are installed.
-- Use `sudo apt install python3-brotli python3-zstandard` on Linux
-- Use `py -m pip install brotli zstandard` on Windows
+Using any recent version of Python 3, make sure that the following Python packages are installed:
+- Use `sudo apt install python3-brotli python3-zstandard python3-psutil` on Linux
+- Use `py -m pip install brotli zstandard psutil` on Windows
 
 With Python and its dependencies installed, start `tests/run.py` file to run a number of tests against the server.
 
