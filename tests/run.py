@@ -8,6 +8,7 @@ This file uses the test cases in tests.json to test the output of
 """
 
 import os
+import psutil
 import shutil
 import signal
 import socket
@@ -22,6 +23,29 @@ host = "127.0.0.1"
 host_v6 = "::1"
 port = 8080
 ssl_port = 8081
+
+
+def is_mercury_running():
+    process_name = None
+
+    if sys.platform in ["win32", "cygwin"]:
+        process_name = "mercury.exe"
+    elif sys.platform == "linux":
+        process_name = "mercury"
+    else:
+        print(f"Unrecognized sys.platform: {sys.platform}")
+        return True
+
+    # Check if running
+    for proc in psutil.process_iter(["name"]):
+        try:
+            if proc.info["name"] == process_name:
+                return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+    # Base case
+    return False
 
 def _ping_sock(addr: str, port: int, ipv4: bool) -> bool:
     try:
@@ -104,6 +128,11 @@ def init_ssl():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
+
+    # Verify Mercury isn't already running
+    if is_mercury_running():
+        print("[Error] Mercury is already running somewhere on your system, exiting...")
+        exit(1)
 
     # CD into script directory
     os.chdir( os.path.dirname( os.path.abspath(__file__) ) )

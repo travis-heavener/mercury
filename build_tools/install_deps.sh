@@ -10,7 +10,7 @@ sudo apt install upx \
     g++ \
     zip \
     openssl \
-    python3 python3-brotli python3-zstandard \
+    python3 python3-brotli python3-zstandard python3-psutil \
     gzip \
     php-cgi -y
 

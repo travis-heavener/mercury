@@ -27,7 +27,7 @@ jobs:
           Copy-Item ./conf/default/mercury.conf ./conf/mercury.conf
 
       - name: Install Python Deps
-        run: python -m pip install brotli zstandard
+        run: python -m pip install brotli zstandard psutil
 
       - name: Setup PHP
         run: ./conf/setup_php.ps1

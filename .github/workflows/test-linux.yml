@@ -28,7 +28,7 @@ jobs:
       - name: Install Deps
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: php-cgi python3-zstandard python3-brotli
+          packages: php-cgi python3-zstandard python3-brotli python3-psutil
           version: 1.0
 
       # Make TLS cert
