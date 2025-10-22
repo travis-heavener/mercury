@@ -67,7 +67,7 @@ jobs:
       # Install deps & build static binaries
       - name: Build Libs
         run: |
-          make lib_deps
+          sudo ./build_tools/install_workflow_deps.sh
           if [ ! -d libs ] || [ -z "$(ls -A libs)" ]; then
             mkdir libs
             make -j libs_no_deps
