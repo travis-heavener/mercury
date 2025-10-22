@@ -9,12 +9,17 @@ on:
     branches: ["main"]
     paths:
       - "docs/**"
-  workflow_call:
 
 jobs:
   Minify-Validate:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.MERCURY_BOT_APP_ID }}
+          private-key: ${{ secrets.MERCURY_BOT_KEY }}
+
       - uses: actions/checkout@v5
 
       # Install deps
@@ -46,8 +51,11 @@ jobs:
 
       # Push to gh-pages branch
       - if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
         run: |
           git config user.name "Mercury Actions Bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "mercury-actions-bot[bot]@users.noreply.github.com"
           git commit -am "Automated validation & minification of ${{ github.sha }}"
           git push --force -u origin main:gh-pages

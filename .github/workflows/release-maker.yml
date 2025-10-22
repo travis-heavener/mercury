@@ -70,16 +70,23 @@ jobs:
       )
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.MERCURY_BOT_APP_ID }}
+          private-key: ${{ secrets.MERCURY_BOT_KEY }}
+
       - uses: actions/checkout@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
           fetch-depth: 0
           ref: main
 
       - name: Set User
         run: |
           git config user.name "Mercury Actions Bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "mercury-actions-bot[bot]@users.noreply.github.com"
 
       # Download binaries & static libs
       - name: Restore Linux Binaries
@@ -135,7 +142,8 @@ jobs:
       - name: Delete Existing Release If Exists
         continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
         run: |
           VERSION="${{ steps.version.outputs.version }}"
 
@@ -157,7 +165,8 @@ jobs:
       # Create GitHub Release
       - name: Create GitHub Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           SUMMARY_FILE=$(ls ./releases/SUMMARY_*.md | head -n1)
@@ -180,7 +189,8 @@ jobs:
       # Commit updated docs
       - name: Create Release Update Branch
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
         run: |
           # Create branch & commit
           git checkout -b release-update-${{ steps.version.outputs.version }}
@@ -191,7 +201,8 @@ jobs:
 
       - name: Create PR
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
         run: |
           gh pr create \
             --title "[Website] Bump Release ${{ steps.version.outputs.version }}" \
@@ -202,18 +213,16 @@ jobs:
 
       - name: Approve and Merge PR
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
         run: |
           PR_NUMBER=$(gh pr list --head release-update-${{ steps.version.outputs.version }} --json number -q '.[0].number')
           gh pr merge $PR_NUMBER --merge --admin
 
       - name: Delete Release Update Branch
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
         run: |
           BRANCH="release-update-${{ steps.version.outputs.version }}"
           git push origin --delete "$BRANCH" || echo "Branch already deleted"
-  
-  trigger-pages-update:
-    needs: release
-    uses: ./.github/workflows/docs-minify-validate.yml
