@@ -14,13 +14,17 @@ cd libs
 LIB_PATH=$(pwd)
 
 if [ -d "zlib" ]; then
-    read -r -p "This operation will overwrite an existing build of Zlib. Continue? [y/N] " res
-    res=$(echo $res | tr '[:upper:]' '[:lower:]') # Lowercase
-    if [[ "$res" =~ ^(yes|y)$ ]]; then
-        rm -rf zlib
+    if [ -t 0 ]; then
+        read -r -p "This operation will overwrite an existing build of Zlib. Continue? [y/N] " res
+        res=$(echo $res | tr '[:upper:]' '[:lower:]') # Lowercase
+        if [[ "$res" =~ ^(yes|y)$ ]]; then
+            rm -rf zlib
+        else
+            echo "Aborting..."
+            exit 0
+        fi
     else
-        echo "Aborting..."
-        exit 0
+        rm -rf zlib
     fi
 fi
 
@@ -56,7 +60,7 @@ mv "zlib-$version" "zlib-$version-linux"
     cp zconf.h "$LIB_PATH/zlib/linux/include/"
 
     ./configure 1> /dev/null
-    make -j$(nproc) libz.a
+    make -j$(nproc) libz.a &> /dev/null
     mv libz.a "$LIB_PATH/zlib/linux/lib/"
 ) &
 
@@ -70,12 +74,12 @@ mv "zlib-$version" "zlib-$version-linux"
     make -j$(nproc) -B -f "$MAKEFILE_PATH" \
         BINARY_PATH="/dev/null" \
         INCLUDE_PATH="$LIB_PATH/zlib/windows/include" \
-        LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" 1> /dev/null
+        LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" &> /dev/null
 
     make -j$(nproc) -B -f "$MAKEFILE_PATH" install \
         BINARY_PATH="/dev/null" \
         INCLUDE_PATH="$LIB_PATH/zlib/windows/include" \
-        LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" 1> /dev/null
+        LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" &> /dev/null
 
     # Remove extra pkgconfig
     rm -rf "$LIB_PATH/zlib/windows/lib/pkgconfig"

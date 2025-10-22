@@ -14,13 +14,17 @@ cd libs
 LIB_PATH=$(pwd)
 
 if [ -d "zstd" ]; then
-    read -r -p "This operation will overwrite an existing build of Zstandard. Continue? [y/N] " res
-    res=$(echo $res | tr '[:upper:]' '[:lower:]') # Lowercase
-    if [[ "$res" =~ ^(yes|y)$ ]]; then
-        rm -rf zstd
+    if [ -t 0 ]; then
+        read -r -p "This operation will overwrite an existing build of Zstandard. Continue? [y/N] " res
+        res=$(echo $res | tr '[:upper:]' '[:lower:]') # Lowercase
+        if [[ "$res" =~ ^(yes|y)$ ]]; then
+            rm -rf zstd
+        else
+            echo "Aborting..."
+            exit 0
+        fi
     else
-        echo "Aborting..."
-        exit 0
+        rm -rf zstd
     fi
 fi
 
