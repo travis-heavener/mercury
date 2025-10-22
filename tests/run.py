@@ -7,6 +7,7 @@ This file uses the test cases in tests.json to test the output of
 
 """
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import psutil
 import shutil
@@ -92,30 +93,43 @@ def wait_until_live() -> bool:
 
     return True
 
-# Test run helper
-def run_tests(cases: list[TestCase], ipv4: bool) -> int:
-    num_passing = 0
-
-    # Run cleartext test cases
+# Run tests helper
+def run_single_test(case: TestCase, ipv4: bool, tls: bool) -> bool:
+    test_type = f"IPv{4 if ipv4 else 6} {'SSL' if tls else ''}"
     try:
-        for case in cases:
-            with socket.socket(socket.AF_INET if ipv4 else socket.AF_INET6, socket.SOCK_STREAM) as s:
-                s.connect((host if ipv4 else host_v6, port))
-                if case.test(s, f"IPv{4 if ipv4 else 6} test"):
-                    num_passing += 1
-    except:
-        print(f"[Warn]: IPv{4 if ipv4 else 6} connection failure")
-
-    # Run SSL test cases
-    try:
-        for case in cases:
-            with socket.create_connection((host if ipv4 else host_v6, ssl_port)) as sock:
+        addr = (host if ipv4 else host_v6, ssl_port if tls else port)
+        if tls:
+            with socket.create_connection(addr) as sock:
                 with ssl_ctx.wrap_socket(sock, server_hostname=host if ipv4 else host_v6) as s:
-                    # Send payload & evaluate
-                    if case.test(s, f"IPv{4 if ipv4 else 6} SSL test"):
-                        num_passing += 1
-    except:
-        print(f"[Warn]: IPv{4 if ipv4 else 6} SSL connection failure")
+                    return case.test(s, f"{test_type} test")
+        else:
+            with socket.socket(socket.AF_INET if ipv4 else socket.AF_INET6, socket.SOCK_STREAM) as s:
+                s.connect(addr)
+                return case.test(s, f"{test_type} test")
+    except Exception as e:
+        print(f"[Error]: {test_type} connection failure: {e}")
+        return False
+
+# Test run helper
+def run_tests(cases: list[TestCase], ipv4: bool, max_workers: int) -> int:
+    num_passing = 0
+    futures = []
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Schedule tests
+        for case in cases:
+            futures.append(executor.submit(run_single_test, case, ipv4, False))
+
+        for case in cases:
+            futures.append(executor.submit(run_single_test, case, ipv4, True))
+
+        # Collect results as they complete
+        for f in as_completed(futures):
+            try:
+                if f.result():
+                    num_passing += 1
+            except Exception as e:
+                print(f"[Error]: Test threw exception: {e}")
 
     return num_passing
 
@@ -201,8 +215,8 @@ if __name__ == "__main__":
             if not timed_out:
                 # Run tests
                 try:
-                    num_passing += run_tests( run["cases"], ipv4=True )
-                    num_passing += run_tests( run["cases"], ipv4=False )
+                    num_passing += run_tests( run["cases"], ipv4=True, max_workers=12 )
+                    num_passing += run_tests( run["cases"], ipv4=False, max_workers=12 )
                 except:
                     print(f"[Error] Failed running tests")
 
