@@ -9,6 +9,7 @@ on:
     branches: ["main"]
     paths:
       - "docs/**"
+  workflow_call:
 
 jobs:
   Minify-Validate:
@@ -46,7 +47,7 @@ jobs:
       # Push to gh-pages branch
       - if: github.event_name != 'pull_request'
         run: |
-          git config user.name "Travis Heavener"
-          git config user.email "travis.heavener@gmail.com"
+          git config user.name "Mercury Actions Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "Automated validation & minification of ${{ github.sha }}"
           git push --force -u origin main:gh-pages
