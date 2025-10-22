@@ -69,11 +69,11 @@ jobs:
           sudo ./build_tools/install_workflow_deps.sh
 
           if [ ! -d libs ] || [ -z "$(ls -A libs)" ]; then
-            yes | make lib_brotli
-            yes | make lib_openssl
-            yes | make lib_pugixml
-            yes | make lib_zstd
-            yes | make lib_zlib
+            (yes 2>/dev/null) | make lib_brotli
+            (yes 2>/dev/null) | make lib_openssl
+            (yes 2>/dev/null) | make lib_pugixml
+            (yes 2>/dev/null) | make lib_zstd
+            (yes 2>/dev/null) | make lib_zlib
           fi
 
       # Build
