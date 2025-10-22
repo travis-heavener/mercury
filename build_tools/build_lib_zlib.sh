@@ -10,6 +10,17 @@ fi
 cd libs
 LIB_PATH=$(pwd)
 
+if [ -d "zlib" ]; then
+    read -r -p "This operation will overwrite an existing build of Zlib. Continue? [y/N] " res
+    res=$(echo $res | tr '[:upper:]' '[:lower:]') # Lowercase
+    if [[ "$res" =~ ^(yes|y)$ ]]; then
+        rm -rf zlib
+    else
+        echo "Aborting..."
+        exit 0
+    fi
+fi
+
 # Update artifacts.lock
 version=$( cat ../build_tools/dependencies.txt | grep -Po "(?<=^ZLIB=)(.*)$" )
 if [ ! -e "artifacts.lock" ]; then
@@ -30,41 +41,72 @@ fi
 cat artifacts.raw | gzip | base64 > artifacts.lock
 rm -f artifacts.raw
 
-# ==== Config ====
-ZLIB_DIR="$LIB_PATH/zlib-repo"
-MINGW_DIR="/usr/x86_64-w64-mingw32"
+# Clean existing
+if [ -d "zlib-$version" ]; then
+    rm -rf "zlib-$version"
+fi
 
+if [ -f "zlib-$version.tar.gz" ]; then
+    rm -f "zlib-$version.tar.gz"
+fi
+
+# Get Zlib source
 wget -q --no-check-certificate "https://zlib.net/zlib-$version.tar.gz"
+echo "Fetched Zlib archive."
+
+mkdir zlib
+mkdir zlib/linux zlib/linux/include zlib/linux/lib
+mkdir zlib/windows zlib/windows/include zlib/windows/lib
+
+# ==== Linux Build ====
+
+# Unpack tarball
 tar -xzf "zlib-$version.tar.gz"
-echo "Extracted archive."
+cd "zlib-$version"
 
-# Remove tarball & rename
-rm "zlib-$version.tar.gz"
-mv "zlib-$version" "$ZLIB_DIR" && cd "$ZLIB_DIR"
+# Copy headers
+cp zlib.h "$LIB_PATH/zlib/linux/include/"
+cp zconf.h "$LIB_PATH/zlib/linux/include/"
 
-# ==== Patch Makefile.gcc ====
+# Static build
+./configure 1> /dev/null
+make libz.a
+mv libz.a "$LIB_PATH/zlib/linux/lib/"
+
+# Reset for Windows build
+cd ../
+rm -rf "zlib-$version"
+
+# ==== Window Build ====
+
+# Unpack tarball
+tar -xzf "zlib-$version.tar.gz"
+cd "zlib-$version"
+
+# Copy headers
+# cp *.h "$LIB_PATH/zlib/windows/include/"
+
+# Static build
 MAKEFILE_PATH="win32/Makefile.gcc"
-
-# Replace PREFIX line
 sed -i 's/^PREFIX *=.*$/PREFIX=x86_64-w64-mingw32-/' "$MAKEFILE_PATH"
-
-# Replace CC line
 sed -i 's/^CC *=.*$/CC=\$(PREFIX)gcc-win32/' "$MAKEFILE_PATH"
 
-# ==== Build ====
-echo "Building zlib binaries."
-make -B -f win32/Makefile.gcc \
-    BINARY_PATH="$MINGW_DIR/bin" \
-    INCLUDE_PATH="$MINGW_DIR/include" \
-    LIBRARY_PATH="$MINGW_DIR/lib" 1> /dev/null
+make -B -f "$MAKEFILE_PATH" \
+    BINARY_PATH="/dev/null" \
+    INCLUDE_PATH="$LIB_PATH/zlib/windows/include" \
+    LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" 1> /dev/null
 
-# ==== Install to Mingw files ====
-sudo make -B -f win32/Makefile.gcc install \
-    BINARY_PATH="$MINGW_DIR/bin" \
-    INCLUDE_PATH="$MINGW_DIR/include" \
-    LIBRARY_PATH="$MINGW_DIR/lib" 1> /dev/null
+make -B -f "$MAKEFILE_PATH" install \
+    BINARY_PATH="/dev/null" \
+    INCLUDE_PATH="$LIB_PATH/zlib/windows/include" \
+    LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" 1> /dev/null
+
+# Remove extra pkgconfig
+rm -rf "$LIB_PATH/zlib/windows/lib/pkgconfig"
 
 # ==== Clean Up ====
-rm -rf "$ZLIB_DIR"
+cd ../
+rm -rf "zlib-$version"
+rm -f "zlib-$version.tar.gz"
 
 echo "✅ Successfully built Zlib v$version library."
