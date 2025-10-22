@@ -3,16 +3,18 @@ SHELL := /bin/bash
 GPP_FLAGS = -Wall -Wextra -Winvalid-pch
 
 LIBS_DIR = libs
+ARTIFACTS_LOCK = $(LIBS_DIR)/artifacts.lock
+
 OPENSSL_DIR = $(LIBS_DIR)/openssl
 BROTLI_DIR = $(LIBS_DIR)/brotli
+ZLIB_DIR = $(LIBS_DIR)/zlib
 ZSTD_DIR = $(LIBS_DIR)/zstd
 PUGIXML_DIR = $(LIBS_DIR)/pugixml
-ARTIFACTS_LOCK = $(LIBS_DIR)/artifacts.lock
+
 PCH_DIR = src/pch
 
 STATIC_FLAGS = -static -static-libgcc -static-libstdc++ -std=c++20
-BROTLI_FLAGS = -lbrotlienc -lbrotlidec -lbrotlicommon
-LIB_FLAGS = -lz -lpthread -lssl -lcrypto -lzstd
+LIB_FLAGS = -lbrotlienc -lbrotlidec -lbrotlicommon -lz -lpthread -lssl -lcrypto -lzstd
 
 TARGET = bin/mercury
 TARGET_WIN = bin/mercury.exe
@@ -45,10 +47,9 @@ $(TARGET): $(DEPS) $(ARTIFACTS_LOCK)
 		-include $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.hpp \
 		$(SRCS) -o $(TARGET) \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
-		-I$(OPENSSL_DIR)/linux/include -I$(BROTLI_DIR)/linux/include -I$(ZSTD_DIR)/linux/include -I$(PUGIXML_DIR) \
-		-L$(OPENSSL_DIR)/linux/lib -L$(BROTLI_DIR)/linux/lib -L$(ZSTD_DIR)/linux/lib \
+		-I$(OPENSSL_DIR)/linux/include -I$(BROTLI_DIR)/linux/include -I$(ZLIB_DIR)/linux/include -I$(ZSTD_DIR)/linux/include -I$(PUGIXML_DIR) \
+		-L$(OPENSSL_DIR)/linux/lib -L$(BROTLI_DIR)/linux/lib -L$(ZLIB_DIR)/linux/lib -L$(ZSTD_DIR)/linux/lib \
 		$(LIB_FLAGS) \
-		$(BROTLI_FLAGS) \
 		2> >(grep -v -E "BIO_lookup_ex|getaddrinfo|gethostbyname|fetchLatestVersion")
 	@upx $(TARGET) -qqq
 	@echo "✅ Done."
@@ -62,10 +63,9 @@ $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
 		-include $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp \
 		$(SRCS) $(TARGET_WIN_ICON) -o $(TARGET_WIN) \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
-		-I$(OPENSSL_DIR)/windows/include -I$(BROTLI_DIR)/windows/include -I$(ZSTD_DIR)/windows/include -I$(PUGIXML_DIR) \
-		-L$(OPENSSL_DIR)/windows/lib -L$(BROTLI_DIR)/windows/lib -L$(ZSTD_DIR)/windows/lib \
+		-I$(OPENSSL_DIR)/windows/include -I$(BROTLI_DIR)/windows/include -I$(ZLIB_DIR)/windows/include -I$(ZSTD_DIR)/windows/include -I$(PUGIXML_DIR) \
+		-L$(OPENSSL_DIR)/windows/lib -L$(BROTLI_DIR)/windows/lib -L$(ZLIB_DIR)/windows/lib -L$(ZSTD_DIR)/windows/lib \
 		$(LIB_FLAGS) \
-		$(BROTLI_FLAGS) \
 		-lcrypt32 -lbcrypt -lws2_32 \
 		-mconsole \
 		-Wl,--subsystem,console
@@ -83,10 +83,9 @@ $(PCH_DIR)/common-linux.hpp.gch: $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.h
 	@echo -n "Building Linux PCH... "
 	@g++ -x c++-header \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
-		-I$(OPENSSL_DIR)/linux/include -I$(BROTLI_DIR)/linux/include -I$(ZSTD_DIR)/linux/include -I$(PUGIXML_DIR) \
-		-L$(OPENSSL_DIR)/linux/lib -L$(BROTLI_DIR)/linux/lib -L$(ZSTD_DIR)/linux/lib \
+		-I$(OPENSSL_DIR)/linux/include -I$(BROTLI_DIR)/linux/include -I$(ZLIB_DIR)/linux/include -I$(ZSTD_DIR)/linux/include -I$(PUGIXML_DIR) \
+		-L$(OPENSSL_DIR)/linux/lib -L$(BROTLI_DIR)/linux/lib -L$(ZLIB_DIR)/linux/lib -L$(ZSTD_DIR)/linux/lib \
 		$(LIB_FLAGS) \
-		$(BROTLI_FLAGS) \
 		-c $(PCH_DIR)/common.hpp \
 		-o $(PCH_DIR)/common-linux.hpp.gch
 	@echo "✅ Done."
@@ -97,10 +96,9 @@ $(PCH_DIR)/common-win.hpp.gch: $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp $
 	@echo -n "Building Windows PCH... "
 	@x86_64-w64-mingw32-g++-posix -x c++-header \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
-		-I$(OPENSSL_DIR)/windows/include -I$(BROTLI_DIR)/windows/include -I$(ZSTD_DIR)/windows/include -I$(PUGIXML_DIR) \
-		-L$(OPENSSL_DIR)/windows/lib -L$(BROTLI_DIR)/windows/lib -L$(ZSTD_DIR)/windows/lib \
+		-I$(OPENSSL_DIR)/windows/include -I$(BROTLI_DIR)/windows/include -I$(ZLIB_DIR)/windows/include -I$(ZSTD_DIR)/windows/include -I$(PUGIXML_DIR) \
+		-L$(OPENSSL_DIR)/windows/lib -L$(BROTLI_DIR)/windows/lib -L$(ZLIB_DIR)/windows/lib -L$(ZSTD_DIR)/windows/lib \
 		$(LIB_FLAGS) \
-		$(BROTLI_FLAGS) \
 		-c $(PCH_DIR)/common.hpp \
 		-o $(PCH_DIR)/common-win.hpp.gch \
 		-mconsole

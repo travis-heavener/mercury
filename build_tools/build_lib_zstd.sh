@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # CD into project directory
 cd "$(dirname "$0")/../"
 
@@ -9,6 +11,17 @@ fi
 
 cd libs
 LIB_PATH=$(pwd)
+
+if [ -d "zstd" ]; then
+    read -r -p "This operation will overwrite an existing build of Zstandard. Continue? [y/N] " res
+    res=$(echo $res | tr '[:upper:]' '[:lower:]') # Lowercase
+    if [[ "$res" =~ ^(yes|y)$ ]]; then
+        rm -rf zstd
+    else
+        echo "Aborting..."
+        exit 0
+    fi
+fi
 
 # Update artifacts.lock
 version=$( cat ../build_tools/dependencies.txt | grep -Po "(?<=^ZSTD=)(.*)$" )
@@ -31,10 +44,6 @@ cat artifacts.raw | gzip | base64 > artifacts.lock
 rm -f artifacts.raw
 
 # Clean existing
-if [ -d "zstd" ]; then
-    rm -rf zstd
-fi
-
 if [ -d "zstd-$version" ]; then
     rm -rf "zstd-$version"
 fi

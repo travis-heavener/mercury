@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # CD into project directory
 cd "$(dirname "$0")/../"
 
@@ -9,6 +11,18 @@ fi
 
 cd libs
 LIB_PATH=$(pwd)
+
+# Clean existing
+if [ -d "brotli" ]; then
+    read -r -p "This operation will overwrite an existing build of Brotli. Continue? [y/N] " res
+    res=$(echo $res | tr '[:upper:]' '[:lower:]') # Lowercase
+    if [[ "$res" =~ ^(yes|y)$ ]]; then
+        rm -rf brotli
+    else
+        echo "Aborting..."
+        exit 0
+    fi
+fi
 
 # Update artifacts.lock
 version=$( cat ../build_tools/dependencies.txt | grep -Po "(?<=^BROTLI=)(.*)$" )
@@ -31,10 +45,6 @@ cat artifacts.raw | gzip | base64 > artifacts.lock
 rm -f artifacts.raw
 
 # Clean existing
-if [ -d "brotli" ]; then
-    rm -rf brotli
-fi
-
 if [ -d "brotli-repo" ]; then
     rm -rf brotli-repo
 fi

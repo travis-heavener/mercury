@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.23.8
+- Switch to fully, locally static Zlib for Linux (#326)
+
 ## v0.23.7
 - Now properly intercepts SIGTERM on Linux & exits gracefully
 - Now handles more Windows termination signals instead of POSIX ones
