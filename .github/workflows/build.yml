@@ -67,8 +67,10 @@ jobs:
       # Install deps & build static binaries
       - name: Build Libs
         run: |
+          make lib_deps
           if [ ! -d libs ] || [ -z "$(ls -A libs)" ]; then
-            make -j libs
+            mkdir libs
+            make -j libs_no_deps
           fi
 
       # Build

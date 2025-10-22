@@ -110,7 +110,8 @@ $(ARTIFACTS_LOCK):
 		echo "" | gzip | base64 > $(ARTIFACTS_LOCK); \
 	fi
 
-libs: lib_deps lib_brotli lib_openssl lib_zlib lib_pugixml lib_zstd
+libs: lib_deps libs_no_deps
+libs_no_deps: lib_brotli lib_openssl lib_zlib lib_pugixml lib_zstd
 
 lib_deps:
 	@./build_tools/install_deps.sh
