@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.23.7
+## v0.23.8
 - Switch to fully, locally static Zlib for Linux (#326)
 
 ## v0.23.7
