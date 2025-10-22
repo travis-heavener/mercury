@@ -9,6 +9,7 @@ if [ ! -d "libs" ]; then
     mkdir libs
 fi
 
+TOOLS_PATH=$(pwd)/build_tools/tools
 cd libs
 LIB_PATH=$(pwd)
 
@@ -24,102 +25,72 @@ if [ -d "openssl" ]; then
     fi
 fi
 
-# Update artifacts.lock
+# Fetch version
 version=$( cat ../build_tools/dependencies.txt | grep -Po "(?<=^OPENSSL=)(.*)$" )
-if [ ! -e "artifacts.lock" ]; then
-    touch artifacts.lock
-    echo "" | gzip | base64 > artifacts.lock
-fi
-
-# Unpack artifacts
-cat artifacts.lock | base64 --decode | gunzip > artifacts.raw
-
-if grep -q "^openssl=" artifacts.raw; then
-    sed -i "s/^openssl=.*$/openssl=$version/" artifacts.raw
-else
-    { echo "openssl=$version"; cat artifacts.raw; } > temp && mv temp artifacts.raw
-fi
-
-# Repack artifacts
-cat artifacts.raw | gzip | base64 > artifacts.lock
-rm -f artifacts.raw
 
 # Clean existing
-if [ -d "openssl-$version" ]; then
-    rm -rf "openssl-$version"
-fi
-
-if [ -f "openssl-$version.tar.gz" ]; then
-    rm -f "openssl-$version.tar.gz"
-fi
+$TOOLS_PATH/safe_rm "openssl-$version"
+$TOOLS_PATH/safe_rm "openssl-$version-linux"
+$TOOLS_PATH/safe_rm "openssl-$version-windows"
+$TOOLS_PATH/safe_rm "openssl-$version.tar.gz"
 
 # Get OpenSSL source
 wget -q --no-check-certificate "https://www.openssl.org/source/openssl-$version.tar.gz"
 echo "Fetched OpenSSL archive."
 
-# ==== Linux Build ====
+mkdir openssl
+mkdir openssl/linux openssl/linux/include openssl/linux/lib
+mkdir openssl/windows openssl/windows/include openssl/windows/lib
 
-# Unpack tar
+# Extract archive
 tar -xzf "openssl-$version.tar.gz"
 echo "Extracted archive."
-cd "openssl-$version"
+echo "Building static libraries, please wait..."
 
-# Configure static build
-echo "Configuring build... This may take a minute."
-./Configure linux-x86_64 no-shared no-dso no-ssl3 no-comp --prefix="$LIB_PATH/openssl/linux" 1> /dev/null
+# ==== Build in Parallel ====
+cp -r "openssl-$version" "openssl-$version-windows"
+mv "openssl-$version" "openssl-$version-linux"
 
-# Build static
-make -j$(nproc) 1> /dev/null
+(
+    cd "openssl-$version-linux"
 
-# Install binaries
-make install_sw 1> /dev/null
+    ./Configure linux-x86_64 no-shared no-dso no-asm no-ssl3 no-comp no-tests no-docs no-legacy --prefix="$LIB_PATH/openssl/linux" 1> /dev/null
+    make -j$(nproc) &>/dev/null
+    make install_sw &>/dev/null
 
-# Move library files
-mkdir "$LIB_PATH/openssl/linux/lib"
-mv "$LIB_PATH/openssl/linux/lib64/"*.a "$LIB_PATH/openssl/linux/lib"
-rm -rf "$LIB_PATH/openssl/linux/lib64"
-rm -rf "$LIB_PATH/openssl/linux/bin"
+    # Move library files
+    mv "$LIB_PATH/openssl/linux/lib64/"*.a "$LIB_PATH/openssl/linux/lib"
+    rm -rf "$LIB_PATH/openssl/linux/lib64"
+    rm -rf "$LIB_PATH/openssl/linux/bin"
+) &
 
-echo "Built Linux binaries."
+(
+    cd "openssl-$version-windows"
 
-# Reset for Windows build
-cd ..
-rm -rf "openssl-$version"
+    # Patch Mingw bug for 3.6.0
+    # See https://github.com/openssl/openssl/issues/28679
+    if [ "$version" == "3.6.0" ]; then
+        sed -i '545c#if defined\(OPENSSL_SYS_WINDOWS\) && \!defined\(__MINGW32__\)' test/bioprinttest.c
+    fi
 
-# ==== Windows Build ====
+    ./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp no-tests no-docs no-legacy --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" 1> /dev/null
+    make -j$(nproc) &>/dev/null
+    make install_sw &>/dev/null
 
-# Unpack tar
-tar -xzf "openssl-$version.tar.gz"
-echo "Extracted archive."
-cd "openssl-$version"
+    # Move library files
+    mv "$LIB_PATH/openssl/windows/lib64/"*.a "$LIB_PATH/openssl/windows/lib"
+    rm -rf "$LIB_PATH/openssl/windows/lib64"
+    rm -rf "$LIB_PATH/openssl/windows/bin"
+) &
 
-# Patch Mingw bug for 3.6.0
-# See https://github.com/openssl/openssl/issues/28679
-if [ "$version" == "3.6.0" ]; then
-    sed -i '545c#if defined\(OPENSSL_SYS_WINDOWS\) && \!defined\(__MINGW32__\)' test/bioprinttest.c
-fi
-
-# Reconfigure for Windows build
-echo "Configuring build... This may take a minute."
-./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" 1> /dev/null
-
-# Build OpenSSL static for Windows
-make -j$(nproc) 1> /dev/null
-make install_sw 1> /dev/null
-
-# Move library files
-mkdir "$LIB_PATH/openssl/windows/lib"
-mv "$LIB_PATH/openssl/windows/lib64/"*.a "$LIB_PATH/openssl/windows/lib"
-rm -rf "$LIB_PATH/openssl/windows/lib64"
-rm -rf "$LIB_PATH/openssl/windows/bin"
-
-echo "Built Windows binaries."
-
-cd ..
-rm -rf "openssl-$version"
+wait
 
 # ==== Clean Up ====
+rm -f "openssl-$version.tar.gz"
+rm -rf "openssl-$version-linux"
+rm -rf "openssl-$version-windows"
 
-rm -f "$LIB_PATH/openssl-$version.tar.gz"
+# Update artifacts.lock
+$TOOLS_PATH/update_artifact "openssl" "$version"
 
 echo "✅ Successfully built OpenSSL v$version library."

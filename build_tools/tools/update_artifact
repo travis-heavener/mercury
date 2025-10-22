@@ -1,0 +1,27 @@
+#!/bin/bash
+
+#
+# Updates artifacts.lock's dependency and version
+#
+# Usage (ex. update OpenSSL to v3.6.0):
+#   ./update_artifact "openssl" "3.6.0"
+#
+
+# CD into libs directory
+cd "$(dirname "$0")/../../"
+
+if [ ! -d "libs" ]; then
+    mkdir libs
+fi
+
+cd libs
+
+if [ ! -e "artifacts.lock" ]; then
+    echo "" > artifacts.lock
+fi
+
+if grep -q "^$1=" artifacts.lock; then
+    sed -i "s/^$1=.*$/$1=$2/" artifacts.lock
+else
+    { echo "$1=$2"; cat artifacts.lock; } > temp && mv temp artifacts.lock
+fi

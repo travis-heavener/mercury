@@ -35,13 +35,13 @@ DEPS = src/conf/*.hpp \
 	src/pch/*.hpp \
 	$(SRCS)
 
-all: pch_linux $(TARGET) pch_windows $(TARGET_WIN)
-linux: pch_linux $(TARGET)
-windows: pch_windows $(TARGET_WIN)
+all: $(TARGET) $(TARGET_WIN)
+linux: $(TARGET)
+windows: $(TARGET_WIN)
 
 $(TARGET): $(DEPS) $(ARTIFACTS_LOCK)
+	@make pch_linux --no-print-directory
 	@./build_tools/validate_libs.sh --q
-	@echo -n "Building for Linux... "
 	@./build_tools/init_conf.sh
 	@g++ \
 		-include $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.hpp \
@@ -52,11 +52,11 @@ $(TARGET): $(DEPS) $(ARTIFACTS_LOCK)
 		$(LIB_FLAGS) \
 		2> >(grep -v -E "BIO_lookup_ex|getaddrinfo|gethostbyname|fetchLatestVersion")
 	@upx $(TARGET) -qqq
-	@echo "✅ Done."
+	@echo "✅ Built for Linux."
 
 $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
+	@make pch_windows --no-print-directory
 	@./build_tools/validate_libs.sh --q
-	@echo -n "Building for Windows... "
 	@./build_tools/init_conf.sh
 	@x86_64-w64-mingw32-windres src/res/icon.rc -O coff -o $(TARGET_WIN_ICON)
 	@x86_64-w64-mingw32-g++-posix \
@@ -70,7 +70,7 @@ $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
 		-mconsole \
 		-Wl,--subsystem,console
 	@upx $(TARGET_WIN) -qqq
-	@echo "✅ Done."
+	@echo "✅ Built for Windows."
 
 # Precompiled headers
 pch: pch_linux pch_windows
@@ -80,7 +80,6 @@ pch_windows: $(PCH_DIR)/common-win.hpp.gch
 $(PCH_DIR)/common-linux.hpp.gch: $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.hpp $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
 	@./build_tools/init_conf.sh
-	@echo -n "Building Linux PCH... "
 	@g++ -x c++-header \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
 		-I$(OPENSSL_DIR)/linux/include -I$(BROTLI_DIR)/linux/include -I$(ZLIB_DIR)/linux/include -I$(ZSTD_DIR)/linux/include -I$(PUGIXML_DIR) \
@@ -88,12 +87,11 @@ $(PCH_DIR)/common-linux.hpp.gch: $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.h
 		$(LIB_FLAGS) \
 		-c $(PCH_DIR)/common.hpp \
 		-o $(PCH_DIR)/common-linux.hpp.gch
-	@echo "✅ Done."
+	@echo "✅ Built Linux PCH."
 
 $(PCH_DIR)/common-win.hpp.gch: $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
 	@./build_tools/init_conf.sh
-	@echo -n "Building Windows PCH... "
 	@x86_64-w64-mingw32-g++-posix -x c++-header \
 		$(STATIC_FLAGS) $(GPP_FLAGS) \
 		-I$(OPENSSL_DIR)/windows/include -I$(BROTLI_DIR)/windows/include -I$(ZLIB_DIR)/windows/include -I$(ZSTD_DIR)/windows/include -I$(PUGIXML_DIR) \
@@ -102,7 +100,7 @@ $(PCH_DIR)/common-win.hpp.gch: $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp $
 		-c $(PCH_DIR)/common.hpp \
 		-o $(PCH_DIR)/common-win.hpp.gch \
 		-mconsole
-	@echo "✅ Done."
+	@echo "✅ Built Windows PCH."
 
 ############################ STATIC BUILD CONFIG ############################
 

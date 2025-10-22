@@ -53,7 +53,9 @@ jobs:
 
       # Make executables
       - name: Make Executable Shell Scripts
-        run: sudo chmod +x ./build_tools/*.sh
+        run: |
+          sudo chmod +x ./build_tools/*.sh
+          sudo chmod +x ./build_tools/tools/*
 
       # Install & cache APT deps
       - name: Install APT Deps
@@ -79,7 +81,7 @@ jobs:
       # Build
       - name: Build Mercury Binaries
         run: |
-          sudo make -B
+          sudo make -j -B
 
   Run-Linux-Tests:
     needs: Build

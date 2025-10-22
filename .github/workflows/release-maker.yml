@@ -113,7 +113,9 @@ jobs:
 
       # Make executables
       - name: Make Executable Shell Scripts
-        run: chmod +x ./build_tools/*.sh
+        run: |
+          chmod +x ./build_tools/*.sh
+          chmod +x ./build_tools/tools/*
 
       # Run release builder
       - name: Make Release
@@ -211,3 +213,7 @@ jobs:
         run: |
           BRANCH="release-update-${{ steps.version.outputs.version }}"
           git push origin --delete "$BRANCH" || echo "Branch already deleted"
+  
+  trigger-pages-update:
+    needs: release
+    uses: ./.github/workflows/docs-minify-validate.yml

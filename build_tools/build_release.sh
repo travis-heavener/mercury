@@ -3,18 +3,14 @@ set -e
 
 # CD into project directory
 cd "$(dirname "$0")/../"
+TOOLS_PATH=$(pwd)/build_tools/tools
 
 # Rebuild binaries
 make
 
-if [ -d "temp_release" ]; then
-    rm -rf temp_release
-fi
+$TOOLS_PATH/safe_rm "temp_release"
+$TOOLS_PATH/safe_rm "releases"
 
-# Clear releases directory
-if [ -d "releases" ]; then
-    rm -rf releases
-fi
 mkdir releases
 
 # Read version

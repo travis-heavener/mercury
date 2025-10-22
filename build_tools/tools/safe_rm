@@ -1,0 +1,11 @@
+#!/bin/bash
+
+#
+# Removes a file or directory (recursive) if exists
+#
+
+if [ -d "$1" ]; then
+    rm -rf "$1"
+elif [ -f "$1" ]; then
+    rm -f "$1"
+fi

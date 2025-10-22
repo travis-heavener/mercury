@@ -9,6 +9,7 @@ if [ ! -d "libs" ]; then
     mkdir libs
 fi
 
+TOOLS_PATH=$(pwd)/build_tools/tools
 cd libs
 LIB_PATH=$(pwd)
 
@@ -23,34 +24,14 @@ if [ -d "zstd" ]; then
     fi
 fi
 
-# Update artifacts.lock
+# Fetch version
 version=$( cat ../build_tools/dependencies.txt | grep -Po "(?<=^ZSTD=)(.*)$" )
-if [ ! -e "artifacts.lock" ]; then
-    touch artifacts.lock
-    echo "" | gzip | base64 > artifacts.lock
-fi
-
-# Unpack artifacts
-cat artifacts.lock | base64 --decode | gunzip > artifacts.raw
-
-if grep -q "^zstd=" artifacts.raw; then
-    sed -i "s/^zstd=.*$/zstd=$version/" artifacts.raw
-else
-    { echo "zstd=$version"; cat artifacts.raw; } > temp && mv temp artifacts.raw
-fi
-
-# Repack artifacts
-cat artifacts.raw | gzip | base64 > artifacts.lock
-rm -f artifacts.raw
 
 # Clean existing
-if [ -d "zstd-$version" ]; then
-    rm -rf "zstd-$version"
-fi
-
-if [ -f "zstd-$version.tar.gz" ]; then
-    rm -f "zstd-$version.tar.gz"
-fi
+$TOOLS_PATH/safe_rm "zstd-$version"
+$TOOLS_PATH/safe_rm "zstd-$version-linux"
+$TOOLS_PATH/safe_rm "zstd-$version-windows"
+$TOOLS_PATH/safe_rm "zstd-$version.tar.gz"
 
 # Get Zstandard source
 wget -q --no-check-certificate "https://github.com/facebook/zstd/releases/download/v$version/zstd-$version.tar.gz"
@@ -60,38 +41,38 @@ mkdir zstd
 mkdir zstd/linux zstd/linux/include zstd/linux/lib
 mkdir zstd/windows zstd/windows/include zstd/windows/lib
 
-# Unpack tarball
+# Extract archive
 tar -xzf "zstd-$version.tar.gz"
 echo "Extracted archive."
-cd "zstd-$version/lib"
 
-# ==== Linux Build ====
+# ==== Build in Parallel ====
+cp -r "zstd-$version" "zstd-$version-windows"
+mv "zstd-$version" "zstd-$version-linux"
 
-# Make libzstd.a
-make libzstd.a
+(
+    cd "zstd-$version-linux/lib"
+    make -j$(nproc) libzstd.a 1> /dev/null
+    cp *.h "$LIB_PATH/zstd/linux/include"
+    mv libzstd.a "$LIB_PATH/zstd/linux/lib"
+) &
 
-# Copy include headers & static lib
-cp *.h "$LIB_PATH/zstd/linux/include"
-mv libzstd.a "$LIB_PATH/zstd/linux/lib"
+(
+    cd "zstd-$version-windows/lib"
+    make -j$(nproc) libzstd.a CC=x86_64-w64-mingw32-gcc 1> /dev/null
+    cp *.h "$LIB_PATH/zstd/windows/include"
+    mv libzstd.a "$LIB_PATH/zstd/windows/lib"
+) &
 
-echo "Built Linux binaries."
-
-# ==== Windows Build ====
-
-# Make libzstd.a
-make libzstd.a CC=x86_64-w64-mingw32-gcc
-
-# Copy include headers & static lib
-cp *.h "$LIB_PATH/zstd/windows/include"
-mv libzstd.a "$LIB_PATH/zstd/windows/lib"
-
-echo "Built Windows binaries."
+wait
 
 # ==== Clean Up ====
-
-cd ../..
+cd "$LIB_PATH"
 rm -rf "zstd-$version"
+rm -rf "zstd-$version-linux"
+rm -rf "zstd-$version-windows"
+rm -f "zstd-$version.tar.gz"
 
-rm -f "$LIB_PATH/zstd-$version.tar.gz"
+# Update artifacts.lock
+$TOOLS_PATH/update_artifact "zstd" "$version"
 
 echo "✅ Successfully built Zstandard v$version library."

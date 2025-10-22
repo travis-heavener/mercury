@@ -9,6 +9,7 @@ if [ ! -d "libs" ]; then
     mkdir libs
 fi
 
+TOOLS_PATH=$(pwd)/build_tools/tools
 cd libs
 LIB_PATH=$(pwd)
 
@@ -24,88 +25,73 @@ if [ -d "brotli" ]; then
     fi
 fi
 
-# Update artifacts.lock
+# Fetch version
 version=$( cat ../build_tools/dependencies.txt | grep -Po "(?<=^BROTLI=)(.*)$" )
-if [ ! -e "artifacts.lock" ]; then
-    touch artifacts.lock
-    echo "" | gzip | base64 > artifacts.lock
-fi
-
-# Unpack artifacts
-cat artifacts.lock | base64 --decode | gunzip > artifacts.raw
-
-if grep -q "^brotli=" artifacts.raw; then
-    sed -i "s/^brotli=.*$/brotli=$version/" artifacts.raw
-else
-    { echo "brotli=$version"; cat artifacts.raw; } > temp && mv temp artifacts.raw
-fi
-
-# Repack artifacts
-cat artifacts.raw | gzip | base64 > artifacts.lock
-rm -f artifacts.raw
 
 # Clean existing
-if [ -d "brotli-repo" ]; then
-    rm -rf brotli-repo
-fi
+$TOOLS_PATH/safe_rm "brotli-$version.tar.gz"
+$TOOLS_PATH/safe_rm "brotli-$version"
+$TOOLS_PATH/safe_rm "brotli-$version-linux"
+$TOOLS_PATH/safe_rm "brotli-$version-windows"
 
 # Download Brotli tarball
-wget -q --no-check-certificate "https://github.com/google/brotli/archive/refs/tags/v$version.tar.gz" -O brotli-repo.tar.gz
-tar -xzf brotli-repo.tar.gz
+wget -q --no-check-certificate "https://github.com/google/brotli/archive/refs/tags/v$version.tar.gz" -O "brotli-$version.tar.gz"
 echo "Fetched Brotli archive."
 
-# Remove tarball & rename
-rm -f brotli-repo.tar.gz
-mv "brotli-$version" brotli-repo
-cd brotli-repo
+mkdir brotli
+mkdir brotli/linux brotli/linux/include brotli/linux/lib
+mkdir brotli/windows brotli/windows/include brotli/windows/lib
 
-mkdir -p "$LIB_PATH/brotli"
-mkdir build && cd build
+# Extract archive
+tar -xzf "brotli-$version.tar.gz"
+echo "Extracted archive."
 
-# ==== Linux Build ====
+# ==== Build in Parallel ====
+cp -r "brotli-$version" "brotli-$version-windows"
+mv "brotli-$version" "brotli-$version-linux"
 
-# Prepare CMAKE for compilation
-cmake .. \
--DCMAKE_BUILD_TYPE=Release \
--DBROTLI_BUNDLED_MODE=ON \
--DBUILD_SHARED_LIBS=OFF
+(
+    cd "brotli-$version-linux"
+    mkdir build && cd build
 
-# Build
-make
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBROTLI_BUNDLED_MODE=ON \
+        -DBUILD_SHARED_LIBS=OFF 1> /dev/null
+    make -j$(nproc) 1> /dev/null
 
-# Extract resources
-mkdir "$LIB_PATH/brotli/linux" "$LIB_PATH/brotli/linux/lib"
+    # Move library files
+    mv *.a "$LIB_PATH/brotli/linux/lib"
+    cp -r ../c/include "$LIB_PATH/brotli/linux"
+) &
 
-mv *.a "$LIB_PATH/brotli/linux/lib"
-cp -r "$LIB_PATH/brotli-repo/c/include" "$LIB_PATH/brotli/linux/include"
+(
+    cd "brotli-$version-windows"
+    mkdir build && cd build
 
-cd ..
-# ==== Windows Build ====
+    cmake .. \
+        -DCMAKE_SYSTEM_NAME=Windows \
+        -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+        -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBROTLI_BUNDLED_MODE=ON \
+        -DBUILD_SHARED_LIBS=OFF 1> /dev/null
+    make -j$(nproc) 1> /dev/null
 
-# Wipe build dir
-rm -rf build
-mkdir build && cd build
+    # Move library files
+    mv *.a "$LIB_PATH/brotli/windows/lib"
+    cp -r ../c/include "$LIB_PATH/brotli/windows"
+) &
 
-# Set Windows cross-compiling with MinGW
-cmake .. \
-    -DCMAKE_SYSTEM_NAME=Windows \
-    -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
-    -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBROTLI_BUNDLED_MODE=ON \
-    -DBUILD_SHARED_LIBS=OFF
-
-# Build
-make
-
-# Extract headers & linker files
-mkdir "$LIB_PATH/brotli/windows" "$LIB_PATH/brotli/windows/lib"
-
-mv *.a "$LIB_PATH/brotli/windows/lib"
-mv "$LIB_PATH/brotli-repo/c/include" "$LIB_PATH/brotli/windows/include"
+wait
 
 # ==== Clean Up ====
 cd "$LIB_PATH"
-rm -rf "$LIB_PATH/brotli-repo"
+rm -f "brotli-$version.tar.gz"
+rm -rf "brotli-$version-linux"
+rm -rf "brotli-$version-windows"
+
+# Update artifacts.lock
+$TOOLS_PATH/update_artifact "brotli" "$version"
 
 echo "✅ Successfully built Brotli v$version library."
