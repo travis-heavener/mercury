@@ -53,7 +53,9 @@ jobs:
 
       # Make executables
       - name: Make Executable Shell Scripts
-        run: sudo chmod +x ./build_tools/*.sh
+        run: |
+          sudo chmod +x ./build_tools/*.sh
+          sudo chmod +x ./build_tools/tools/*
 
       # Install & cache APT deps
       - name: Install APT Deps
