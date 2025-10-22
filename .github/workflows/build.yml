@@ -59,14 +59,14 @@ jobs:
           sudo ./build_tools/install_workflow_deps.sh
 
           if [ ! -d libs ] || [ -z "$(ls -A libs)" ]; then
-            make lib_brotli
-            make lib_openssl
-            make lib_pugixml
-            make lib_zstd
+            yes | make lib_brotli
+            yes | make lib_openssl
+            yes | make lib_pugixml
+            yes | make lib_zstd
           fi
 
           # Build static zlib anyways (can't cache, takes < 10 sec)
-          make lib_zlib
+          yes | make lib_zlib
 
       # Build
       - name: Build Mercury Binaries
