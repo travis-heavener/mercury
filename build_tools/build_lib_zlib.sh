@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # CD into project directory
 cd "$(dirname "$0")/../"
 
