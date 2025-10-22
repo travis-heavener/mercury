@@ -226,7 +226,3 @@ jobs:
         run: |
           BRANCH="release-update-${{ steps.version.outputs.version }}"
           git push origin --delete "$BRANCH" || echo "Branch already deleted"
-  
-  trigger-pages-update:
-    needs: release
-    uses: ./.github/workflows/docs-minify-validate.yml
