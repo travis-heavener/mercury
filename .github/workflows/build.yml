@@ -8,11 +8,13 @@ on:
     paths:
       - "src/**"
       - "build_tools/**"
+      - "tests/**"
   pull_request:
     branches: ["main"]
     paths:
       - "src/**"
       - "build_tools/**"
+      - "tests/**"
 
 jobs:
   Build:
