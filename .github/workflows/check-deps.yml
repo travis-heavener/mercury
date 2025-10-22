@@ -33,7 +33,6 @@ jobs:
         if: ${{ steps.version.outputs.deps_changed != 'None' }}
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          persist-credentials: false
         run: |
           # Create branch & commit
           git checkout -b auto-deps-update-${{ github.run_id }}
@@ -45,7 +44,6 @@ jobs:
         if: ${{ steps.version.outputs.deps_changed != 'None' }}
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          persist-credentials: false
         run: |
           PR_BODY=$( echo -e "Automated dependencies bump for ${{ steps.version.outputs.deps_changed }}.\n\n**NOTE**: Manual CHANGELOG.md and version.txt updates are required." )
 
