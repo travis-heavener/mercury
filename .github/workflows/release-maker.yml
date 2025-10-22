@@ -189,7 +189,6 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           # Create branch & commit
-          git remote add origin https://{username}:{password}@github.com/{username}/project.git
           git checkout -b release-update-${{ steps.version.outputs.version }}
           git add docs/releases.json docs/latest
           git commit -m "Update release metadata for ${{ steps.version.outputs.version }}" || echo "No changes to commit"
