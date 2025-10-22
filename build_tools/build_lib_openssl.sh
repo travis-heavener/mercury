@@ -38,30 +38,34 @@ $TOOLS_PATH/safe_rm "openssl-$version.tar.gz"
 wget -q --no-check-certificate "https://www.openssl.org/source/openssl-$version.tar.gz"
 echo "Fetched OpenSSL archive."
 
+mkdir openssl
+mkdir openssl/linux openssl/linux/include openssl/linux/lib
+mkdir openssl/windows openssl/windows/include openssl/windows/lib
+
 # Extract archive
 tar -xzf "openssl-$version.tar.gz"
 echo "Extracted archive."
+echo "Building static libraries, please wait..."
 
 # ==== Build in Parallel ====
 cp -r "openssl-$version" "openssl-$version-windows"
 mv "openssl-$version" "openssl-$version-linux"
 
 (
-    cd "openssl-$version-linux" &&
+    cd "openssl-$version-linux"
 
     ./Configure linux-x86_64 no-shared no-dso no-asm no-ssl3 no-comp no-tests no-docs no-legacy --prefix="$LIB_PATH/openssl/linux" 1> /dev/null
-    make -j$(nproc) 1>/dev/null &&
-    make install_sw 1>/dev/null
+    make -j$(nproc) &>/dev/null
+    make install_sw &>/dev/null
 
     # Move library files
-    mkdir "$LIB_PATH/openssl/linux/lib"
     mv "$LIB_PATH/openssl/linux/lib64/"*.a "$LIB_PATH/openssl/linux/lib"
     rm -rf "$LIB_PATH/openssl/linux/lib64"
     rm -rf "$LIB_PATH/openssl/linux/bin"
 ) &
 
 (
-    cd "openssl-$version-windows" &&
+    cd "openssl-$version-windows"
 
     # Patch Mingw bug for 3.6.0
     # See https://github.com/openssl/openssl/issues/28679
@@ -70,11 +74,10 @@ mv "openssl-$version" "openssl-$version-linux"
     fi
 
     ./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp no-tests no-docs no-legacy --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" 1> /dev/null
-    make -j$(nproc) 1>/dev/null &&
-    make install_sw 1>/dev/null
+    make -j$(nproc) &>/dev/null
+    make install_sw &>/dev/null
 
     # Move library files
-    mkdir "$LIB_PATH/openssl/windows/lib"
     mv "$LIB_PATH/openssl/windows/lib64/"*.a "$LIB_PATH/openssl/windows/lib"
     rm -rf "$LIB_PATH/openssl/windows/lib64"
     rm -rf "$LIB_PATH/openssl/windows/bin"
@@ -83,11 +86,9 @@ mv "openssl-$version" "openssl-$version-linux"
 wait
 
 # ==== Clean Up ====
+rm -f "openssl-$version.tar.gz"
 rm -rf "openssl-$version-linux"
 rm -rf "openssl-$version-windows"
-
-cd "$LIB_PATH"
-rm -f "openssl-$version.tar.gz"
 
 # Update artifacts.lock
 $TOOLS_PATH/update_artifact "openssl" "$version"
