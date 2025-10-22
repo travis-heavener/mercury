@@ -15,13 +15,18 @@ LIB_PATH=$(pwd)
 
 # Clean existing
 if [ -d "brotli" ]; then
-    read -r -p "This operation will overwrite an existing build of Brotli. Continue? [y/N] " res
-    res=$(echo $res | tr '[:upper:]' '[:lower:]') # Lowercase
-    if [[ "$res" =~ ^(yes|y)$ ]]; then
-        rm -rf brotli
+    if [ -t 0 ]; then
+        read -r -p "This operation will overwrite an existing build of Brotli. Continue? [y/N] " res
+        res=$(echo $res | tr '[:upper:]' '[:lower:]') # Lowercase
+        if [[ "$res" =~ ^(yes|y)$ ]]; then
+            rm -rf brotli
+        else
+            echo "Aborting..."
+            exit 0
+        fi
     else
-        echo "Aborting..."
-        exit 0
+        # No shell connected
+        rm -rf brotli
     fi
 fi
 
@@ -57,8 +62,8 @@ mv "brotli-$version" "brotli-$version-linux"
     cmake .. \
         -DCMAKE_BUILD_TYPE=Release \
         -DBROTLI_BUNDLED_MODE=ON \
-        -DBUILD_SHARED_LIBS=OFF 1> /dev/null
-    make -j$(nproc) 1> /dev/null
+        -DBUILD_SHARED_LIBS=OFF &> /dev/null
+    make -j$(nproc) &> /dev/null
 
     # Move library files
     mv *.a "$LIB_PATH/brotli/linux/lib"
@@ -75,8 +80,8 @@ mv "brotli-$version" "brotli-$version-linux"
         -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
         -DCMAKE_BUILD_TYPE=Release \
         -DBROTLI_BUNDLED_MODE=ON \
-        -DBUILD_SHARED_LIBS=OFF 1> /dev/null
-    make -j$(nproc) 1> /dev/null
+        -DBUILD_SHARED_LIBS=OFF &> /dev/null
+    make -j$(nproc) &> /dev/null
 
     # Move library files
     mv *.a "$LIB_PATH/brotli/windows/lib"

@@ -15,13 +15,18 @@ LIB_PATH=$(pwd)
 
 # Clean existing
 if [ -d "openssl" ]; then
-    read -r -p "This operation will overwrite an existing build of OpenSSL. Continue? [y/N] " res
-    res=$(echo $res | tr '[:upper:]' '[:lower:]') # Lowercase
-    if [[ "$res" =~ ^(yes|y)$ ]]; then
-        rm -rf openssl
+    if [ -t 0 ]; then
+        read -r -p "This operation will overwrite an existing build of OpenSSL. Continue? [y/N] " res
+        res=$(echo $res | tr '[:upper:]' '[:lower:]') # Lowercase
+        if [[ "$res" =~ ^(yes|y)$ ]]; then
+            rm -rf openssl
+        else
+            echo "Aborting..."
+            exit 0
+        fi
     else
-        echo "Aborting..."
-        exit 0
+        # No shell connected
+        rm -rf openssl
     fi
 fi
 
