@@ -4,6 +4,6 @@
 sudo apt update
 sudo DEBIAN_FRONTEND=noninteractive apt install \
     mingw-w64 \
-    -y --no-install-recommends
+    -y --no-install-recommends 1> /dev/null
 
 echo "✅ Successfully installed workflow dependencies."
