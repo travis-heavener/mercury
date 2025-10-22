@@ -9,6 +9,7 @@ if [ ! -d "libs" ]; then
     mkdir libs
 fi
 
+TOOLS_PATH=$(pwd)/build_tools/tools
 cd libs
 LIB_PATH=$(pwd)
 
@@ -23,34 +24,12 @@ if [ -d "zstd" ]; then
     fi
 fi
 
-# Update artifacts.lock
+# Fetch version
 version=$( cat ../build_tools/dependencies.txt | grep -Po "(?<=^ZSTD=)(.*)$" )
-if [ ! -e "artifacts.lock" ]; then
-    touch artifacts.lock
-    echo "" | gzip | base64 > artifacts.lock
-fi
-
-# Unpack artifacts
-cat artifacts.lock | base64 --decode | gunzip > artifacts.raw
-
-if grep -q "^zstd=" artifacts.raw; then
-    sed -i "s/^zstd=.*$/zstd=$version/" artifacts.raw
-else
-    { echo "zstd=$version"; cat artifacts.raw; } > temp && mv temp artifacts.raw
-fi
-
-# Repack artifacts
-cat artifacts.raw | gzip | base64 > artifacts.lock
-rm -f artifacts.raw
 
 # Clean existing
-if [ -d "zstd-$version" ]; then
-    rm -rf "zstd-$version"
-fi
-
-if [ -f "zstd-$version.tar.gz" ]; then
-    rm -f "zstd-$version.tar.gz"
-fi
+$TOOLS_PATH/safe_rm "zstd-$version"
+$TOOLS_PATH/safe_rm "zstd-$version.tar.gz"
 
 # Get Zstandard source
 wget -q --no-check-certificate "https://github.com/facebook/zstd/releases/download/v$version/zstd-$version.tar.gz"
@@ -89,9 +68,11 @@ echo "Built Windows binaries."
 
 # ==== Clean Up ====
 
-cd ../..
+cd "$LIB_PATH"
 rm -rf "zstd-$version"
+rm -f "zstd-$version.tar.gz"
 
-rm -f "$LIB_PATH/zstd-$version.tar.gz"
+# Update artifacts.lock
+$TOOLS_PATH/update_artifact "zstd" "$version"
 
 echo "✅ Successfully built Zstandard v$version library."

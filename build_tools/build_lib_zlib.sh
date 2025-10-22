@@ -9,6 +9,7 @@ if [ ! -d "libs" ]; then
     mkdir libs
 fi
 
+TOOLS_PATH=$(pwd)/build_tools/tools
 cd libs
 LIB_PATH=$(pwd)
 
@@ -23,34 +24,12 @@ if [ -d "zlib" ]; then
     fi
 fi
 
-# Update artifacts.lock
+# Fetch version
 version=$( cat ../build_tools/dependencies.txt | grep -Po "(?<=^ZLIB=)(.*)$" )
-if [ ! -e "artifacts.lock" ]; then
-    touch artifacts.lock
-    echo "" | gzip | base64 > artifacts.lock
-fi
-
-# Unpack artifacts
-cat artifacts.lock | base64 --decode | gunzip > artifacts.raw
-
-if grep -q "^zlib=" artifacts.raw; then
-    sed -i "s/^zlib=.*$/zlib=$version/" artifacts.raw
-else
-    { echo "zlib=$version"; cat artifacts.raw; } > temp && mv temp artifacts.raw
-fi
-
-# Repack artifacts
-cat artifacts.raw | gzip | base64 > artifacts.lock
-rm -f artifacts.raw
 
 # Clean existing
-if [ -d "zlib-$version" ]; then
-    rm -rf "zlib-$version"
-fi
-
-if [ -f "zlib-$version.tar.gz" ]; then
-    rm -f "zlib-$version.tar.gz"
-fi
+$TOOLS_PATH/safe_rm "zlib-$version"
+$TOOLS_PATH/safe_rm "zlib-$version.tar.gz"
 
 # Get Zlib source
 wget -q --no-check-certificate "https://zlib.net/zlib-$version.tar.gz"
@@ -85,9 +64,6 @@ rm -rf "zlib-$version"
 tar -xzf "zlib-$version.tar.gz"
 cd "zlib-$version"
 
-# Copy headers
-# cp *.h "$LIB_PATH/zlib/windows/include/"
-
 # Static build
 MAKEFILE_PATH="win32/Makefile.gcc"
 sed -i 's/^PREFIX *=.*$/PREFIX=x86_64-w64-mingw32-/' "$MAKEFILE_PATH"
@@ -107,8 +83,11 @@ make -B -f "$MAKEFILE_PATH" install \
 rm -rf "$LIB_PATH/zlib/windows/lib/pkgconfig"
 
 # ==== Clean Up ====
-cd ../
+cd "$LIB_PATH"
 rm -rf "zlib-$version"
 rm -f "zlib-$version.tar.gz"
+
+# Update artifacts.lock
+$TOOLS_PATH/update_artifact "zlib" "$version"
 
 echo "✅ Successfully built Zlib v$version library."

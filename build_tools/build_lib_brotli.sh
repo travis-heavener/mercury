@@ -9,6 +9,7 @@ if [ ! -d "libs" ]; then
     mkdir libs
 fi
 
+TOOLS_PATH=$(pwd)/build_tools/tools
 cd libs
 LIB_PATH=$(pwd)
 
@@ -24,30 +25,11 @@ if [ -d "brotli" ]; then
     fi
 fi
 
-# Update artifacts.lock
+# Fetch version
 version=$( cat ../build_tools/dependencies.txt | grep -Po "(?<=^BROTLI=)(.*)$" )
-if [ ! -e "artifacts.lock" ]; then
-    touch artifacts.lock
-    echo "" | gzip | base64 > artifacts.lock
-fi
-
-# Unpack artifacts
-cat artifacts.lock | base64 --decode | gunzip > artifacts.raw
-
-if grep -q "^brotli=" artifacts.raw; then
-    sed -i "s/^brotli=.*$/brotli=$version/" artifacts.raw
-else
-    { echo "brotli=$version"; cat artifacts.raw; } > temp && mv temp artifacts.raw
-fi
-
-# Repack artifacts
-cat artifacts.raw | gzip | base64 > artifacts.lock
-rm -f artifacts.raw
 
 # Clean existing
-if [ -d "brotli-repo" ]; then
-    rm -rf brotli-repo
-fi
+$TOOLS_PATH/safe_rm "brotli-repo"
 
 # Download Brotli tarball
 wget -q --no-check-certificate "https://github.com/google/brotli/archive/refs/tags/v$version.tar.gz" -O brotli-repo.tar.gz
@@ -107,5 +89,8 @@ mv "$LIB_PATH/brotli-repo/c/include" "$LIB_PATH/brotli/windows/include"
 # ==== Clean Up ====
 cd "$LIB_PATH"
 rm -rf "$LIB_PATH/brotli-repo"
+
+# Update artifacts.lock
+$TOOLS_PATH/update_artifact "brotli" "$version"
 
 echo "✅ Successfully built Brotli v$version library."
