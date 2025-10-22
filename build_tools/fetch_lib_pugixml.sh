@@ -9,6 +9,7 @@ if [ ! -d "libs" ]; then
     mkdir libs
 fi
 
+TOOLS_PATH=$(pwd)/build_tools/tools
 cd libs
 LIB_PATH=$(pwd)
 
@@ -24,49 +25,27 @@ if [ -d "pugixml" ]; then
     fi
 fi
 
-# Update artifacts.lock
+# Fetch version
 version=$( cat ../build_tools/dependencies.txt | grep -Po "(?<=^PUGIXML=)(.*)$" )
-if [ ! -e "artifacts.lock" ]; then
-    touch artifacts.lock
-    echo "" | gzip | base64 > artifacts.lock
-fi
-
-# Unpack artifacts
-cat artifacts.lock | base64 --decode | gunzip > artifacts.raw
-
-if grep -q "^pugixml=" artifacts.raw; then
-    sed -i "s/^pugixml=.*$/pugixml=$version/" artifacts.raw
-else
-    { echo "pugixml=$version"; cat artifacts.raw; } > temp && mv temp artifacts.raw
-fi
-
-# Repack artifacts
-cat artifacts.raw | gzip | base64 > artifacts.lock
-rm -f artifacts.raw
 
 # Clean existing
-if [ -d "pugixml-$version" ]; then
-    rm -rf "pugixml-$version"
-fi
-
-if [ -f "pugixml-$version.tar.gz" ]; then
-    rm -f "pugixml-$version.tar.gz"
-fi
+$TOOLS_PATH/safe_rm "pugixml-$version"
+$TOOLS_PATH/safe_rm "pugixml-$version.tar.gz"
 
 # ==== Download ====
 wget -q --no-check-certificate "https://github.com/zeux/pugixml/releases/download/v$version/pugixml-$version.tar.gz"
-
-# Extract & remove tarball
 tar -xzf "pugixml-$version.tar.gz"
-rm "pugixml-$version.tar.gz"
-
-# Make lib directory
-mkdir pugixml
 
 # Move source
+mkdir pugixml
 mv "pugixml-$version/src/"* pugixml
 
 # ==== Clean Up ====
+cd "$LIB_PATH"
 rm -rf "pugixml-$version"
+rm -f "pugixml-$version.tar.gz"
+
+# Update artifacts.lock
+$TOOLS_PATH/update_artifact "pugixml" "$version"
 
 echo "✅ Successfully fetched PugiXML v$version source."

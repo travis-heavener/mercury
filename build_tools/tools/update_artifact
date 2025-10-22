@@ -17,19 +17,11 @@ fi
 cd libs
 
 if [ ! -e "artifacts.lock" ]; then
-    touch artifacts.lock
-    echo "" | gzip | base64 > artifacts.lock
+    echo "" > artifacts.lock
 fi
 
-# Unpack artifacts
-cat artifacts.lock | base64 --decode | gunzip > artifacts.raw
-
-if grep -q "^$1=" artifacts.raw; then
-    sed -i "s/^$1=.*$/$1=$2/" artifacts.raw
+if grep -q "^$1=" artifacts.lock; then
+    sed -i "s/^$1=.*$/$1=$2/" artifacts.lock
 else
-    { echo "$1=$2"; cat artifacts.raw; } > temp && mv temp artifacts.raw
+    { echo "$1=$2"; cat artifacts.lock; } > temp && mv temp artifacts.lock
 fi
-
-# Repack artifacts
-cat artifacts.raw | gzip | base64 > artifacts.lock
-rm -f artifacts.raw

@@ -51,7 +51,7 @@ cp zconf.h "$LIB_PATH/zlib/linux/include/"
 
 # Static build
 ./configure 1> /dev/null
-make libz.a
+make -j$(nproc) libz.a
 mv libz.a "$LIB_PATH/zlib/linux/lib/"
 
 # Reset for Windows build
@@ -69,12 +69,12 @@ MAKEFILE_PATH="win32/Makefile.gcc"
 sed -i 's/^PREFIX *=.*$/PREFIX=x86_64-w64-mingw32-/' "$MAKEFILE_PATH"
 sed -i 's/^CC *=.*$/CC=\$(PREFIX)gcc-win32/' "$MAKEFILE_PATH"
 
-make -B -f "$MAKEFILE_PATH" \
+make -j$(nproc) -B -f "$MAKEFILE_PATH" \
     BINARY_PATH="/dev/null" \
     INCLUDE_PATH="$LIB_PATH/zlib/windows/include" \
     LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" 1> /dev/null
 
-make -B -f "$MAKEFILE_PATH" install \
+make -j$(nproc) -B -f "$MAKEFILE_PATH" install \
     BINARY_PATH="/dev/null" \
     INCLUDE_PATH="$LIB_PATH/zlib/windows/include" \
     LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" 1> /dev/null

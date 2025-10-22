@@ -24,49 +24,42 @@ cd libs
 
 # Verify artifacts.lock exists
 if [ ! -e "artifacts.lock" ]; then
-    touch artifacts.lock
-    echo "" | gzip | base64 > artifacts.lock
+    echo "" > artifacts.lock
 fi
-
-# Unpack artifacts
-cat artifacts.lock | base64 --decode | gunzip > artifacts.raw
-
-# Remove CRLF for LF
-sed -i 's/\r//g' artifacts.raw
 
 # === Brotli ===
 
 HAS_FAILED="false"
 
-if ! grep -q "^brotli=${BROTLI_VERSION}\$" artifacts.raw; then
+if ! grep -q "^brotli=${BROTLI_VERSION}\$" artifacts.lock; then
     echo "Update Brotli to $BROTLI_VERSION via \`make lib_brotli\`"
     HAS_FAILED="true"
 fi
 
 # === OpenSSL ===
 
-if ! grep -q "^openssl=${OPENSSL_VERSION}\$" artifacts.raw; then
+if ! grep -q "^openssl=${OPENSSL_VERSION}\$" artifacts.lock; then
     echo "Update OpenSSL to $OPENSSL_VERSION via \`make lib_openssl\`"
     HAS_FAILED="true"
 fi
 
 # === zlib ===
 
-if ! grep -q "^zlib=${ZLIB_VERSION}\$" artifacts.raw; then
+if ! grep -q "^zlib=${ZLIB_VERSION}\$" artifacts.lock; then
     echo "Update zlib to $ZLIB_VERSION via \`make lib_zlib\`"
     HAS_FAILED="true"
 fi
 
 # === PugiXML ===
 
-if ! grep -q "^pugixml=${PUGIXML_VERSION}\$" artifacts.raw; then
+if ! grep -q "^pugixml=${PUGIXML_VERSION}\$" artifacts.lock; then
     echo "Update PugiXML to $PUGIXML_VERSION via \`make lib_pugixml\`"
     HAS_FAILED="true"
 fi
 
 # === Zstandard ===
 
-if ! grep -q "^zstd=${ZSTD_VERSION}\$" artifacts.raw; then
+if ! grep -q "^zstd=${ZSTD_VERSION}\$" artifacts.lock; then
     echo "Update Zstandard to $ZSTD_VERSION via \`make lib_zstd\`"
     HAS_FAILED="true"
 fi
@@ -90,8 +83,6 @@ if dpkg --compare-versions "$CURRENT_MINGW_W64" lt "$MINGW_W64_VERSION"; then
 fi
 
 # === Close up ===
-
-rm -f artifacts.raw
 
 if [ $HAS_FAILED == "true" ]; then
     exit 1
