@@ -67,15 +67,8 @@ jobs:
       # Install deps & build static binaries
       - name: Build Libs
         run: |
-          # Run w/o make (not installed yet)
-          sudo ./build_tools/install_workflow_deps.sh
-
           if [ ! -d libs ] || [ -z "$(ls -A libs)" ]; then
-            (yes 2>/dev/null) | make lib_brotli
-            (yes 2>/dev/null) | make lib_openssl
-            (yes 2>/dev/null) | make lib_pugixml
-            (yes 2>/dev/null) | make lib_zstd
-            (yes 2>/dev/null) | make lib_zlib
+            make -j libs
           fi
 
       # Build
