@@ -29,6 +29,8 @@ version=$( cat ../build_tools/dependencies.txt | grep -Po "(?<=^ZLIB=)(.*)$" )
 
 # Clean existing
 $TOOLS_PATH/safe_rm "zlib-$version"
+$TOOLS_PATH/safe_rm "zlib-$version-linux"
+$TOOLS_PATH/safe_rm "zlib-$version-windows"
 $TOOLS_PATH/safe_rm "zlib-$version.tar.gz"
 
 # Get Zlib source
@@ -39,52 +41,53 @@ mkdir zlib
 mkdir zlib/linux zlib/linux/include zlib/linux/lib
 mkdir zlib/windows zlib/windows/include zlib/windows/lib
 
-# ==== Linux Build ====
-
-# Unpack tarball
+# Extract archive
 tar -xzf "zlib-$version.tar.gz"
-cd "zlib-$version"
+echo "Extracted archive."
 
-# Copy headers
-cp zlib.h "$LIB_PATH/zlib/linux/include/"
-cp zconf.h "$LIB_PATH/zlib/linux/include/"
+# ==== Build in Parallel ====
+cp -r "zlib-$version" "zlib-$version-windows"
+mv "zlib-$version" "zlib-$version-linux"
 
-# Static build
-./configure 1> /dev/null
-make -j$(nproc) libz.a
-mv libz.a "$LIB_PATH/zlib/linux/lib/"
+(
+    cd "zlib-$version-linux"
 
-# Reset for Windows build
-cd ../
-rm -rf "zlib-$version"
+    cp zlib.h "$LIB_PATH/zlib/linux/include/"
+    cp zconf.h "$LIB_PATH/zlib/linux/include/"
 
-# ==== Window Build ====
+    ./configure 1> /dev/null
+    make -j$(nproc) libz.a
+    mv libz.a "$LIB_PATH/zlib/linux/lib/"
+) &
 
-# Unpack tarball
-tar -xzf "zlib-$version.tar.gz"
-cd "zlib-$version"
+(
+    cd "zlib-$version-windows"
 
-# Static build
-MAKEFILE_PATH="win32/Makefile.gcc"
-sed -i 's/^PREFIX *=.*$/PREFIX=x86_64-w64-mingw32-/' "$MAKEFILE_PATH"
-sed -i 's/^CC *=.*$/CC=\$(PREFIX)gcc-win32/' "$MAKEFILE_PATH"
+    MAKEFILE_PATH="win32/Makefile.gcc"
+    sed -i 's/^PREFIX *=.*$/PREFIX=x86_64-w64-mingw32-/' "$MAKEFILE_PATH"
+    sed -i 's/^CC *=.*$/CC=\$(PREFIX)gcc-win32/' "$MAKEFILE_PATH"
 
-make -j$(nproc) -B -f "$MAKEFILE_PATH" \
-    BINARY_PATH="/dev/null" \
-    INCLUDE_PATH="$LIB_PATH/zlib/windows/include" \
-    LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" 1> /dev/null
+    make -j$(nproc) -B -f "$MAKEFILE_PATH" \
+        BINARY_PATH="/dev/null" \
+        INCLUDE_PATH="$LIB_PATH/zlib/windows/include" \
+        LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" 1> /dev/null
 
-make -j$(nproc) -B -f "$MAKEFILE_PATH" install \
-    BINARY_PATH="/dev/null" \
-    INCLUDE_PATH="$LIB_PATH/zlib/windows/include" \
-    LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" 1> /dev/null
+    make -j$(nproc) -B -f "$MAKEFILE_PATH" install \
+        BINARY_PATH="/dev/null" \
+        INCLUDE_PATH="$LIB_PATH/zlib/windows/include" \
+        LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" 1> /dev/null
 
-# Remove extra pkgconfig
-rm -rf "$LIB_PATH/zlib/windows/lib/pkgconfig"
+    # Remove extra pkgconfig
+    rm -rf "$LIB_PATH/zlib/windows/lib/pkgconfig"
+) &
+
+wait
 
 # ==== Clean Up ====
 cd "$LIB_PATH"
 rm -rf "zlib-$version"
+rm -rf "zlib-$version-linux"
+rm -rf "zlib-$version-windows"
 rm -f "zlib-$version.tar.gz"
 
 # Update artifacts.lock
