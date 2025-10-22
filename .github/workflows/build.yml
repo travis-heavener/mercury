@@ -39,7 +39,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ./libs
-          key: ${{ runner.os }}-artifacts-${{ hashFiles('**/build_tools/build_lib_brotli.sh', '**/build_tools/build_lib_openssl.sh', '**/build_tools/fetch_lib_pugixml.sh', '**/build_tools/build_lib_zstd.sh', '**/build_tools/dependencies.txt') }}
+          key: >-
+            ${{ runner.os }}-artifacts-${{
+              hashFiles(
+                '**/build_tools/fetch_lib_pugixml.sh',
+                '**/build_tools/build_lib_zlib.sh',
+                '**/build_tools/build_lib_openssl.sh',
+                '**/build_tools/build_lib_brotli.sh',
+                '**/build_tools/build_lib_zstd.sh',
+                '**/build_tools/dependencies.txt'
+              )
+            }}
 
       # Make executables
       - name: Make Executable Shell Scripts
@@ -49,7 +59,7 @@ jobs:
       - name: Install APT Deps
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: build-essential nasm zlib1g-dev php-cgi
+          packages: build-essential nasm php-cgi
           version: 1.0
 
       # Install deps & build static binaries
@@ -63,10 +73,8 @@ jobs:
             yes | make lib_openssl
             yes | make lib_pugixml
             yes | make lib_zstd
+            yes | make lib_zlib
           fi
-
-          # Build static zlib anyways (can't cache, takes < 10 sec)
-          yes | make lib_zlib
 
       # Build
       - name: Build Mercury Binaries
