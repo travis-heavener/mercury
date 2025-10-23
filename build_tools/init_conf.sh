@@ -8,6 +8,11 @@ cd "$(dirname "$0")/../"
 mkdir -p ./bin
 mkdir -p ./logs
 
+# Flock to prevent race condition in workflow
+lockfile="/tmp/mercury_conf.lock"
+exec 200>"$lockfile"
+flock -x 200
+
 # Copy default config if missing
 
 if [ ! -f ./conf/mercury.conf ]; then
@@ -17,3 +22,5 @@ fi
 if [ ! -f ./conf/mimes.conf ]; then
     cp -f ./conf/default/mimes.conf ./conf
 fi
+
+flock -u 200
