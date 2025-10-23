@@ -114,6 +114,11 @@ namespace http::version::handler_1_1 {
                         for (auto [name, value] : pMatch->getHeaders())
                             pResponse->setHeader(name, value);
 
+                // Update the byte ranges
+                if (pResponse->getContentLength() > 0)
+                    if (!pResponse->extendByteRanges(request.getByteRanges()))
+                        setStatusMaybeErrorDoc(request, *pResponse, 416); // Range Not Satisfiable            
+
                 return pResponse;
             }
         }

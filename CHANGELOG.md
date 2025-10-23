@@ -2,6 +2,7 @@
 
 ## v0.23.9
 - Fixed byte range size calculations for FileStream objects (#338)
+- Fixed byte ranges for PHP files (#339)
 - Remove Range header support from HTTP/1.0
     - Didn't exist in spec
 
