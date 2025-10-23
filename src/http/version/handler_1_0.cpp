@@ -137,11 +137,6 @@ namespace http::version::handler_1_0 {
                 if (pResponse->getContentLength() > 0)
                     pResponse->setHeader("Content-Type", file.MIME);
 
-                // Update the byte ranges
-                if (pResponse->getContentLength() > 0)
-                    if (!pResponse->extendByteRanges(request.getByteRanges()))
-                        setStatusMaybeErrorDoc(request, *pResponse, 416); // Range Not Satisfiable
-
                 // Load additional headers for body loading
                 for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
                     if (std::regex_match(file.rawPath, pMatch->getPattern()))
