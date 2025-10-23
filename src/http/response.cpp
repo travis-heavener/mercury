@@ -100,7 +100,7 @@ namespace http {
         for (const byte_range_t& byteRange : byteRanges) {
             const size_t first = byteRange.first;
             const size_t second = byteRange.second;
-            if ((first == npos && (second >= streamSize || second == 0)) || // Ex. bytes=-500
+            if ((first == npos && (second > streamSize || second == 0)) || // Ex. bytes=-500
                 (second == npos && (first >= streamSize)) || // Ex. bytes=0-
                 (first != npos && second != npos && (first > second || first >= streamSize || second >= streamSize)) // Ex. bytes=200-300
             ) {

@@ -105,12 +105,12 @@ namespace http {
             explicit FileStream(const std::string&, const bool=false);
             ~FileStream();
             size_t read(char* buffer, size_t maxBytes);
-            inline size_t size() const { return _size; };
+            size_t size() const;
             inline bool isPrecompressed() const { return isTempFile; };
         private:
             bool isTempFile = false;
             std::ifstream handle;
-            size_t _size;
+            size_t originalSize;
             const std::string path;
     };
 

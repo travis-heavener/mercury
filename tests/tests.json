@@ -161,13 +161,24 @@
             },
 
             {
-                "desc": "Byte Ranges",
-                "versions": [ "1.0", "1.1" ],
+                "desc": "Byte Ranges (HTTP/1.1)",
+                "versions": [ "1.1" ],
                 "cases": [
                     { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=0-13"}, "expectedHeaders": {"Content-Length": "14"} },
                     { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=-14"}, "expectedHeaders": {"Content-Length": "14"} },
                     { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=22-"}, "expectedHeaders": {"Content-Length": null} },
                     { "method": "HEAD", "path": "/", "expectedStatus": 416, "headers": {"Range": "bytes=0-13, -19"} }
+                ]
+            },
+
+            {
+                "desc": "Byte Ranges (HTTP/1.0)",
+                "versions": [ "1.0" ],
+                "cases": [
+                    { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Range": "bytes=0-13"}, "expectedHeaders": {"Content-Range": false} },
+                    { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Range": "bytes=-14"}, "expectedHeaders": {"Content-Range": false} },
+                    { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Range": "bytes=22-"}, "expectedHeaders": {"Content-Range": false} },
+                    { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Range": "bytes=0-13, -19"}, "expectedHeaders": {"Content-Range": false} }
                 ]
             },
 

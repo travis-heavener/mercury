@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.23.9
+- Fixed byte range size calculations for FileStream objects (#338)
+- Remove Range header support from HTTP/1.0
+    - Didn't exist in spec
+
 ## v0.23.8
 - Switch to fully, locally static Zlib for Linux (#326)
 

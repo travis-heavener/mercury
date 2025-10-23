@@ -284,7 +284,7 @@ namespace http {
             return;
         }
 
-        this->_size = handle.tellg(); // Grab size of file
+        originalSize = handle.tellg(); // Grab size of file
         handle.seekg(0, std::ios::beg); // Revert to start
     }
 
@@ -293,6 +293,17 @@ namespace http {
 
         // Remove if needed (for temp files)
         if (isTempFile) removeTempFile(path);
+    }
+
+    size_t FileStream::size() const {
+        if (this->byteRanges.empty())
+            return originalSize;
+
+        // Base case, byte ranges
+        size_t s = 0;
+        for (const http::byte_range_t& range : this->byteRanges)
+            s += range.second - range.first + 1;
+        return s;
     }
 
     size_t FileStream::read(char* buffer, size_t maxBytes) {
@@ -326,7 +337,7 @@ namespace http {
             if (currentPos == -1) return 0; // Internal error
             remaining = front.second - static_cast<size_t>(currentPos) + 1;
         } else {
-            remaining = _size - static_cast<size_t>(handle.tellg());
+            remaining = originalSize - static_cast<size_t>(handle.tellg());
         }
 
         size_t toRead = (std::min)(remaining, maxBytes);
