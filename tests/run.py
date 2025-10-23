@@ -95,7 +95,7 @@ def wait_until_live() -> bool:
 
 # Run tests helper
 def run_single_test(case: TestCase, ipv4: bool, tls: bool) -> bool:
-    test_type = f"IPv{4 if ipv4 else 6} {'SSL' if tls else ''}"
+    test_type = f"IPv{4 if ipv4 else 6}{' SSL' if tls else ''}"
     try:
         addr = (host if ipv4 else host_v6, ssl_port if tls else port)
         if tls:

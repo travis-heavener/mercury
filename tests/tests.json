@@ -343,6 +343,32 @@
     {
         "desc": "Chunked Transfer Encoding Tests",
         "confFile": "cte.conf",
-        "cases": []
+        "cases": [
+            {
+                "desc": "Test Chunked Transfer Encoding (HTTP/1.1)",
+                "versions": [ "1.1" ],
+                "cases": [
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 200, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Length": false}, "expectedBody": "redirect_to/foo.txt" },
+                    { "method": "GET", "path": "/small.txt", "expectedStatus": 200, "expectedHeaders": {"Transfer-Encoding": false, "Content-Length": "11"}, "expectedBody": "HELLO WORLD" },
+
+                    { "method": "GET", "path": "/path_info_test.php/foo/bar/foo/bar/foo/bar", "expectedStatus": 200, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Length": false}, "expectedBody": "/foo/bar/foo/bar/foo/bar" },
+                    { "method": "GET", "path": "/index.php", "expectedStatus": 206, "headers": {"Range": "bytes=-17"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Length": false}, "expectedBody": "  </body>\n</html>" },
+                    { "method": "GET", "path": "/index.php", "expectedStatus": 206, "headers": {"Range": "bytes=-15"}, "expectedHeaders": {"Transfer-Encoding": false, "Content-Length": "15"}, "expectedBody": "</body>\n</html>" },
+
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 206, "headers": {"Range": "bytes=-17"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Length": false}, "expectedBody": "direct_to/foo.txt" },
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 206, "headers": {"Range": "bytes=-15"}, "expectedHeaders": {"Transfer-Encoding": false, "Content-Length": "15"}, "expectedBody": "rect_to/foo.txt" },
+                    { "method": "GET", "path": "/small.txt", "expectedStatus": 206, "headers": {"Range": "bytes=-10"}, "expectedHeaders": {"Transfer-Encoding": false, "Content-Length": "10"}, "expectedBody": "ELLO WORLD" }
+                ]
+            },
+
+            {
+                "desc": "Test w/o Chunked Transfer Encoding (HTTP/1.0)",
+                "versions": [ "1.0" ],
+                "cases": [
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 200, "expectedHeaders": {"Transfer-Encoding": false, "Content-Length": "19"}, "expectedBody": "redirect_to/foo.txt" },
+                    { "method": "GET", "path": "/small.txt", "expectedStatus": 200, "expectedHeaders": {"Transfer-Encoding": false, "Content-Length": "11"}, "expectedBody": "HELLO WORLD" }
+                ]
+            }
+        ]
     }
 ]

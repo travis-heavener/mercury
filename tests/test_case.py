@@ -129,17 +129,11 @@ class TestCase:
             # Read all body
             body = ""
             if self.method != "HEAD":
-                content_len = int(headers["CONTENT-LENGTH"]) if "CONTENT-LENGTH" in headers else 0
-                body = raw[ raw.find(b"\r\n\r\n")+4: ]
-
-                start = datetime.now().timestamp()
-                while len(body) < content_len:
-                    body += s.recv(READ_BUF_SIZE)
-
-                    if len(body) < content_len and datetime.now().timestamp() > start + 5:
-                        print(f"Failed {test_desc}: Connection timed out reading body")
-                        print(self.inline_desc())
-                        return False
+                body, success = read_body(s, headers, raw)
+                if not success:
+                    print(f"Failed {test_desc}: Connection timed out reading body")
+                    print(self.inline_desc())
+                    return False
 
             # Match body
             if self.body_match is not None:
@@ -200,6 +194,53 @@ class TestCase:
 
         # Base case, uncaught enc type
         return False
+
+# Used to read the entire body including over transfer encoding
+def read_body(s: socket.socket, headers: dict, raw: bytes) -> tuple[bytes, bool]:
+    # Check for content length
+    if "CONTENT-LENGTH" in headers:
+        body = raw[ raw.find(b"\r\n\r\n")+4: ] # Current data from the initial recv
+        content_len = int(headers["CONTENT-LENGTH"])
+
+        start = datetime.now().timestamp()
+        while len(body) < content_len:
+            body += s.recv(READ_BUF_SIZE)
+            if len(body) < content_len and datetime.now().timestamp() > start + 5:
+                return (body, False) # Handle connection timeout
+
+        return (body, True)
+    elif "TRANSFER-ENCODING" in headers:
+        body = b""
+        buf = raw[ raw.find(b"\r\n\r\n")+4: ] # Current data from the initial recv
+
+        start = datetime.now().timestamp()
+        while True:
+            # Handle any unparsed buffer data
+            # Read octet size
+            size_index = buf.find(b"\r\n")
+            while size_index == -1:
+                buf += s.recv(READ_BUF_SIZE)
+                size_index = buf.find(b"\r\n")
+            size = int(buf[ :size_index ].decode("utf-8"), 16)
+
+            # Determine end of body
+            end_of_chunk = size_index + 2 + size + 2
+            while len(buf) < end_of_chunk:
+                buf += s.recv(READ_BUF_SIZE)
+
+            # Append body
+            body += buf[ size_index+2 : end_of_chunk-2 ]
+            buf = buf[ end_of_chunk: ] # Remove end of body
+
+            # Await end chunk
+            if size == 0:
+                return (body, True)
+
+            # Handle connection timeout
+            if datetime.now().timestamp() > start + 5:
+                return (body, False)
+    else: # No body
+        return (b"", True)
 
 # Used to load all test cases from tests.json
 def load_runs() -> list[TestCase]:
