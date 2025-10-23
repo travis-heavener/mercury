@@ -116,13 +116,13 @@ namespace http {
         if (sortedByteRanges.size() > 1) return false;
 
         // Append each byte range
+        this->originalBodySize = pBodyStream->size();
         for (const byte_range_t& byteRange : sortedByteRanges) {
             this->pBodyStream->addByteRange(byteRange);
             totalByteRangeSize += byteRange.second - byteRange.first + 1;
         }
 
         // Internally store the original size (for byte ranges)
-        this->originalBodySize = pBodyStream->size();
         this->originalByteRanges.assign(sortedByteRanges.cbegin(), sortedByteRanges.cend());
 
         // Base case, success
