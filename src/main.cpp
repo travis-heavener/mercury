@@ -161,7 +161,7 @@ void printWelcomeBanner() {
 
 /******************** ENTRY POINT ********************/
 
-int main() {
+int main(int argc, char* argv[]) {
     // Initialize Winsock API
     #ifdef _WIN32
         WSADATA wsa;
@@ -175,7 +175,7 @@ int main() {
     initSigHandler();
 
     // Load config files
-    if (conf::loadConfig() == CONF_FAILURE) {
+    if (conf::loadConfig(argc, argv) == CONF_FAILURE) {
         cleanExit();
         return 1;
     }

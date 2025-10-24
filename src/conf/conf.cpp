@@ -98,7 +98,7 @@ namespace conf {
         return true;
     }
 
-    int loadConfig() {
+    int loadConfig(int argc, char* argv[]) {
         // Set CWD to Mercury project root
         if (!loadExecutableDirectory(CWD)) {
             std::cerr << "Failed to set current working directory." << std::endl;
@@ -109,9 +109,11 @@ namespace conf {
 
         // Read XML config file
         pugi::xml_document doc;
-        pugi::xml_parse_result result = doc.load_file(CONF_FILE);
-
-        if (!result) {
+        pugi::xml_parse_result result;
+        try {
+            result = doc.load_file(argc > 1 ? argv[1] : CONF_FILE);
+            if (!result) throw 0;
+        } catch (...) {
             std::cerr << "Failed to open config file." << std::endl;
             return CONF_FAILURE;
         }
