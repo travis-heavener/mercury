@@ -262,6 +262,8 @@ namespace http {
                 this->originalByteRanges.clear();
                 this->originalBodySize = 0;
                 this->clearHeaders();
+
+                ERROR_LOG << "Body precompression failure (could be from failure to create temp file)" << std::endl;
                 this->setStatus(500);
 
                 if (isHTMLAccepted) { // Replace body

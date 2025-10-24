@@ -67,7 +67,7 @@ namespace conf {
     extern std::filesystem::path CWD;
 
     // Static methods
-    int loadConfig();
+    int loadConfig(int argc, char* argv[]);
     void cleanupConfig();
     bool isVersionOutdated(const std::string& latestRemoteVersion);
 }

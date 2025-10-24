@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.23.10
+- Fixed crash when URI was a "?" (#344)
+- Improved error logging for 500 Internal Server Error
+- Now takes path to config file as an optional CMD argument
+    - Should ideally only used by the testing script
+    - File path is relative to the Mercury project root
+
 ## v0.23.9
 - Fixed byte range size calculations for FileStream objects (#338)
 - Fixed byte ranges for PHP files (#339)

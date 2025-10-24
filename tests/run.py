@@ -54,6 +54,8 @@ def _ping_sock(addr: str, port: int, ipv4: bool) -> bool:
         sock.settimeout(1) # 1 second
         sock.connect((addr, port))
         return True
+    except KeyboardInterrupt as e:
+        raise e
     except:
         return False
     finally:
@@ -106,6 +108,8 @@ def run_single_test(case: TestCase, ipv4: bool, tls: bool) -> bool:
             with socket.socket(socket.AF_INET if ipv4 else socket.AF_INET6, socket.SOCK_STREAM) as s:
                 s.connect(addr)
                 return case.test(s, f"{test_type} test")
+    except KeyboardInterrupt as e:
+        raise e
     except Exception as e:
         print(f"[Error]: {test_type} connection failure: {e}")
         return False
@@ -116,20 +120,37 @@ def run_tests(cases: list[TestCase], ipv4: bool, max_workers: int) -> int:
     futures = []
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Schedule tests
-        for case in cases:
-            futures.append(executor.submit(run_single_test, case, ipv4, False))
+        try:
+            # Schedule tests
+            for case in cases:
+                futures.append(executor.submit(run_single_test, case, ipv4, False))
 
-        for case in cases:
-            futures.append(executor.submit(run_single_test, case, ipv4, True))
+            for case in cases:
+                futures.append(executor.submit(run_single_test, case, ipv4, True))
 
-        # Collect results as they complete
-        for f in as_completed(futures):
+            # Collect results as they complete
+            for f in as_completed(futures):
+                try:
+                    if f.result():
+                        num_passing += 1
+                except Exception as e:
+                    print(f"[Error]: Test threw exception: {e}")
+        except KeyboardInterrupt as e:
+            # Cancel remaining futures
+            for f in futures:
+                try:
+                    if not f.done():
+                        f.cancel()
+                except Exception:
+                    pass
+
             try:
-                if f.result():
-                    num_passing += 1
-            except Exception as e:
-                print(f"[Error]: Test threw exception: {e}")
+                executor.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                pass
+
+            # Rethrow
+            raise e
 
     return num_passing
 
@@ -151,14 +172,8 @@ if __name__ == "__main__":
     # CD into script directory
     os.chdir( os.path.dirname( os.path.abspath(__file__) ) )
 
-    # Save existing mercury.conf file
-    try:
-        if os.path.exists("conf_files/mercury.conf.lock"):
-            os.remove("conf_files/mercury.conf.lock")
-        shutil.copy2("../conf/mercury.conf", "conf_files/mercury.conf.lock")
-    except:
-        print("[Error] Failed to backup existing mercury.conf file")
-        exit(1)
+    # Handle to the process
+    proc = None
 
     try:
         # Load cases
@@ -174,28 +189,18 @@ if __name__ == "__main__":
             print("=" * 80)
             print(f"Starting run: {run['desc']} ({len(run['cases']) * 4} tests)")
 
-            # Update config file
-            try:
-                os.remove("../conf/mercury.conf")
-                shutil.copy2(f"conf_files/{run['conf_file']}", "../conf/mercury.conf")
-                time.sleep(1) # Allow time for the file to update
-            except:
-                print("[Error] Failed to load new config file, aborting remaining tests...")
-                break
-
             # Start Mercury
-            proc = None
             timed_out = False
             try:
                 if sys.platform in ["win32", "cygwin"]:
                     proc = subprocess.Popen(
-                        [ "../bin/mercury.exe" ],
+                        [ "../bin/mercury.exe", f"./tests/conf_files/{run['conf_file']}" ],
                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
                         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
                     )
                 elif sys.platform == "linux":
                     proc = subprocess.Popen(
-                        [ "../bin/mercury" ],
+                        [ "../bin/mercury", f"./tests/conf_files/{run['conf_file']}" ],
                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL
                     )
                 else:
@@ -207,6 +212,8 @@ if __name__ == "__main__":
                     # Timed out, kill program
                     print(f"[Error] Server timed out when starting")
                     timed_out = True
+            except KeyboardInterrupt as e:
+                raise e
             except:
                 print(f"[Error] Failed to start Mercury")
                 continue
@@ -217,6 +224,8 @@ if __name__ == "__main__":
                 try:
                     num_passing += run_tests( run["cases"], ipv4=True, max_workers=12 )
                     num_passing += run_tests( run["cases"], ipv4=False, max_workers=12 )
+                except KeyboardInterrupt as e:
+                    raise e
                 except:
                     print(f"[Error] Failed running tests")
 
@@ -244,15 +253,19 @@ if __name__ == "__main__":
         # Print result
         print("✅ Success" if num_passing == num_total else "❌ Failure")
         print(f"Passing: {num_passing}/{num_total}")
-    finally:
-        # Restore original mercury.conf file
-        try:
-            if os.path.exists("conf_files/mercury.conf.lock"):
-                os.remove("../conf/mercury.conf")
-                shutil.copy2("conf_files/mercury.conf.lock", "../conf/mercury.conf")
-                os.remove("conf_files/mercury.conf.lock")
-        except:
-            print("[Error] Failed to restore original mercury.conf file")
+    except KeyboardInterrupt:
+        # Kill any processes of Mercury
+        print("Aborting tests...")
+
+        if proc is not None:
+            if sys.platform in ["win32", "cygwin"]:
+                proc.send_signal(signal.CTRL_BREAK_EVENT)
+            elif sys.platform == "linux":
+                proc.send_signal(signal.SIGINT)
+            proc.wait()
+            print("Killed Mercury")
+
+        exit(1)
 
     # Exit with status
     exit(0 if num_passing == num_total else 1)

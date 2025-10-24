@@ -190,6 +190,8 @@ bool createTempFile(std::string& outPath) {
     if (isAvailable) {
         std::unique_lock lock(tempFileSetMutex);
         currentTempFiles.insert(outPath);
+    } else {
+        ERROR_LOG << "Failed to create temp file: " << outPath << std::endl;
     }
     return isAvailable;
 }

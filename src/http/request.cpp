@@ -75,6 +75,9 @@ namespace http {
         std::replace( this->pathStr.begin(), this->pathStr.end(), '\\', '/');
         this->rawPathStr = this->pathStr;
 
+        if (this->rawPathStr.empty() || this->rawPathStr[0] == '?')
+            this->_has400Error |= true;
+
         // Decode URI
         try {
             decodeURI(this->pathStr);
@@ -160,6 +163,7 @@ namespace http {
     bool Request::isFileValid(Response& response, const File& file) const {
         // Catch early caught IO failure
         if (file.ioFailure) {
+            ERROR_LOG << "File constructor caught IO failure" << std::endl;
             this->setStatusMaybeErrorDoc(response, 500);
             return false;
         }
