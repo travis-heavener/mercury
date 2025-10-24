@@ -75,6 +75,9 @@ namespace http {
         std::replace( this->pathStr.begin(), this->pathStr.end(), '\\', '/');
         this->rawPathStr = this->pathStr;
 
+        if (this->rawPathStr.empty() || this->rawPathStr[0] == '?')
+            this->_has400Error |= true;
+
         // Decode URI
         try {
             decodeURI(this->pathStr);

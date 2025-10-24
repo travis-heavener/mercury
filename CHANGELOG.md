@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.23.10
+- Fixed crash when URI was a "?" (#344)
+
 ## v0.23.9
 - Fixed byte range size calculations for FileStream objects (#338)
 - Fixed byte ranges for PHP files (#339)

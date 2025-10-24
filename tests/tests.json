@@ -145,7 +145,11 @@
                     { "method": "GET", "path": "//index.html", "expectedStatus": 200 },
 
                     { "method": "HEAD", "path": "/%0D%0A", "expectedStatus": 404 },
-                    { "method": "HEAD", "path": "/index.html?q=%0D%0A", "expectedStatus": 200 }
+                    { "method": "HEAD", "path": "/index.html?q=%0D%0A", "expectedStatus": 200 },
+
+                    { "method": "HEAD", "path": "", "expectedStatus": 400 },
+                    { "method": "HEAD", "path": " ", "expectedStatus": 505 },
+                    { "method": "HEAD", "path": "?", "expectedStatus": 400 }
                 ]
             },
 
