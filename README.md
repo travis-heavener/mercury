@@ -94,7 +94,7 @@ If you notice any security issues or have a suggestion, please refer to [SECURIT
 Once you've downloaded your own Mercury release, navigate to the `bin/` directory.
 If running on Linux, start `mercury` from the terminal; if running on Windows, start `mercury.exe`.
 
-Mercury takes only a single, optional command-line argument, which is the path to a config file if you'd like to use one aside from `conf/mercury.conf`.
+Mercury takes only a single, optional command-line argument, which is the path to a config file if you'd like to use one instead of `conf/mercury.conf`.
 This file must be relative to the Mercury project root or an absolute file.
 
 A full list of Mercury versions is available on my website, [wowtravis.com/mercury](https://wowtravis.com/mercury).
