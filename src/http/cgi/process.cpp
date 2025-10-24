@@ -162,6 +162,7 @@ namespace http::cgi {
 
         std::ofstream tmpOutHandle( tmpPath, std::ios::binary );
         if (!tmpOutHandle.is_open()) {
+            ERROR_LOG << "Failed to open temp file: " << tmpPath << std::endl;
             res.setStatus(500);
             removeTempFile(tmpPath);
             return;
@@ -186,6 +187,7 @@ namespace http::cgi {
         tmpOutHandle.close();
         std::ifstream tmpInHandle( tmpPath );
         if (!tmpInHandle.is_open()) {
+            ERROR_LOG << "Failed to open temp file: " << tmpPath << std::endl;
             res.setStatus(500);
             removeTempFile(tmpPath);
             return;
@@ -202,6 +204,7 @@ namespace http::cgi {
 
         std::ofstream tmpBodyHandle( tmpBodyPath );
         if (!tmpBodyHandle.is_open()) {
+            ERROR_LOG << "Failed to open temp file: " << tmpPath << std::endl;
             res.setStatus(500);
             removeTempFile(tmpPath);
             removeTempFile(tmpBodyPath);

@@ -150,6 +150,7 @@ namespace http::version::handler_1_1 {
 
                 // Attempt to buffer resource
                 if (pResponse->loadBodyFromFile(file) == IO_FAILURE) {
+                    ERROR_LOG << "HTTP/1.1 loadBodyFromFile IO failure" << std::endl;
                     setStatusMaybeErrorDoc(request, *pResponse, 500);
                     break;
                 }

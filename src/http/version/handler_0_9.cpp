@@ -66,6 +66,7 @@ namespace http::version::handler_0_9 {
             case METHOD::GET: {
                 // Attempt to buffer resource
                 if (pResponse->loadBodyFromFile(file) == IO_FAILURE) {
+                    ERROR_LOG << "HTTP/0.9 loadBodyFromFile IO failure" << std::endl;
                     pResponse->loadBodyFromErrorDoc(500);
                     break;
                 }

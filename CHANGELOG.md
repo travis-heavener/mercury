@@ -2,6 +2,7 @@
 
 ## v0.23.10
 - Fixed crash when URI was a "?" (#344)
+- Improved error logging for 500 Internal Server Error
 
 ## v0.23.9
 - Fixed byte range size calculations for FileStream objects (#338)
