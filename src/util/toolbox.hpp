@@ -23,6 +23,6 @@ std::time_t getFileModTimeT(const std::string&);
 std::string getFileModGMTString(const std::string&);
 std::string getCurrentGMTString();
 
-const char* getReasonFromStatusCode(uint16_t code);
+const char* getReasonFromStatus(uint16_t code);
 
 #endif

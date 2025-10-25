@@ -7,42 +7,8 @@
 
 namespace http {
 
-    void loadEarlyHeaders(headers_map_t& headers, const std::string& raw) {
-        // Skip status line
-        std::string line;
-        size_t startIndex = 0;
-        readLine(raw, line, startIndex);
-
-        // Read headers from buffer
-        while (readLine(raw, line, startIndex)) {
-            if (line.size() <= 1) break; // Parse body
-
-            // Check for invalid line format
-            if (line.back() != '\r')
-                throw http::Exception();
-            line.pop_back();
-
-            // Find first colon-space delimiter
-            size_t firstSpaceIndex = line.find(": ");
-            if (firstSpaceIndex != std::string::npos) {
-                std::string key = line.substr(0, firstSpaceIndex);
-                std::string value = line.substr(firstSpaceIndex+2);
-                strToUpper(key);
-                headers.insert({key, value});
-            }
-        }
-    }
-
-    // Fwd. decs
-    void parseAcceptHeader(std::unordered_set<std::string>&, std::string&);
-    void parseRangeHeader(std::vector<byte_range_t>&, std::string&);
-
     Request::Request(headers_map_t& headers, const std::string& raw, std::string clientIP, const bool isHTTPS, const bool isContentTooLarge)
-        : headers(headers) {
-        this->ipStr = clientIP;
-        this->isHTTPS = isHTTPS;
-        this->_isContentTooLarge = isContentTooLarge;
-
+        : headers(headers), ipStr(clientIP), isHTTPS(isHTTPS), _isContentTooLarge(isContentTooLarge) {
         std::string line;
         size_t startIndex = 0;
 
@@ -206,74 +172,6 @@ namespace http {
 
     bool Request::isEncodingAccepted(const std::string& encoding) const {
         return acceptedEncodings.find(encoding) != acceptedEncodings.end();
-    }
-
-    void parseAcceptHeader(std::unordered_set<std::string>& splitVec, std::string& string) {
-        std::vector<std::string> splitBuf;
-        size_t startIndex = 0;
-        for (size_t i = 0; i < string.size(); i++) {
-            if (string[i] == ',') {
-                std::string substr = string.substr(startIndex, i-startIndex);
-                trimString(substr);
-                if (substr.size() > 0) splitBuf.push_back(substr);
-                startIndex = i+1;
-            }
-        }
-
-        // Append last snippet
-        if (startIndex < string.size()) {
-            std::string substr = string.substr(startIndex);
-            trimString(substr);
-            if (substr.size() > 0) splitBuf.push_back(substr);
-        }
-
-        // Format split buffer
-        for (std::string& mime : splitBuf)
-            splitVec.insert(mime.substr(0, mime.find(';')));
-    }
-
-    void parseRangeHeader(std::vector<byte_range_t>& splitVec, std::string& rawHeader) {
-        trimString(rawHeader);
-        size_t unitStart = rawHeader.find("bytes");
-        if (unitStart == std::string::npos) return;
-
-        // Break apart ranges into string pairs
-        std::vector<std::string> intermediateVec;
-        std::string rawRanges( rawHeader.substr(unitStart + 6) );
-        splitString(intermediateVec, rawRanges, ',', true);
-
-        // Parse each range
-        std::string startBuf, endBuf;
-        for (const std::string& rangePair : intermediateVec) {
-            size_t dashIndex = rangePair.find('-');
-            if (dashIndex == std::string::npos) {
-                splitVec.clear(); return;
-            }
-
-            startBuf = rangePair.substr(0, dashIndex);
-            endBuf = rangePair.substr(dashIndex+1);
-            trimString(startBuf); trimString(endBuf);
-
-            // Parse and create buffer
-            if (startBuf.empty() && endBuf.empty()) {
-                splitVec.clear(); return;
-            }
-
-            size_t startIndex = std::string::npos;
-            size_t endIndex = std::string::npos;
-            try {
-                if (!startBuf.empty())  startIndex = std::stoull(startBuf);
-                if (!endBuf.empty())    endIndex =   std::stoull(endBuf);
-            } catch (std::invalid_argument&) {
-                // Handle invalid range
-                ERROR_LOG << "Parse failure for Range header" << std::endl;
-                splitVec.clear();
-                return;
-            }
-
-            // Emplace byte range
-            splitVec.emplace_back( byte_range_t(startIndex, endIndex) );
-        }
     }
 
 }

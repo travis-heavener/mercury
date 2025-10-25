@@ -10,21 +10,6 @@
 
 namespace http {
 
-    enum METHOD {
-        GET = 0,
-        HEAD = 1,
-        OPTIONS = 2,
-        POST = 3,
-        PUT = 4,
-        DEL = 5,
-        PATCH = 6,
-        UNKNOWN = 999
-    };
-
-    // Used to extract headers and status info from partial request
-    typedef std::unordered_map<std::string, std::string> headers_map_t;
-    void loadEarlyHeaders(headers_map_t&, const std::string&);
-
     class Request {
         public:
             Request(headers_map_t& headers, const std::string&, std::string, const bool, const bool);

@@ -1,19 +1,17 @@
 #include "response.hpp"
 
-#include <algorithm>
 #include <format>
 
+#include "compressor_stream.hpp"
 #include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
 #include "../io/file_tools.hpp"
 #include "../util/toolbox.hpp"
 
 #define CRLF "\r\n"
+#define str std::to_string
 
 namespace http {
-
-    // Fwd dec
-    void intervalMergeByteRanges(const std::vector<byte_range_t>&, std::vector<byte_range_t>&, const size_t);
 
     Response::Response(const std::string& httpVersion) {
         this->httpVersion = httpVersion;
@@ -44,20 +42,11 @@ namespace http {
 
     void Response::setCompressMethod(const int compressMethod) {
         // Determine compression method
-        this->compressMethod = compressMethod;
-        switch (this->compressMethod) {
-            case COMPRESS_ZSTD:
-                this->setHeader("Content-Encoding", "zstd");
-                break;
-            case COMPRESS_BROTLI:
-                this->setHeader("Content-Encoding", "br");
-                break;
-            case COMPRESS_GZIP:
-                this->setHeader("Content-Encoding", "gzip");
-                break;
-            case COMPRESS_DEFLATE:
-                this->setHeader("Content-Encoding", "deflate");
-                break;
+        switch ( this->compressMethod = compressMethod ) {
+            case COMPRESS_ZSTD:    setHeader("Content-Encoding", "zstd");    break;
+            case COMPRESS_BROTLI:  setHeader("Content-Encoding", "br");      break;
+            case COMPRESS_GZIP:    setHeader("Content-Encoding", "gzip");    break;
+            case COMPRESS_DEFLATE: setHeader("Content-Encoding", "deflate"); break;
         }
     }
 
@@ -66,7 +55,7 @@ namespace http {
         this->setContentType("text/html; charset=UTF-8");
 
         const int status = loadErrorDoc(statusCode, pBodyStream);
-        this->setHeader("Content-Length", std::to_string(this->pBodyStream->size()));
+        this->setHeader("Content-Length", str(this->pBodyStream->size()));
         return status;
     }
 
@@ -77,7 +66,7 @@ namespace http {
         if (bodyStatus == IO_SUCCESS && !file.isDirectory)
             this->setHeader("Last-Modified", file.getLastModifiedGMT());
 
-        this->setHeader("Content-Length", std::to_string(this->pBodyStream->size()));
+        this->setHeader("Content-Length", str(this->pBodyStream->size()));
         return bodyStatus;
     }
 
@@ -98,8 +87,7 @@ namespace http {
         const size_t streamSize = pBodyStream->size();
         const size_t npos = std::string::npos;
         for (const byte_range_t& byteRange : byteRanges) {
-            const size_t first = byteRange.first;
-            const size_t second = byteRange.second;
+            const size_t first = byteRange.first, second = byteRange.second;
             if ((first == npos && (second > streamSize || second == 0)) || // Ex. bytes=-500
                 (second == npos && (first >= streamSize)) || // Ex. bytes=0-
                 (first != npos && second != npos && (first > second || first >= streamSize || second >= streamSize)) // Ex. bytes=200-300
@@ -250,7 +238,7 @@ namespace http {
         }
 
         // Check if the body needs to be pre-compressed (HTTP/1.0 or HTTP/1.1+ w/ small bodies)
-        bool wasBodyPrecompressed = false;
+        bool wasPrecompressed = false;
         if (originalByteRanges.size() <= 1 &&
             (
                 (httpVersion == "HTTP/1.0" && pBodyStream->size() > conf::MIN_COMPRESSION_SIZE) ||
@@ -261,82 +249,78 @@ namespace http {
                 // Send uncompresesed error page
                 this->originalByteRanges.clear();
                 this->originalBodySize = 0;
-                this->clearHeaders();
+                clearHeaders();
 
                 ERROR_LOG << "Body precompression failure (could be from failure to create temp file)" << std::endl;
-                this->setStatus(500);
+                setStatus(500);
 
                 if (isHTMLAccepted) { // Replace body
-                    this->loadBodyFromErrorDoc(500);
+                    loadBodyFromErrorDoc(500);
 
                     // Verify the error doc ALSO isn't too large
                     if (pBodyStream->size() > conf::MAX_RESPONSE_BODY)
                         clearBodyAndResetStream();
                 } else { // Remove body
-                    this->clearHeaders();
-                    this->setHeader("Content-Length", "0");
+                    clearHeaders();
+                    setHeader("Content-Length", "0");
                     setBodyStream( std::unique_ptr<IBodyStream>( new MemoryStream("") ) );
                 }
             } else {
-                wasBodyPrecompressed = true;
+                wasPrecompressed = true;
             }
         } else if (originalByteRanges.size() > 1) {
             // Remove Content-Encoding for multipart byte ranges
             // UNIMPLEMENTED
-            this->clearHeader("Content-Encoding");
+            clearHeader("Content-Encoding");
         }
 
         // Create a streamable, buffered compressor
         std::unique_ptr<ICompressor> pCompressor(
-            (wasBodyPrecompressed || pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE) ? nullptr : createCompressorStream(this->compressMethod)
+            (wasPrecompressed || pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE) ? nullptr : createCompressorStream(this->compressMethod)
         );
 
         // Skip compression for small bodies
-        if (!wasBodyPrecompressed && pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE)
-            this->clearHeader("Content-Encoding");
+        if (!wasPrecompressed && pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE)
+            clearHeader("Content-Encoding");
 
         // Update transfer encoding
         const size_t bodySize = pBodyStream->size();
         const std::string originalContentType = this->getContentType();
 
-        const bool isTransferEncodingSupported = this->httpVersion != "HTTP/1.0";
-        const bool isUsingTransferEncoding = isTransferEncodingSupported && bodySize > conf::RESPONSE_BUFFER_SIZE;
-        if (!isUsingTransferEncoding && bodySize > 0) { // Content-Length is known (no compress)
+        const bool isTransEncSupported = this->httpVersion != "HTTP/1.0";
+        const bool usingTransEnc = isTransEncSupported && bodySize > conf::RESPONSE_BUFFER_SIZE;
+        if (!usingTransEnc && bodySize > 0) { // Content-Length is known (no compress)
             // Check for byte ranges
             if (!originalByteRanges.empty()) { // Single byte range
-                this->setStatus(206); // Partial Content
-                this->setHeader("Accept-Ranges", "bytes");
+                setStatus(206); // Partial Content
+                setHeader("Accept-Ranges", "bytes");
 
                 const size_t startIndex = originalByteRanges[0].first;
                 const size_t endIndex = originalByteRanges[0].second;
 
-                this->setHeader("Content-Length", std::to_string(bodySize));
-                this->setHeader("Content-Range",
-                    "bytes " + std::to_string(startIndex) + '-' + std::to_string(endIndex) + "/" + std::to_string(originalBodySize)
-                );
+                setHeader("Content-Length", str(bodySize));
+                setHeader("Content-Range", "bytes " + str(startIndex) + '-' + str(endIndex) + "/" + str(originalBodySize));
             } else {
-                this->setHeader("Content-Length", std::to_string(bodySize));
+                this->setHeader("Content-Length", str(bodySize));
             }
-        } else if (isUsingTransferEncoding) { // Use chunked transfer encoding
-            this->setHeader("Transfer-Encoding", "chunked");
-            this->clearHeader("Content-Length");
+        } else if (usingTransEnc) { // Use chunked transfer encoding
+            setHeader("Transfer-Encoding", "chunked");
+            clearHeader("Content-Length");
 
             // Check for byte ranges
             if (!originalByteRanges.empty()) { // Single byte range
-                this->setStatus(206); // Partial Content
-                this->setHeader("Accept-Ranges", "bytes");
+                setStatus(206); // Partial Content
+                setHeader("Accept-Ranges", "bytes");
                 const size_t startIndex = originalByteRanges[0].first;
                 const size_t endIndex = originalByteRanges[0].second;
 
-                this->setHeader("Content-Range",
-                    "bytes " + std::to_string(startIndex) + '-' + std::to_string(endIndex) + "/" + std::to_string(originalBodySize)
-                );
+                setHeader("Content-Range", "bytes " + str(startIndex) + '-' + str(endIndex) + "/" + str(originalBodySize));
             }
         }
 
         // Load config headers last to overwrite any dupes that have been previously set
-        this->setHeader("Server", "Mercury/" + conf::VERSION.substr(9)); // Skip "Mercury v"
-        this->setHeader("Date", getCurrentGMTString());
+        setHeader("Server", "Mercury/" + conf::VERSION.substr(9)); // Skip "Mercury v"
+        setHeader("Date", getCurrentGMTString());
 
         // Stringify headers
         std::string headers;
@@ -344,7 +328,7 @@ namespace http {
             headers += name + ": " + value + CRLF;
 
         // Write to buffer
-        std::string headersBlock = httpVersion + ' ' + std::to_string(statusCode) + ' '  + getReasonFromStatusCode(statusCode) + CRLF + headers + CRLF;
+        std::string headersBlock = httpVersion + ' ' + str(statusCode) + ' '  + getReasonFromStatus(statusCode) + CRLF + headers + CRLF;
         ssize_t status = sendFunc(headersBlock.data(), headersBlock.size());
         if (status < 0) return status;
 
@@ -354,7 +338,7 @@ namespace http {
         // Send chunks
         auto sendWrapper = [&](const std::vector<char>& chunk, const size_t bytesRead) -> int {
             if (bytesRead == 0) return 0;
-            if (isUsingTransferEncoding) {
+            if (usingTransEnc) {
                 const std::string header = std::format("{:x}", bytesRead) + "\r\n";
                 if (sendFunc(header.data(), header.size()) < 0) return -1;
                 if (sendFunc(chunk.data(), bytesRead) < 0) return -1;
@@ -405,49 +389,14 @@ namespace http {
         }
 
         // End chunked transfer
-        if (isUsingTransferEncoding)
+        if (usingTransEnc)
             sendFunc("0\r\n\r\n", 5);
 
         // Base case, success
         return 0;
     }
 
-
-    // Interval merge helper for byte ranges
-    void intervalMergeByteRanges(const std::vector<byte_range_t>& ranges, std::vector<byte_range_t>& sortedRanges, const size_t streamSize) {
-        // Normalize ranges
-        std::vector<byte_range_t> normalizedRanges;
-        for (auto [first, second] : ranges) {
-            if (first == std::string::npos) {
-                // Ex. bytes=-500
-                size_t length = (std::min)(second, streamSize);
-                first = streamSize - length;
-                second = streamSize - 1;
-            } else if (second == std::string::npos || second >= streamSize) {
-                // Ex. bytes=0- OR bytes=200-300
-                second = streamSize - 1;
-            }
-
-            normalizedRanges.emplace_back(first, second);
-        }
-
-        // Sort by start offset
-        std::sort(normalizedRanges.begin(), normalizedRanges.end(),
-            [](const byte_range_t& A, const byte_range_t& B) { return A.first < B.first; }
-        );
-
-        // Merge overlapping/adjacent ranges
-        for (const auto& range : normalizedRanges) {
-            if (sortedRanges.empty()) {
-                sortedRanges.push_back(range);
-            } else {
-                auto& last = sortedRanges.back();
-                if (range.first <= last.second + 1) // Touching, merge ranges
-                    last.second = (std::max)(last.second, range.second);
-                else // Not touching, new range
-                    sortedRanges.push_back(range);
-            }
-        }
-    }
-
 }
+
+#undef CRLF
+#undef toStr

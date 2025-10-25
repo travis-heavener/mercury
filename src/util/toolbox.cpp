@@ -100,7 +100,7 @@ int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) 
             // Check for end of escaped sequence
             if (percIndex+1 < bytesRead) {
                 // Check escaped char
-                if (buffer[percIndex+1] == 'A')      tmpHandle << getReasonFromStatusCode(status);
+                if (buffer[percIndex+1] == 'A')      tmpHandle << getReasonFromStatus(status);
                 else if (buffer[percIndex+1] == 'B') tmpHandle << status;
                 else if (buffer[percIndex+1] == 'C') tmpHandle << conf::VERSION;
                 else                                 tmpHandle << '%' << buffer[percIndex+1];
@@ -121,7 +121,7 @@ int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) 
             }
 
             // Check escaped char
-            if (nextChar == 'A')      tmpHandle << getReasonFromStatusCode(status);
+            if (nextChar == 'A')      tmpHandle << getReasonFromStatus(status);
             else if (nextChar == 'B') tmpHandle << status;
             else if (nextChar == 'C') tmpHandle << conf::VERSION;
             else                      tmpHandle << '%' << nextChar;
@@ -335,7 +335,7 @@ std::string getCurrentGMTString() {
     return ss.str();
 }
 
-const char* getReasonFromStatusCode(uint16_t code) {
+const char* getReasonFromStatus(uint16_t code) {
     switch (code) {
         case 200: return "OK";
         case 201: return "Created";
