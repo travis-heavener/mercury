@@ -1,6 +1,8 @@
 #ifndef __HTTP_REQUEST_HPP
 #define __HTTP_REQUEST_HPP
 
+#include <optional>
+
 #include "../pch/common.hpp"
 
 #include "http_tools.hpp"
@@ -27,7 +29,7 @@ namespace http {
         public:
             Request(headers_map_t& headers, const std::string&, std::string, const bool, const bool);
 
-            const std::string* getHeader(std::string) const;
+            std::optional<std::string> getHeader(std::string) const;
             inline const std::string getIPStr() const { return ipStr; };
             inline METHOD getMethod() const { return method; };
             inline const std::string& getMethodStr() const { return methodStr; };

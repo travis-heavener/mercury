@@ -1,5 +1,7 @@
 #include "handler_1_0.hpp"
 
+#include <optional>
+
 #include "../../conf/conf.hpp"
 #include "../../util/toolbox.hpp"
 #include "../../logs/logger.hpp"
@@ -111,8 +113,7 @@ namespace http::version::handler_1_0 {
 
                 // Check if previously cached
                 const auto pLastModTS = request.getHeader("IF-MODIFIED-SINCE");
-                if (pLastModTS != nullptr) {
-                    // Compare timestamps
+                if (pLastModTS.has_value()) { // Compare timestamps
                     try {
                         // serverTime <= clientTime
                         if (getFileModTimeT(file.path) <= getTimeTFromGMT(*pLastModTS)) {

@@ -1,5 +1,7 @@
 #include "handler_1_1.hpp"
 
+#include <optional>
+
 #include "../cgi/process.hpp"
 #include "../../conf/conf.hpp"
 #include "../../util/toolbox.hpp"
@@ -135,7 +137,7 @@ namespace http::version::handler_1_1 {
 
                 // Check if previously cached
                 const auto pLastModTS = request.getHeader("IF-MODIFIED-SINCE");
-                if (pLastModTS != nullptr) {
+                if (pLastModTS.has_value()) {
                     // Compare timestamps
                     try {
                         // serverTime <= clientTime

@@ -130,10 +130,12 @@ namespace http {
             this->_has400Error |= true;
     }
 
-    const std::string* Request::getHeader(std::string header) const {
+    std::optional<std::string> Request::getHeader(std::string header) const {
+        std::optional<std::string> opt;
         strToUpper(header);
         const auto result = this->headers.find(header);
-        return (result != this->headers.end()) ? &result->second : nullptr;
+        if (result != headers.end()) opt.emplace(result->second);
+        return opt;
     }
 
     // This method exists to combine common methods from the version handlers
