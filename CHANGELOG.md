@@ -7,6 +7,8 @@
 - Add rewrite engine (#245)
 - Now decodes URIs in redirect (& rewrite) checks
 - Now appends query strings to redirects & rewrites
+- Added support for multiple list headers per RFC spec (#317)
+    - Currently only for Accept, Accept-Encoding, Range
 
 ## v0.23.10
 - Fixed crash when URI was a "?" (#344)

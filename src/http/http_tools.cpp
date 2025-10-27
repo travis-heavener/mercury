@@ -67,7 +67,18 @@ namespace http {
                 std::string key = line.substr(0, firstSpaceIndex);
                 std::string value = line.substr(firstSpaceIndex+2);
                 strToUpper(key);
-                headers.insert({key, value});
+
+                // Combine extra list headers
+                if ((key == "ACCEPT" && headers.contains("ACCEPT")) ||
+                    (key == "ACCEPT-ENCODING" && headers.contains("ACCEPT-ENCODING"))) {
+                    headers[key].append(',' + value);
+                } else if (key == "RANGE" && headers.contains("RANGE")) {
+                    size_t bytesEnd = value.find('=');
+                    if (bytesEnd != std::string::npos && bytesEnd + 1 < value.length())
+                        headers[key].append(',' + value.substr(bytesEnd+1) );
+                } else {
+                    headers.insert({key, value});
+                }
             }
         }
     }

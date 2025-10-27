@@ -169,6 +169,9 @@
                     { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 206, "headers": {"Range": "bytes=0-18"}, "expectedHeaders": {"Content-Length": "19"}, "expectedBody": "redirect_to/foo.txt" },
                     { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 206, "headers": {"Range": "bytes=-19"}, "expectedHeaders": {"Content-Length": "19"}, "expectedBody": "redirect_to/foo.txt" },
 
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 206, "headers": {"Range": "bytes=0-16", "RANGE": "bytes=17-18"}, "expectedHeaders": {"Content-Length": "19"}, "expectedBody": "redirect_to/foo.txt" },
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 416, "headers": {"Range": "bytes=0-15", "RANGE": "bytes=17-18"} },
+
                     { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=0-13"}, "expectedHeaders": {"Content-Length": "14"} },
                     { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=-14"}, "expectedHeaders": {"Content-Length": "14"} },
                     { "method": "HEAD", "path": "/", "expectedStatus": 206, "headers": {"Range": "bytes=22-"}, "expectedHeaders": {"Content-Length": null} },
@@ -198,6 +201,8 @@
                 "cases": [
                     { "method": "HEAD", "path": "/foobar", "expectedStatus": 404 },
                     { "method": "HEAD", "path": "/", "expectedStatus": 406, "headers": {"Accept": "text/plain"} },
+                    { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Accept": "text/plain", "ACCEPT": "text/html"} },
+                    { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Accept": "text/html", "ACCEPT": "text/plain"} },
                     { "method": "HEAD", "path": "/", "expectedStatus": 406, "headers": {"Accept": "foobar;bar,;123"} },
                     { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Accept": "text/html; charset=UTF-8; foo=bar; q=1"} },
 
@@ -214,7 +219,8 @@
                     { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "br"}, "expectedHeaders": {"Content-Encoding": "br"}, "httpsOnly": true },
                     { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "gzip"}, "expectedHeaders": {"Content-Encoding": "gzip"} },
                     { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "deflate"}, "expectedHeaders": {"Content-Encoding": "deflate"} },
-                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "foobar"}, "expectedHeaders": {"Content-Encoding": false} }
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "foobar"}, "expectedHeaders": {"Content-Encoding": false} },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "deflate", "ACCEPT-ENCODING": "gzip"}, "expectedHeaders": {"Content-Encoding": "gzip"} }
                 ]
             },
 
