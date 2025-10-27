@@ -9,6 +9,9 @@
 - Now appends query strings to redirects & rewrites
 - Added support for multiple list headers per RFC spec (#317)
     - Currently only for Accept, Accept-Encoding, Range
+- Now uses Brotli instead of Zstandard for web files (#348)
+    - Ex. HTML, CSS, and JS files
+- Added application/wasm to default mimes.conf
 
 ## v0.23.10
 - Fixed crash when URI was a "?" (#344)

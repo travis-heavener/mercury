@@ -88,13 +88,13 @@ namespace http {
 
         // Determine compression method
         if (this->isEncodingAccepted("zstd"))
-            this->compressMethod = COMPRESS_ZSTD;
+            this->compressMethods |= COMPRESS_ZSTD;
         else if (this->isHTTPS && this->isEncodingAccepted("br"))
-            this->compressMethod = COMPRESS_BROTLI;
+            this->compressMethods |= COMPRESS_BROTLI;
         else if (this->isEncodingAccepted("gzip"))
-            this->compressMethod = COMPRESS_GZIP;
+            this->compressMethods |= COMPRESS_GZIP;
         else if (this->isEncodingAccepted("deflate"))
-            this->compressMethod = COMPRESS_DEFLATE;
+            this->compressMethods |= COMPRESS_DEFLATE;
 
         // Verify Host header is present for HTTP/1.1+ (RFC 2616)
         if (this->httpVersionStr != "HTTP/0.9" && this->httpVersionStr != "HTTP/1.0"
@@ -108,6 +108,32 @@ namespace http {
         const auto result = this->headers.find(header);
         if (result != headers.end()) opt.emplace(result->second);
         return opt;
+    }
+
+    int Request::getCompressMethod(const std::string& MIME) const {
+        // Decide what compression type to use of what's available
+        if (this->compressMethods & (COMPRESS_ZSTD | COMPRESS_BROTLI)) {
+            // Pick Zstandard or Brotli based on MIME
+            if (MIME == "text/javascript" || MIME == "application/json" || MIME == "text/html" ||
+                MIME == "text/css" || MIME == "image/svg+xml" || MIME == "text/plain" ||
+                MIME == "application/wasm" || MIME == "application/xml" || MIME == "application/xhtml+xml" ||
+                MIME == "application/ld+json")
+                return COMPRESS_BROTLI;
+
+            // Base case, use ZSTD
+            return COMPRESS_ZSTD;
+        } else if (this->compressMethods & COMPRESS_ZSTD) {
+            return COMPRESS_ZSTD;
+        } else if (this->compressMethods & COMPRESS_BROTLI) {
+            return COMPRESS_BROTLI;
+        } else if (this->compressMethods & COMPRESS_GZIP) {
+            return COMPRESS_GZIP;
+        } else if (this->compressMethods & COMPRESS_DEFLATE) {
+            return COMPRESS_DEFLATE;
+        }
+
+        // Base case, no compression
+        return NO_COMPRESS;
     }
 
     void Request::rewriteRawPath(const std::string& newPath) {

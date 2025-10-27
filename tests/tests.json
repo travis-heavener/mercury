@@ -215,7 +215,10 @@
                 "desc": "Compression Tests",
                 "versions": [ "1.0", "1.1" ],
                 "cases": [
-                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd"}, "expectedHeaders": {"Content-Encoding": "zstd"} },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd, br"}, "expectedHeaders": {"Content-Encoding": "br"} },
+                    { "method": "GET", "path": "/favicon.jpg", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd, br"}, "expectedHeaders": {"Content-Encoding": "zstd"} },
+
+                    { "method": "GET", "path": "/favicon.jpg", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd"}, "expectedHeaders": {"Content-Encoding": "zstd"} },
                     { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "br"}, "expectedHeaders": {"Content-Encoding": "br"}, "httpsOnly": true },
                     { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "gzip"}, "expectedHeaders": {"Content-Encoding": "gzip"} },
                     { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "deflate"}, "expectedHeaders": {"Content-Encoding": "deflate"} },

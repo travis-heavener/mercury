@@ -392,7 +392,7 @@ namespace http {
         }
 
         // Pass the compression method
-        pResponse->setCompressMethod(request.getCompressMethod());
+        pResponse->setCompressMethod(request.getCompressMethod(pResponse->getContentType()));
 
         return pResponse;
     }
