@@ -7,6 +7,23 @@
 
 namespace http {
 
+    bool parsePath(std::string& rawPathStr, std::string& pathStr) {
+        std::replace( pathStr.begin(), pathStr.end(), '\\', '/');
+        rawPathStr = pathStr;
+
+        if (rawPathStr.empty() || rawPathStr[0] == '?')
+            return true;
+
+        // Decode URI
+        try {
+            decodeURI(pathStr);
+        } catch (std::invalid_argument&) {
+            return true;
+        }
+
+        return false;
+    }
+
     Request::Request(headers_map_t& headers, const std::string& raw, std::string clientIP, const bool isHTTPS, const bool isContentTooLarge)
         : headers(headers), ipStr(clientIP), isHTTPS(isHTTPS), _isContentTooLarge(isContentTooLarge) {
         std::string line;
@@ -37,19 +54,8 @@ namespace http {
             this->httpVersionStr = "HTTP/0.9";
         }
 
-        // Replace backslash w/ fwd slash
-        std::replace( this->pathStr.begin(), this->pathStr.end(), '\\', '/');
-        this->rawPathStr = this->pathStr;
-
-        if (this->rawPathStr.empty() || this->rawPathStr[0] == '?')
-            this->_has400Error |= true;
-
-        // Decode URI
-        try {
-            decodeURI(this->pathStr);
-        } catch (std::invalid_argument&) {
-            this->_has400Error |= true;
-        }
+        // Parse path logic
+        this->_has400Error |= parsePath(this->rawPathStr, this->pathStr);
 
         // Determine method
         if      (this->methodStr == "GET")      this->method = METHOD::GET;
@@ -102,6 +108,18 @@ namespace http {
         const auto result = this->headers.find(header);
         if (result != headers.end()) opt.emplace(result->second);
         return opt;
+    }
+
+    void Request::rewriteRawPath(const std::string& newPath) {
+        // Copy query string
+        const size_t queryIndex = this->rawPathStr.find('?');
+        const std::string queryString = (queryIndex != std::string::npos) ? this->rawPathStr.substr(queryIndex) : "";
+
+        // Update path string
+        this->pathStr = newPath + queryString;
+
+        // Redo path logic
+        this->_has400Error |= parsePath(this->rawPathStr, this->pathStr);
     }
 
     // This method exists to combine common methods from the version handlers

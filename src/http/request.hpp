@@ -24,6 +24,8 @@ namespace http {
             inline const std::string& getVersion() const { return httpVersionStr; };
             inline int getCompressMethod() const { return compressMethod; };
 
+            void rewriteRawPath(const std::string& newPath);
+
             inline const headers_map_t& getHeaders() const { return headers; };
             inline const std::vector<std::pair<size_t, size_t>>& getByteRanges() const { return byteRanges; };
 

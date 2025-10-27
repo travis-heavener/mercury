@@ -4,6 +4,9 @@
 - Minor codebase improvements
     - Request::getHeader now returns std::optional instead of const std::string*
     - Migrated bulk setsockopt calls to macrodef
+- Add rewrite engine (#245)
+- Now decodes URIs in redirect (& rewrite) checks
+- Now appends query strings to redirects & rewrites
 
 ## v0.23.10
 - Fixed crash when URI was a "?" (#344)

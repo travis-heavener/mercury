@@ -78,46 +78,43 @@
             },
 
             {
-                "desc": "Test HTTP/2.0",
-                "versions": [ "2.0" ],
+                "desc": "Test Invalid HTTP Versions",
+                "versions": [ "2.0", "3.0", "4.0" ],
                 "cases": [
                     { "method": "HEAD", "path": "/", "expectedStatus": 505 }
                 ]
             },
 
             {
-                "desc": "Test HTTP/3.0",
-                "versions": [ "3.0" ],
-                "cases": [
-                    { "method": "HEAD", "path": "/", "expectedStatus": 505 }
-                ]
-            },
-
-            {
-                "desc": "Test HTTP/4.0",
-                "versions": [ "4.0" ],
-                "cases": [
-                    { "method": "HEAD", "path": "/", "expectedStatus": 505 }
-                ]
-            },
-
-            {
-                "desc": "Redirect Rules (HTTP/1.1)",
+                "desc": "Redirect & Rewrite Rules (HTTP/1.1)",
                 "versions": [ "1.1" ],
                 "cases": [
                     { "method": "HEAD", "path": "/redirect_from/foo.txt", "expectedStatus": 301, "expectedHeaders": {"Location": "/redirect_to/foo.txt"} },
+                    { "method": "HEAD", "path": "/redirect_from/%66oo.txt", "expectedStatus": 301, "expectedHeaders": {"Location": "/redirect_to/foo.txt"} },
                     { "method": "HEAD", "path": "/redirect_from/bar.txt", "expectedStatus": 301, "expectedHeaders": {"Location": "/redirect_to/bar.txt"} },
-                    { "method": "HEAD", "path": "/redirect_http1.1_only/foo.txt", "expectedStatus": 308, "expectedHeaders": {"Location": "/redirect_to/foo.txt"} }
+                    { "method": "HEAD", "path": "/redirect_from/bar.txt?q=1", "expectedStatus": 301, "expectedHeaders": {"Location": "/redirect_to/bar.txt?q=1"} },
+                    { "method": "HEAD", "path": "/redirect_http1.1_only/foo.txt", "expectedStatus": 308, "expectedHeaders": {"Location": "/redirect_to/foo.txt"} },
+
+                    { "method": "GET", "path": "/rewrite_from/foo.txt", "expectedStatus": 200, "expectedBody": "redirect_to/foo.txt" },
+                    { "method": "GET", "path": "/rewrite_from/%66oo.txt", "expectedStatus": 200, "expectedBody": "redirect_to/foo.txt" },
+                    { "method": "GET", "path": "/rewrite_from/bar.txt", "expectedStatus": 200, "expectedBody": "redirect_to/bar.txt" },
+                    { "method": "GET", "path": "/rewrite_from/query_test.php?q=1", "expectedStatus": 200, "expectedBody": "?q=1" }
                 ]
             },
 
             {
-                "desc": "Redirect Rules (HTTP/1.0)",
+                "desc": "Redirect & Rewrite Rules (HTTP/1.0)",
                 "versions": [ "1.0" ],
                 "cases": [
                     { "method": "HEAD", "path": "/redirect_from/foo.txt", "expectedStatus": 301, "expectedHeaders": {"Location": "/redirect_to/foo.txt"} },
+                    { "method": "HEAD", "path": "/redirect_from/%66oo.txt", "expectedStatus": 301, "expectedHeaders": {"Location": "/redirect_to/foo.txt"} },
                     { "method": "HEAD", "path": "/redirect_from/bar.txt", "expectedStatus": 301, "expectedHeaders": {"Location": "/redirect_to/bar.txt"} },
-                    { "method": "HEAD", "path": "/redirect_http1.1_only/foo.txt", "expectedStatus": 302, "expectedHeaders": {"Location": "/redirect_to/foo.txt"} }
+                    { "method": "HEAD", "path": "/redirect_from/bar.txt?q=1", "expectedStatus": 301, "expectedHeaders": {"Location": "/redirect_to/bar.txt?q=1"} },
+                    { "method": "HEAD", "path": "/redirect_http1.1_only/foo.txt", "expectedStatus": 302, "expectedHeaders": {"Location": "/redirect_to/foo.txt"} },
+
+                    { "method": "GET", "path": "/rewrite_from/foo.txt", "expectedStatus": 200, "expectedBody": "redirect_to/foo.txt" },
+                    { "method": "GET", "path": "/rewrite_from/%66oo.txt", "expectedStatus": 200, "expectedBody": "redirect_to/foo.txt" },
+                    { "method": "GET", "path": "/rewrite_from/bar.txt", "expectedStatus": 200, "expectedBody": "redirect_to/bar.txt" }
                 ]
             },
 

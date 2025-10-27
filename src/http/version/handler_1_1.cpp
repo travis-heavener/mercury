@@ -37,6 +37,30 @@ namespace http::version::handler_1_1 {
             return pResponse;
         }
 
+        // Handle rewrites
+        if (!conf::rewriteRules.empty()) {
+            // Format raw path & break off query string
+            std::string rawPath = request.getRawPathStr();
+            const size_t queryIndex = rawPath.find('?');
+            const std::string queryString = queryIndex != std::string::npos ? rawPath.substr(queryIndex) : "";
+            while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
+                rawPath.pop_back();
+
+            // Decode URI (no need to try-catch, done in constructor)
+            decodeURI(rawPath);
+
+            // Check rewrite rule patterns
+            for (const std::unique_ptr<conf::Rewrite>& pRewrite : conf::rewriteRules)
+                if (pRewrite->loadRewrittenPath(rawPath))
+                    request.rewriteRawPath(rawPath);
+        }
+
+        // Check once more for a 400 error after parsing rewrite rules
+        if ( request.has400Error() ) {
+            setStatusMaybeErrorDoc(request, *pResponse, 400);
+            return pResponse;
+        }
+
         // Verify access is permitted
         if (!conf::matchConfigs.empty()) {
             // Format raw path & remove query string
@@ -75,11 +99,14 @@ namespace http::version::handler_1_1 {
         // Handle redirects
         if (!conf::redirectRules.empty()) {
             // Format raw path & break off query string
-            std::string rawPath = request.getPathStr();
+            std::string rawPath = request.getRawPathStr();
             const size_t queryIndex = rawPath.find('?');
             const std::string queryString = queryIndex != std::string::npos ? rawPath.substr(queryIndex) : "";
             while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
                 rawPath.pop_back();
+
+            // Decode URI
+            decodeURI(rawPath);
 
             // Check redirect rule patterns
             std::string locationBuf;
@@ -89,7 +116,7 @@ namespace http::version::handler_1_1 {
 
                 // New location found, set status
                 pResponse->setStatus( pRedirect->getStatus() );
-                pResponse->setHeader( "Location", locationBuf );
+                pResponse->setHeader( "Location", locationBuf + queryString );
                 return pResponse;
             }
         }
