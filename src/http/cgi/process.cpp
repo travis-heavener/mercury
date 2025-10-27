@@ -12,6 +12,7 @@
 
 #include <cstring>
 #include <map>
+#include <optional>
 
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
@@ -70,12 +71,12 @@ namespace http::cgi {
         // Collect all envs
         std::map<std::string, std::string, std::less<>> envsMap;
 
-        const std::string* authHeader = req.getHeader("Authorization");
-        if (authHeader != nullptr) {
-            const size_t authHeaderSpaceIndex = authHeader->find(' ');
-            envsMap["AUTH_TYPE"] = authHeader->substr(0, authHeaderSpaceIndex);
-            envsMap["REMOTE_USER"] = authHeaderSpaceIndex == std::string::npos ?
-                "" : authHeader->substr(authHeaderSpaceIndex+1);
+        const std::optional<std::string> authHeader = req.getHeader("Authorization");
+        if (authHeader.has_value()) {
+            const size_t authSpaceInd = authHeader->find(' ');
+            envsMap["AUTH_TYPE"] = authHeader->substr(0, authSpaceInd);
+            envsMap["REMOTE_USER"] = authSpaceInd == std::string::npos ?
+                "" : authHeader->substr(authSpaceInd+1);
         } else {
             envsMap["AUTH_TYPE"] = envsMap["REMOTE_USER"] = "";
         }
@@ -84,8 +85,8 @@ namespace http::cgi {
         if (contentLen > 0) {
             envsMap["CONTENT_LENGTH"] = std::to_string(contentLen);
 
-            const std::string* contentTypeHeader = req.getHeader("Content-Type");
-            if (contentTypeHeader != nullptr)
+            const std::optional<std::string> contentTypeHeader = req.getHeader("Content-Type");
+            if (contentTypeHeader.has_value())
                 envsMap["CONTENT_TYPE"] = *contentTypeHeader;
         }
 
@@ -103,8 +104,8 @@ namespace http::cgi {
         envsMap["SCRIPT_FILENAME"] = file.path;
         envsMap["SCRIPT_NAME"] = file.rawPath; // File.rawPath ignores query string
 
-        const std::string* hostHeader = req.getHeader("Host");
-        envsMap["SERVER_NAME"] = hostHeader == nullptr ? "" : *hostHeader;
+        const std::optional<std::string> hostHeader = req.getHeader("Host");
+        envsMap["SERVER_NAME"] = hostHeader.has_value() ? *hostHeader : "";
         envsMap["SERVER_PORT"] = std::to_string( req.usesHTTPS() ? conf::TLS_PORT : conf::PORT );
         envsMap["SERVER_PROTOCOL"] = req.getVersion();
         envsMap["SERVER_SOFTWARE"] = "Mercury/" + conf::VERSION.substr(9); // Skip "Mercury v"

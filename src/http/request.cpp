@@ -7,42 +7,25 @@
 
 namespace http {
 
-    void loadEarlyHeaders(headers_map_t& headers, const std::string& raw) {
-        // Skip status line
-        std::string line;
-        size_t startIndex = 0;
-        readLine(raw, line, startIndex);
+    bool parsePath(std::string& rawPathStr, std::string& pathStr) {
+        std::replace( pathStr.begin(), pathStr.end(), '\\', '/');
+        rawPathStr = pathStr;
 
-        // Read headers from buffer
-        while (readLine(raw, line, startIndex)) {
-            if (line.size() <= 1) break; // Parse body
+        if (rawPathStr.empty() || rawPathStr[0] == '?')
+            return true;
 
-            // Check for invalid line format
-            if (line.back() != '\r')
-                throw http::Exception();
-            line.pop_back();
-
-            // Find first colon-space delimiter
-            size_t firstSpaceIndex = line.find(": ");
-            if (firstSpaceIndex != std::string::npos) {
-                std::string key = line.substr(0, firstSpaceIndex);
-                std::string value = line.substr(firstSpaceIndex+2);
-                strToUpper(key);
-                headers.insert({key, value});
-            }
+        // Decode URI
+        try {
+            decodeURI(pathStr);
+        } catch (std::invalid_argument&) {
+            return true;
         }
+
+        return false;
     }
 
-    // Fwd. decs
-    void parseAcceptHeader(std::unordered_set<std::string>&, std::string&);
-    void parseRangeHeader(std::vector<byte_range_t>&, std::string&);
-
     Request::Request(headers_map_t& headers, const std::string& raw, std::string clientIP, const bool isHTTPS, const bool isContentTooLarge)
-        : headers(headers) {
-        this->ipStr = clientIP;
-        this->isHTTPS = isHTTPS;
-        this->_isContentTooLarge = isContentTooLarge;
-
+        : headers(headers), ipStr(clientIP), isHTTPS(isHTTPS), _isContentTooLarge(isContentTooLarge) {
         std::string line;
         size_t startIndex = 0;
 
@@ -71,19 +54,8 @@ namespace http {
             this->httpVersionStr = "HTTP/0.9";
         }
 
-        // Replace backslash w/ fwd slash
-        std::replace( this->pathStr.begin(), this->pathStr.end(), '\\', '/');
-        this->rawPathStr = this->pathStr;
-
-        if (this->rawPathStr.empty() || this->rawPathStr[0] == '?')
-            this->_has400Error |= true;
-
-        // Decode URI
-        try {
-            decodeURI(this->pathStr);
-        } catch (std::invalid_argument&) {
-            this->_has400Error |= true;
-        }
+        // Parse path logic
+        this->_has400Error |= parsePath(this->rawPathStr, this->pathStr);
 
         // Determine method
         if      (this->methodStr == "GET")      this->method = METHOD::GET;
@@ -116,13 +88,13 @@ namespace http {
 
         // Determine compression method
         if (this->isEncodingAccepted("zstd"))
-            this->compressMethod = COMPRESS_ZSTD;
+            this->compressMethods |= COMPRESS_ZSTD;
         else if (this->isHTTPS && this->isEncodingAccepted("br"))
-            this->compressMethod = COMPRESS_BROTLI;
+            this->compressMethods |= COMPRESS_BROTLI;
         else if (this->isEncodingAccepted("gzip"))
-            this->compressMethod = COMPRESS_GZIP;
+            this->compressMethods |= COMPRESS_GZIP;
         else if (this->isEncodingAccepted("deflate"))
-            this->compressMethod = COMPRESS_DEFLATE;
+            this->compressMethods |= COMPRESS_DEFLATE;
 
         // Verify Host header is present for HTTP/1.1+ (RFC 2616)
         if (this->httpVersionStr != "HTTP/0.9" && this->httpVersionStr != "HTTP/1.0"
@@ -130,10 +102,50 @@ namespace http {
             this->_has400Error |= true;
     }
 
-    const std::string* Request::getHeader(std::string header) const {
+    std::optional<std::string> Request::getHeader(std::string header) const {
+        std::optional<std::string> opt;
         strToUpper(header);
         const auto result = this->headers.find(header);
-        return (result != this->headers.end()) ? &result->second : nullptr;
+        if (result != headers.end()) opt.emplace(result->second);
+        return opt;
+    }
+
+    int Request::getCompressMethod(const std::string& MIME) const {
+        // Decide what compression type to use of what's available
+        if (this->compressMethods & (COMPRESS_ZSTD | COMPRESS_BROTLI)) {
+            // Pick Zstandard or Brotli based on MIME
+            if (MIME == "text/javascript" || MIME == "application/json" || MIME == "text/html" ||
+                MIME == "text/css" || MIME == "image/svg+xml" || MIME == "text/plain" ||
+                MIME == "application/wasm" || MIME == "application/xml" || MIME == "application/xhtml+xml" ||
+                MIME == "application/ld+json")
+                return COMPRESS_BROTLI;
+
+            // Base case, use ZSTD
+            return COMPRESS_ZSTD;
+        } else if (this->compressMethods & COMPRESS_ZSTD) {
+            return COMPRESS_ZSTD;
+        } else if (this->compressMethods & COMPRESS_BROTLI) {
+            return COMPRESS_BROTLI;
+        } else if (this->compressMethods & COMPRESS_GZIP) {
+            return COMPRESS_GZIP;
+        } else if (this->compressMethods & COMPRESS_DEFLATE) {
+            return COMPRESS_DEFLATE;
+        }
+
+        // Base case, no compression
+        return NO_COMPRESS;
+    }
+
+    void Request::rewriteRawPath(const std::string& newPath) {
+        // Copy query string
+        const size_t queryIndex = this->rawPathStr.find('?');
+        const std::string queryString = (queryIndex != std::string::npos) ? this->rawPathStr.substr(queryIndex) : "";
+
+        // Update path string
+        this->pathStr = newPath + queryString;
+
+        // Redo path logic
+        this->_has400Error |= parsePath(this->rawPathStr, this->pathStr);
     }
 
     // This method exists to combine common methods from the version handlers
@@ -204,74 +216,6 @@ namespace http {
 
     bool Request::isEncodingAccepted(const std::string& encoding) const {
         return acceptedEncodings.find(encoding) != acceptedEncodings.end();
-    }
-
-    void parseAcceptHeader(std::unordered_set<std::string>& splitVec, std::string& string) {
-        std::vector<std::string> splitBuf;
-        size_t startIndex = 0;
-        for (size_t i = 0; i < string.size(); i++) {
-            if (string[i] == ',') {
-                std::string substr = string.substr(startIndex, i-startIndex);
-                trimString(substr);
-                if (substr.size() > 0) splitBuf.push_back(substr);
-                startIndex = i+1;
-            }
-        }
-
-        // Append last snippet
-        if (startIndex < string.size()) {
-            std::string substr = string.substr(startIndex);
-            trimString(substr);
-            if (substr.size() > 0) splitBuf.push_back(substr);
-        }
-
-        // Format split buffer
-        for (std::string& mime : splitBuf)
-            splitVec.insert(mime.substr(0, mime.find(';')));
-    }
-
-    void parseRangeHeader(std::vector<byte_range_t>& splitVec, std::string& rawHeader) {
-        trimString(rawHeader);
-        size_t unitStart = rawHeader.find("bytes");
-        if (unitStart == std::string::npos) return;
-
-        // Break apart ranges into string pairs
-        std::vector<std::string> intermediateVec;
-        std::string rawRanges( rawHeader.substr(unitStart + 6) );
-        splitString(intermediateVec, rawRanges, ',', true);
-
-        // Parse each range
-        std::string startBuf, endBuf;
-        for (const std::string& rangePair : intermediateVec) {
-            size_t dashIndex = rangePair.find('-');
-            if (dashIndex == std::string::npos) {
-                splitVec.clear(); return;
-            }
-
-            startBuf = rangePair.substr(0, dashIndex);
-            endBuf = rangePair.substr(dashIndex+1);
-            trimString(startBuf); trimString(endBuf);
-
-            // Parse and create buffer
-            if (startBuf.empty() && endBuf.empty()) {
-                splitVec.clear(); return;
-            }
-
-            size_t startIndex = std::string::npos;
-            size_t endIndex = std::string::npos;
-            try {
-                if (!startBuf.empty())  startIndex = std::stoull(startBuf);
-                if (!endBuf.empty())    endIndex =   std::stoull(endBuf);
-            } catch (std::invalid_argument&) {
-                // Handle invalid range
-                ERROR_LOG << "Parse failure for Range header" << std::endl;
-                splitVec.clear();
-                return;
-            }
-
-            // Emplace byte range
-            splitVec.emplace_back( byte_range_t(startIndex, endIndex) );
-        }
     }
 
 }

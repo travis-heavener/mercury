@@ -16,30 +16,12 @@ namespace http {
 
         // Init socket opts
         const int optFlag = 1;
-        if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&optFlag, sizeof(int)) < 0) {
-            if (logErrors)
-                ERROR_LOG << "Failed to set IPv6 socket opt SO_REUSEADDR (" << server << ")." << std::endl;
-            return SOCKET_FAILURE;
-        }
-
-        if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&optFlag, sizeof(int)) < 0) {
-            if (logErrors)
-                ERROR_LOG << "Failed to set IPv6 socket opt TCP_NODELAY (" << server << ")." << std::endl;
-            return SOCKET_FAILURE;
-        }
-
-        if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (const char*)&optFlag, sizeof(int)) < 0) {
-            if (logErrors)
-                ERROR_LOG << "Failed to set IPv6 socket opt IPV6_V6ONLY (" << server << ")." << std::endl;
-            return SOCKET_FAILURE;
-        }
+        bindSocketOpt(&server, sock, SOL_SOCKET, SO_REUSEADDR, optFlag, logErrors);
+        bindSocketOpt(&server, sock, IPPROTO_TCP, TCP_NODELAY, optFlag, logErrors);
+        bindSocketOpt(&server, sock, IPPROTO_IPV6, IPV6_V6ONLY, optFlag, logErrors);
 
         #if __linux__
-            if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&optFlag, sizeof(int)) < 0) {
-                if (logErrors)
-                    ERROR_LOG << "Failed to set IPv6 socket opt SO_REUSEPORT (" << server << ")." << std::endl;
-                return SOCKET_FAILURE;
-            }
+            bindSocketOpt(&server, sock, SOL_SOCKET, SO_REUSEPORT, optFlag, logErrors);
         #endif
 
         // Base case, success
@@ -70,11 +52,7 @@ namespace http {
                     return 0;
 
                 // Otherwise, set the errno for failure to bind
-                #ifdef __linux__
-                    lastErrno = errno;
-                #else
-                    lastErrno = WSAGetLastError();
-                #endif
+                lastErrno = errno;
             } else if (isLastAttempt) {
                 return optsStatus;
             }

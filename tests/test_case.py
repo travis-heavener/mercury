@@ -22,8 +22,18 @@ class TestCase:
         self.version = "HTTP/" + version
         self.expected_status = expectedStatus
 
-        self.headers = {} if headers is None else headers
-        self.headers = { k.upper(): v for k, v in self.headers.items() }
+        # Format headers
+        self.headers = {}
+        for k, v in headers.items():
+            ku = k.upper()
+            if ku in self.headers:
+                if ku == "ACCEPT" or ku == "ACCEPT-ENCODING":
+                    self.headers[ku] += ',' + v
+                elif ku == "RANGE":
+                    self.headers[ku] += ',' + v[v.find('=')+1:]
+            else:
+                self.headers[ku] = v
+
         self.headers["HOST"] = "localhost"
         self.headers["USER-AGENT"] = "Mercury Test Agent"
 

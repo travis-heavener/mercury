@@ -13,6 +13,10 @@
 
 #define SOCKET_DRAIN_BUFFER_SIZE 8192
 
+#ifdef _WIN32
+    #define close closesocket
+#endif
+
 namespace http {
 
     Server::Server(const port_t port, const bool useTLS) : port(port),
@@ -20,11 +24,9 @@ namespace http {
 
     void Server::kill() {
         // Close sockets
-        for (const int c_sock : this->clientSocks) {
-            if (c_sock != SOCKET_UNSET) {
+        for (const int c_sock : this->clientSocks)
+            if (c_sock != SOCKET_UNSET)
                 this->closeSocket(c_sock);
-            }
-        }
 
         if (this->sock != SOCKET_UNSET && !this->closeSocket(this->sock)) {
             ACCESS_LOG << "Server socket closed (" << *this << ")." << std::endl;
@@ -32,8 +34,7 @@ namespace http {
         }
 
         // Free SSL ptrs
-        if (this->useTLS)
-            SSL_CTX_free(this->pSSL_CTX);
+        if (this->useTLS) SSL_CTX_free(this->pSSL_CTX);
 
         // Signal to threads to wrap it up yo
         this->isExiting.store(true);
@@ -51,21 +52,11 @@ namespace http {
 
         // Init socket opts
         const int optFlag = 1;
-        if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set socket opt SO_REUSEADDR (" << *this << ")." << std::endl;
-            return SOCKET_FAILURE;
-        }
-
-        if (setsockopt(this->sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&optFlag, sizeof(int)) < 0) {
-            ERROR_LOG << "Failed to set socket opt TCP_NODELAY (" << *this << ")." << std::endl;
-            return SOCKET_FAILURE;
-        }
+        bindSocketOpt(this, this->sock, SOL_SOCKET, SO_REUSEADDR, optFlag, true);
+        bindSocketOpt(this, this->sock, IPPROTO_TCP, TCP_NODELAY, optFlag, true);
 
         #if __linux__
-            if (setsockopt(this->sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&optFlag, sizeof(int)) < 0) {
-                ERROR_LOG << "Failed to set socket opt SO_REUSEPORT (" << *this << ")." << std::endl;
-                return SOCKET_FAILURE;
-            }
+            bindSocketOpt(this, this->sock, SOL_SOCKET, SO_REUSEPORT, optFlag, true);
         #endif
 
         // Bind the host address
@@ -75,17 +66,10 @@ namespace http {
         memcpy(&addr.sin_addr, conf::BIND_ADDR_IPV4->bytes, 4);
 
         if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            #ifdef __linux__
-                const int err = errno;
-            #else
-                const int err = WSAGetLastError();
-            #endif
-
-            if (err == 13) { // Improve error handling for errno 13 (need sudo to listen to port)
-                ERROR_LOG << "Failed to bind socket (" << *this << "), errno: " << err << ", do you have sudo perms?" << std::endl;
-            } else {
-                ERROR_LOG << "Failed to bind socket (" << *this << "), errno: " << err << std::endl;
-            }
+            ERROR_LOG << "Failed to bind socket (" << *this << "), errno: "
+                << errno
+                << (errno == 13 ? ", do you have sudo perms?" : "") // Improve log for errno 13 (needs sudo)
+                << std::endl;
             return BIND_FAILURE;
         }
 
@@ -140,19 +124,13 @@ namespace http {
     int Server::closeSocket(const int sock) {
         #ifdef _WIN32
             shutdown(sock, SD_BOTH);
-            return closesocket(sock);
-        #else
-            return close(sock);
         #endif
+        return close(sock);
     }
 
     int Server::closeClientSocket(const int sock, SSL* pSSL) {
         this->untrackClient(sock);
-
-        // Cleanup TLS
-        if (this->useTLS)
-            SSL_free(pSSL);
-
+        if (this->useTLS) SSL_free(pSSL); // Cleanup TLS
         return this->closeSocket(sock);
     }
 
@@ -170,18 +148,16 @@ namespace http {
         void* addrPtr = nullptr;
         int afType = ((struct sockaddr*)&clientAddr)->sa_family;
 
-        if (afType == AF_INET6) {
+        if (afType == AF_INET6)
             addrPtr = &(((struct sockaddr_in6*)&clientAddr)->sin6_addr);
-        } else {
+        else
             addrPtr = &(((struct sockaddr_in*)&clientAddr)->sin_addr);
-        }
 
         #ifdef _WIN32
-            if (afType == AF_INET) {
+            if (afType == AF_INET)
                 strcpy(clientIPStr, inet_ntoa(*(struct in_addr*)addrPtr));
-            } else {
+            else
                 inet_ntop(AF_INET6, addrPtr, clientIPStr, INET6_ADDRSTRLEN);
-            }
         #else
             inet_ntop(afType, addrPtr, clientIPStr, afType == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN);
         #endif
@@ -350,11 +326,11 @@ namespace http {
                 pResponse = genResponse(request);
 
                 // Handle keep-alive requests
-                const std::string* pConnHeader = request.getHeader("Connection");
-                std::string connHeader = (pConnHeader != nullptr) ? *pConnHeader : ""; // Copy string
-                strToUpper(connHeader); // Format copied string
+                const std::optional<std::string> connHeader = request.getHeader("Connection");
+                std::string connValue = connHeader.has_value() ? *connHeader : ""; // Copy string
+                strToUpper(connValue); // Format copied string
                 if (conf::IS_KEEP_ALIVE_ENABLED && !isContentTooLarge &&
-                    (connHeader == "KEEP-ALIVE" || (connHeader == "" && request.getVersion() == "HTTP/1.1"))) {
+                    (connValue == "KEEP-ALIVE" || (connValue == "" && request.getVersion() == "HTTP/1.1"))) {
                     // HTTP/1.1 defaults to keep-alive
                     pResponse->setHeader("Connection", "keep-alive");
                     pResponse->setHeader("Keep-Alive",
@@ -416,7 +392,7 @@ namespace http {
         }
 
         // Pass the compression method
-        pResponse->setCompressMethod(request.getCompressMethod());
+        pResponse->setCompressMethod(request.getCompressMethod(pResponse->getContentType()));
 
         return pResponse;
     }
@@ -436,3 +412,7 @@ namespace http {
     }
 
 }
+
+#ifdef _WIN32
+    #undef close
+#endif

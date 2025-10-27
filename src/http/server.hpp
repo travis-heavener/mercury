@@ -31,6 +31,14 @@
 
 typedef unsigned short port_t;
 
+// Helper function for binding socket options
+#define bindSocketOpt(pServer, sock, family, option, value, logErrors) \
+    if (setsockopt(sock, family, option, (const char*)&value, sizeof(int)) < 0) { \
+        if (logErrors) \
+            ERROR_LOG << "Failed to set socket opt " #option "(" << *pServer << ")." << std::endl; \
+        return SOCKET_FAILURE; \
+    }
+
 namespace http {
 
     class Server : public std::enable_shared_from_this<Server> {

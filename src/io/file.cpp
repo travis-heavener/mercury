@@ -60,8 +60,10 @@ File::File(const std::string& _rawPath) {
         }
 
         // Replace any backslashes w/ fwd slashes
-        // Do this again because on Windows, resolveCanonicalPath returns \ directory separators
-        normalizeBackslashes(path);
+        #ifdef _WIN32
+            // Do this again because on Windows, resolveCanonicalPath returns \ directory separators
+            normalizeBackslashes(path);
+        #endif
 
         // Re-append slash if directory
         if (doesDirectoryExist(this->path, true)) this->path += '/';

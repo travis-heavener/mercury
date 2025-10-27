@@ -5,11 +5,11 @@
 
 #include "../pch/common.hpp"
 
-#define COMPRESS_DEFLATE 0
-#define COMPRESS_GZIP 1
-#define COMPRESS_BROTLI 2
-#define COMPRESS_ZSTD 3
-#define NO_COMPRESS 4
+#define NO_COMPRESS 256
+#define COMPRESS_DEFLATE 512
+#define COMPRESS_GZIP 1024
+#define COMPRESS_BROTLI 2048
+#define COMPRESS_ZSTD 4096
 
 inline void strToUpper(std::string& str) {
     std::transform(str.begin(), str.end(), str.begin(), ::toupper);

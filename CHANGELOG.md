@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.24.0
+- Minor codebase improvements
+    - Request::getHeader now returns std::optional instead of const std::string*
+    - Migrated bulk setsockopt calls to macrodef
+- Add rewrite engine (#245)
+- Now decodes URIs in redirect (& rewrite) checks
+- Now appends query strings to redirects & rewrites
+- Added support for multiple list headers per RFC spec (#317)
+    - Currently only for Accept, Accept-Encoding, Range
+- Now uses Brotli instead of Zstandard for web files (#348)
+    - Ex. HTML, CSS, and JS files
+- Added application/wasm to default mimes.conf
+
 ## v0.23.10
 - Fixed crash when URI was a "?" (#344)
 - Improved error logging for 500 Internal Server Error

@@ -44,6 +44,7 @@ namespace conf {
     extern std::vector<std::unique_ptr<Match>> matchConfigs;
     extern std::vector<std::string> INDEX_FILES;
     extern std::vector<std::unique_ptr<Redirect>> redirectRules;
+    extern std::vector<std::unique_ptr<Rewrite>> rewriteRules;
 
     extern std::filesystem::path ACCESS_LOG_FILE;
     extern std::filesystem::path ERROR_LOG_FILE;
