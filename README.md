@@ -207,6 +207,8 @@ The `build_tools/` directory contains all necessary shell scripts for building s
 
 Binaries are placed in the `bin/` directory, `mercury` for Linux and `mercury.exe` for Windows.
 
+Note: when first cloning the repository, run `make clean` to initialize the environment.
+
 ### Linux & Windows
 
 To build for Linux and/or Windows, use the following steps:

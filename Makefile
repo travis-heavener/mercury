@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: clean
+.PHONY: clean libs lib_deps libs_no_deps lib_brotli lib_openssl lib_zlib lib_pugixml lib_zstd release cert
 
 GPP_FLAGS = -Wall -Wextra -Winvalid-pch
 
@@ -107,7 +107,12 @@ $(PCH_DIR)/common-win.hpp.gch: $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp $
 ############################ STATIC BUILD CONFIG ############################
 
 clean:
-	rm -f bin/*
+	@rm -f bin/* tmp/* releases/* conf/ssl/*.pem
+	@rm -rf libs
+	@cp -f ./conf/default/* ./conf
+	@mkdir -p logs
+	@echo -n "" > logs/access.log
+	@echo -n "" > logs/error.log
 
 # Called if the artifacts.lock file (which is a dependency for some recipes) doesn't exist
 $(ARTIFACTS_LOCK):
