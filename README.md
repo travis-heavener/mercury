@@ -249,9 +249,11 @@ Using any recent version of Python 3, make sure that the following Python packag
 - Use `sudo apt install python3-brotli python3-zstandard python3-psutil` on Linux
 - Use `py -m pip install brotli zstandard psutil` on Windows
 
-With Python and its dependencies installed, start `tests/run.py` file to run a number of tests against the server.
+With Python and its dependencies installed, run `make cert` to create a TLS cert key pair.
 
-**NOTE:** Make sure that Mercury is ***NOT*** running when you start the test script--the script will launch several versions of Mercury to test against, but will restore your configuration settings afterwards.
+Now, start `tests/run.py` to run a number of tests against the server.
+
+**NOTE:** Make sure that Mercury is ***NOT*** running when you start the test script--the script will launch several versions of Mercury to test against, but will not overwrite your configuration settings.
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)
