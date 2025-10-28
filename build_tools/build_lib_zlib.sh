@@ -5,9 +5,13 @@ set -e
 # CD into project directory
 cd "$(dirname "$0")/../"
 
+lockfile="/tmp/libs.lock"
+exec 200>"$lockfile"
+flock -x 200
 if [ ! -d "libs" ]; then
     mkdir libs
 fi
+flock -u 200
 
 TOOLS_PATH=$(pwd)/build_tools/tools
 cd libs
