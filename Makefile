@@ -1,5 +1,7 @@
 SHELL := /bin/bash
 
+.PHONY: clean
+
 GPP_FLAGS = -Wall -Wextra -Winvalid-pch
 
 LIBS_DIR = libs
@@ -104,10 +106,13 @@ $(PCH_DIR)/common-win.hpp.gch: $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp $
 
 ############################ STATIC BUILD CONFIG ############################
 
+clean:
+	rm -f bin/*
+
 # Called if the artifacts.lock file (which is a dependency for some recipes) doesn't exist
 $(ARTIFACTS_LOCK):
 	@if [ ! -e $(ARTIFACTS_LOCK) ]; then \
-		echo "" | gzip | base64 > $(ARTIFACTS_LOCK); \
+		echo -n "" > $(ARTIFACTS_LOCK); \
 	fi
 
 libs: lib_deps libs_no_deps
