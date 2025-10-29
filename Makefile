@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: clean libs lib_deps libs_no_deps lib_brotli lib_openssl lib_zlib lib_pugixml lib_zstd release cert
+.PHONY: clean all linux windows pch pch_linux pch_windows libs lib_deps libs_no_deps lib_brotli lib_openssl lib_zlib lib_pugixml lib_zstd release cert
 
 GPP_FLAGS = -Wall -Wextra -Winvalid-pch
 
