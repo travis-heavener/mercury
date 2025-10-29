@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.25.0
+- Slightly reduced executable size
+    - Removed unused -lbrotlidec library
+
 ## v0.24.0
 - Minor codebase improvements
     - Request::getHeader now returns std::optional instead of const std::string*
