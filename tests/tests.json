@@ -388,6 +388,22 @@
                     { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 200, "expectedHeaders": {"Transfer-Encoding": false, "Content-Length": "19"}, "expectedBody": "redirect_to/foo.txt" },
                     { "method": "GET", "path": "/small.txt", "expectedStatus": 200, "expectedHeaders": {"Transfer-Encoding": false, "Content-Length": "11"}, "expectedBody": "HELLO WORLD" }
                 ]
+            },
+
+            {
+                "desc": "Compression Tests",
+                "versions": [ "1.0", "1.1" ],
+                "cases": [
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd, br"}, "expectedHeaders": {"Content-Encoding": "br"} },
+                    { "method": "GET", "path": "/favicon.jpg", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd, br"}, "expectedHeaders": {"Content-Encoding": "zstd"} },
+
+                    { "method": "GET", "path": "/favicon.jpg", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd"}, "expectedHeaders": {"Content-Encoding": "zstd"} },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "br"}, "expectedHeaders": {"Content-Encoding": "br"}, "httpsOnly": true },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "gzip"}, "expectedHeaders": {"Content-Encoding": "gzip"} },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "deflate"}, "expectedHeaders": {"Content-Encoding": "deflate"} },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "foobar"}, "expectedHeaders": {"Content-Encoding": false} },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "deflate", "ACCEPT-ENCODING": "gzip"}, "expectedHeaders": {"Content-Encoding": "gzip"} }
+                ]
             }
         ]
     }
