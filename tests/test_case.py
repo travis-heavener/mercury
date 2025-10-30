@@ -3,14 +3,19 @@ from datetime import datetime, timezone
 import io
 import json
 import pathlib
-import re
 import socket
+from threading import Lock
 import zlib
 import zstandard as zstd
 
 READ_BUF_SIZE = 1024 * 16 # Read buffer size for recv
 
 gmt_now = lambda: datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+
+print_lock = Lock()
+def lprint(*args: list[any]):
+    with print_lock:
+        print(*args)
 
 class TestCase:
     def __init__(self, method: str, path: str, expectedStatus: int, version: str,
@@ -84,18 +89,18 @@ class TestCase:
 
             # Verify something is returned
             if len(raw) == 0:
-                print(f"Failed {test_desc}: Empty response to HTTP/0.9")
-                print(self.inline_desc())
+                lprint(f"Failed {test_desc}: Empty response to HTTP/0.9\n", self.inline_desc())
                 return False
 
             # Match body
             does_body_match = (body == self.body_match and not self.body_contains_mode) \
                 or (self.body_match is not None and self.body_match in body and self.body_contains_mode)
             if not does_body_match:
-                print(f"Failed {test_desc}: Body mismatch")
-                print(self.inline_desc())
-                print("  Body:", body[0:48], end="")
-                print("..." if len(body) > 48 else "")
+                lprint(f"Failed {test_desc}: Body mismatch\n",
+                       self.inline_desc() + "\n",
+                       "  Body:", body[0:48],
+                       "..." if len(body) > 48 else ""
+                )
                 return False
 
             # Base case, success
@@ -117,23 +122,31 @@ class TestCase:
 
             # Check status code
             if status_code != self.expected_status:
-                print(f"Failed {test_desc}: Status mismatch - expected {self.expected_status}, got {status_code}")
-                print(self.inline_desc())
+                lprint(
+                    f"Failed {test_desc}: Status mismatch - expected {self.expected_status}, got {status_code}\n",
+                    self.inline_desc()
+                )
                 return False
 
             # Check headers
             for k, v in self.expected_headers.items():
                 if v == False and k in headers:
-                    print(f"Failed {test_desc}: Has forbidden header \"{k}\"=\"{headers[k]}\"")
-                    print(self.inline_desc())
+                    lprint(
+                        f"Failed {test_desc}: Has forbidden header \"{k}\"=\"{headers[k]}\"\n",
+                        self.inline_desc()
+                    )
                     return False
                 elif v != False and k not in headers:
-                    print(f"Failed {test_desc}: Missing header \"{k}\"")
-                    print(self.inline_desc())
+                    lprint(
+                        f"Failed {test_desc}: Missing header \"{k}\"\n",
+                        self.inline_desc()
+                    )
                     return False
                 elif v is not None and k in headers and headers[k] != v:
-                    print(f"Failed {test_desc}: Header mismatch - expected \"{k}\"=\"{v}\", got \"{k}\"=\"{headers[k]}\"")
-                    print(self.inline_desc())
+                    lprint(
+                        f"Failed {test_desc}: Header mismatch - expected \"{k}\"=\"{v}\", got \"{k}\"=\"{headers[k]}\"\n",
+                        self.inline_desc()
+                    )
                     return False
 
             # Read all body
@@ -141,8 +154,10 @@ class TestCase:
             if self.method != "HEAD":
                 body, success = read_body(s, headers, raw)
                 if not success:
-                    print(f"Failed {test_desc}: Connection timed out reading body")
-                    print(self.inline_desc())
+                    lprint(
+                        f"Failed {test_desc}: Connection timed out reading body\n",
+                        self.inline_desc()
+                    )
                     return False
 
             # Match body
@@ -152,10 +167,12 @@ class TestCase:
                 does_body_match = (body_decoded == self.body_match and not self.body_contains_mode) \
                     or (self.body_match in body_decoded and self.body_contains_mode)
                 if not does_body_match:
-                    print(f"Failed {test_desc}: Body mismatch")
-                    print(self.inline_desc())
-                    print("  Body:", body[0:48], end="")
-                    print("..." if len(body) > 48 else "")
+                    lprint(
+                        f"Failed {test_desc}: Body mismatch\n",
+                        self.inline_desc() + "\n",
+                        "  Body:", body[0:48],
+                        "..." if len(body) > 48 else ""
+                    )
                     return False
 
             # Check content encoding
@@ -163,8 +180,10 @@ class TestCase:
                 script_dir = pathlib.Path(__file__).parent.resolve()
                 path = script_dir.joinpath("files").joinpath(self.path[1:])
                 if not self._verify_decode( path, body, self.expected_headers["CONTENT-ENCODING"] ):
-                    print(f"Failed {test_desc}: Content-Encoding decode failed ({self.expected_headers['CONTENT-ENCODING']})")
-                    print(self.inline_desc())
+                    lprint(
+                        f"Failed {test_desc}: Content-Encoding decode failed ({self.expected_headers['CONTENT-ENCODING']})\n",
+                        self.inline_desc()
+                    )
                     return False
 
             # Base case
