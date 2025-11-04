@@ -3,6 +3,7 @@
 ## v0.25.0
 - Slightly reduced executable size
     - Removed unused -lbrotlidec library
+- Update Brotli (v1.1.0 -> v1.2.0)
 
 ## v0.24.0
 - Minor codebase improvements
