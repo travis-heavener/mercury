@@ -7,23 +7,6 @@
 
 namespace http {
 
-    bool parsePath(std::string& rawPathStr, std::string& pathStr) {
-        std::replace( pathStr.begin(), pathStr.end(), '\\', '/');
-        rawPathStr = pathStr;
-
-        if (rawPathStr.empty() || rawPathStr[0] == '?')
-            return true;
-
-        // Decode URI
-        try {
-            decodeURI(pathStr);
-        } catch (std::invalid_argument&) {
-            return true;
-        }
-
-        return false;
-    }
-
     Request::Request(headers_map_t& headers, const std::string& raw, std::string clientIP, const bool isHTTPS, const RequestFlags& reqFlags)
         : headers(headers), ipStr(clientIP), isHTTPS(isHTTPS), reqFlags(reqFlags) {
         std::string line;
@@ -41,7 +24,6 @@ namespace http {
         const size_t secondSpaceIndex = line.find(" ", firstSpaceIndex+1);
 
         this->methodStr = line.substr(0, firstSpaceIndex);
-        this->pathStr = line.substr(firstSpaceIndex + 1, secondSpaceIndex - firstSpaceIndex - 1);
 
         // Check for HTTP/0.9 unique status line
         if (secondSpaceIndex != std::string::npos) {
@@ -55,7 +37,8 @@ namespace http {
         }
 
         // Parse path logic
-        this->_has400Error |= parsePath(this->rawPathStr, this->pathStr);
+        const std::string rawPathFromRequest = line.substr(firstSpaceIndex + 1, secondSpaceIndex - firstSpaceIndex - 1);
+        this->_has400Error |= !loadRequestPaths(paths, rawPathFromRequest);
 
         // Determine method
         if      (this->methodStr == "GET")      this->method = METHOD::GET;
@@ -137,31 +120,19 @@ namespace http {
     }
 
     void Request::rewriteRawPath(const std::string& newPath) {
-        // Copy query string
-        const size_t queryIndex = this->rawPathStr.find('?');
-        const std::string queryString = (queryIndex != std::string::npos) ? this->rawPathStr.substr(queryIndex) : "";
-
-        // Update path string
-        this->pathStr = newPath + queryString;
-
         // Redo path logic
-        this->_has400Error |= parsePath(this->rawPathStr, this->pathStr);
+        this->_has400Error |= !loadRequestPaths(paths, newPath, true);
     }
 
     // This method exists to combine common methods from the version handlers
     bool Request::isInDocumentRoot(Response& response, const std::string& allowedMethods) const {
-        // Decode URI after removing query string
-        std::string querylessPath = rawPathStr.substr(0, rawPathStr.find('?'));
-        decodeURI(querylessPath); // Doesn't need try-catch, already checked in Request constructor
-
         // Prevent lookups to files outside of the document root
-        if (pathStr.size() == 0 || pathStr[0] != '/' || querylessPath.find("..") != std::string::npos) {
+        if (paths.decodedURI.size() == 0 || paths.decodedURI[0] != '/' || paths.decodedURI.find("..") != std::string::npos) {
             response.setHeader("Allow", allowedMethods);
             setStatusMaybeErrorDoc(response, 400);
             return false;
         }
 
-        // Base case, both are valid
         return true;
     }
 
@@ -190,7 +161,7 @@ namespace http {
         if (file.isDirectory) {
             for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
                 if (!pMatch->showDirectoryIndexes() &&
-                    std::regex_match(file.path, pMatch->getPattern())) {
+                    std::regex_match(paths.decodedURI, pMatch->getPattern())) {
                     // Hide the directory index
                     this->setStatusMaybeErrorDoc(response, 403);
                     return false;

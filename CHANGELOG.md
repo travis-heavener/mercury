@@ -2,6 +2,7 @@
 
 ## v0.26.0
 - Extend MIME types list (#351)
+- Improved internal path handling (#353)
 
 ## v0.25.0
 - Slightly reduced executable size

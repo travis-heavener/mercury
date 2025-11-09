@@ -2,13 +2,14 @@
 #define __FILE_HPP
 
 #include "../pch/common.hpp"
+#include "../http/http_tools.hpp"
 #include "../http/body_stream.hpp"
 
 #define MIME_UNSET ""
 
 class File {
     public:
-        File(const std::string&);
+        File(const http::RequestPath& paths);
 
         int loadToBuffer(std::unique_ptr<http::IBodyStream>&);
         std::string getLastModifiedGMT() const;
@@ -20,13 +21,13 @@ class File {
         std::string MIME;
 
         // The FULL, absolute path to the file
-        std::string path;
+        std::string absoluteResourcePath;
 
-        // The RAW path from the HTTP request (URI decoded)
-        std::string rawPath;
+        // The decoded URI from the request, W/O any path info
+        std::string decodedURIWithoutPathInfo;
 
         // The query string
-        std::string queryStr;
+        std::string queryString;
 
         // The PHP path info string, for PHP files only
         std::string phpPathInfo;

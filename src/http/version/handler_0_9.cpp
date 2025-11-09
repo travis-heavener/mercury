@@ -25,19 +25,14 @@ namespace http::version::handler_0_9 {
 
         // Verify access is permitted
         if (!conf::matchConfigs.empty()) {
-            // Format raw path & remove query string
-            std::string rawPath = request.getPathStr();
-            const size_t queryIndex = rawPath.find('?');
-            while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
-                rawPath.pop_back();
-
             // Create sanitized IP address
+            const std::string decodedURI = request.getDecodedURI();
             try {
                 conf::SanitizedIP sip( conf::parseSanitizedClientIP(request.getIPStr()) );
 
                 // Check Match patterns
                 for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
-                    if (std::regex_match(rawPath, pMatch->getPattern())) {
+                    if (std::regex_match(decodedURI, pMatch->getPattern())) {
                         // Verify access is permitted
                         if (!pMatch->getAccessControl()->isIPAccepted(sip)) {
                             pResponse->loadBodyFromErrorDoc(403);
@@ -57,7 +52,7 @@ namespace http::version::handler_0_9 {
             return pResponse;
 
         // Lookup file & validate it doesn't have anything wrong with it
-        File file(request.getRawPathStr());
+        File file(request.getPaths());
         if (!request.isFileValid(*pResponse, file))
             return pResponse;
 

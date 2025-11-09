@@ -45,20 +45,11 @@ namespace http::version::handler_1_1 {
 
         // Handle rewrites
         if (!conf::rewriteRules.empty()) {
-            // Format raw path & break off query string
-            std::string rawPath = request.getRawPathStr();
-            const size_t queryIndex = rawPath.find('?');
-            const std::string queryString = queryIndex != std::string::npos ? rawPath.substr(queryIndex) : "";
-            while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
-                rawPath.pop_back();
-
-            // Decode URI (no need to try-catch, done in constructor)
-            decodeURI(rawPath);
-
             // Check rewrite rule patterns
+            std::string decodedURI = request.getDecodedURI();
             for (const std::unique_ptr<conf::Rewrite>& pRewrite : conf::rewriteRules)
-                if (pRewrite->loadRewrittenPath(rawPath))
-                    request.rewriteRawPath(rawPath);
+                if (pRewrite->loadRewrittenPath(decodedURI))
+                    request.rewriteRawPath(decodedURI);
         }
 
         // Check once more for a 400 error after parsing rewrite rules
@@ -69,19 +60,14 @@ namespace http::version::handler_1_1 {
 
         // Verify access is permitted
         if (!conf::matchConfigs.empty()) {
-            // Format raw path & remove query string
-            std::string rawPath = request.getPathStr();
-            const size_t queryIndex = rawPath.find('?');
-            while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
-                rawPath.pop_back();
-
             // Create sanitized IP address
+            const std::string decodedURI = request.getDecodedURI();
             try {
                 conf::SanitizedIP sip( conf::parseSanitizedClientIP(request.getIPStr()) );
 
                 // Check Match patterns
                 for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
-                    if (std::regex_match(rawPath, pMatch->getPattern())) {
+                    if (std::regex_match(decodedURI, pMatch->getPattern())) {
                         // Verify access is permitted
                         if (!pMatch->getAccessControl()->isIPAccepted(sip)) {
                             setStatusMaybeErrorDoc(request, *pResponse, 403);
@@ -104,33 +90,24 @@ namespace http::version::handler_1_1 {
 
         // Handle redirects
         if (!conf::redirectRules.empty()) {
-            // Format raw path & break off query string
-            std::string rawPath = request.getRawPathStr();
-            const size_t queryIndex = rawPath.find('?');
-            const std::string queryString = queryIndex != std::string::npos ? rawPath.substr(queryIndex) : "";
-            while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
-                rawPath.pop_back();
-
-            // Decode URI
-            decodeURI(rawPath);
-
             // Check redirect rule patterns
+            const std::string decodedURI = request.getDecodedURI();
             std::string locationBuf;
             for (const std::unique_ptr<conf::Redirect>& pRedirect : conf::redirectRules) {
-                pRedirect->loadRedirectedPath(rawPath, locationBuf);
+                pRedirect->loadRedirectedPath(decodedURI, locationBuf);
                 if (locationBuf.empty()) continue;
 
                 // New location found, set status
                 pResponse->setStatus( pRedirect->getStatus() );
-                pResponse->setHeader( "Location", locationBuf + queryString );
+                pResponse->setHeader( "Location", locationBuf + request.getDecodedQueryString() );
                 return pResponse;
             }
         }
 
-        File file(request.getRawPathStr());
+        File file(request.getPaths());
 
         // Bypass document root checks, file checks, and PHP for OPTIONS * (server-wide edge case)
-        if (method != METHOD::OPTIONS || request.getRawPathStr() != "*") {
+        if (method != METHOD::OPTIONS || request.getDecodedURI() != "*") {
             // Verify path is restricted to document root
             if (!request.isInDocumentRoot(*pResponse, ALLOWED_STATIC_METHODS))
                 return pResponse;
@@ -140,12 +117,12 @@ namespace http::version::handler_1_1 {
                 return pResponse;
 
             // Check for PHP files
-            if (conf::IS_PHP_ENABLED && file.path.ends_with(".php")) {
+            if (conf::IS_PHP_ENABLED && file.absoluteResourcePath.ends_with(".php")) {
                 cgi::handlePHPRequest(file, request, *pResponse);
 
                 // Load additional headers
                 for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
-                    if (std::regex_match(file.rawPath, pMatch->getPattern()))
+                    if (std::regex_match(file.decodedURIWithoutPathInfo, pMatch->getPattern()))
                         for (auto [name, value] : pMatch->getHeaders())
                             pResponse->setHeader(name, value);
 
@@ -174,7 +151,7 @@ namespace http::version::handler_1_1 {
                     // Compare timestamps
                     try {
                         // serverTime <= clientTime
-                        if (getFileModTimeT(file.path) <= getTimeTFromGMT(*pLastModTS)) {
+                        if (getFileModTimeT(file.absoluteResourcePath) <= getTimeTFromGMT(*pLastModTS)) {
                             pResponse->setStatus(304);
                             break;
                         }
@@ -204,13 +181,13 @@ namespace http::version::handler_1_1 {
 
                 // Load additional headers for body loading
                 for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
-                    if (std::regex_match(file.rawPath, pMatch->getPattern()))
+                    if (std::regex_match(file.decodedURIWithoutPathInfo, pMatch->getPattern()))
                         for (auto [name, value] : pMatch->getHeaders())
                             pResponse->setHeader(name, value);
                 break;
             }
             case METHOD::OPTIONS: { // OPTIONS introduced in HTTP/1.1
-                if (request.getRawPathStr() == "*") // Server-wide edge case
+                if (request.getDecodedURI() == "*") // Server-wide edge case
                     pResponse->setHeader("Allow", ALLOWED_METHODS);
                 else
                     pResponse->setHeader("Allow", ALLOWED_STATIC_METHODS);

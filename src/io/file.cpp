@@ -5,23 +5,13 @@
 #include "../util/string_tools.hpp"
 #include "../util/toolbox.hpp"
 
-File::File(const std::string& _rawPath) {
-    // URI decode and remove query string
-    const size_t queryIndex = _rawPath.find('?');
-    if (queryIndex == std::string::npos) {
-        this->rawPath = _rawPath; // Raw path from request, but URI decoded
-    } else {
-        this->rawPath = _rawPath.substr(0, queryIndex); // Raw path from request, but URI decoded
-        this->queryStr = _rawPath.substr(queryIndex);
-    }
-
-    // Doesn't need try-catch, already checked in Request constructor
-    decodeURI(this->rawPath);
-    decodeURI(this->queryStr);
+File::File(const http::RequestPath& paths) {
+    this->decodedURIWithoutPathInfo = paths.decodedURI;
+    this->queryString = paths.decodedQueryString;
 
     // Extract PHP path info
     std::filesystem::path rawPathNoPathInfo;
-    std::filesystem::path rawPathCopy = std::filesystem::path(rawPath);
+    std::filesystem::path rawPathCopy = std::filesystem::path(decodedURIWithoutPathInfo);
     bool hasPathInfo = false;
     for (const auto& part : rawPathCopy) {
         if (!hasPathInfo) {
@@ -35,22 +25,22 @@ File::File(const std::string& _rawPath) {
         }
     }
 
-    // Remove path info from rawPath
+    // Remove path info from decodedURI
     if (hasPathInfo)
-        this->rawPath = rawPathNoPathInfo.string();
+        this->decodedURIWithoutPathInfo = rawPathNoPathInfo.string();
 
     // Update the actual path
-    if (this->rawPath == "/") {
-        this->path = conf::DOCUMENT_ROOT.string();
-        normalizeBackslashes( path ); // Replace any backslashes w/ fwd slashes
-        stringReplaceAll(path, "//", "/"); // Replace all '//' with '/'
+    if (this->decodedURIWithoutPathInfo == "/") {
+        this->absoluteResourcePath = conf::DOCUMENT_ROOT.string();
+        normalizeBackslashes(absoluteResourcePath); // Replace any backslashes w/ fwd slashes
+        stringReplaceAll(absoluteResourcePath, "//", "/"); // Replace all '//' with '/'
     } else {
         // Replace all '//' with '/'
-        normalizeBackslashes(rawPath);
-        stringReplaceAll(rawPath, "//", "/");
+        normalizeBackslashes(decodedURIWithoutPathInfo);
+        stringReplaceAll(decodedURIWithoutPathInfo, "//", "/");
 
         try {
-            this->path = resolveCanonicalPath( conf::DOCUMENT_ROOT / this->rawPath.substr(1) ).string();
+            this->absoluteResourcePath = resolveCanonicalPath( conf::DOCUMENT_ROOT / this->decodedURIWithoutPathInfo.substr(1) ).string();
         } catch (std::filesystem::filesystem_error&) {
             this->exists = false;
             return;
@@ -62,40 +52,40 @@ File::File(const std::string& _rawPath) {
         // Replace any backslashes w/ fwd slashes
         #ifdef _WIN32
             // Do this again because on Windows, resolveCanonicalPath returns \ directory separators
-            normalizeBackslashes(path);
+            normalizeBackslashes(absoluteResourcePath);
         #endif
 
         // Re-append slash if directory
-        if (doesDirectoryExist(this->path, true)) this->path += '/';
+        if (doesDirectoryExist(this->absoluteResourcePath, true)) this->absoluteResourcePath += '/';
     }
 
     // Check for index file
-    if (this->path.back() == '/') {
+    if (this->absoluteResourcePath.back() == '/') {
         for (const std::string& indexFile : conf::INDEX_FILES) {
-            if (std::filesystem::exists(path + indexFile) &&
-                !std::filesystem::is_directory(path + indexFile)) {
-                this->path += indexFile;
+            if (std::filesystem::exists(absoluteResourcePath + indexFile) &&
+                !std::filesystem::is_directory(absoluteResourcePath + indexFile)) {
+                this->absoluteResourcePath += indexFile;
                 break;
             }
         }
     }
 
     // Handle the MIME type if this is a directory
-    if (doesDirectoryExist(this->path, true)) {
+    if (doesDirectoryExist(this->absoluteResourcePath, true)) {
         // Prepare directory index listing
         this->MIME = "text/html; charset=UTF-8";
         this->exists = true;
         this->isDirectory = true;
     } else {
         // Lookup MIME type
-        std::string ext = std::filesystem::path(this->path).extension().string();
+        std::string ext = std::filesystem::path(this->absoluteResourcePath).extension().string();
         if (ext.size()) ext = ext.substr(1); // Remove leading period
         this->MIME = conf::MIMES.find(ext) != conf::MIMES.end() ? conf::MIMES[ext] : MIME_UNSET;
-        this->exists = doesFileExist(this->path, true);
+        this->exists = doesFileExist(this->absoluteResourcePath, true);
     }
 
     // Reject symlinks or hardlinks
-    const int linkStatus = isSymlinked( this->path );
+    const int linkStatus = isSymlinked( this->absoluteResourcePath );
     if (linkStatus == INTERNAL_ERROR) {
         this->ioFailure = true;
         return;
@@ -112,7 +102,7 @@ int File::loadToBuffer(std::unique_ptr<http::IBodyStream>& pStream) {
     // Handle directory listings
     if (this->isDirectory) {
         // Load directory listing document
-        if (loadDirectoryListing(pStream, path, rawPath) == IO_FAILURE)
+        if (loadDirectoryListing(pStream, absoluteResourcePath, decodedURIWithoutPathInfo) == IO_FAILURE)
             return IO_FAILURE;
 
         // Update MIME
@@ -121,10 +111,10 @@ int File::loadToBuffer(std::unique_ptr<http::IBodyStream>& pStream) {
     }
 
     // Base case, load to FileStream
-    pStream = std::unique_ptr<http::IBodyStream>( new http::FileStream(path) );
+    pStream = std::unique_ptr<http::IBodyStream>( new http::FileStream(absoluteResourcePath) );
     return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
 }
 
 std::string File::getLastModifiedGMT() const {
-    return getFileModGMTString(this->path);
+    return getFileModGMTString(this->absoluteResourcePath);
 }

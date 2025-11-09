@@ -36,6 +36,20 @@ namespace http {
         bool isContentTooLarge = false;
         bool isURITooLong = false;
     } RequestFlags;
+
+    // Used to store various copies of the Request path object
+    typedef struct {
+        std::string rawPathFromRequest; // The raw, unchanged path from the HTTP request line
+
+        std::string rawQueryString; // The normalized query string from the request, URI-encoded
+        std::string decodedQueryString; // The URI-decoded query string from the request
+
+        std::string rawURI; // The normalized URI from the request, URI-encoded
+        std::string decodedURI; // The normalized, decoded URI from the request
+    } RequestPath;
+
+    // Returns true if the path loading was successful, false otherwise
+    bool loadRequestPaths(RequestPath& paths, const std::string& rawRequestPath, const bool preserveQueryString=false);
 };
 
 #endif

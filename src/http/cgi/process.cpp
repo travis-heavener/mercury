@@ -93,16 +93,16 @@ namespace http::cgi {
         envsMap["GATEWAY_INTERFACE"] = "CGI/1.1";
         envsMap["PATH_INFO"] = file.phpPathInfo;
         envsMap["PATH_TRANSLATED"] = file.phpPathInfo.empty() ? "" : (conf::DOCUMENT_ROOT / file.phpPathInfo.substr(1)).string();
-        envsMap["QUERY_STRING"] = file.queryStr;
+        envsMap["QUERY_STRING"] = file.queryString;
 
         envsMap["REMOTE_ADDR"] = envsMap["REMOTE_HOST"] = req.getIPStr();
         envsMap["REMOTE_IDENT"] = "";
 
         envsMap["REQUEST_METHOD"] = req.getMethodStr() == "HEAD" ? "GET" : req.getMethodStr(); // Map HEAD to GET
-        envsMap["REQUEST_URI"] = file.rawPath;
+        envsMap["REQUEST_URI"] = file.decodedURIWithoutPathInfo;
 
-        envsMap["SCRIPT_FILENAME"] = file.path;
-        envsMap["SCRIPT_NAME"] = file.rawPath; // File.rawPath ignores query string
+        envsMap["SCRIPT_FILENAME"] = file.absoluteResourcePath;
+        envsMap["SCRIPT_NAME"] = file.decodedURIWithoutPathInfo; // File.decodedURIWithoutPathInfo ignores query string
 
         const std::optional<std::string> hostHeader = req.getHeader("Host");
         envsMap["SERVER_NAME"] = hostHeader.has_value() ? *hostHeader : "";
