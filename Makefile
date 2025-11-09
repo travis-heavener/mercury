@@ -5,12 +5,12 @@ SHELL := /bin/bash
 	release cert
 
 # Libraries
-ARTIFACTS_LOCK := libs/artifacts.lock
-OPENSSL_DIR := libs/openssl
-BROTLI_DIR := libs/brotli
-ZLIB_DIR := libs/zlib
-ZSTD_DIR := libs/zstd
-PUGIXML_DIR := libs/pugixml
+ARTIFACTS_LOCK = libs/artifacts.lock
+OPENSSL_DIR = libs/openssl
+BROTLI_DIR = libs/brotli
+ZLIB_DIR = libs/zlib
+ZSTD_DIR = libs/zstd
+PUGIXML_DIR = libs/pugixml
 
 INCLUDE_LINUX = $(shell find libs -type d \( -name 'include' -o -name 'pugixml' \) | grep -P '(linux/include)|(pugixml)' | sed 's/^/-I/' | tr '\n' ' ')
 INCLUDE_WIN = $(shell find libs -type d \( -name 'include' -o -name 'pugixml' \) | grep -P '(windows/include)|(pugixml)' | sed 's/^/-I/' | tr '\n' ' ')
