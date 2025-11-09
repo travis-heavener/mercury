@@ -36,6 +36,16 @@ jobs:
           key: mercury-windows-binaries-${{ github.sha }}
           enableCrossOsArchive: true
 
+      # Init build environment BEFORE libs
+      - name: Make Clean
+        run: make clean
+
+      # Make executables
+      - name: Make Executable Shell Scripts
+        run: |
+          sudo chmod +x ./build_tools/*.sh
+          sudo chmod +x ./build_tools/tools/*
+
       # Mark artifacts for caching
       - name: Cache Library Artifacts
         uses: actions/cache@v4
@@ -52,12 +62,6 @@ jobs:
                 '**/build_tools/dependencies.txt'
               )
             }}
-
-      # Make executables
-      - name: Make Executable Shell Scripts
-        run: |
-          sudo chmod +x ./build_tools/*.sh
-          sudo chmod +x ./build_tools/tools/*
 
       # Install & cache APT deps
       - name: Install APT Deps

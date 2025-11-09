@@ -101,6 +101,12 @@ jobs:
           key: mercury-windows-binaries-${{ github.sha }}
           enableCrossOsArchive: true
 
+      # Make executables
+      - name: Make Executable Shell Scripts
+        run: |
+          chmod +x ./build_tools/*.sh
+          chmod +x ./build_tools/tools/*
+
       - name: Restore Cached Libs
         uses: actions/cache@v4
         with:
@@ -116,12 +122,6 @@ jobs:
                 '**/build_tools/dependencies.txt'
               )
             }}
-
-      # Make executables
-      - name: Make Executable Shell Scripts
-        run: |
-          chmod +x ./build_tools/*.sh
-          chmod +x ./build_tools/tools/*
 
       # Run release builder
       - name: Make Release
