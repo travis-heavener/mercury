@@ -5,12 +5,12 @@ SHELL := /bin/bash
 	release cert
 
 # Libraries
-ARTIFACTS_LOCK = libs/artifacts.lock
-OPENSSL_DIR = libs/openssl
-BROTLI_DIR = libs/brotli
-ZLIB_DIR = libs/zlib
-ZSTD_DIR = libs/zstd
-PUGIXML_DIR = libs/pugixml
+ARTIFACTS_LOCK := libs/artifacts.lock
+OPENSSL_DIR := libs/openssl
+BROTLI_DIR := libs/brotli
+ZLIB_DIR := libs/zlib
+ZSTD_DIR := libs/zstd
+PUGIXML_DIR := libs/pugixml
 
 INCLUDE_LINUX = $(shell find libs -type d \( -name 'include' -o -name 'pugixml' \) | grep -P '(linux/include)|(pugixml)' | sed 's/^/-I/' | tr '\n' ' ')
 INCLUDE_WIN = $(shell find libs -type d \( -name 'include' -o -name 'pugixml' \) | grep -P '(windows/include)|(pugixml)' | sed 's/^/-I/' | tr '\n' ' ')
@@ -36,7 +36,7 @@ WIN_FLAGS := -lcrypt32 -lws2_32 -mconsole
 # Targets
 TARGET_LINUX := bin/mercury
 TARGET_WIN := bin/mercury.exe
-TARGET_WIN_ICON = bin/icon.o
+TARGET_WIN_ICON := bin/icon.o
 
 # Recipes
 all: $(TARGET_LINUX) $(TARGET_WIN)
@@ -51,7 +51,7 @@ clean:
 	@rm -f bin/* tmp/* releases/* conf/ssl/*.pem
 	@rm -rf libs
 	@cp -f conf/default/* conf
-	@mkdir -p logs bin
+	@mkdir -p logs bin libs
 	@echo -n "" > logs/access.log
 	@echo -n "" > logs/error.log
 	@echo -n "" > $(ARTIFACTS_LOCK)
