@@ -109,7 +109,7 @@ def run_single_test(case: TestCase, ipv4: bool, tls: bool) -> bool:
     except KeyboardInterrupt as e:
         raise e
     except Exception as e:
-        print(f"[Error]: {test_type} connection failure: {e}")
+        print(f"[Error]: {test_type} failure: {e}")
         return False
 
 # Test run helper
