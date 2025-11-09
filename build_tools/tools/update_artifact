@@ -10,15 +10,23 @@
 # CD into libs directory
 cd "$(dirname "$0")/../../"
 
+lockfile="/tmp/libs.lock"
+exec 200>"$lockfile"
+flock -x 200
 if [ ! -d "libs" ]; then
     mkdir libs
 fi
+flock -u 200
 
 cd libs
 
+lockfile="/tmp/artifacts_lock.lock"
+exec 200>"$lockfile"
+flock -x 200
 if [ ! -e "artifacts.lock" ]; then
     echo "" > artifacts.lock
 fi
+flock -u 200
 
 if grep -q "^$1=" artifacts.lock; then
     sed -i "s/^$1=.*$/$1=$2/" artifacts.lock

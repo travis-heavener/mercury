@@ -10,7 +10,6 @@ This file uses the test cases in tests.json to test the output of
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import psutil
-import shutil
 import signal
 import socket
 import ssl
@@ -24,7 +23,6 @@ host = "127.0.0.1"
 host_v6 = "::1"
 port = 8080
 ssl_port = 8081
-
 
 def is_mercury_running():
     process_name = None
@@ -115,7 +113,7 @@ def run_single_test(case: TestCase, ipv4: bool, tls: bool) -> bool:
         return False
 
 # Test run helper
-def run_tests(cases: list[TestCase], ipv4: bool, max_workers: int) -> int:
+def run_tests(cases: list[TestCase], max_workers: int) -> int:
     num_passing = 0
     futures = []
 
@@ -123,10 +121,10 @@ def run_tests(cases: list[TestCase], ipv4: bool, max_workers: int) -> int:
         try:
             # Schedule tests
             for case in cases:
-                futures.append(executor.submit(run_single_test, case, ipv4, False))
-
-            for case in cases:
-                futures.append(executor.submit(run_single_test, case, ipv4, True))
+                futures.append(executor.submit(run_single_test, case, ipv4=True, tls=False))
+                futures.append(executor.submit(run_single_test, case, ipv4=True, tls=True))
+                futures.append(executor.submit(run_single_test, case, ipv4=False, tls=False))
+                futures.append(executor.submit(run_single_test, case, ipv4=False, tls=True))
 
             # Collect results as they complete
             for f in as_completed(futures):
@@ -222,8 +220,7 @@ if __name__ == "__main__":
             if not timed_out:
                 # Run tests
                 try:
-                    num_passing += run_tests( run["cases"], ipv4=True, max_workers=12 )
-                    num_passing += run_tests( run["cases"], ipv4=False, max_workers=12 )
+                    num_passing += run_tests( run["cases"], max_workers=12 )
                 except KeyboardInterrupt as e:
                     raise e
                 except:

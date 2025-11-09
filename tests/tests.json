@@ -388,6 +388,36 @@
                     { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 200, "expectedHeaders": {"Transfer-Encoding": false, "Content-Length": "19"}, "expectedBody": "redirect_to/foo.txt" },
                     { "method": "GET", "path": "/small.txt", "expectedStatus": 200, "expectedHeaders": {"Transfer-Encoding": false, "Content-Length": "11"}, "expectedBody": "HELLO WORLD" }
                 ]
+            },
+
+            {
+                "desc": "Compression Tests w/ CTE (HTTP/1.1 ONLY)",
+                "versions": [ "1.1" ],
+                "cases": [
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd, br"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Encoding": "br"} },
+                    { "method": "GET", "path": "/favicon.jpg", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd, br"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Encoding": "zstd"} },
+
+                    { "method": "GET", "path": "/favicon.jpg", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Encoding": "zstd"} },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "br"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Encoding": "br"}, "httpsOnly": true },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "gzip"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Encoding": "gzip"} },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "deflate"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Encoding": "deflate"} },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "foobar"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Encoding": false} },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "deflate", "ACCEPT-ENCODING": "gzip"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Encoding": "gzip"} }
+                ]
+            }
+        ]
+    },
+    {
+        "desc": "URI Too Long Tests",
+        "confFile": "uri-too-long.conf",
+        "cases": [
+            {
+                "desc": "URI Too Long Tests",
+                "versions": [ "1.0", "1.1" ],
+                "cases": [
+                    { "method": "HEAD", "path": "/", "expectedStatus": 200 },
+                    { "method": "HEAD", "path": "/a", "expectedStatus": 414 }
+                ]
             }
         ]
     }

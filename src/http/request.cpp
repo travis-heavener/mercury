@@ -24,8 +24,8 @@ namespace http {
         return false;
     }
 
-    Request::Request(headers_map_t& headers, const std::string& raw, std::string clientIP, const bool isHTTPS, const bool isContentTooLarge)
-        : headers(headers), ipStr(clientIP), isHTTPS(isHTTPS), _isContentTooLarge(isContentTooLarge) {
+    Request::Request(headers_map_t& headers, const std::string& raw, std::string clientIP, const bool isHTTPS, const RequestFlags& reqFlags)
+        : headers(headers), ipStr(clientIP), isHTTPS(isHTTPS), reqFlags(reqFlags) {
         std::string line;
         size_t startIndex = 0;
 

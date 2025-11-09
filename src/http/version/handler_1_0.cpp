@@ -20,6 +20,12 @@ namespace http::version::handler_1_0 {
         // Create Response object
         std::unique_ptr<Response> pResponse = std::unique_ptr<Response>(new Response("HTTP/1.0"));
 
+        // Verify the URI isn't too large
+        if (request.isURITooLong()) {
+            setStatusMaybeErrorDoc(request, *pResponse, 414);
+            return pResponse;
+        }
+
         // Check if method is valid
         const METHOD method = request.getMethod();
         if (method != METHOD::GET && method != METHOD::HEAD && method != METHOD::POST) {

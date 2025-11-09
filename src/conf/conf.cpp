@@ -35,6 +35,7 @@ namespace conf {
 
     bool ENABLE_LEGACY_HTTP;
     unsigned short MAX_REQUEST_BACKLOG;
+    unsigned int MAX_REQUEST_LINE_LENGTH;
     unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
     unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
     unsigned int IDLE_THREADS_PER_CHILD, MAX_THREADS_PER_CHILD;
@@ -199,6 +200,9 @@ namespace conf {
         /************ LOAD UINTS/USHORTS ************/
 
         if (loadUint(root, PORT, "Port", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, MAX_REQUEST_LINE_LENGTH, "MaxRequestLineLength", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
             return CONF_FAILURE;
 
         if (loadUint(root, MAX_REQUEST_BACKLOG, "MaxRequestBacklog", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)

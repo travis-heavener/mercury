@@ -30,6 +30,12 @@ namespace http {
 
     void parseAcceptHeader(std::unordered_set<std::string>&, std::string&);
     void parseRangeHeader(std::vector<byte_range_t>&, std::string&);
+
+    // Used to pass in flags to the Request object (e.g. URI too long, content too large)
+    typedef struct {
+        bool isContentTooLarge = false;
+        bool isURITooLong = false;
+    } RequestFlags;
 };
 
 #endif

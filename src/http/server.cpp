@@ -235,9 +235,12 @@ namespace http {
         this->clearBuffer(readBuffer);
 
         // Track keep-alive requests for a given connection
-        bool isContentTooLarge = false;
+        RequestFlags reqFlags;
         int keepAliveReqsLeft = static_cast<int>( conf::MAX_KEEP_ALIVE_REQUESTS );
-        while (keepAliveReqsLeft > 0 && !isContentTooLarge) {
+        while (keepAliveReqsLeft > 0 && !reqFlags.isContentTooLarge && !reqFlags.isURITooLong) {
+            // Declare container for parsed request headers
+            headers_map_t reqHeaders;
+
             // Read buffer until headers have loaded
             thread_local std::string requestStr;
             requestStr.clear(); // Clear previous content from thread_local
@@ -245,8 +248,7 @@ namespace http {
 
             // Poll for data
             bool isForceClosed = false, isDataReady = true;
-            while (requestStr.find("\r\n\r\n") == std::string::npos &&
-                !isForceClosed && isDataReady) {
+            while (requestStr.find("\r\n\r\n") == std::string::npos && !isForceClosed && isDataReady) {
                 struct pollfd pfd; pfd.fd = client;
                 const ssize_t pollStatus = this->waitForClientData(pfd, conf::KEEP_ALIVE_TIMEOUT * 1000);
                 if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR))) {
@@ -263,64 +265,73 @@ namespace http {
                     if (bytesReceived <= 0) { isForceClosed = true; break; } // Connection closed by client
                     requestStr.append(readBuffer.data(), bytesReceived); // Concat string
                 } while (this->useTLS && SSL_pending(pSSL) > 0);
+
+                // Check for status line
+                const size_t requestLineEnd = requestStr.find("\r\n");
+                if (requestStr.size() > conf::MAX_REQUEST_LINE_LENGTH &&
+                    (requestLineEnd == std::string::npos || requestLineEnd > conf::MAX_REQUEST_LINE_LENGTH)) {
+                    reqFlags.isURITooLong = true; // URI and/or request line is too long
+                    break; // No need to drain client socket since the connection is about to be closed
+                }
             }
 
             if (!isDataReady) continue; // Handle POLLIN not set
             if (isForceClosed) break; // Handle connection closed by client
 
             // Process headers and early info
-            headers_map_t reqHeaders;
-            loadEarlyHeaders(reqHeaders, requestStr);
-            size_t contentLength;
-            try {
-                contentLength = reqHeaders.find("CONTENT-LENGTH") != reqHeaders.end() ?
-                    std::stoull(reqHeaders["CONTENT-LENGTH"]) : 0;
-            } catch (std::invalid_argument&) {
-                break; // Bad Content-Length header, close connection
-            }
-
-            // Reject oversized bodies
-            if (contentLength > conf::MAX_REQUEST_BODY) {
-                contentLength = 0; // Passthru
-                this->drainClientSocket(client, pSSL, contentLength); // Drain socket
-                isContentTooLarge = true;
-            }
-
-            // Account for already read body
-            if (contentLength > 0)
-                contentLength -= requestStr.length() - (requestStr.find("\r\n\r\n") + 4);
-
-            // Read remaining body
-            while (contentLength > 0 && !isForceClosed && isDataReady) {
-                struct pollfd pfd; pfd.fd = client;
-                const ssize_t pollStatus = this->waitForClientData(pfd, conf::KEEP_ALIVE_TIMEOUT * 1000);
-                if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR))) {
-                    isForceClosed = true; break; // Fatal error or timeout
+            if (!reqFlags.isURITooLong) {
+                loadEarlyHeaders(reqHeaders, requestStr);
+                size_t contentLength;
+                try {
+                    contentLength = reqHeaders.find("CONTENT-LENGTH") != reqHeaders.end() ?
+                        std::stoull(reqHeaders["CONTENT-LENGTH"]) : 0;
+                } catch (std::invalid_argument&) {
+                    break; // Bad Content-Length header, close connection
                 }
 
-                // Check for POLLIN event
-                if (!(pfd.revents & POLLIN)) { isDataReady = false; break; }
+                // Reject oversized bodies
+                if (contentLength > conf::MAX_REQUEST_BODY) {
+                    contentLength = 0; // Passthru
+                    this->drainClientSocket(client, pSSL, contentLength); // Drain socket
+                    reqFlags.isContentTooLarge = true;
+                }
 
-                // Read buffer (regardless of TLS or not, keep looping if TLS)
-                do {
-                    this->clearBuffer(readBuffer);
-                    const ssize_t bytesReceived = this->readClientSock(readBuffer.data(), client, pSSL);
-                    if (bytesReceived <= 0) { isForceClosed = true; break; } // Connection closed by client
-                    requestStr.append(readBuffer.data(), bytesReceived); // Concat string
+                // Account for already read body
+                if (contentLength > 0)
+                    contentLength -= requestStr.length() - (requestStr.find("\r\n\r\n") + 4);
 
-                    // Update remaining content length
-                    contentLength = (contentLength > static_cast<size_t>(bytesReceived)) ?
-                        (contentLength - bytesReceived) : 0;
-                } while (this->useTLS && SSL_pending(pSSL) > 0);
+                // Read remaining body
+                while (contentLength > 0 && !isForceClosed && isDataReady) {
+                    struct pollfd pfd; pfd.fd = client;
+                    const ssize_t pollStatus = this->waitForClientData(pfd, conf::KEEP_ALIVE_TIMEOUT * 1000);
+                    if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR))) {
+                        isForceClosed = true; break; // Fatal error or timeout
+                    }
+
+                    // Check for POLLIN event
+                    if (!(pfd.revents & POLLIN)) { isDataReady = false; break; }
+
+                    // Read buffer (regardless of TLS or not, keep looping if TLS)
+                    do {
+                        this->clearBuffer(readBuffer);
+                        const ssize_t bytesReceived = this->readClientSock(readBuffer.data(), client, pSSL);
+                        if (bytesReceived <= 0) { isForceClosed = true; break; } // Connection closed by client
+                        requestStr.append(readBuffer.data(), bytesReceived); // Concat string
+
+                        // Update remaining content length
+                        contentLength = (contentLength > static_cast<size_t>(bytesReceived)) ?
+                            (contentLength - bytesReceived) : 0;
+                    } while (this->useTLS && SSL_pending(pSSL) > 0);
+                }
+
+                if (!isDataReady) continue; // Handle POLLIN not set
+                if (isForceClosed) break; // Handle connection closed by client
             }
-
-            if (!isDataReady) continue; // Handle POLLIN not set
-            if (isForceClosed) break; // Handle connection closed by client
 
             // Parse request
             std::unique_ptr<Response> pResponse = nullptr;
             try {
-                Request request(reqHeaders, requestStr, clientIPStr, useTLS, isContentTooLarge);
+                Request request(reqHeaders, requestStr, clientIPStr, useTLS, reqFlags);
 
                 // Generate response
                 pResponse = genResponse(request);
@@ -329,7 +340,8 @@ namespace http {
                 const std::optional<std::string> connHeader = request.getHeader("Connection");
                 std::string connValue = connHeader.has_value() ? *connHeader : ""; // Copy string
                 strToUpper(connValue); // Format copied string
-                if (conf::IS_KEEP_ALIVE_ENABLED && !isContentTooLarge &&
+                if (conf::IS_KEEP_ALIVE_ENABLED &&
+                    !reqFlags.isContentTooLarge && !reqFlags.isURITooLong &&
                     (connValue == "KEEP-ALIVE" || (connValue == "" && request.getVersion() == "HTTP/1.1"))) {
                     // HTTP/1.1 defaults to keep-alive
                     pResponse->setHeader("Connection", "keep-alive");
