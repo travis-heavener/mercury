@@ -12,10 +12,10 @@ ZLIB_DIR := libs/zlib
 ZSTD_DIR := libs/zstd
 PUGIXML_DIR := libs/pugixml
 
-INCLUDE_LINUX := $(shell find libs -type d \( -name 'include' -o -name 'pugixml' \) | grep -P '(linux/include)|(pugixml)' | sed 's/^/-I/' | tr '\n' ' ')
-INCLUDE_WIN := $(shell find libs -type d \( -name 'include' -o -name 'pugixml' \) | grep -P '(windows/include)|(pugixml)' | sed 's/^/-I/' | tr '\n' ' ')
-LIB_LINUX := $(shell find libs -type d -name 'lib' | grep -P 'linux/lib' | sed 's/^/-L/' | tr '\n' ' ')
-LIB_WIN := $(shell find libs -type d -name 'lib' | grep -P 'windows/lib' | sed 's/^/-L/' | tr '\n' ' ')
+INCLUDE_LINUX = $(shell find libs -type d \( -name 'include' -o -name 'pugixml' \) | grep -P '(linux/include)|(pugixml)' | sed 's/^/-I/' | tr '\n' ' ')
+INCLUDE_WIN = $(shell find libs -type d \( -name 'include' -o -name 'pugixml' \) | grep -P '(windows/include)|(pugixml)' | sed 's/^/-I/' | tr '\n' ' ')
+LIB_LINUX = $(shell find libs -type d -name 'lib' | grep -P 'linux/lib' | sed 's/^/-L/' | tr '\n' ' ')
+LIB_WIN = $(shell find libs -type d -name 'lib' | grep -P 'windows/lib' | sed 's/^/-L/' | tr '\n' ' ')
 
 # Compiler
 CXX := g++
