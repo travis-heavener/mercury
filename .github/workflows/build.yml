@@ -44,7 +44,7 @@ jobs:
           key: >-
             ${{ runner.os }}-artifacts-${{
               hashFiles(
-                '**/build_tools/lib_pugixml.sh',
+                '**/build_tools/fetch_lib_pugixml.sh',
                 '**/build_tools/lib_zlib.sh',
                 '**/build_tools/lib_openssl.sh',
                 '**/build_tools/lib_brotli.sh',
