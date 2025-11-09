@@ -74,8 +74,8 @@ jobs:
       - name: Build Libs
         run: |
           sudo ./build_tools/install_workflow_deps.sh
-          if [ ! -d libs ] || [ -z "$(ls -A libs)" ]; then
-            mkdir libs
+            if [ ! -d libs ] || [ -z "$(find libs -mindepth 1 -maxdepth 1 -type d -print -quit)" ]; then
+            mkdir -p libs
             make -j libs_no_deps
           fi
 
