@@ -61,7 +61,7 @@ clean:
 ###################################################################
 
 $(TARGET_LINUX): $(DEPS) $(ARTIFACTS_LOCK)
-	@make pch_linux --no-print-directory
+	@make pch_linux --no-print-directory -s
 	@./build_tools/validate_libs.sh --q
 	@$(CXX) -include $(PCH_LINUX) \
 		$(SRCS) -o $(TARGET_LINUX) \
@@ -82,7 +82,7 @@ $(PCH_DIR)/common-linux.hpp.gch: $(PCH_LINUX) $(ARTIFACTS_LOCK)
 ###################################################################
 
 $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
-	@make pch_windows --no-print-directory
+	@make pch_windows --no-print-directory -s
 	@./build_tools/validate_libs.sh --q
 	@$(MINGW_CXX)-windres src/res/icon.rc -O coff -o $(TARGET_WIN_ICON)
 	@$(MINGW_CXX)-g++-posix -include $(PCH_WIN) \
