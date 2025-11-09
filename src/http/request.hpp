@@ -12,7 +12,7 @@ namespace http {
 
     class Request {
         public:
-            Request(headers_map_t& headers, const std::string&, std::string, const bool, const bool);
+            Request(headers_map_t& headers, const std::string&, std::string, const bool, const RequestFlags&);
 
             std::optional<std::string> getHeader(std::string) const;
             inline const std::string getIPStr() const { return ipStr; };
@@ -32,7 +32,8 @@ namespace http {
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
             inline bool usesHTTPS() const { return isHTTPS; };
-            inline bool isContentTooLarge() const { return _isContentTooLarge; };
+            inline bool isContentTooLarge() const { return reqFlags.isContentTooLarge; };
+            inline bool isURITooLong() const { return reqFlags.isURITooLong; };
             inline bool has400Error() const { return _has400Error; };
             inline bool hasExplicitHTTP0_9() const { return _hasExplicitHTTP0_9; };
 
@@ -49,7 +50,7 @@ namespace http {
 
             std::string ipStr;
             bool isHTTPS;
-            bool _isContentTooLarge; // If true, sends 413 Content Too Large
+            const RequestFlags& reqFlags;
 
             METHOD method;
             std::string methodStr;

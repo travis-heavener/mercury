@@ -38,6 +38,7 @@ namespace conf {
 
     extern bool ENABLE_LEGACY_HTTP;
     extern unsigned short MAX_REQUEST_BACKLOG;
+    extern unsigned int MAX_REQUEST_LINE_LENGTH;
     extern unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
     extern unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
     extern unsigned int IDLE_THREADS_PER_CHILD, MAX_THREADS_PER_CHILD;
