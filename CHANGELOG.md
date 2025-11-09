@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.26.0
+- Extend MIME types list (#351)
+
 ## v0.25.0
 - Slightly reduced executable size
     - Removed unused -lbrotlidec library
