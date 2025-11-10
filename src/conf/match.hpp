@@ -6,7 +6,7 @@
 
 #include <pugixml.hpp>
 
-#include "conf_access.hpp"
+#include "access.hpp"
 #include "../pch/common.hpp"
 
 namespace conf {
