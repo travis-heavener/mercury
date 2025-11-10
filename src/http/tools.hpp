@@ -1,5 +1,5 @@
-#ifndef __HTTP_HTTP_TOOLS_HPP
-#define __HTTP_HTTP_TOOLS_HPP
+#ifndef __HTTP_TOOLS_HPP
+#define __HTTP_TOOLS_HPP
 
 #include <string>
 #include <unordered_map>

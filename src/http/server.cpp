@@ -6,7 +6,7 @@
 #include "../util/string_tools.hpp"
 #include "../util/toolbox.hpp"
 
-#include "http_tools.hpp"
+#include "tools.hpp"
 #include "version/handler_1_1.hpp"
 #include "version/handler_1_0.hpp"
 #include "version/handler_0_9.hpp"
