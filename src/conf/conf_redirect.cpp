@@ -17,7 +17,7 @@ namespace conf {
 
         // Check if the regex matches
         std::smatch matches;
-        if (!std::regex_search(currentPath, matches, pattern)) return;
+        if (!std::regex_match(currentPath, matches, pattern)) return;
 
         // Replace matches in the "to" path
         outPath = to;
@@ -35,7 +35,7 @@ namespace conf {
     bool Rewrite::loadRewrittenPath(std::string& path) const {
         // Check if the regex matches
         std::smatch matches;
-        if (!std::regex_search(path, matches, pattern)) return false;
+        if (!std::regex_match(path, matches, pattern)) return false;
 
         // Replace matches in the "to" path
         std::string buf( to );
