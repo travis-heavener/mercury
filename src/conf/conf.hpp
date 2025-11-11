@@ -4,8 +4,9 @@
 #include <optional>
 
 #include "../pch/common.hpp"
-#include "conf_match.hpp"
-#include "conf_redirect.hpp"
+#include "match.hpp"
+#include "redirect.hpp"
+#include "rewrite.hpp"
 
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1

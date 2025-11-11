@@ -6,7 +6,7 @@
 #include "../util/string_tools.hpp"
 #include "../util/toolbox.hpp"
 
-#include "http_tools.hpp"
+#include "tools.hpp"
 #include "version/handler_1_1.hpp"
 #include "version/handler_1_0.hpp"
 #include "version/handler_0_9.hpp"
@@ -366,7 +366,7 @@ namespace http {
                 // Log request
                 ACCESS_LOG << request.getMethodStr() << ' '
                         << (conf::REDACT_LOG_IPS ? "<Anonymous IP>" : request.getIPStr()) << ' '
-                        << request.getRawPathStr()
+                        << request.getPaths().rawPathFromRequest
                         << " -- (" << pResponse->getStatus() << ") ["
                         << request.getVersion() << ']'
                         << std::endl; // Flush w/ endl vs newline

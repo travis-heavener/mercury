@@ -1,4 +1,4 @@
-#include "http_tools.hpp"
+#include "tools.hpp"
 
 #include <algorithm>
 #include <string>
@@ -149,6 +149,48 @@ namespace http {
             // Emplace byte range
             splitVec.emplace_back( byte_range_t(startIndex, endIndex) );
         }
+    }
+
+    // Returns true if the path loading was successful, false otherwise
+    bool loadRequestPaths(RequestPath& paths, const std::string& rawRequestPath, const bool preserveQueryString) {
+        bool isSuccess = true;
+        paths.rawPathFromRequest = rawRequestPath;
+
+        if (rawRequestPath.size() == 0) return false;
+
+        // Normalize the request path
+        std::string normalizedPath = rawRequestPath;
+        stringReplaceAll(normalizedPath, "\\", "/");
+        stringReplaceAll(normalizedPath, "//", "/");
+
+        // Split query string & URI
+        size_t queryIndex = normalizedPath.find('?');
+
+        // Split URI
+        if (queryIndex == 0) { // Path is '?'
+            isSuccess = false;
+        } else {
+            paths.rawURI = paths.decodedURI = normalizedPath.substr(0, queryIndex == std::string::npos ? normalizedPath.size() : queryIndex);
+        }
+
+        try {
+            decodeURI(paths.decodedURI);
+        } catch (std::invalid_argument&) {
+            isSuccess = false;
+        }
+
+        // Break off query string (if not preserving it)
+        if (!preserveQueryString && queryIndex != std::string::npos) {
+            paths.rawQueryString = paths.decodedQueryString = normalizedPath.substr(queryIndex);
+            try {
+                decodeURI(paths.decodedQueryString);
+            } catch (std::invalid_argument&) {
+                isSuccess = false;
+            }
+        }
+
+        // Return success status
+        return isSuccess;
     }
 
 }

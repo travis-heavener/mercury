@@ -41,20 +41,11 @@ namespace http::version::handler_1_0 {
 
         // Handle rewrites
         if (!conf::rewriteRules.empty()) {
-            // Format raw path & break off query string
-            std::string rawPath = request.getRawPathStr();
-            const size_t queryIndex = rawPath.find('?');
-            const std::string queryString = queryIndex != std::string::npos ? rawPath.substr(queryIndex) : "";
-            while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
-                rawPath.pop_back();
-
-            // Decode URI (no need to try-catch, done in constructor)
-            decodeURI(rawPath);
-
             // Check rewrite rule patterns
+            std::string decodedURI = request.getDecodedURI();
             for (const std::unique_ptr<conf::Rewrite>& pRewrite : conf::rewriteRules)
-                if (pRewrite->loadRewrittenPath(rawPath))
-                    request.rewriteRawPath(rawPath);
+                if (pRewrite->loadRewrittenPath(decodedURI))
+                    request.rewriteRawPath(decodedURI);
         }
 
         // Check once more for a 400 error after parsing rewrite rules
@@ -65,19 +56,15 @@ namespace http::version::handler_1_0 {
 
         // Verify access is permitted
         if (!conf::matchConfigs.empty()) {
-            // Format raw path & remove query string
-            std::string rawPath = request.getPathStr();
-            const size_t queryIndex = rawPath.find('?');
-            while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
-                rawPath.pop_back();
-
             // Create sanitized IP address
+            const std::string decodedURI = request.getDecodedURI();
+            const headers_map_t& headers = request.getHeaders();
             try {
                 conf::SanitizedIP sip( conf::parseSanitizedClientIP(request.getIPStr()) );
 
                 // Check Match patterns
                 for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
-                    if (std::regex_match(rawPath, pMatch->getPattern())) {
+                    if (pMatch->doesRequestMatch(decodedURI, headers)) {
                         // Verify access is permitted
                         if (!pMatch->getAccessControl()->isIPAccepted(sip)) {
                             setStatusMaybeErrorDoc(request, *pResponse, 403);
@@ -100,27 +87,18 @@ namespace http::version::handler_1_0 {
         
         // Handle redirects
         if (!conf::redirectRules.empty()) {
-            // Format raw path & break off query string
-            std::string rawPath = request.getRawPathStr();
-            const size_t queryIndex = rawPath.find('?');
-            const std::string queryString = queryIndex != std::string::npos ? rawPath.substr(queryIndex) : "";
-            while (queryIndex != std::string::npos && rawPath.size() > queryIndex)
-                rawPath.pop_back();
-
-            // Decode URI
-            decodeURI(rawPath);
-
             // Check redirect rule patterns
+            const std::string decodedURI = request.getDecodedURI();
             std::string locationBuf;
             for (const std::unique_ptr<conf::Redirect>& pRedirect : conf::redirectRules) {
-                pRedirect->loadRedirectedPath(rawPath, locationBuf);
+                pRedirect->loadRedirectedPath(decodedURI, locationBuf);
                 if (locationBuf.empty()) continue;
 
                 // New location found, set status (only 300-302 available for HTTP/1.0)
                 const unsigned int status = pRedirect->getStatus();
                 if (status > 302) ERROR_LOG << "HTTP/1.0 falling back from " << status << " status to 302 status" << std::endl;
                 pResponse->setStatus( status > 302 ? 302 : status );
-                pResponse->setHeader( "Location", locationBuf + queryString );
+                pResponse->setHeader( "Location", locationBuf + request.getDecodedQueryString() );
                 return pResponse;
             }
         }
@@ -130,7 +108,7 @@ namespace http::version::handler_1_0 {
             return pResponse;
 
         // Lookup file & validate it doesn't have anything wrong with it
-        File file(request.getRawPathStr());
+        File file(request.getPaths());
         if (!request.isFileValid(*pResponse, file))
             return pResponse;
 
@@ -149,7 +127,7 @@ namespace http::version::handler_1_0 {
                 if (pLastModTS.has_value()) { // Compare timestamps
                     try {
                         // serverTime <= clientTime
-                        if (getFileModTimeT(file.path) <= getTimeTFromGMT(*pLastModTS)) {
+                        if (getFileModTimeT(file.absoluteResourcePath) <= getTimeTFromGMT(*pLastModTS)) {
                             pResponse->setStatus(304);
                             break;
                         }
@@ -173,8 +151,10 @@ namespace http::version::handler_1_0 {
                     pResponse->setHeader("Content-Type", file.MIME);
 
                 // Load additional headers for body loading
+                const std::string reqDecodedURI = request.getDecodedURI();
+                const headers_map_t& reqHeaders = request.getHeaders();
                 for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
-                    if (std::regex_match(file.rawPath, pMatch->getPattern()))
+                    if (pMatch->doesRequestMatch(reqDecodedURI, reqHeaders))
                         for (auto [name, value] : pMatch->getHeaders())
                             pResponse->setHeader(name, value);
                 break;

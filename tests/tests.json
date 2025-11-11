@@ -212,6 +212,24 @@
             },
 
             {
+                "desc": "Match Header Filter Tests",
+                "versions": [ "1.0", "1.1" ],
+                "cases": [
+                    { "method": "GET", "path": "/A.txt", "expectedStatus": 200, "expectedBody": "A.txt", "headers": {"X-Host": "foo/0.25.0"}, "expectedHeaders": {"X-Filter-Worked": "1"} },
+                    { "method": "GET", "path": "/A.txt", "expectedStatus": 200, "expectedBody": "A.txt", "headers": {"X-Host": "bar/0.25.0"}, "expectedHeaders": {"X-Filter-Worked": false} },
+
+                    { "method": "GET", "path": "/B.txt", "expectedStatus": 200, "expectedBody": "B.txt", "headers": {"X-Host": "foo/0.25.0"}, "expectedHeaders": {"X-Filter-Worked": "2"} },
+                    { "method": "GET", "path": "/B.txt", "expectedStatus": 200, "expectedBody": "B.txt", "headers": {"X-Host": "bar/0.25.0"}, "expectedHeaders": {"X-Filter-Worked": false} },
+
+                    { "method": "GET", "path": "/C.txt", "expectedStatus": 200, "expectedBody": "C.txt", "headers": {"X-Filter-Exist": "foobar"}, "expectedHeaders": {"X-Filter-Worked": "3"} },
+                    { "method": "GET", "path": "/C.txt", "expectedStatus": 200, "expectedBody": "C.txt", "headers": {}, "expectedHeaders": {"X-Filter-Worked": false} },
+
+                    { "method": "GET", "path": "/D.txt", "expectedStatus": 200, "expectedBody": "D.txt", "headers": {}, "expectedHeaders": {"X-Filter-Worked": "4"} },
+                    { "method": "GET", "path": "/D.txt", "expectedStatus": 200, "expectedBody": "D.txt", "headers": {"X-Filter-Not-Exist": "foobar"}, "expectedHeaders": {"X-Filter-Worked": false} }
+                ]
+            },
+
+            {
                 "desc": "Compression Tests",
                 "versions": [ "1.0", "1.1" ],
                 "cases": [

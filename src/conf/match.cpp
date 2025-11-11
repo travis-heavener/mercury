@@ -1,4 +1,4 @@
-#include "conf_match.hpp"
+#include "match.hpp"
 
 #include <iostream>
 
@@ -105,8 +105,37 @@ namespace conf {
             pMatch->setAccessControl( std::unique_ptr<Access>(new Access("allow all")) );
         }
 
+        /***************************** Extract Match Modifier Header Nodes *****************************/
+
+        auto loadHeaderFilters = [&](const char* nodeName) {
+            pugi::xml_object_range nodes = root.children(nodeName);
+            for (pugi::xml_node& node : nodes) {
+                std::unique_ptr<IModHeader> ptr = loadModIfHeader(node);
+                if (ptr == nullptr) return false;
+                pMatch->addHeaderFilter(std::move(ptr));
+            }
+            return true;
+        };
+
+        if (!loadHeaderFilters("FilterIfHeaderMatch") || !loadHeaderFilters("FilterIfNotHeaderMatch") ||
+            !loadHeaderFilters("FilterIfHeaderExist") || !loadHeaderFilters("FilterIfNotHeaderExist")) {
+            return nullptr;
+        }
+
         // Return Match ptr
         return pMatch;
+    }
+
+    bool Match::doesRequestMatch(const std::string& decodedURI, const http::headers_map_t& headers) const {
+        if (!std::regex_match(decodedURI, pattern)) return false;
+
+        // Check mod headers
+        for (const std::unique_ptr<IModHeader>& cond : headerFilters)
+            if (!cond->doesRequestFitCondition(headers))
+                return false;
+
+        // Base case, does match
+        return true;
     }
 
 }

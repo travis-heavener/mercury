@@ -5,7 +5,7 @@
 
 #include "../pch/common.hpp"
 
-#include "http_tools.hpp"
+#include "tools.hpp"
 #include "response.hpp"
 
 namespace http {
@@ -18,8 +18,9 @@ namespace http {
             inline const std::string getIPStr() const { return ipStr; };
             inline METHOD getMethod() const { return method; };
             inline const std::string& getMethodStr() const { return methodStr; };
-            inline const std::string& getRawPathStr() const { return rawPathStr; };
-            inline const std::string& getPathStr() const { return pathStr; };
+            inline const RequestPath& getPaths() const { return paths; };
+            inline const std::string& getDecodedURI() const { return paths.decodedURI; };
+            inline const std::string& getDecodedQueryString() const { return paths.decodedQueryString; };
             inline const std::string& getBody() const { return body; };
             inline const std::string& getVersion() const { return httpVersionStr; };
             int getCompressMethod(const std::string& MIME) const;
@@ -55,8 +56,8 @@ namespace http {
             METHOD method;
             std::string methodStr;
 
-            std::string pathStr;
-            std::string rawPathStr; // The path BEFORE URI decoding
+            RequestPath paths;
+
             bool _hasExplicitHTTP0_9; // Set to true if the status line has HTTP/0.9 explicitly in it (not allowed)
             bool _has400Error = false; // If true, handle as 400 Bad Request
 

@@ -39,7 +39,7 @@ cp -f ../conf/default/* "./$VERSION/conf"
 find "./$VERSION/conf/ssl/" -name "*" -type f -delete
 
 # Copy license, public files, & extras
-cp ../{version.txt,README.md,SECURITY.md,CREDITS.md,CHANGELOG.md,LICENSE.txt} "./$VERSION/"
+cp ../{version.txt,README.md,SECURITY.md,CREDITS.md,CHANGELOG.md,CONFIG.md,LICENSE.txt} "./$VERSION/"
 cp -r ../{public,licenses} "./$VERSION/"
 
 # Create binary folder
