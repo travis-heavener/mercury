@@ -86,7 +86,7 @@ void awaitCLI() {
     // Clean exit
     if (buf == "EXIT") {
         isExiting.store(true);
-    } else if (buf == "INFO") {
+    } else if (buf == "INFO" || buf == "STATUS") {
         // Print usage info
         size_t usedThreads = 0, totalThreads = 0, pendingConnections = 0;
         for (auto& pServer : serversVec)

@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.27.0
+- Added "status" command as an alias for "info" (#357)
+
 ## v0.26.0
 - Add CONFIG.md for config file documentation (#305)
 - Add header matching support for Match nodes (#350)
