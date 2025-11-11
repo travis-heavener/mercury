@@ -1,10 +1,66 @@
-# Mercury Config
+# CONFIG.md
 
 The Mercury HTTP server provides a highly customizable configuration interface in `conf/mercury.conf`.
 
 All configuration nodes must be wrapped within a singular `<Mercury>` node.
 
-## DocumentRoot
+## Table of Contents
+
+### General Config
+- [DocumentRoot](#documentroot)
+- [BindAddressIPv4](#bindaddressipv4)
+- [BindAddressIPv6](#bindaddressipv6)
+- [Port](#port)
+- [TLSPort](#tlsport)
+- [Redirect](#redirect)
+- [Rewrite](#rewrite)
+
+### Logging
+- [AccessLogFile](#accesslogfile)
+- [ErrorLogFile](#errorlogfile)
+- [RedactLogIPs](#redactlogips)
+
+### PHP
+- [EnablePHPCGI](#enablephpcgi)
+- [WinPHPCGIPath](#winphpcgipath)
+
+### Matching & Conditional Access Control
+- [EnableLegacyHTTPVersions](#enablelegacyhttpversions)
+- [Match](#match)
+    - [FilterIfHeaderMatch](#match--filterifheaderexist)
+    - [FilterIfNotHeaderMatch](#match--filterifnotheadermatch)
+    - [FilterIfHeaderExist](#match--filterifheaderexist)
+    - [FilterIfNotHeaderExist](#match--filterifnotheaderexist)
+    - [Header](#match--header)
+    - [ShowDirectoryIndexes](#match--showdirectoryindexes)
+    - [Access](#match--access)
+
+### HTTP Behavior
+- [KeepAlive](#keepalive)
+- [KeepAliveMaxTimeout](#keepalivemaxtimeout)
+- [KeepAliveMaxRequests](#keepalivemaxrequests)
+
+### File & Socket I/O
+- [IndexFiles](#indexfiles)
+- [MaxRequestLineLength](#maxrequestlinelength)
+- [MaxRequestBacklog](#maxrequestbacklog)
+- [RequestBufferSize](#requestbuffersize)
+- [ResponseBufferSize](#responsebuffersize)
+- [MaxRequestBody](#maxrequestbody)
+- [MaxResponseBody](#maxresponsebody)
+
+### Performance
+- [MinResponseCompressionSize](#minresponsecompressionsize)
+- [IdleThreadsPerChild](#idlethreadsperchild)
+- [MaxThreadsPerChild](#maxthreadsperchild)
+
+### Misc.
+- [ShowWelcomeBanner](#showwelcomebanner)
+- [StartupCheckLatestRelease](#startupchecklatestrelease)
+
+# Config
+
+### DocumentRoot
 Specifies where files are served from, relative to the Mercury directory.
 
 Default: `./public/`
@@ -15,7 +71,7 @@ Example:
 <DocumentRoot> ./public/ </DocumentRoot>
 ```
 
-## BindAddressIPv4
+### BindAddressIPv4
 Controls the socket bind address for IPv4, or "off" if disabled.
 
 Default: `0.0.0.0`
@@ -26,7 +82,7 @@ Example:
 <BindAddressIPv4> 0.0.0.0 </BindAddressIPv4>
 ```
 
-## BindAddressIPv6
+### BindAddressIPv6
 Controls the socket bind address for IPv6, or "off" if disabled.
 
 Default: `::`
@@ -37,7 +93,7 @@ Example:
 <BindAddressIPv6> :: </BindAddressIPv6>
 ```
 
-## Port
+### Port
 Specifies what port will be used to serve cleartext (non-HTTPS) content
 
 Default: `80`
@@ -48,7 +104,7 @@ Example:
 <Port> 80 </Port>
 ```
 
-## TLSPort
+### TLSPort
 Specifies which port to serve SSL/TLS traffic over, or "off" if disabled.
 
 See `conf/ssl/cert.pem` and `conf/ssl/key.pem`.
@@ -61,7 +117,7 @@ Example:
 <TLSPort> off </TLSPort>
 ```
 
-## EnableLegacyHTTPVersions
+### EnableLegacyHTTPVersions
 Enables or disables legacy HTTP versions (HTTP/0.9, HTTP/1.0)
 
 Default: `on`
@@ -72,7 +128,7 @@ Example:
 <EnableLegacyHTTPVersions> on </EnableLegacyHTTPVersions>
 ```
 
-## IndexFiles
+### IndexFiles
 Specifies what name for index files will be served when accessing a directory by name.
 
 The order (left to right) specifies which files will be searched for first, or empty if desired.
@@ -85,7 +141,7 @@ Example:
 <IndexFiles> index.html, index.htm, index.php </IndexFiles>
 ```
 
-## AccessLogFile
+### AccessLogFile
 Specifies where server access logs are stored.
 
 Default: `./logs/access.log`
@@ -96,7 +152,7 @@ Example:
 <AccessLogFile> ./logs/access.log </AccessLogFile>
 ```
 
-## ErrorLogFile
+### ErrorLogFile
 Specifies where server error logs are stored.
 
 Default: `./logs/access.log`
@@ -107,7 +163,7 @@ Example:
 <ErrorLogFile> ./logs/error.log </ErrorLogFile>
 ```
 
-## RedactLogIPs
+### RedactLogIPs
 Controls whether IP addresses in log files are anonymized or not.
 
 Default: `false`
@@ -118,7 +174,7 @@ Example:
 <RedactLogIPs> false </RedactLogIPs>
 ```
 
-## EnablePHPCGI
+### EnablePHPCGI
 Whether or not to pass through requests for PHP files to a PHP-CGI process.
 
 If disabled, the value of the WinPHPCGIPath node is ignored.
@@ -131,7 +187,7 @@ Example:
 <EnablePHPCGI> off </EnablePHPCGI>
 ```
 
-## WinPHPCGIPath
+### WinPHPCGIPath
 Points to the php-cgi.exe executable to handle PHP requests on.
 
 NOTE: This node applies to Windows only.
@@ -144,7 +200,7 @@ Example:
 <WinPHPCGIPath> ./php/php-cgi.exe </WinPHPCGIPath>
 ```
 
-## Match
+### Match
 Match allows individual file/directory control over resource access via regex matches for its `pattern` attribute.
 
 Note that the pattern matches the URI w/o the query string from the HTTP request, NOT an absolute path.
@@ -164,7 +220,7 @@ Example:
 </Match>
 ```
 
-## Match > FilterIfHeaderMatch
+### Match > FilterIfHeaderMatch
 NOTE: Only valid within a Match block.
 
 Modifies the encasing Match block to restrict access to only Requests which have a header that matches the following pattern (Regex match).
@@ -179,7 +235,7 @@ Example:
 </Match>
 ```
 
-## Match > FilterIfNotHeaderMatch
+### Match > FilterIfNotHeaderMatch
 NOTE: Only valid within a Match block.
 
 Modifies the encasing Match block to restrict access to only Requests which have a header that does not match the following pattern (Regex match).
@@ -194,7 +250,7 @@ Example:
 </Match>
 ```
 
-## Match > FilterIfHeaderExist
+### Match > FilterIfHeaderExist
 NOTE: Only valid within a Match block.
 
 Modifies the encasing Match block to restrict access to only Requests which have a certain header.
@@ -209,7 +265,7 @@ Example:
 </Match>
 ```
 
-## Match > FilterIfNotHeaderExist
+### Match > FilterIfNotHeaderExist
 NOTE: Only valid within a Match block.
 
 Modifies the encasing Match block to restrict access to only Requests which do not have a certain header.
@@ -224,7 +280,7 @@ Example:
 </Match>
 ```
 
-## Match > Header
+### Match > Header
 NOTE: Only valid within a Match block.
 
 Allows HTTP response headers to be set, only valid within a Match.
@@ -237,7 +293,7 @@ Example:
 </Match>
 ```
 
-## Match > ShowDirectoryIndexes
+### Match > ShowDirectoryIndexes
 NOTE: Only valid within a Match block.
 
 Enables or disables directory index listings, only valid within a Match (either "on" or "off").
@@ -252,7 +308,7 @@ Example:
 </Match>
 ```
 
-## Match > Access
+### Match > Access
 NOTE: Only valid within a Match block.
 
 Controls access to content, only valid within a Match.
@@ -275,7 +331,7 @@ Example:
 </Match>
 ```
 
-## Redirect
+### Redirect
 Controls temporary or permanent redirects for specific files or paths via Regex matching.
 
 You can use capture groups like $1 and $2 to reference specific capture groups in the pattern (or $0 for the whole matched string).
@@ -292,7 +348,7 @@ Example:
 <Redirect pattern="/foo/bar/(.*?)/(.*?).html" to="/baz/qux/$1/$2.html"> 308 </Redirect>
 ```
 
-## Rewrite
+### Rewrite
 Controls internal rewrites for URIs for specific files or paths via Regex matching.
 
 You can use capture groups like $1 and $2 to reference specific capture groups in the pattern (or $0 for the whole matched string).
@@ -309,7 +365,7 @@ Example:
 <Rewrite pattern="/foo/bar/(.*?)/(.*?).html" to="/baz/qux/$1/$2.html" />
 ```
 
-## KeepAlive
+### KeepAlive
 Controls whether or not to honor keep-alive headers in requests to maintain a connection that later requests can come through.
 
 Default: `on`
@@ -320,7 +376,7 @@ Example:
 <KeepAlive> on </KeepAlive>
 ```
 
-## KeepAliveMaxTimeout
+### KeepAliveMaxTimeout
 Specifies how long a keep-alive connection will wait for subsequent requests in SECONDS, if keep-alive connections are enabled.
 
 Default: `3`
@@ -331,7 +387,7 @@ Example:
 <KeepAliveMaxTimeout> 3 </KeepAliveMaxTimeout>
 ```
 
-## KeepAliveMaxTimeout
+### KeepAliveMaxRequests
 Specifies how many requests are allowed per keep-alive connection, if keep-alive connections are enabled.
 
 Default: `100`
@@ -342,7 +398,7 @@ Example:
 <KeepAliveMaxRequests> 100 </KeepAliveMaxRequests>
 ```
 
-## MaxRequestLineLength
+### MaxRequestLineLength
 Specifies how long the request line is allowed to be, in bytes.
 
 Includes the method, protocol version, and URI.
@@ -355,7 +411,7 @@ Example:
 <MaxRequestLineLength> 4096 </MaxRequestLineLength>
 ```
 
-## MaxRequestBacklog
+### MaxRequestBacklog
 Specifies how many queued requests the server can handle simultaneously.
 
 Default: `100`
@@ -366,7 +422,7 @@ Example:
 <MaxRequestBacklog> 100 </MaxRequestBacklog>
 ```
 
-## RequestBufferSize
+### RequestBufferSize
 Specifies how large the read buffer is for requests, in bytes.
 
 Default: `16384`
@@ -377,7 +433,7 @@ Example:
 <RequestBufferSize> 16384 </RequestBufferSize>
 ```
 
-## ResponseBufferSize
+### ResponseBufferSize
 Specifies how large the write buffer is for responses, in bytes.
 
 Default: `16384`
@@ -388,7 +444,7 @@ Example:
 <ResponseBufferSize> 16384 </ResponseBufferSize>
 ```
 
-## MaxRequestBody
+### MaxRequestBody
 Specifies how large an incoming request's body is allowed to be, in bytes.
 
 If you experience 413 Content Too Large statuses being returned, you can increase this value but beware that increasing this value too large may slow down your machine and/or cause issues.
@@ -401,7 +457,7 @@ Example:
 <MaxRequestBody> 268435456 </MaxRequestBody>
 ```
 
-## MaxResponseBody
+### MaxResponseBody
 Specifies how large an outgoing response's body is allowed to be, in bytes.
 
 If you experience 413 Content Too Large statuses being returned, you can increase this value but beware that increasing this value too large may slow down your machine and/or cause issues.
@@ -414,7 +470,7 @@ Example:
 <MaxResponseBody> 268435456 </MaxResponseBody>
 ```
 
-## MinResponseCompressionSize
+### MinResponseCompressionSize
 How small a response body must be to bypass using any compression methods (in bytes).
 
 This avoids the overhead and bloat of using compression algorithms on really small bodies, however values that are too large (ie. > 1000 bytes) will increase network overhead.
@@ -427,7 +483,7 @@ Example:
 <MinResponseCompressionSize> 750 </MinResponseCompressionSize>
 ```
 
-## IdleThreadsPerChild
+### IdleThreadsPerChild
 Specifies how many connection threads exist for each server thread.
 
 Note that under heavy load, up to MaxBurstThreadsPerChild threads may be created per server thread--this value is purely the default "idle" amount of threads available.
@@ -442,7 +498,7 @@ Example:
 <IdleThreadsPerChild> 12 </IdleThreadsPerChild>
 ```
 
-## MaxThreadsPerChild
+### MaxThreadsPerChild
 Specifies the maximum number of connection threads exist for each server thread under load.
 
 Note that under normal circumstances, only the amount of IdleThreadsPerChild threads will be used--up to MaxBurstThreadsPerChild threads will be utilized to decrease the overall size of the connection backlog on each server thread to improve client performance.
@@ -457,7 +513,7 @@ Example:
 <MaxThreadsPerChild> 60 </MaxThreadsPerChild>
 ```
 
-## ShowWelcomeBanner
+### ShowWelcomeBanner
 Whether or not to print the welcome banner on startup (true/false).
 
 Default: `true`
@@ -468,7 +524,7 @@ Example:
 <ShowWelcomeBanner> true </ShowWelcomeBanner>
 ```
 
-## StartupCheckLatestRelease
+### StartupCheckLatestRelease
 Whether or not to check for a new version on startup (true/false).
 
 Disabling this often will improve startup speed, but it is recommended to leave this on unless you know what you're doing.
