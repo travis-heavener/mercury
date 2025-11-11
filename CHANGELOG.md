@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.0
+- Added "status" command as an alias for "info" (#357)
+- Added "phpinit" CLI command (#357)
+    - Works for Windows and Linux
+        - Invokes conf/setup_php.ps1 from the program on Windows
+        - Runs `sudo apt install php-cgi` on Linux
+
 ## v0.26.0
 - Add CONFIG.md for config file documentation (#305)
 - Add header matching support for Match nodes (#350)
