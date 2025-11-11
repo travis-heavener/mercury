@@ -5,9 +5,12 @@
 #include "conf/conf.hpp"
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
+#include "io/file_tools.hpp"
 #include "logs/logger.hpp"
 #include "http/version_checker.hpp"
 #include "util/string_tools.hpp"
+
+#include "cli.hpp"
 
 #define SLEEP_BETWEEN_CLI std::this_thread::sleep_for(std::chrono::milliseconds(200))
 
@@ -83,30 +86,7 @@ void awaitCLI() {
         return;
     }
 
-    // Clean exit
-    if (buf == "EXIT") {
-        isExiting.store(true);
-    } else if (buf == "INFO" || buf == "STATUS") {
-        // Print usage info
-        size_t usedThreads = 0, totalThreads = 0, pendingConnections = 0;
-        for (auto& pServer : serversVec)
-            pServer->getUsageInfo(usedThreads, totalThreads, pendingConnections);
-
-        std::cout << std::fixed << std::setprecision(1) << "> "
-            << std::min(static_cast<double>(usedThreads) / totalThreads * 100, 100.0) << "% usage ("
-            << usedThreads << '/' << totalThreads << " threads, " << pendingConnections << " pending connections)"
-            << std::endl;
-    } else if (buf == "PING") {
-        std::cout << "> Pong!" << std::endl;
-    } else if (buf == "HELP") {
-        std::cout << "> Exit: Exit Mercury\n"
-            "  Help: List available commands\n"
-            "  Info: View current utilization\n"
-            "  Ping: ???"
-            << std::endl;
-    } else if (!isExiting) {
-        std::cout << "> Unknown command, try \"help\"" << std::endl;
-    }
+    handleCLICommands(buf, isExiting, serversVec);
 }
 
 /******************** WELCOME BANNER METHODS ********************/

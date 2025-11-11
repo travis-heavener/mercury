@@ -121,9 +121,7 @@ The error log contains any detailed error messages that the server encounters.
 
 PHP is now supported via php-cgi for Windows and Linux!
 
-To install:
-- For Linux, run `sudo apt install php-cgi`.
-- For Windows, run `conf/setup_php.ps1`.
+To install, start Mercury and run the `phpinit` command.
 
 Developer environments also come with php-cgi installed after running `make lib_deps` or `make libs`.
 
