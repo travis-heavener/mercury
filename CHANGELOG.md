@@ -1,6 +1,7 @@
 # Changelog
 
 ## v0.26.0
+- Add CONFIG.md for config file documentation (#305)
 - Add header matching support for Match nodes (#350)
 - Extend MIME types list (#351)
 - Improved internal path handling (#353)
