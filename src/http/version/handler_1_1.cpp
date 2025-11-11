@@ -62,12 +62,13 @@ namespace http::version::handler_1_1 {
         if (!conf::matchConfigs.empty()) {
             // Create sanitized IP address
             const std::string decodedURI = request.getDecodedURI();
+            const headers_map_t& headers = request.getHeaders();
             try {
                 conf::SanitizedIP sip( conf::parseSanitizedClientIP(request.getIPStr()) );
 
                 // Check Match patterns
                 for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
-                    if (std::regex_match(decodedURI, pMatch->getPattern())) {
+                    if (pMatch->doesRequestMatch(decodedURI, headers)) {
                         // Verify access is permitted
                         if (!pMatch->getAccessControl()->isIPAccepted(sip)) {
                             setStatusMaybeErrorDoc(request, *pResponse, 403);
@@ -121,8 +122,10 @@ namespace http::version::handler_1_1 {
                 cgi::handlePHPRequest(file, request, *pResponse);
 
                 // Load additional headers
+                const std::string reqDecodedURI = request.getDecodedURI();
+                const headers_map_t& reqHeaders = request.getHeaders();
                 for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
-                    if (std::regex_match(file.decodedURIWithoutPathInfo, pMatch->getPattern()))
+                    if (pMatch->doesRequestMatch(reqDecodedURI, reqHeaders))
                         for (auto [name, value] : pMatch->getHeaders())
                             pResponse->setHeader(name, value);
 
@@ -180,8 +183,10 @@ namespace http::version::handler_1_1 {
                         setStatusMaybeErrorDoc(request, *pResponse, 416); // Range Not Satisfiable
 
                 // Load additional headers for body loading
+                const std::string reqDecodedURI = request.getDecodedURI();
+                const headers_map_t& reqHeaders = request.getHeaders();
                 for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
-                    if (std::regex_match(file.decodedURIWithoutPathInfo, pMatch->getPattern()))
+                    if (pMatch->doesRequestMatch(reqDecodedURI, reqHeaders))
                         for (auto [name, value] : pMatch->getHeaders())
                             pResponse->setHeader(name, value);
                 break;

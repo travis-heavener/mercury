@@ -1,6 +1,7 @@
 # Changelog
 
 ## v0.26.0
+- Add header matching support for Match nodes (#350)
 - Extend MIME types list (#351)
 - Improved internal path handling (#353)
 - Fix using regex_search instead of regex_match for Redirect & Rewrite rules

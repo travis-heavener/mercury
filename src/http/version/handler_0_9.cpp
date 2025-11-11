@@ -27,12 +27,13 @@ namespace http::version::handler_0_9 {
         if (!conf::matchConfigs.empty()) {
             // Create sanitized IP address
             const std::string decodedURI = request.getDecodedURI();
+            const headers_map_t& headers = request.getHeaders();
             try {
                 conf::SanitizedIP sip( conf::parseSanitizedClientIP(request.getIPStr()) );
 
                 // Check Match patterns
                 for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
-                    if (std::regex_match(decodedURI, pMatch->getPattern())) {
+                    if (pMatch->doesRequestMatch(decodedURI, headers)) {
                         // Verify access is permitted
                         if (!pMatch->getAccessControl()->isIPAccepted(sip)) {
                             pResponse->loadBodyFromErrorDoc(403);

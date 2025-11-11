@@ -160,8 +160,7 @@ namespace http {
         // Handle directory listings
         if (file.isDirectory) {
             for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
-                if (!pMatch->showDirectoryIndexes() &&
-                    std::regex_match(paths.decodedURI, pMatch->getPattern())) {
+                if (!pMatch->showDirectoryIndexes() && pMatch->doesRequestMatch(paths.decodedURI, headers)) {
                     // Hide the directory index
                     this->setStatusMaybeErrorDoc(response, 403);
                     return false;
