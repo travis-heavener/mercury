@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.28.0
+- Explicitly disabled Content-Encoding for byte range responses
+    - If the Range header is present in a request, Content-Encoding is not honored
+
 ## v0.27.0
 - Added "status" command as an alias for "info" (#357)
 - Added "phpinit" CLI command (#357)
