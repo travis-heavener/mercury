@@ -2,6 +2,7 @@
 
 ## v0.28.1
 - Updated README table for CLI commands
+- Add note about outgoing connection to php.net
 
 ## v0.28.0
 - Added rich CLI w/ command history (#347)
