@@ -3,6 +3,7 @@
 ## v0.28.1
 - Updated README table for CLI commands
 - Add note about outgoing connection to php.net
+- Updated README to include note about CONFIG.md
 
 ## v0.28.0
 - Added rich CLI w/ command history (#347)
