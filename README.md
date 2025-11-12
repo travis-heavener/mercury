@@ -159,14 +159,17 @@ Your certificate will be located at `conf/ssl/cert.pem` and your private key at 
 
 ### CLI
 
-As of Mercury v0.22.0, a basic CLI is available to the user. Here is a list of available commands:
+As of Mercury v0.22.0, a rich CLI is available to the user. Here is a list of available commands:
 
-| Command | Description              |
-|---------|--------------------------|
-| exit    | Exit Mercury             |
-| help    | List available commands  |
-| info    | View current utilization |
-| ping    | ???                      |
+| Command | Description                 |
+|---------|-----------------------------|
+| clear   | Clears the terminal window  |
+| exit    | Exit Mercury                |
+| help    | List available commands     |
+| info    | View current utilization    |
+| phpinit | Downloads & configures PHP  |
+| ping    | ???                         |
+| status  | View current utilization    |
 
 ### Troubleshooting
 

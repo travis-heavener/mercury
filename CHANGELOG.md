@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.28.1
+- Updated README table for CLI commands
+
 ## v0.28.0
 - Added rich CLI w/ command history (#347)
 - Fixed sending Ctrl+C to Windows executable running via WSL
