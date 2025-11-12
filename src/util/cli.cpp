@@ -52,7 +52,7 @@
         historyIndex = static_cast<int>(history.size()) - 1;
 
         int c, cursor = 0;
-        while (true) {
+        while (!isExiting) {
             if ((c = getKey()) == -1) continue;
 
             switch (c) {
@@ -194,13 +194,26 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
 }
 
 void awaitCLI(std::atomic<bool>& isExiting, std::vector<std::shared_ptr<http::Server>>& serversVec) {
+    #ifdef _WIN32
+        // Check if connected to a terminal
+        {
+            HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+            DWORD mode;
+            if (!GetConsoleMode(hIn, &mode)) {
+                while (!isExiting)
+                    SLEEP_BETWEEN_CLI;
+                return;
+            }
+        }
+    #endif
+
     #ifdef __linux__
         TermiosGuard tg;
     #endif
 
     std::vector<std::string> history;
     history.reserve(MAX_HISTORY_LEN + 1);
-    while (true) {
+    while (!isExiting) {
         std::cout << "< " << std::flush;
 
         // Read next command
