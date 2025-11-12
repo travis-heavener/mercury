@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.28.2
+- Windows PHP init script now fetches the latest PHP version (#374)
+
 ## v0.28.1
 - Updated README table for CLI commands
 - Add note about outgoing connection to php.net
