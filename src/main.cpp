@@ -5,11 +5,9 @@
 #include "conf/conf.hpp"
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
-#include "io/file_tools.hpp"
 #include "logs/logger.hpp"
 #include "http/version_checker.hpp"
 #include "util/cli.hpp"
-#include "util/string_tools.hpp"
 
 // Global termination flag (atomic)
 std::atomic<bool> isExiting{false};
