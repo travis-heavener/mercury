@@ -8,11 +8,8 @@
 #include "io/file_tools.hpp"
 #include "logs/logger.hpp"
 #include "http/version_checker.hpp"
+#include "util/cli.hpp"
 #include "util/string_tools.hpp"
-
-#include "cli.hpp"
-
-#define SLEEP_BETWEEN_CLI std::this_thread::sleep_for(std::chrono::milliseconds(200))
 
 // Global termination flag (atomic)
 std::atomic<bool> isExiting{false};
@@ -72,23 +69,6 @@ void cleanExit() {
     conf::cleanupConfig();
 }
 
-/******************** CLI HANDLING ********************/
-
-void awaitCLI() {
-    // Otherwise, read from cin
-    std::cout << "< ";
-    std::string buf;
-    std::getline(std::cin, buf);
-    trimString(buf); strToUpper(buf);
-
-    if (buf.empty()) {
-        SLEEP_BETWEEN_CLI;
-        return;
-    }
-
-    handleCLICommands(buf, isExiting, serversVec);
-}
-
 /******************** WELCOME BANNER METHODS ********************/
 
 void printCenteredVersion() {
@@ -142,12 +122,20 @@ void printWelcomeBanner() {
 /******************** ENTRY POINT ********************/
 
 int main(int argc, char* argv[]) {
-    // Initialize Winsock API
     #ifdef _WIN32
+        // Initialize Winsock API
         WSADATA wsa;
         if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
             std::cerr << "Failed to initialize Winsock API.\n";
             return 1;
+        }
+
+        // Enable Virtual Terminal mode
+        HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        DWORD mode = 0;
+        if (GetConsoleMode(hOut, &mode)) {
+            mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+            SetConsoleMode(hOut, mode);
         }
     #endif
 
@@ -214,13 +202,7 @@ int main(int argc, char* argv[]) {
         threads.emplace_back(std::thread([server]() { server->acceptLoop(); }));
 
     // Wait for "exit" in cin (sets isExiting if "exit" is found)
-    while (!isExiting) {
-        awaitCLI();
-
-        // Sleep to allow isExiting to update
-        if (isExiting)
-            SLEEP_BETWEEN_CLI;
-    }
+    awaitCLI(isExiting, serversVec);
 
     /******* Reached if closing the program *******/
     std::cout << "> Shutting down..." << std::endl;
