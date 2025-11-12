@@ -169,6 +169,11 @@
                     { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 206, "headers": {"Range": "bytes=0-18"}, "expectedHeaders": {"Content-Length": "19"}, "expectedBody": "redirect_to/foo.txt" },
                     { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 206, "headers": {"Range": "bytes=-19"}, "expectedHeaders": {"Content-Length": "19"}, "expectedBody": "redirect_to/foo.txt" },
 
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 206, "headers": {"Range": "bytes=0-", "Accept-Encoding": "gzip"}, "expectedHeaders": {"Content-Length": "19", "Content-Encoding": false}, "expectedBody": "redirect_to/foo.txt" },
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 206, "headers": {"Range": "bytes=0-", "Accept-Encoding": "deflate"}, "expectedHeaders": {"Content-Length": "19", "Content-Encoding": false}, "expectedBody": "redirect_to/foo.txt", "httpsOnly": true },
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 206, "headers": {"Range": "bytes=0-18", "Accept-Encoding": "br"}, "expectedHeaders": {"Content-Length": "19", "Content-Encoding": false}, "expectedBody": "redirect_to/foo.txt" },
+                    { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 206, "headers": {"Range": "bytes=-19", "Accept-Encoding": "zstd"}, "expectedHeaders": {"Content-Length": "19", "Content-Encoding": false}, "expectedBody": "redirect_to/foo.txt" },
+
                     { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 206, "headers": {"Range": "bytes=0-16", "RANGE": "bytes=17-18"}, "expectedHeaders": {"Content-Length": "19"}, "expectedBody": "redirect_to/foo.txt" },
                     { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 416, "headers": {"Range": "bytes=0-15", "RANGE": "bytes=17-18"} },
 
@@ -426,11 +431,11 @@
         ]
     },
     {
-        "desc": "URI Too Long Tests",
+        "desc": "Long URI Tests",
         "confFile": "uri-too-long.conf",
         "cases": [
             {
-                "desc": "URI Too Long Tests",
+                "desc": "Long URI Tests",
                 "versions": [ "1.0", "1.1" ],
                 "cases": [
                     { "method": "HEAD", "path": "/", "expectedStatus": 200 },
