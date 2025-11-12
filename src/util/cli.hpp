@@ -1,13 +1,10 @@
 #ifndef __UTIL_CLI_HPP
 
 #include <atomic>
-#include <iostream>
 #include <string>
 #include <vector>
 
-#include "../conf/conf.hpp"
 #include "../http/server.hpp"
-#include "../io/file_tools.hpp"
 
 // Enables raw terminal input mode
 #ifdef __linux__

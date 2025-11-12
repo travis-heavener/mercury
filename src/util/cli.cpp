@@ -1,5 +1,14 @@
 #include "cli.hpp"
 
+#include <iostream>
+
+#include "../conf/conf.hpp"
+
+#ifdef _WIN32
+    // Only used in Windows builds for canonicalizing the path to the PHP init script
+    #include "../io/file_tools.hpp"
+#endif
+
 #define SLEEP_BETWEEN_CLI std::this_thread::sleep_for(std::chrono::milliseconds(200))
 
 #define MAX_HISTORY_LEN 50
