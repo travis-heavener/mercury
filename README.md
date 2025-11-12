@@ -76,7 +76,7 @@ As netizens (*noun*. a user of the internet), it is our due diligence to be awar
 
 That is the bottom line.
 
-The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([wowtravis.com](https://wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf).
+The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([wowtravis.com](https://wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf) and to [php.net](https://php.net) on Windows when running the `phpinit` CLI command.
 
 In addition, the Mercury access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs **UNLESS** the RedactLogIPs config variable is set to true (see mercury.conf).
 Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.
@@ -109,7 +109,7 @@ If you encounter any unexpected behavior, please start an Issue on the [Mercury 
 In the `conf` directory are two config files: "mercury.conf" for server config and "mimes.conf" for a list of supported MIME types.
 The `conf/default/` directory contains default copies these files.
 
-The "mercury.conf" file contains a thorough documentation of each configuration setting/node, including accepted values and usage examples.
+For guidance, CONFIG.md contains a thorough documentation of each configuration setting/node, including accepted values and usage examples.
 
 ### Log Files
 
@@ -159,14 +159,17 @@ Your certificate will be located at `conf/ssl/cert.pem` and your private key at 
 
 ### CLI
 
-As of Mercury v0.22.0, a basic CLI is available to the user. Here is a list of available commands:
+As of Mercury v0.22.0, a rich CLI is available to the user. Here is a list of available commands:
 
-| Command | Description              |
-|---------|--------------------------|
-| exit    | Exit Mercury             |
-| help    | List available commands  |
-| info    | View current utilization |
-| ping    | ???                      |
+| Command | Description                 |
+|---------|-----------------------------|
+| clear   | Clears the terminal window  |
+| exit    | Exit Mercury                |
+| help    | List available commands     |
+| info    | View current utilization    |
+| phpinit | Downloads & configures PHP  |
+| ping    | ???                         |
+| status  | View current utilization    |
 
 ### Troubleshooting
 
