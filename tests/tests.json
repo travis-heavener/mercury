@@ -431,11 +431,11 @@
         ]
     },
     {
-        "desc": "URI Too Long Tests",
+        "desc": "Long URI Tests",
         "confFile": "uri-too-long.conf",
         "cases": [
             {
-                "desc": "URI Too Long Tests",
+                "desc": "Long URI Tests",
                 "versions": [ "1.0", "1.1" ],
                 "cases": [
                     { "method": "HEAD", "path": "/", "expectedStatus": 200 },
