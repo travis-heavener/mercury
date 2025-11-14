@@ -21,8 +21,8 @@ LIB_WIN = $(shell find libs -type d -name 'lib' | grep -P 'windows/lib' | sed 's
 CXX := g++
 MINGW_CXX := x86_64-w64-mingw32
 
-SRCS := $(shell find src -type f -name "*.cpp") $(PUGIXML_DIR)/*.cpp
-DEPS := $(shell find src -type f -name "*.hpp") $(PUGIXML_DIR)/*.hpp $(SRCS)
+SRCS := $(shell find src -type f -name "*.cpp") $(wildcard $(PUGIXML_DIR)/*.cpp)
+DEPS := $(shell find src -type f -name "*.hpp") $(wildcard $(PUGIXML_DIR)/*.hpp) $(SRCS)
 
 PCH_DIR := src/pch
 PCH_WIN := $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp

@@ -34,12 +34,18 @@ HAS_FAILED="false"
 if ! grep -q "^brotli=${BROTLI_VERSION}\$" artifacts.lock; then
     echo "Update Brotli to $BROTLI_VERSION via \`make lib_brotli\`"
     HAS_FAILED="true"
+elif [[ ! -d "brotli" ]]; then
+    echo "Missing Brotli $BROTLI_VERSION, build it via \`make lib_brotli\`"
+    HAS_FAILED="true"
 fi
 
 # === OpenSSL ===
 
 if ! grep -q "^openssl=${OPENSSL_VERSION}\$" artifacts.lock; then
     echo "Update OpenSSL to $OPENSSL_VERSION via \`make lib_openssl\`"
+    HAS_FAILED="true"
+elif [[ ! -d "openssl" ]]; then
+    echo "Missing OpenSSL $OPENSSL_VERSION, build it via \`make lib_openssl\`"
     HAS_FAILED="true"
 fi
 
@@ -48,6 +54,9 @@ fi
 if ! grep -q "^zlib=${ZLIB_VERSION}\$" artifacts.lock; then
     echo "Update zlib to $ZLIB_VERSION via \`make lib_zlib\`"
     HAS_FAILED="true"
+elif [[ ! -d "zlib" ]]; then
+    echo "Missing zlib $ZLIB_VERSION, build it via \`make lib_zlib\`"
+    HAS_FAILED="true"
 fi
 
 # === PugiXML ===
@@ -55,12 +64,18 @@ fi
 if ! grep -q "^pugixml=${PUGIXML_VERSION}\$" artifacts.lock; then
     echo "Update PugiXML to $PUGIXML_VERSION via \`make lib_pugixml\`"
     HAS_FAILED="true"
+elif [[ ! -d "pugixml" ]]; then
+    echo "Missing PugiXML $PUGIXML_VERSION, build it via \`make lib_pugixml\`"
+    HAS_FAILED="true"
 fi
 
 # === Zstandard ===
 
 if ! grep -q "^zstd=${ZSTD_VERSION}\$" artifacts.lock; then
     echo "Update Zstandard to $ZSTD_VERSION via \`make lib_zstd\`"
+    HAS_FAILED="true"
+elif [[ ! -d "zstd" ]]; then
+    echo "Missing Zstandard $ZSTD_VERSION, build it via \`make lib_zstd\`"
     HAS_FAILED="true"
 fi
 
