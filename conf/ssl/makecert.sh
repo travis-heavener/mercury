@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # CD into ssl directory
 cd "$(dirname "$0")"

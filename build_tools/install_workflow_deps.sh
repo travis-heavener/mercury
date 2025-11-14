@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Installs *all* deps needed to rebuild Mercury
 sudo apt update 1> /dev/null

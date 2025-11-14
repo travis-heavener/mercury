@@ -1,6 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Installs *all* deps needed to rebuild Mercury
+
 sudo apt update 1> /dev/null
 sudo apt install upx \
     build-essential perl wget \
