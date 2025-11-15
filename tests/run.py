@@ -179,6 +179,11 @@ if __name__ == "__main__":
         print("[Error] TLS certs are not configured, run `make cert`, exiting...")
         exit(1)
 
+    # Verify Windows PHP is set up
+    if sys.platform in ["win32", "cygwin"] and not os.path.exists("../php/php-cgi.exe"):
+        print("[Error] PHP for Windows is not configured, run `conf/setup_php.ps1`, exiting...")
+        exit(1)
+
     # Handle to the process
     proc = None
 
