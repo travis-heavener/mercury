@@ -215,7 +215,7 @@ To build for Linux and/or Windows, use the following steps:
 
 1. Install all necessary dependencies & build static libraries.
 
-    `make libs`.
+    `make libs -j`.
 
 2. Using GNU Make, build for your desired platform(s) via `make linux`, `make windows`, or `make all`.
 
