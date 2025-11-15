@@ -46,6 +46,10 @@ def is_mercury_running():
     # Base case
     return False
 
+# Returns True if TLS is configured (ie. certs exist)
+def is_tls_set_up():
+    return os.path.exists("../conf/ssl/cert.pem") and os.path.exists("../conf/ssl/key.pem")
+
 def _ping_sock(addr: str, port: int, ipv4: bool) -> bool:
     try:
         sock = socket.socket(socket.AF_INET if ipv4 else socket.AF_INET6, socket.SOCK_STREAM)
@@ -169,6 +173,11 @@ if __name__ == "__main__":
 
     # CD into script directory
     os.chdir( os.path.dirname( os.path.abspath(__file__) ) )
+
+    # Verify TLS is set up
+    if not is_tls_set_up():
+        print("[Error] Mercury is already running somewhere on your system, exiting...")
+        exit(1)
 
     # Handle to the process
     proc = None
