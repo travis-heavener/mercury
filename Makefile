@@ -49,15 +49,7 @@ pch_linux: $(PCH_DIR)/common-linux.hpp.gch
 pch_windows: $(PCH_DIR)/common-win.hpp.gch
 
 clean:
-	@rm -f bin/* tmp/* releases/* conf/ssl/*.pem
-	@rm -rf libs
-	@cp -f conf/default/* conf
-	@mkdir -p logs bin libs
-	@find ./build_tools -type f -name "*.sh" -exec chmod +x {} \;
-	@find ./conf/ -type f -name "*.sh" -exec chmod +x {} \;
-	@echo -n "" > logs/access.log
-	@echo -n "" > logs/error.log
-	@echo -n "" > $(ARTIFACTS_LOCK)
+	@./build_tools/clean.sh
 
 ###################################################################
 ############################## LINUX ##############################
