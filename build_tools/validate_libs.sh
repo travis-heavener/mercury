@@ -89,7 +89,7 @@ if command -v dpkg >/dev/null 2>&1; then
         HAS_FAILED="true"
     fi
 else
-    if [[ $(vercmp "$CURRENT_GPP $GPP_VERSION") -lt 0 ]]; then
+    if [[ $(vercmp "$CURRENT_GPP" "$GPP_VERSION") -lt 0 ]]; then
         echo "Update g++ to $GPP_VERSION or newer (currently $CURRENT_GPP)"
         HAS_FAILED="true"
     fi
@@ -106,7 +106,7 @@ if command -v dpkg >/dev/null 2>&1; then
         HAS_FAILED="true"
     fi
 else
-    if [[ $(vercmp "$CURRENT_MINGW_W64 $MINGW_W64_VERSION") -lt 0 ]]; then
+    if [[ $(vercmp "$CURRENT_MINGW_W64" "$MINGW_W64_VERSION") -lt 0 ]]; then
         echo "Update mingw-w64 to $MINGW_W64_VERSION or newer (currently $CURRENT_MINGW_W64)"
         HAS_FAILED="true"
     fi
