@@ -83,18 +83,33 @@ fi
 
 CURRENT_GPP=$(g++ --version | head -1 | grep -oP "\d+\.\d+\.\d+" | head -1)
 
-if dpkg --compare-versions "$CURRENT_GPP" lt "$GPP_VERSION"; then
-    echo "Update g++ to $GPP_VERSION or newer (currently $CURRENT_GPP)"
-    HAS_FAILED="true"
+if command -v dpkg >/dev/null 2>&1; then
+    if dpkg --compare-versions "$CURRENT_GPP" lt "$GPP_VERSION"; then
+        echo "Update g++ to $GPP_VERSION or newer (currently $CURRENT_GPP)"
+        HAS_FAILED="true"
+    fi
+else
+    if [[ $(vercmp "$CURRENT_GPP $GPP_VERSION") -lt 0 ]]; then
+        echo "Update g++ to $GPP_VERSION or newer (currently $CURRENT_GPP)"
+        HAS_FAILED="true"
+    fi
 fi
 
 # === mingw-w64 ===
 
 CURRENT_MINGW_W64=$(dpkg -s mingw-w64 | grep -oP "(?<=Version: )\d+\.\d+\.\d+")
 
-if dpkg --compare-versions "$CURRENT_MINGW_W64" lt "$MINGW_W64_VERSION"; then
-    echo "Update mingw-w64 to $MINGW_W64_VERSION or newer (currently $CURRENT_MINGW_W64)"
-    HAS_FAILED="true"
+
+if command -v dpkg >/dev/null 2>&1; then
+    if dpkg --compare-versions "$CURRENT_MINGW_W64" lt "$MINGW_W64_VERSION"; then
+        echo "Update mingw-w64 to $MINGW_W64_VERSION or newer (currently $CURRENT_MINGW_W64)"
+        HAS_FAILED="true"
+    fi
+else
+    if [[ $(vercmp "$CURRENT_MINGW_W64 $MINGW_W64_VERSION") -lt 0 ]]; then
+        echo "Update mingw-w64 to $MINGW_W64_VERSION or newer (currently $CURRENT_MINGW_W64)"
+        HAS_FAILED="true"
+    fi
 fi
 
 # === Close up ===
