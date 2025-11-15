@@ -28,7 +28,7 @@
     - [TLS Certs](#tls-certs)
     - [CLI](#cli)
     - [Troubleshooting](#troubleshooting)
-- [Build Info](#build-info)
+- [For Developers](#for-developers)
     - [Linux & Windows](#linux--windows)
     - [Compatibility](#compatibility)
     - [Making Releases](#making-releases)
@@ -43,7 +43,7 @@
 
 Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux\*.
 
-\* Linux copies of Mercury require APT packages and glibc to be installed (e.g. Ubuntu, Debian).
+\* Linux copies of Mercury require glibc to be present and currently support distros with APT or Pacman.
 
 ### Performance
 
@@ -150,7 +150,7 @@ Update the `$OPENSSL_PATH` variable in `conf/ssl/makecert.ps1` with your correct
 
 3. Run `conf/ssl/makecert.ps1` and enter the following information to fill out the certificate.
 
-#### For Developers:
+#### For Development:
 
 In your Linux environment, use `make cert` in the root directory of this project and enter your information to create a new certificate pair.
 Your certificate will be located at `conf/ssl/cert.pem` and your private key at `conf/ssl/key.pem`.
@@ -202,21 +202,18 @@ The above `Set-ExecutionPolicy` will temporarily allow the Powershell scripts to
 
 If you encounter any other issues or unexpected behavior, please consider opening an Issue on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury/issues/new/choose).
 
-## Build Info
+## For Developers
+
+When first cloning the repository, run `make clean` to initialize the environment and `make lib_deps` to install library dependencies.
 
 The `build_tools/` directory contains all necessary shell scripts for building static binaries.
-
 Binaries are placed in the `bin/` directory, `mercury` for Linux and `mercury.exe` for Windows.
-
-Note: when first cloning the repository, run `make clean` to initialize the environment.
 
 ### Linux & Windows
 
 To build for Linux and/or Windows, use the following steps:
 
-1. Install all necessary dependencies & extract static libraries.
-
-    `make libs`.
+1. Install all necessary dependencies & build static libraries via `make libs -j`.
 
 2. Using GNU Make, build for your desired platform(s) via `make linux`, `make windows`, or `make all`.
 
@@ -246,9 +243,10 @@ While a release can be manually made locally (via `make release`), this process 
 This project has its own Python test script that manages its own config and test files.
 The test runner is available in the `tests` directory.
 
-Using any recent version of Python 3, make sure that the following Python packages are installed:
-- Use `sudo apt install python3-brotli python3-zstandard python3-psutil` on Linux
-- Use `py -m pip install brotli zstandard psutil` on Windows
+Using Python 3, make sure that the following Python packages are installed using your package manager of choice:
+- `brotli`
+- `zstandard`
+- `psutil`
 
 With Python and its dependencies installed, run `make cert` to create a TLS cert key pair.
 

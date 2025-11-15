@@ -217,7 +217,7 @@ namespace http::cgi {
         bool hasWrittenHeaders = false;
         std::string line;
         while (std::getline(tmpInHandle, line)) {
-            if (line.back() == '\r')
+            if (!line.empty() && line.back() == '\r')
                 line.pop_back();
 
             if (line.empty()) break;

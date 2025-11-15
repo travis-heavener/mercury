@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# Used to detect the system-specific package manager for building on Linux
+if command -v apt >/dev/null 2>&1; then
+    echo "apt"
+elif command -v pacman >/dev/null 2>&1; then
+    echo "pacman"
+elif command -v dnf >/dev/null 2>&1; then
+    echo "dnf"
+else
+    echo "unknown"
+fi

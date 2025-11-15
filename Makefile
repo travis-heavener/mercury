@@ -20,9 +20,10 @@ LIB_WIN = $(shell find libs -type d -name 'lib' | grep -P 'windows/lib' | sed 's
 # Compiler
 CXX := g++
 MINGW_CXX := x86_64-w64-mingw32
+MINGW_CXX_SUFFIX := $(shell if command -v apt >/dev/null 2>&1; then echo g++-posix; else echo g++; fi)
 
-SRCS := $(shell find src -type f -name "*.cpp") $(PUGIXML_DIR)/*.cpp
-DEPS := $(shell find src -type f -name "*.hpp") $(PUGIXML_DIR)/*.hpp $(SRCS)
+SRCS := $(shell find src -type f -name "*.cpp") $(wildcard $(PUGIXML_DIR)/*.cpp)
+DEPS := $(shell find src -type f -name "*.hpp") $(wildcard $(PUGIXML_DIR)/*.hpp) $(SRCS)
 
 PCH_DIR := src/pch
 PCH_WIN := $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp
@@ -48,13 +49,7 @@ pch_linux: $(PCH_DIR)/common-linux.hpp.gch
 pch_windows: $(PCH_DIR)/common-win.hpp.gch
 
 clean:
-	@rm -f bin/* tmp/* releases/* conf/ssl/*.pem
-	@rm -rf libs
-	@cp -f conf/default/* conf
-	@mkdir -p logs bin libs
-	@echo -n "" > logs/access.log
-	@echo -n "" > logs/error.log
-	@echo -n "" > $(ARTIFACTS_LOCK)
+	@./build_tools/clean.sh
 
 ###################################################################
 ############################## LINUX ##############################
@@ -85,7 +80,7 @@ $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
 	@make pch_windows --no-print-directory -s
 	@./build_tools/validate_libs.sh --q
 	@$(MINGW_CXX)-windres src/res/icon.rc -O coff -o $(TARGET_WIN_ICON)
-	@$(MINGW_CXX)-g++-posix -include $(PCH_WIN) \
+	@$(MINGW_CXX)-$(MINGW_CXX_SUFFIX) -include $(PCH_WIN) \
 		$(SRCS) $(TARGET_WIN_ICON) -o $(TARGET_WIN) \
 		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_WIN) $(LIB_WIN) $(LIB_FLAGS) $(WIN_FLAGS)
 	@upx $(TARGET_WIN) -qqq
@@ -93,7 +88,7 @@ $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
 
 $(PCH_DIR)/common-win.hpp.gch: $(PCH_WIN) $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
-	@$(MINGW_CXX)-g++-posix -x c++-header \
+	@$(MINGW_CXX)-$(MINGW_CXX_SUFFIX) -x c++-header \
 		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_WIN) $(LIB_WIN) $(LIB_FLAGS) $(WIN_FLAGS) \
 		-c $(PCH_DIR)/common.hpp -o $(PCH_DIR)/common-win.hpp.gch
 	@echo "✅ Built Windows PCH."

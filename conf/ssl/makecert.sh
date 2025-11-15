@@ -1,11 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # CD into ssl directory
 cd "$(dirname "$0")"
 
 # Install openssl
-sudo apt update
-sudo apt install openssl -y
+if command -v apt >/dev/null 2>&1; then
+    sudo apt-get update 1>/dev/null
+    sudo apt-get install openssl -y 1>/dev/null
+elif command -v pacman >/dev/null 2>&1; then
+    sudo pacman -Syu --noconfirm 1>/dev/null
+    sudo pacman -S --noconfirm openssl 1>/dev/null
+fi
 
 if [ -f "key.pem" ]; then
     rm -f key.pem

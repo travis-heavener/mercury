@@ -186,8 +186,20 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
                 rc = static_cast<int>(GetLastError());
             }
         #else // Linux specific
-            std::cout << "> Running `sudo apt install php-cgi -y`" << std::endl;
-            const int rc = std::system("sudo apt install php-cgi -y");
+            std::string command;
+            if (std::system("command -v apt-get >/dev/null 2>&1") == 0) {
+                command = "sudo apt-get update -y >/dev/null && sudo apt-get install php-cgi -y";
+            } else if (std::system("command -v pacman >/dev/null 2>&1") == 0) {
+                command = "sudo pacman --noconfirm -Syu >/dev/null && sudo pacman --noconfirm -S php-cgi";
+            }
+
+            int rc = 1;
+            if (!command.empty()) {
+                std::cout << "> Running `" << command << '`' << std::endl;
+                rc = std::system(command.c_str());
+            } else {
+                std::cout << "> Failed to detect system package manager" << std::endl;
+            }
         #endif
 
         if (rc == 0) {

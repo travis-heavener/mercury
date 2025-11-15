@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.28.3
+- Add unofficial support for Arch Linux (#372)
+- Fix potential crash from PHP CGI on Arch Linux
+- README improvements for cross-platform Linux builds
+
 ## v0.28.2
 - Windows PHP init script now fetches the latest PHP version (#374)
 

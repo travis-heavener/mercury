@@ -38,7 +38,7 @@ jobs:
 
       # Init build environment BEFORE libs
       - name: Make Clean
-        run: make clean
+        run: yes | make clean
 
       # Make executables
       - name: Make Executable Shell Scripts
