@@ -104,7 +104,7 @@ if command -v dpkg >/dev/null 2>&1; then
         HAS_FAILED="true"
     fi
 elif command -v pacman >/dev/null 2>&1; then
-    CURRENT_MINGW_W64=$(sudo pacman -Qi mingw-w64-gcc | grep -Po "^Version\s*:\s*\K\d+\.\d+\.\d+")
+    CURRENT_MINGW_W64=$(pacman -Qi mingw-w64-gcc | grep -Po "^Version\s*:\s*\K\d+\.\d+\.\d+")
     if [[ $(vercmp "$CURRENT_MINGW_W64" "$MINGW_W64_VERSION") -lt 0 ]]; then
         echo "Update mingw-w64 to $MINGW_W64_VERSION or newer (currently $CURRENT_MINGW_W64)"
         HAS_FAILED="true"
