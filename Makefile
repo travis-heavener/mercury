@@ -52,8 +52,7 @@ clean:
 	@rm -rf libs
 	@cp -f conf/default/* conf
 	@mkdir -p logs bin libs
-	@find . -type f -name "*.sh" -exec chmod +x {} \;
-	@find ./build_tools -type f -not -name "*.sh" -exec sh -c 'head -n 1 "$1" | grep -q "^#!" && chmod +x "$1"' _ {} \;
+	@find ./build_tools -type f \( -name '*.sh' -o ! -name '*.*' \) -exec chmod +x {} \;
 	@echo -n "" > logs/access.log
 	@echo -n "" > logs/error.log
 	@echo -n "" > $(ARTIFACTS_LOCK)
