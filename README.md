@@ -43,7 +43,7 @@
 
 Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux\*.
 
-\* Linux copies of Mercury require APT packages and glibc to be installed (e.g. Ubuntu, Debian).
+\* Linux copies of Mercury require glibc to be present and currently support distros with APT or Pacman.
 
 ### Performance
 
