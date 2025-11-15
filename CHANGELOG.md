@@ -1,6 +1,7 @@
 # Changelog
 
 ## v0.28.3
+- Add unofficial support for Arch Linux (#372)
 - Fix potential crash from PHP CGI on Arch Linux
 - README improvements for cross-platform Linux builds
 
