@@ -97,15 +97,14 @@ fi
 
 # === mingw-w64 ===
 
-CURRENT_MINGW_W64=$(dpkg -s mingw-w64 | grep -oP "(?<=Version: )\d+\.\d+\.\d+")
-
-
 if command -v dpkg >/dev/null 2>&1; then
+    CURRENT_MINGW_W64=$(dpkg -s mingw-w64 | grep -oP "(?<=Version: )\d+\.\d+\.\d+")
     if dpkg --compare-versions "$CURRENT_MINGW_W64" lt "$MINGW_W64_VERSION"; then
         echo "Update mingw-w64 to $MINGW_W64_VERSION or newer (currently $CURRENT_MINGW_W64)"
         HAS_FAILED="true"
     fi
-else
+elif command -v pacman >/dev/null 2>&1; then
+    CURRENT_MINGW_W64=$(sudo pacman -Qi mingw-w64-gcc | grep -Po "^Version\s*:\s*\K\d+\.\d+\.\d+")
     if [[ $(vercmp "$CURRENT_MINGW_W64" "$MINGW_W64_VERSION") -lt 0 ]]; then
         echo "Update mingw-w64 to $MINGW_W64_VERSION or newer (currently $CURRENT_MINGW_W64)"
         HAS_FAILED="true"
