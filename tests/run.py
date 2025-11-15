@@ -176,7 +176,7 @@ if __name__ == "__main__":
 
     # Verify TLS is set up
     if not is_tls_set_up():
-        print("[Error] Mercury is already running somewhere on your system, exiting...")
+        print("[Error] TLS certs are not configured, run `make cert`, exiting...")
         exit(1)
 
     # Handle to the process
