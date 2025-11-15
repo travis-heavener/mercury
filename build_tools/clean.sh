@@ -2,6 +2,10 @@
 
 # Cleans and initializes the repository
 
+# CD into project directory
+cd "$(dirname "$0")/../"
+
+# Confirm execution
 read -r -p "This operation will overwrite any config files, logs, libraries, builds, and releases. Continue? [y/N] " res
 res=$(echo $res | tr '[:upper:]' '[:lower:]') # Lowercase
 if [[ ! "$res" =~ ^(yes|y)$ ]]; then
@@ -20,4 +24,4 @@ find ./build_tools -type f -name "*.sh" -exec chmod +x {} \;
 find ./conf/ -type f -name "*.sh" -exec chmod +x {} \;
 echo -n "" > logs/access.log
 echo -n "" > logs/error.log
-echo -n "" > $(ARTIFACTS_LOCK)
+echo -n "" > libs/artifacts.lock
