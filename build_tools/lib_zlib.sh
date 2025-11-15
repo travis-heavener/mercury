@@ -73,7 +73,11 @@ mv "zlib-$version" "zlib-$version-linux"
 
     MAKEFILE_PATH="win32/Makefile.gcc"
     sed -i 's/^PREFIX *=.*$/PREFIX=x86_64-w64-mingw32-/' "$MAKEFILE_PATH"
-    sed -i 's/^CC *=.*$/CC=\$(PREFIX)gcc-win32/' "$MAKEFILE_PATH"
+    if command -v x86_64-w64-mingw32-gcc-win32 >/dev/null 2>&1; then
+        sed -i 's/^CC *=.*$/CC=\$(PREFIX)gcc-win32/' "$MAKEFILE_PATH"
+    else
+        sed -i 's/^CC *=.*$/CC=\$(PREFIX)gcc/' "$MAKEFILE_PATH"
+    fi
 
     make -j$(nproc) -B -f "$MAKEFILE_PATH" \
         BINARY_PATH="/dev/null" \
