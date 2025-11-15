@@ -20,7 +20,7 @@ case "$PKG_MGR" in
             php-cgi 1>/dev/null
         ;;
     pacman)
-        sudo pacman -Sy --noconfirm 1>/dev/null
+        sudo pacman -Syu --noconfirm 1>/dev/null
         sudo pacman -S --noconfirm upx \
             base-devel perl wget \
             mingw-w64 nasm \

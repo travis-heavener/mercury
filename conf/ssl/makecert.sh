@@ -8,7 +8,7 @@ if command -v apt >/dev/null 2>&1; then
     sudo apt-get update 1>/dev/null
     sudo apt-get install openssl -y 1>/dev/null
 elif command -v pacman >/dev/null 2>&1; then
-    sudo pacman -Sy --noconfirm 1>/dev/null
+    sudo pacman -Syu --noconfirm 1>/dev/null
     sudo pacman -S --noconfirm openssl 1>/dev/null
 fi
 
