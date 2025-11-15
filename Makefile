@@ -54,6 +54,7 @@ clean:
 	@cp -f conf/default/* conf
 	@mkdir -p logs bin libs
 	@find ./build_tools -type f -name "*.sh" -exec chmod +x {} \;
+	@find ./conf/ -type f -name "*.sh" -exec chmod +x {} \;
 	@echo -n "" > logs/access.log
 	@echo -n "" > logs/error.log
 	@echo -n "" > $(ARTIFACTS_LOCK)
