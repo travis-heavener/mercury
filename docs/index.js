@@ -32,7 +32,7 @@ const handleReleaseJSON = (releases) => {
     for (const { name, date, winHash, linuxHash } of releases) {
         // Resolve asset links
         const winSuffix = "Windows_" + name.replaceAll(".", "_") + ".zip";
-        const linuxSuffix = "Linux_" + name.replaceAll(".", "_") + ".tar.gz";
+        const linuxSuffix = "Debian_" + name.replaceAll(".", "_") + ".tar.gz";
         const winUrl = downloadPrefix + name + "/" + winSuffix;
         const linuxUrl = downloadPrefix + name + "/" + linuxSuffix;
 
@@ -62,7 +62,7 @@ const handleReleaseJSON = (releases) => {
             "/Windows_" + name.replaceAll(".", "_") + ".zip";
 
         $("#latest-release-div > a.linux")[0].href = downloadPrefix + name +
-            "/Linux_" + name.replaceAll(".", "_") + ".tar.gz";
+            "/Debian_" + name.replaceAll(".", "_") + ".tar.gz";
     }
 };
 
