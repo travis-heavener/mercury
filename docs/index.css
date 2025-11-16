@@ -6,6 +6,12 @@
     -webkit-box-sizing: border-box;
 }
 
+:root {
+    --anchor-dark: #3f73d3;
+    --anchor-base: #77a6fb;
+    --anchor-lite: #abc8ff;
+}
+
 html, body {
     overflow-x: hidden;
 }
@@ -26,7 +32,7 @@ body {
     background-color: #f8f9fa;
 }
 
-#main-content {
+main {
     margin: 2rem auto;
     padding: 0 1.5rem;
     flex: 1;
@@ -47,7 +53,10 @@ h1 {
     font-size: 1.2rem;
     font-weight: 400;
     text-align: center;
+    line-height: 2;
 }
+
+#mercury-desc > a { font-size: 0.95em }
 
 h2 {
     margin: 1rem;
@@ -215,7 +224,7 @@ ol {
 }
 
 /* Footer */
-#footer-div {
+footer {
     margin-top: auto;
     padding: 1.2rem;
 
@@ -224,6 +233,14 @@ ol {
     font-size: 0.9rem;
     text-align: center;
 }
+
+footer a {
+    color: var(--anchor-base);
+    transition: 0.1s color;
+}
+
+footer a:hover { color: var(--anchor-lite) }
+footer a:active { color: var(--anchor-dark) }
 
 /* Passive toast styling */
 .toast {
