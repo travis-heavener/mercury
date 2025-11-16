@@ -67,6 +67,13 @@
 
             <div id="linux-download-table" class="download-table-wrapper">
                 <h2>Linux Downloads <sup class="dagger">&dagger;</sup></h2>
+                <div id="distro-selector">
+                    <label for="distro-select">Select Linux distribution:</label>
+                    <select id="distro-select" name="distro" aria-label="Select Linux distribution">
+                        <option value="debian">Debian-based (e.g. Ubuntu)</option>
+                        <option value="arch">Arch Linux</option>
+                    </select>
+                </div>
                 <h3><a href="https://github.com/travis-heavener/mercury/releases">View All Releases</a></h3>
                 <table id="downloads-linux-table">
                     <thead>
@@ -79,6 +86,20 @@
                     </thead>
                     <tbody></tbody>
                 </table>
+                <div id="arch-instructions">
+                    <h3>Arch Installation</h3>
+                    <p>
+                        README.md has full instructions on how to build Mercury (see <a href="https://github.com/travis-heavener/mercury#for-developers">For Developers</a>).
+                        <br>
+                        To build Mercury on Arch Linux:
+                    </p>
+                    <ol>
+                        <li>Clone the official Mercury repository.</li>
+                        <li>Build dependencies via <code>make libs -j</code> or <code>make libs -j LINUX_ONLY=1</code> (to omit Windows libraries).</li>
+                        <li>Run <code>make linux</code>.</li>
+                        <li>Mercury can now be run from <code>bin/mercury</code>.</li>
+                    </ol>
+                </div>
                 <p>
                     <sup class="dagger">&dagger;</sup> Linux copies of Mercury require glibc to be present and currently support distros with APT or Pacman.
                     <br>

@@ -1,8 +1,28 @@
-$(() => {
+$(async () => {
     // Load JSON file of all releases
     $.get("releases.json")
         .then(json => handleReleaseJSON(json));
+
+    // Set initial visibility based on current selection
+    updateDistroView();
+    $("#distro-select").on("change", updateDistroView);
 });
+
+const updateDistroView = () => {
+    // Toggle Linux downloads table vs arch instructions based on distro select
+    const distroSelect = $("#distro-select");
+    const linuxTable = $("#downloads-linux-table");
+    const archInstructions = $("#arch-instructions");
+
+    const val = (distroSelect.val() || "").toString().trim();
+    if (val === "debian") {
+        linuxTable.show();
+        archInstructions.hide();
+    } else {
+        linuxTable.hide();
+        archInstructions.show();
+    }
+};
 
 // Releases v0.28.4+ use "Debian_X.X.X.tar.gz" instead of "Linux_X.X.X.tar.gz"
 const getLinuxPrefix = (name) => {
