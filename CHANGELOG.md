@@ -3,6 +3,7 @@
 ## v0.28.4
 - Improve documentation for cross-platform builds
 - Fix generated README after refactor from v0.28.3
+- Fix program hanging when attempting to close on Linux
 - Add support for Kali Linux (#372)
 
 ## v0.28.3

@@ -249,6 +249,10 @@ namespace http {
             // Poll for data
             bool isForceClosed = false, isDataReady = true;
             while (requestStr.find("\r\n\r\n") == std::string::npos && !isForceClosed && isDataReady) {
+                if (isExiting) { // Program closed
+                    isForceClosed = true; break;
+                }
+
                 struct pollfd pfd; pfd.fd = client;
                 const ssize_t pollStatus = this->waitForClientData(pfd, conf::KEEP_ALIVE_TIMEOUT * 1000);
                 if (pollStatus <= 0 || (pfd.revents & (POLLHUP | POLLERR))) {
