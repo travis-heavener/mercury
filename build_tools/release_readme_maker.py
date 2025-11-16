@@ -67,11 +67,11 @@ def main(path: str):
 
     # Remove sections
     body = remove_section(body, "Table of Contents")
-    body = remove_section(body, "Build Info")
-    body = remove_section(body, "Testing Suite")
+    body = remove_section(body, "About")
     body = remove_section(body, "Contributing")
     body = remove_section(body, "Changelog")
     body = remove_section(body, "Credits")
+    body = remove_section(body, "Fun Facts")
 
     # Mark out each section for visual clarity
     body = markout_sections(body)

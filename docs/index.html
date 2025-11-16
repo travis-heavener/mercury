@@ -35,10 +35,14 @@
             crossorigin="anonymous"></script>
     </head>
     <body>
-        <div id="main-content">
+        <main>
             <h1>Mercury</h1>
 
-            <h3 id="mercury-desc">Mercury is a lightweight, configurable HTTP server designed in C++, available for Windows and Linux.</h3>
+            <h3 id="mercury-desc">
+                Mercury is a lightweight, configurable HTTP server designed in C++, available for Windows and Linux.
+                <br>
+                <a href="https://github.com/travis-heavener/mercury">GitHub Repository</a>
+            </h3>
 
             <div id="latest-release-div">
                 <h2>Latest Release</h2>
@@ -68,6 +72,13 @@
             <div id="linux-download-table" class="download-table-wrapper">
                 <h2>Linux Downloads <sup class="dagger">&dagger;</sup></h2>
                 <h3><a href="https://github.com/travis-heavener/mercury/releases">View All Releases</a></h3>
+                <div id="distro-selector">
+                    <label for="distro-select">Select Linux distribution:</label>
+                    <select id="distro-select" name="distro" aria-label="Select Linux distribution">
+                        <option value="debian">Debian-based (e.g. Ubuntu, Kali)</option>
+                        <option value="arch">Arch Linux</option>
+                    </select>
+                </div>
                 <table id="downloads-linux-table">
                     <thead>
                         <tr>
@@ -79,17 +90,32 @@
                     </thead>
                     <tbody></tbody>
                 </table>
+                <div id="arch-instructions">
+                    <h3>Arch Installation</h3>
+                    <p>
+                        README.md has full instructions on how to build Mercury (see <a href="https://github.com/travis-heavener/mercury#for-developers">For Developers</a>).
+                        <br>
+                        To build Mercury on Arch Linux:
+                    </p>
+                    <ol>
+                        <li>Clone the <a href="https://github.com/travis-heavener/mercury">official Mercury repository</a>.</li>
+                        <li>Build dependencies via <code>mak</svg>e libs -j</code> or <code>make libs -j LINUX_ONLY=1</code> (to omit Windows libraries).</li>
+                        <li>Run <code>make linux</code>.</li>
+                        <li>Mercury can now be run from <code>bin/mercury</code>.</li>
+                    </ol>
+                </div>
                 <p>
                     <sup class="dagger">&dagger;</sup> Linux copies of Mercury require glibc to be present and currently support distros with APT or Pacman.
                     <br>
                     If you encounter any compatibility issues, please open an <a href="https://github.com/travis-heavener/mercury/issues/new/choose">Issue</a>.
                 </p>
             </div>
-        </div>
+        </main>
 
-        <div id="footer-div">
-            <p>Travis Heavener &mdash; Created 2025</p>
-        </div>
+        <footer>
+            <p>Travis Heavener &copy; 2025</p>
+            <p><a href="https://github.com/travis-heavener/mercury">GitHub Repository</a></p>
+        </footer>
 
         <script src="index.js"></script>
     </body>

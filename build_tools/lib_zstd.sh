@@ -47,14 +47,17 @@ echo "Fetched Zstandard archive."
 
 mkdir zstd
 mkdir zstd/linux zstd/linux/include zstd/linux/lib
-mkdir zstd/windows zstd/windows/include zstd/windows/lib
+if [ "$LINUX_ONLY" != "1" ]; then
+    mkdir zstd/windows zstd/windows/include zstd/windows/lib
+fi
 
 # Extract archive
 tar -xzf "zstd-$version.tar.gz"
-echo "Extracted archive."
 
 # ==== Build in Parallel ====
-cp -r "zstd-$version" "zstd-$version-windows"
+if [ "$LINUX_ONLY" != "1" ]; then
+    cp -r "zstd-$version" "zstd-$version-windows"
+fi
 mv "zstd-$version" "zstd-$version-linux"
 
 (
@@ -64,12 +67,14 @@ mv "zstd-$version" "zstd-$version-linux"
     mv libzstd.a "$LIB_PATH/zstd/linux/lib"
 ) &
 
-(
-    cd "zstd-$version-windows/lib"
-    make -j$(nproc) libzstd.a CC=x86_64-w64-mingw32-gcc 1> /dev/null
-    cp *.h "$LIB_PATH/zstd/windows/include"
-    mv libzstd.a "$LIB_PATH/zstd/windows/lib"
-) &
+if [ "$LINUX_ONLY" != "1" ]; then
+    (
+        cd "zstd-$version-windows/lib"
+        make -j$(nproc) libzstd.a CC=x86_64-w64-mingw32-gcc 1> /dev/null
+        cp *.h "$LIB_PATH/zstd/windows/include"
+        mv libzstd.a "$LIB_PATH/zstd/windows/lib"
+    ) &
+fi
 
 wait
 
@@ -77,7 +82,9 @@ wait
 cd "$LIB_PATH"
 rm -rf "zstd-$version"
 rm -rf "zstd-$version-linux"
-rm -rf "zstd-$version-windows"
+if [ "$LINUX_ONLY" != "1" ]; then
+    rm -rf "zstd-$version-windows"
+fi
 rm -f "zstd-$version.tar.gz"
 
 # Update artifacts.lock

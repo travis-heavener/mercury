@@ -2,7 +2,36 @@ $(() => {
     // Load JSON file of all releases
     $.get("releases.json")
         .then(json => handleReleaseJSON(json));
+
+    // Set initial visibility based on current selection
+    updateDistroView();
+    $("#distro-select").on("change", updateDistroView);
 });
+
+const updateDistroView = () => {
+    // Toggle Linux downloads table vs arch instructions based on distro select
+    const distroSelect = $("#distro-select");
+    const linuxTable = $("#downloads-linux-table");
+    const archInstructions = $("#arch-instructions");
+
+    const val = (distroSelect.val() || "").toString().trim();
+    if (val === "debian") {
+        linuxTable.show();
+        archInstructions.hide();
+    } else {
+        linuxTable.hide();
+        archInstructions.show();
+    }
+};
+
+// Releases v0.28.4+ use "Debian_X.X.X.tar.gz" instead of "Linux_X.X.X.tar.gz"
+const getLinuxPrefix = (name) => {
+    const parts = name.substring(1).split(".");
+    const major = parseInt(parts[0]);
+    const minor = parseInt(parts[1]);
+    const patch = parseInt(parts[2]);
+    return (major === 0 && (minor < 28 || (minor == 28 && patch <= 3))) ? "Linux" : "Debian";
+}
 
 const handleReleaseJSON = (releases) => {
     // Iteratively append to DOM
@@ -32,7 +61,7 @@ const handleReleaseJSON = (releases) => {
     for (const { name, date, winHash, linuxHash } of releases) {
         // Resolve asset links
         const winSuffix = "Windows_" + name.replaceAll(".", "_") + ".zip";
-        const linuxSuffix = "Linux_" + name.replaceAll(".", "_") + ".tar.gz";
+        const linuxSuffix = `${getLinuxPrefix(name)}_` + name.replaceAll(".", "_") + ".tar.gz";
         const winUrl = downloadPrefix + name + "/" + winSuffix;
         const linuxUrl = downloadPrefix + name + "/" + linuxSuffix;
 
@@ -62,7 +91,7 @@ const handleReleaseJSON = (releases) => {
             "/Windows_" + name.replaceAll(".", "_") + ".zip";
 
         $("#latest-release-div > a.linux")[0].href = downloadPrefix + name +
-            "/Linux_" + name.replaceAll(".", "_") + ".tar.gz";
+            `/${getLinuxPrefix(name)}_` + name.replaceAll(".", "_") + ".tar.gz";
     }
 };
 

@@ -20,7 +20,6 @@
 
 - [About](#about)
     - [Performance](#performance)
-    - [Privacy Commitment](#privacy-commitment)
 - [Getting Started](#getting-started)
     - [Config Files](#config-files)
     - [Log Files](#log-files)
@@ -29,10 +28,12 @@
     - [CLI](#cli)
     - [Troubleshooting](#troubleshooting)
 - [For Developers](#for-developers)
-    - [Linux & Windows](#linux--windows)
+    - [Windows Builds](#windows-builds)
+    - [Linux Builds](#linux-builds)
     - [Compatibility](#compatibility)
     - [Making Releases](#making-releases)
-- [Testing Suite](#testing-suite)
+    - [Testing Suite](#testing-suite)
+- [Privacy Commitment](#privacy-commitment)
 - [Contributing](#contributing)
 - [Changelog](#changelog)
 - [Credits](#credits)
@@ -68,27 +69,6 @@ Each value is the average of five separate trials using the Python test cases in
 
 *Actual performance will vary between systems; this data is a baseline.*
 
-### Privacy Commitment
-
-As netizens (*noun*. a user of the internet), it is our due diligence to be aware of our presence online and to keep our personal information secure.
-
-**Mercury does not and will never collect any of your personal information.**
-
-That is the bottom line.
-
-The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([wowtravis.com](https://wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf) and to [php.net](https://php.net) on Windows when running the `phpinit` CLI command.
-
-In addition, the Mercury access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs **UNLESS** the RedactLogIPs config variable is set to true (see mercury.conf).
-Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.
-
-All of Mercury's source code is freely available for curious users to view and poke at on GitHub via [https://github.com/travis-heavener/mercury](https://github.com/travis-heavener/mercury).
-
-That being said, Mercury is a living software, and security patches are rolled out alongside feature updates.
-As such, any update prefixed with v0.X.X (ex. v0.18.2) are pre-release.
-These pre-release versions are not guaranteed to be bug-proof (nor should any software ever claim to be bug-proof).
-
-If you notice any security issues or have a suggestion, please refer to [SECURITY.md](SECURITY.md).
-
 ## Getting Started
 
 Once you've downloaded your own Mercury release, navigate to the `bin/` directory.
@@ -109,7 +89,7 @@ If you encounter any unexpected behavior, please start an Issue on the [Mercury 
 In the `conf` directory are two config files: "mercury.conf" for server config and "mimes.conf" for a list of supported MIME types.
 The `conf/default/` directory contains default copies these files.
 
-For guidance, CONFIG.md contains a thorough documentation of each configuration setting/node, including accepted values and usage examples.
+For guidance, [CONFIG.md](CONFIG.md) contains a thorough documentation of each configuration setting/node, including accepted values and usage examples.
 
 ### Log Files
 
@@ -173,6 +153,14 @@ As of Mercury v0.22.0, a rich CLI is available to the user. Here is a list of av
 
 ### Troubleshooting
 
+#### Linux Executables
+
+Because released Linux executables are compiled from the "ubuntu-latest" GitHub Actions runner, they use an older version of glibc (2.39).
+Since Mercury does not statically link against glibc, the program depends on whatever glibc is available at runtime, which fails on glibc versions >= 2.42.
+
+If you receive crashes (e.g. SIGFPE __libc_early_init /usr/bin/libc.so.6), you will need to build from the Mercury source.
+See [For Developers](#for-developers) for instructions on how to do build Mercury.
+
 #### Windows Executables
 
 Windows executable of Mercury are blocked by default from running on client devices.
@@ -184,19 +172,8 @@ Select "More info" and then "Run anyway".
 
 #### Powershell Scripts
 
-Powershell scripts are blocked by default from running on client devices.
-If you encounter:
-> Do you want to open this file?
-
-Select "Open".
-
-If you still encounter issues running a Powershell script, open a new Powershell terminal and enter:
-```
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-Now run the Powershell script from that same Powershell terminal.
-The above `Set-ExecutionPolicy` will temporarily allow the Powershell scripts to run while the terminal is open, and will reset to the system default policy when closed.
+Currently, the only Powershell script in Mercury distributions is for installing PHP for Windows.
+This script should be run through the Mercury CLI via the `phpinit` command, otherwise the script will be blocked from execution.
 
 #### Further Troubleshooting
 
@@ -209,17 +186,23 @@ When first cloning the repository, run `make clean` to initialize the environmen
 The `build_tools/` directory contains all necessary shell scripts for building static binaries.
 Binaries are placed in the `bin/` directory, `mercury` for Linux and `mercury.exe` for Windows.
 
-### Linux & Windows
+Before building Mercury, you must run `make libs -j` to build all statically linked libraries.
+If you plan to build for Windows and Linux together, run `make -j`.
 
-To build for Linux and/or Windows, use the following steps:
+### Windows Builds
 
-1. Install all necessary dependencies & build static libraries via `make libs -j`.
+To specifically build for Windows from your Linux environment, run `make windows`.
 
-2. Using GNU Make, build for your desired platform(s) via `make linux`, `make windows`, or `make all`.
+### Linux Builds
 
-Note: see [Compatibility](#compatibility) section for software compatibility.
+To specifically build for your Linux distribution, run `make linux`.
+
+If you're interested in only building for Linux, you can use `make libs -j LINUX_ONLY=1` to omit Windows binaries.
 
 ### Compatibility
+
+All releases are currently built using the "ubuntu-latest" GitHub Actions runner.
+All libraries are statically linked except for glibc, which uses the version of it installed on your Linux machine.
 
 The following table contains known compatible versions of software used to build Mercury.
 
@@ -238,7 +221,7 @@ While a release can be manually made locally (via `make release`), this process 
 
 **NOTE**: the "Make Release" workflow will take the most recent changes on main and bundle them with the version committed to main. If you are building a release from a work-in-progress branch, *don't*.
 
-## Testing Suite
+### Testing Suite
 
 This project has its own Python test script that manages its own config and test files.
 The test runner is available in the `tests` directory.
@@ -250,9 +233,32 @@ Using Python 3, make sure that the following Python packages are installed using
 
 With Python and its dependencies installed, run `make cert` to create a TLS cert key pair.
 
-Now, start `tests/run.py` to run a number of tests against the server.
+Now, start Mercury once for yourself and run the `phpinit` CLI command to configure the PHP-CGI.
+
+Once your TLS certs and PHP are configured, start `tests/run.py` to run a number of tests against the server.
 
 **NOTE:** Make sure that Mercury is ***NOT*** running when you start the test script--the script will launch several versions of Mercury to test against, but will not overwrite your configuration settings.
+
+## Privacy Commitment
+
+As netizens (*noun*. a user of the internet), it is our due diligence to be aware of our presence online and to keep our personal information secure.
+
+**Mercury does not and will never collect any of your personal information.**
+
+That is the bottom line.
+
+The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([wowtravis.com](https://wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf) and to [php.net](https://php.net) on Windows when running the `phpinit` CLI command.
+
+In addition, the Mercury access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs **UNLESS** the RedactLogIPs config variable is set to true (see mercury.conf).
+Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.
+
+All of Mercury's source code is freely available for curious users to view and poke at on GitHub via [https://github.com/travis-heavener/mercury](https://github.com/travis-heavener/mercury).
+
+That being said, Mercury is a living software, and security patches are rolled out alongside feature updates.
+As such, any update prefixed with v0.X.X (ex. v0.18.2) are pre-release.
+These pre-release versions are not guaranteed to be bug-proof (nor should any software ever claim to be bug-proof).
+
+If you notice any security issues or have a suggestion, please refer to [SECURITY.md](SECURITY.md).
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)

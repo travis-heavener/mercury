@@ -49,15 +49,18 @@ echo "Fetched OpenSSL archive."
 
 mkdir openssl
 mkdir openssl/linux openssl/linux/include openssl/linux/lib
-mkdir openssl/windows openssl/windows/include openssl/windows/lib
+if [ "$LINUX_ONLY" != "1" ]; then
+    mkdir openssl/windows openssl/windows/include openssl/windows/lib
+fi
 
 # Extract archive
 tar -xzf "openssl-$version.tar.gz"
-echo "Extracted archive."
 echo "Building static libraries, please wait..."
 
 # ==== Build in Parallel ====
-cp -r "openssl-$version" "openssl-$version-windows"
+if [ "$LINUX_ONLY" != "1" ]; then
+    cp -r "openssl-$version" "openssl-$version-windows"
+fi
 mv "openssl-$version" "openssl-$version-linux"
 
 (
@@ -73,31 +76,35 @@ mv "openssl-$version" "openssl-$version-linux"
     rm -rf "$LIB_PATH/openssl/linux/bin"
 ) &
 
-(
-    cd "openssl-$version-windows"
+if [ "$LINUX_ONLY" != "1" ]; then
+    (
+        cd "openssl-$version-windows"
 
-    # Patch Mingw bug for 3.6.0
-    # See https://github.com/openssl/openssl/issues/28679
-    if [ "$version" == "3.6.0" ]; then
-        sed -i '545c#if defined\(OPENSSL_SYS_WINDOWS\) && \!defined\(__MINGW32__\)' test/bioprinttest.c
-    fi
+        # Patch Mingw bug for 3.6.0
+        # See https://github.com/openssl/openssl/issues/28679
+        if [ "$version" == "3.6.0" ]; then
+            sed -i '545c#if defined\(OPENSSL_SYS_WINDOWS\) && \!defined\(__MINGW32__\)' test/bioprinttest.c
+        fi
 
-    ./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp no-tests no-docs no-legacy --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" 1> /dev/null
-    make -j$(nproc) &>/dev/null
-    make install_sw &>/dev/null
+        ./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp no-tests no-docs no-legacy --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" 1> /dev/null
+        make -j$(nproc) &>/dev/null
+        make install_sw &>/dev/null
 
-    # Move library files
-    mv "$LIB_PATH/openssl/windows/lib64/"*.a "$LIB_PATH/openssl/windows/lib"
-    rm -rf "$LIB_PATH/openssl/windows/lib64"
-    rm -rf "$LIB_PATH/openssl/windows/bin"
-) &
+        # Move library files
+        mv "$LIB_PATH/openssl/windows/lib64/"*.a "$LIB_PATH/openssl/windows/lib"
+        rm -rf "$LIB_PATH/openssl/windows/lib64"
+        rm -rf "$LIB_PATH/openssl/windows/bin"
+    ) &
+fi
 
 wait
 
 # ==== Clean Up ====
 rm -f "openssl-$version.tar.gz"
 rm -rf "openssl-$version-linux"
-rm -rf "openssl-$version-windows"
+if [ "$LINUX_ONLY" != "1" ]; then
+    rm -rf "openssl-$version-windows"
+fi
 
 # Update artifacts.lock
 $TOOLS_PATH/update_artifact "openssl" "$version"
