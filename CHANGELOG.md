@@ -3,6 +3,7 @@
 ## v0.28.4
 - Improve documentation for cross-platform builds
 - Fix generated README after refactor from v0.28.3
+- Add support for Kali Linux (#372)
 
 ## v0.28.3
 - Add unofficial support for Arch Linux (#372)
