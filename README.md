@@ -153,6 +153,14 @@ As of Mercury v0.22.0, a rich CLI is available to the user. Here is a list of av
 
 ### Troubleshooting
 
+#### Linux Executables
+
+Because released Linux executables are compiled from the "ubuntu-latest" GitHub Actions runner, they use an older version of glibc (2.39).
+Since Mercury does not statically link against glibc, the program depends on whatever glibc is available at runtime, which fails on glibc versions >= 2.42.
+
+If you receive crashes (e.g. SIGFPE __libc_early_init /usr/bin/libc.so.6), you will need to build from the Mercury source.
+See [For Developers](#for-developers) for instructions on how to do build Mercury.
+
 #### Windows Executables
 
 Windows executable of Mercury are blocked by default from running on client devices.
