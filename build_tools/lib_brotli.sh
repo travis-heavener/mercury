@@ -49,14 +49,18 @@ echo "Fetched Brotli archive."
 
 mkdir brotli
 mkdir brotli/linux brotli/linux/include brotli/linux/lib
-mkdir brotli/windows brotli/windows/include brotli/windows/lib
+
+if [ "$LINUX_ONLY" != "1" ]; then
+    mkdir brotli/windows brotli/windows/include brotli/windows/lib
+fi
 
 # Extract archive
 tar -xzf "brotli-$version.tar.gz"
-echo "Extracted archive."
 
 # ==== Build in Parallel ====
-cp -r "brotli-$version" "brotli-$version-windows"
+if [ "$LINUX_ONLY" != "1" ]; then
+    cp -r "brotli-$version" "brotli-$version-windows"
+fi
 mv "brotli-$version" "brotli-$version-linux"
 
 (
@@ -74,23 +78,25 @@ mv "brotli-$version" "brotli-$version-linux"
     cp -r ../c/include "$LIB_PATH/brotli/linux"
 ) &
 
-(
-    cd "brotli-$version-windows"
-    mkdir build && cd build
+if [ "$LINUX_ONLY" != "1" ]; then
+    (
+        cd "brotli-$version-windows"
+        mkdir build && cd build
 
-    cmake .. \
-        -DCMAKE_SYSTEM_NAME=Windows \
-        -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
-        -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DBROTLI_BUNDLED_MODE=ON \
-        -DBUILD_SHARED_LIBS=OFF &> /dev/null
-    make -j$(nproc) &> /dev/null
+        cmake .. \
+            -DCMAKE_SYSTEM_NAME=Windows \
+            -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+            -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBROTLI_BUNDLED_MODE=ON \
+            -DBUILD_SHARED_LIBS=OFF &> /dev/null
+        make -j$(nproc) &> /dev/null
 
-    # Move library files
-    mv *.a "$LIB_PATH/brotli/windows/lib"
-    cp -r ../c/include "$LIB_PATH/brotli/windows"
-) &
+        # Move library files
+        mv *.a "$LIB_PATH/brotli/windows/lib"
+        cp -r ../c/include "$LIB_PATH/brotli/windows"
+    ) &
+fi
 
 wait
 
@@ -98,7 +104,10 @@ wait
 cd "$LIB_PATH"
 rm -f "brotli-$version.tar.gz"
 rm -rf "brotli-$version-linux"
-rm -rf "brotli-$version-windows"
+
+if [ "$LINUX_ONLY" != "1" ]; then
+    rm -rf "brotli-$version-windows"
+fi
 
 # Update artifacts.lock
 $TOOLS_PATH/update_artifact "brotli" "$version"
