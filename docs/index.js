@@ -1,4 +1,4 @@
-$(async () => {
+$(() => {
     // Load JSON file of all releases
     $.get("releases.json")
         .then(json => handleReleaseJSON(json));
