@@ -189,6 +189,8 @@ To specifically build for Windows from your Linux environment, run `make windows
 
 To specifically build for your Linux distribution, run `make linux`.
 
+If you're interested in only building for Linux, you can use `make libs -j LINUX_ONLY=1` to omit Windows binaries.
+
 ### Compatibility
 
 All releases are currently built using the "ubuntu-latest" GitHub Actions runner.
