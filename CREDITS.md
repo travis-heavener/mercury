@@ -8,7 +8,7 @@ Mercury is made possible with the following third-party libraries:
 - **PugiXML** — [MIT License](/licenses/PugiXML_LICENSE.txt) — [Source](https://github.com/zeux/pugixml)
 - **OpenSSL** — [Apache 2.0 License](/licenses/OpenSSL_apache-license-2.0.txt) — [Source](https://github.com/openssl/openssl)
 - **Google Brotli Compression Library** — [MIT License](/licenses/Brotli_LICENSE.txt) — [Source](https://github.com/google/brotli)
-- **Zstandard** — [Zstandard License](/licenses/Zstandard_LICENSE.txt) — [Source](https://github.com/facebook/zstd)
+- **Zstandard** — [BSD License](/licenses/Zstandard_LICENSE.txt) — [Source](https://github.com/facebook/zstd)
 
 ---
 
