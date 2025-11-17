@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.28.5
+- Correct minor inconsistency with license naming
+    - Zstandard License -> BSD License in CREDITS.md
+
 ## v0.28.4
 - Improve documentation for cross-platform builds
 - Fix generated README after refactor from v0.28.3
