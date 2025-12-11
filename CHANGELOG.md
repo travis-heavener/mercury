@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.29.0
+- Added checks for invalid config nodes (#363)
+
 ## v0.28.5
 - Correct minor inconsistency with license naming
     - Zstandard License -> BSD License in CREDITS.md

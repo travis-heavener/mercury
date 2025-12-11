@@ -71,7 +71,22 @@ namespace conf {
     /********************* STATIC METHODS *********************/
     /**********************************************************/
 
+    const std::vector<std::string> mercuryNodeNames = {
+        "DocumentRoot", "BindAddressIPv4", "BindAddressIPv6", "Port", "TLSPort", "Redirect", "Rewrite",
+        "AccessLogFile", "ErrorLogFile", "RedactLogIPs", "EnablePHPCGI", "WinPHPCGIPath", "EnableLegacyHTTPVersions",
+        "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
+        "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
+        "MinResponseCompressionSize", "IdleThreadsPerChild", "MaxThreadsPerChild", "ShowWelcomeBanner", "StartupCheckLatestRelease"
+    };
+
+    const std::vector<std::string> matchNodeNames = {
+        "FilterIfHeaderMatch", "FilterIfNotHeaderMatch", "FilterIfHeaderExist", "FilterIfNotHeaderExist",
+        "Header", "ShowDirectoryIndexes", "Access"
+    };
+
     // Forward decs
+    int precheckNodeNames(pugi::xml_document& doc);
+
     int loadMIMES();
     int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName, const bool allowZero=true);
     int loadUint(const pugi::xml_node& root, unsigned short& var, const std::string& nodeName, const bool allowZero=true);
@@ -119,6 +134,10 @@ namespace conf {
             std::cerr << "Failed to open config file." << std::endl;
             return CONF_FAILURE;
         }
+
+        // Precheck all nodes for invalid node names
+        if (precheckNodeNames(doc) == CONF_FAILURE)
+            return CONF_FAILURE;
 
         // Load tmp file directory
         if (loadTempFileDirectory() == CONF_FAILURE)
@@ -380,6 +399,58 @@ namespace conf {
         return thisMajor < remoteMajor ||
             (thisMajor == remoteMajor  && thisMinor < remoteMinor) ||
             (thisMajor == remoteMajor  && thisMinor == remoteMinor && thisPatch < remotePatch);
+    }
+
+    int precheckNodeNames(pugi::xml_document& doc) {
+        // Check each node for invalid root names
+        const std::string rootNodeName = "Mercury";
+        for (auto itr = doc.begin(); itr != doc.end(); ++itr) {
+            if (itr->name() != rootNodeName) {
+                std::cerr << "Invalid node name in XML root: " << itr->name() << std::endl;
+                return CONF_FAILURE;
+            }
+        }
+
+        // Check each node for invalid node names in Mercury root
+        pugi::xml_node root = doc.child("Mercury");
+        for (auto itr = root.begin(); itr != root.end(); ++itr) {
+            bool isFound = false;
+            for (const std::string& name : mercuryNodeNames) {
+                if (name == itr->name()) {
+                    isFound = true;
+                    break;
+                }
+            }
+
+            if (isFound) continue;
+
+            // Base case
+            std::cerr << "Invalid node name in Mercury root node: " << itr->name() << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Check each Match node for invalid node names in Mercury root
+        pugi::xml_object_range matchNodes = root.children("Match");
+        for (pugi::xml_node& match : matchNodes) {
+            for (auto itr = match.begin(); itr != match.end(); ++itr) {
+                bool isFound = false;
+                for (const std::string& name : matchNodeNames) {
+                    if (name == itr->name()) {
+                        isFound = true;
+                        break;
+                    }
+                }
+
+                if (isFound) continue;
+
+                // Base case
+                std::cerr << "Invalid node name in Match node: " << itr->name() << std::endl;
+                return CONF_FAILURE;
+            }
+        }
+
+        // Base case, is valid
+        return CONF_SUCCESS;
     }
 
     /************************* Config loader helpers *************************/
