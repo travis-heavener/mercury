@@ -23,6 +23,43 @@ jobs:
           git config user.name "Mercury Actions Bot"
           git config user.email "mercury-actions-bot[bot]@users.noreply.github.com"
 
+      - name: Cleanup Existing Auto-Update Branches & PRs
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          echo "Looking for existing auto-deps-update branches..."
+
+          # Get all matching remote branches
+          BRANCHES=$(git ls-remote --heads origin "refs/heads/auto-deps-update-*" | awk '{print $2}' | sed 's|refs/heads/||')
+
+          if [ -z "$BRANCHES" ]; then
+            echo "No existing update branches found."
+            exit 0
+          fi
+
+          echo "Found branches:"
+          echo "$BRANCHES"
+
+          # Close related PRs
+          for BR in $BRANCHES; do
+            echo "Processing branch: $BR"
+
+            # Look for open PRs associated with this branch
+            PR_NUM=$(gh pr list \
+              --state open \
+              --head "$BR" \
+              --json number \
+              --jq '.[0].number // empty')
+
+            if [ -n "$PR_NUM" ]; then
+              echo "Closing PR #$PR_NUM associated with $BR"
+              gh pr close "$PR_NUM" --delete-branch || true
+            else
+              echo "No open PR for $BR — deleting branch manually."
+              git push origin --delete "$BR" || true
+            fi
+          done
+
       - name: Check & Update Library Deps List
         id: version
         run: |
