@@ -63,6 +63,9 @@ if [ "$LINUX_ONLY" != "1" ]; then
 fi
 mv "brotli-$version" "brotli-$version-linux"
 
+# Update stored license
+mv "brotli-$version-linux/LICENSE" ../licenses/Brotli_LICENSE.txt
+
 (
     cd "brotli-$version-linux"
     mkdir build && cd build

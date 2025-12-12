@@ -63,6 +63,9 @@ if [ "$LINUX_ONLY" != "1" ]; then
 fi
 mv "openssl-$version" "openssl-$version-linux"
 
+# Update stored license
+mv "openssl-$version-linux/LICENSE.txt" ../licenses/OpenSSL_LICENSE.txt
+
 (
     cd "openssl-$version-linux"
 
