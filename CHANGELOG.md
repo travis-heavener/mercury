@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.29.1
+- Remove PHP license since PHP has not been bundled since v0.14.0
+
 ## v0.29.0
 - Added checks for invalid config nodes (#363)
 

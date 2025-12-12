@@ -14,16 +14,3 @@ Mercury is made possible with the following third-party libraries:
 
 *Mercury includes and statically links these libraries where applicable.
 All third-party licenses are included in the `licenses/` directory.*
-
-## Additional Software
-
-Windows versions of Mercury (v0.15.0 and later) include a Powershell script (conf/setup_php.ps1) to download and configure PHP 8.4.12.
-
-Mercury does **not** bundle or redistribute PHP binaries directly, but because PHP is required for some runtime functionality, its license is provided for reference:
-
-- **PHP 8.4.12** — [PHP License v3.01](/licenses/PHP_license.txt) — [Source](https://www.php.net/)
-
----
-
-*Mercury does not modify PHP in any way and is not affiliated with the PHP Group.
-All third-party licenses are included in the `licenses/` directory.*
