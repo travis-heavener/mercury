@@ -39,7 +39,6 @@ jobs:
 
       # Run Python test cases
       - name: Python Test Runner
-        continue-on-error: true
         run: |
           python tests/run.py
           $status=$LastExitCode
