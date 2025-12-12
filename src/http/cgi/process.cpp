@@ -389,6 +389,9 @@ namespace http::cgi {
             // After reading, also close the read end
             CloseHandle(stdoutRead);
             stdoutRead = NULL;
+
+            // Wait for CGI to exit
+            WaitForSingleObject(procInfo.hProcess, INFINITE);
         }
     #else // Linux piping functions
         // Writes string to fd
