@@ -1,0 +1,22 @@
+name: Check Copyright Year
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  Compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compare License Year w/ Current Year
+        run: |
+          COPYRIGHT_LATEST_YEAR=$( cat LICENSE.txt | grep -Po '(?<=^Copyright © )((\d{4}(?!\-))|(\d{4}\-\K\d{4}))' )
+          CURRENT_YEAR=$(date +%Y)
+
+          if [ "$COPYRIGHT_LATEST_YEAR" != "$CURRENT_YEAR" ]; then
+            exit 1
+          fi
