@@ -60,6 +60,9 @@ if [ "$LINUX_ONLY" != "1" ]; then
 fi
 mv "zstd-$version" "zstd-$version-linux"
 
+# Update stored license
+mv "zstd-$version-linux/LICENSE" ../licenses/Zstandard_LICENSE.txt
+
 (
     cd "zstd-$version-linux/lib"
     make -j$(nproc) libzstd.a 1> /dev/null

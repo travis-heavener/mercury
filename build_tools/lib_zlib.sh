@@ -42,7 +42,7 @@ $TOOLS_PATH/safe_rm "zlib-$version-windows"
 $TOOLS_PATH/safe_rm "zlib-$version.tar.gz"
 
 # Get Zlib source
-wget -q --no-check-certificate "https://zlib.net/zlib-$version.tar.gz"
+wget -q --no-check-certificate "https://github.com/madler/zlib/releases/download/v$version/zlib-$version.tar.gz"
 echo "Fetched Zlib archive."
 
 mkdir zlib
@@ -59,6 +59,9 @@ if [ "$LINUX_ONLY" != "1" ]; then
     cp -r "zlib-$version" "zlib-$version-windows"
 fi
 mv "zlib-$version" "zlib-$version-linux"
+
+# Update stored license
+mv "zlib-$version-linux/LICENSE" ../licenses/zlib_LICENSE.txt
 
 (
     cd "zlib-$version-linux"

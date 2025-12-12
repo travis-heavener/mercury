@@ -48,6 +48,9 @@ tar -xzf "pugixml-$version.tar.gz"
 mkdir pugixml
 mv "pugixml-$version/src/"* pugixml
 
+# Update stored license
+mv "pugixml-$version/LICENSE.md" ../licenses/PugiXML_LICENSE.txt
+
 # ==== Clean Up ====
 cd "$LIB_PATH"
 rm -rf "pugixml-$version"
