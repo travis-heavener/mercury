@@ -205,7 +205,7 @@ namespace http::cgi {
 
         std::ofstream tmpBodyHandle( tmpBodyPath );
         if (!tmpBodyHandle.is_open()) {
-            ERROR_LOG << "Failed to open temp file: " << tmpPath << std::endl;
+            ERROR_LOG << "Failed to open temp file: " << tmpBodyPath << std::endl;
             res.setStatus(500);
             removeTempFile(tmpPath);
             removeTempFile(tmpBodyPath);

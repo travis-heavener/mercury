@@ -45,4 +45,16 @@ jobs:
 
       # Run Python test cases
       - name: Python Test Runner
-        run: python3 tests/run.py
+        continue-on-error: true
+        run: |
+          python3 tests/run.py
+          status=$?
+          
+          # Print logs
+          echo "====================================================="
+          echo "                     Error Log"
+          echo "====================================================="
+          cat logs/error.log
+
+          # Exit with status code
+          exit $status

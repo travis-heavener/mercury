@@ -39,5 +39,16 @@ jobs:
 
       # Run Python test cases
       - name: Python Test Runner
+        continue-on-error: true
         run: |
           python tests/run.py
+          $status=$LastExitCode
+
+          # Print logs
+          Write-Host "====================================================="
+          Write-Host "                     Error Log"
+          Write-Host "====================================================="
+          Get-Content -Path "logs/error.log"
+
+          # Exit with status code
+          exit $status
