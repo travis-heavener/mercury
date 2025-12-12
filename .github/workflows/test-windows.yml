@@ -30,7 +30,13 @@ jobs:
         run: python -m pip install brotli zstandard psutil
 
       - name: Setup PHP
-        run: ./conf/setup_php.ps1
+        run: |
+          ./conf/setup_php.ps1
+
+          # Hotfix for random 204s
+          $content = Get-Content php/php.ini -Raw
+          $content = [System.Text.RegularExpressions.Regex]::Replace($content, 'output_buffering\s*=\s*.*', "output_buffering = 0")
+          Set-Content -Path php/php.ini -Value $content
 
       # Make TLS cert
       - name: Make TLS Cert
