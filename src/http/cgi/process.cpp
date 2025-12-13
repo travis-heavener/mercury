@@ -205,7 +205,7 @@ namespace http::cgi {
 
         std::ofstream tmpBodyHandle( tmpBodyPath );
         if (!tmpBodyHandle.is_open()) {
-            ERROR_LOG << "Failed to open temp file: " << tmpPath << std::endl;
+            ERROR_LOG << "Failed to open temp file: " << tmpBodyPath << std::endl;
             res.setStatus(500);
             removeTempFile(tmpPath);
             removeTempFile(tmpBodyPath);
@@ -296,11 +296,40 @@ namespace http::cgi {
         }
 
         // Reads everything from a pipe until EOF
-        void readFromPipe(HANDLE hPipe, std::ofstream& tmpHandle) {
+        void readFromPipe(HANDLE hPipe, std::ofstream& tmpHandle, PROCESS_INFORMATION& procInfo) {
             char buffer[4096];
             DWORD bytesRead;
-            while (ReadFile(hPipe, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0)
-                tmpHandle.write(buffer, bytesRead);
+            while (true) {
+                BOOL isOk = ReadFile(hPipe, buffer, sizeof(buffer), &bytesRead, NULL);
+
+                if (isOk && bytesRead > 0) {
+                    tmpHandle.write(buffer, bytesRead);
+                    continue;
+                }
+
+                // ReadFile failed or returned nothing
+                DWORD err = GetLastError();
+                if (err == ERROR_NO_DATA || err == ERROR_PIPE_LISTENING) {
+                    Sleep(1);
+                    continue;
+                }
+
+                // Check if process exited
+                DWORD wait = WaitForSingleObject(procInfo.hProcess, 0);
+
+                if (wait == WAIT_OBJECT_0) {
+                    // Child closed, drain any remaining output
+                    while (ReadFile(hPipe, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0)
+                        tmpHandle.write(buffer, bytesRead);
+                    break;
+                }
+
+                // Allow time to wait for response
+                Sleep(1);
+            }
+
+            // Flush output
+            tmpHandle.flush();
         }
 
         // Creates the pipes for the worker
@@ -384,7 +413,7 @@ namespace http::cgi {
             stdinWrite = NULL;
 
             // Read response from CGI
-            readFromPipe(stdoutRead, tmpHandle);
+            readFromPipe(stdoutRead, tmpHandle, procInfo);
 
             // After reading, also close the read end
             CloseHandle(stdoutRead);

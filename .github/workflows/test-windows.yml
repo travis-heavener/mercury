@@ -30,7 +30,7 @@ jobs:
         run: python -m pip install brotli zstandard psutil
 
       - name: Setup PHP
-        run: ./conf/setup_php.ps1
+        run: ./conf/setup_php.ps1 8.4.11
 
       # Make TLS cert
       - name: Make TLS Cert
@@ -41,3 +41,13 @@ jobs:
       - name: Python Test Runner
         run: |
           python tests/run.py
+          $status=$LastExitCode
+
+          # Print logs
+          Write-Host "====================================================="
+          Write-Host "                     Error Log"
+          Write-Host "====================================================="
+          Get-Content -Path "logs/error.log"
+
+          # Exit with status code
+          exit $status

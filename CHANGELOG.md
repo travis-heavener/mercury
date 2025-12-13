@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.29.2
+- Slight improvements to Windows PHP CGI pipe handling
+
 ## v0.29.1
 - Remove PHP license since PHP has not been bundled since v0.14.0
 
