@@ -3,9 +3,14 @@ Push-Location
 # CD into project directory
 Set-Location -Path "$PSScriptRoot/.."
 
-$PHPVersion = (
-    (Invoke-WebRequest -UseBasicParsing "https://api.github.com/repos/php/php-src/releases/latest").Content | Select-String -Pattern '(?<="tag_name":"php\-)(\d+\.\d+\.\d+)(?=")' -AllMatches
-).Matches[0].Groups[0].Value
+if ($args.Count -eq 0) {
+    $PHPVersion = (
+        (Invoke-WebRequest -UseBasicParsing "https://api.github.com/repos/php/php-src/releases/latest").Content | Select-String -Pattern '(?<="tag_name":"php\-)(\d+\.\d+\.\d+)(?=")' -AllMatches
+    ).Matches[0].Groups[0].Value
+} else {
+    $PHPVersion = $args[0]
+}
+
 $DownloadUrl = "https://downloads.php.net/~windows/releases/archives/php-$PHPVersion-Win32-vs17-x64.zip"
 $ZipFile = "php-$PHPVersion-Win32-vs17-x64.zip"
 
