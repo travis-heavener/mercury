@@ -200,7 +200,7 @@ tbody tr:hover { background-color: #fafafa }
     border-radius: 4px;
 }
 
-#arch-instructions p {
+#build-instructions p {
     color: #333;
     font-style: normal;
     font-size: 1rem;
