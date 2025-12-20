@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.29.3
+- Added Fedora Linux support
+- Reworked static binaries
+
 ## v0.29.2
 - Slight improvements to Windows PHP CGI pipe handling
 

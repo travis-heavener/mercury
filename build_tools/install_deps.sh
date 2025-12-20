@@ -31,11 +31,19 @@ case "$PKG_MGR" in
             python python-brotli python-zstandard python-psutil \
             php-cgi 1>/dev/null
         ;;
+    dnf)
+        sudo dnf makecache -y 1>/dev/null
+        sudo dnf install -y upx \
+            rpmdevtools perl wget \
+            mingw64-gcc-c++ libstdc++-static nasm \
+            cmake make \
+            g++ \
+            zip \
+            openssl \
+            python3 python3-brotli python3-zstandard python3-psutil \
+            php-cgi 1>/dev/null
+        ;;
     # Not implemented yet
-    # dnf)
-    #     sudo dnf makecache -y 1>/dev/null
-    #     sudo dnf install -y $PKGS 1>/dev/null
-    #     ;;
     # yum)
     #     sudo yum makecache -y 1>/dev/null
     #     sudo yum install -y $PKGS 1>/dev/null

@@ -10,6 +10,9 @@ if command -v apt >/dev/null 2>&1; then
 elif command -v pacman >/dev/null 2>&1; then
     sudo pacman -Syu --noconfirm 1>/dev/null
     sudo pacman -S --noconfirm openssl 1>/dev/null
+elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf makecache -y 1>/dev/null
+    sudo dnf install -y openssl 1>/dev/null
 fi
 
 if [ -f "key.pem" ]; then
