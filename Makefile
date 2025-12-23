@@ -60,8 +60,7 @@ $(TARGET_LINUX): $(DEPS) $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
 	@$(CXX) -include $(PCH_LINUX) \
 		$(SRCS) -o $(TARGET_LINUX) \
-		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_LINUX) $(LIB_LINUX) $(LIB_FLAGS) \
-		2> >(grep -v -E "BIO_lookup_ex|getaddrinfo|gethostbyname|fetchLatestVersion")
+		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_LINUX) $(LIB_LINUX) $(LIB_FLAGS)
 	@upx $(TARGET_LINUX) -qqq
 	@echo "✅ Built for Linux."
 
