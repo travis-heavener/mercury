@@ -73,10 +73,10 @@
                 <h2>Linux Downloads <sup class="dagger">&dagger;</sup></h2>
                 <h3><a href="https://github.com/travis-heavener/mercury/releases">View All Releases</a></h3>
                 <div id="distro-selector">
-                    <label for="distro-select">Select Linux distribution:</label>
-                    <select id="distro-select" name="distro" aria-label="Select Linux distribution">
-                        <option value="debian">Debian-based (e.g. Ubuntu, Kali)</option>
-                        <option value="arch">Arch Linux</option>
+                    <label for="distro-select">Select download method:</label>
+                    <select id="distro-select" name="distro" aria-label="Select download method">
+                        <option value="download">Download from GitHub</option>
+                        <option value="diy">Build from Source</option>
                     </select>
                 </div>
                 <table id="downloads-linux-table">
@@ -90,22 +90,25 @@
                     </thead>
                     <tbody></tbody>
                 </table>
-                <div id="arch-instructions">
-                    <h3>Arch Installation</h3>
+                <div id="build-instructions">
+                    <h3>Build From Source</h3>
                     <p>
                         README.md has full instructions on how to build Mercury (see <a href="https://github.com/travis-heavener/mercury#for-developers">For Developers</a>).
                         <br>
-                        To build Mercury on Arch Linux:
+                        To build Mercury:
                     </p>
                     <ol>
                         <li>Clone the <a href="https://github.com/travis-heavener/mercury">official Mercury repository</a>.</li>
-                        <li>Build dependencies via <code>mak</svg>e libs -j</code> or <code>make libs -j LINUX_ONLY=1</code> (to omit Windows libraries).</li>
+                        <li>Install required packages via <code>make lib_deps</code>.</li>
+                        <li>Run <code>make clean</code>.</li>
+                        <li>Build dependencies via <code>make libs -j</code> or <code>make libs -j LINUX_ONLY=1</code> (to omit Windows libraries).</li>
                         <li>Run <code>make linux</code>.</li>
                         <li>Mercury can now be run from <code>bin/mercury</code>.</li>
+                        <li>(Optional) Run <code>python3 tests/run.py</code> to verify your build is passing.</li>
                     </ol>
                 </div>
                 <p>
-                    <sup class="dagger">&dagger;</sup> Linux copies of Mercury require glibc to be present and currently support distros with APT or Pacman.
+                    <sup class="dagger">&dagger;</sup> Linux copies of Mercury require glibc to be present and currently support distros with APT, Pacman, or DNF.
                     <br>
                     If you encounter any compatibility issues, please open an <a href="https://github.com/travis-heavener/mercury/issues/new/choose">Issue</a>.
                 </p>

@@ -19,7 +19,7 @@ RELEASE_NAME="${VERSION// /_}"
 RELEASE_NAME="${RELEASE_NAME//./_}"
 RELEASE_NAME="${RELEASE_NAME//Mercury_/}"
 
-LINUX_ARCHIVE="../releases/Debian_$RELEASE_NAME.tar.gz"
+LINUX_ARCHIVE="../releases/Linux_$RELEASE_NAME.tar.gz"
 WIN_ARCHIVE="../releases/Windows_$RELEASE_NAME.zip"
 
 # Prepare contents

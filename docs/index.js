@@ -9,28 +9,33 @@ $(() => {
 });
 
 const updateDistroView = () => {
-    // Toggle Linux downloads table vs arch instructions based on distro select
+    // Toggle Linux downloads table vs build instructions
     const distroSelect = $("#distro-select");
     const linuxTable = $("#downloads-linux-table");
-    const archInstructions = $("#arch-instructions");
+    const buildInstructions = $("#build-instructions");
 
     const val = (distroSelect.val() || "").toString().trim();
-    if (val === "debian") {
+    if (val === "download") {
         linuxTable.show();
-        archInstructions.hide();
+        buildInstructions.hide();
     } else {
         linuxTable.hide();
-        archInstructions.show();
+        buildInstructions.show();
     }
 };
 
-// Releases v0.28.4+ use "Debian_X.X.X.tar.gz" instead of "Linux_X.X.X.tar.gz"
+// Releases v0.28.4 - v0.29.2 use "Debian_X.X.X.tar.gz" instead of "Linux_X.X.X.tar.gz"
 const getLinuxPrefix = (name) => {
     const parts = name.substring(1).split(".");
     const major = parseInt(parts[0]);
     const minor = parseInt(parts[1]);
     const patch = parseInt(parts[2]);
-    return (major === 0 && (minor < 28 || (minor == 28 && patch <= 3))) ? "Linux" : "Debian";
+
+    return (major === 0 &&
+        (
+            (minor === 28 && patch >= 4) ||
+            (minor === 29 && patch <= 2)
+        )) ? "Debian" : "Linux";
 }
 
 const handleReleaseJSON = (releases) => {

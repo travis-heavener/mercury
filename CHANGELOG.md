@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.29.3
+- Added Fedora Linux support
+- Reworked static binaries
+    - Appears to work between distros that have glibc version differences (e.g. Arch's glibc 2.42 and Ubuntu's glibc 2.39)
+
 ## v0.29.2
 - Slight improvements to Windows PHP CGI pipe handling
 

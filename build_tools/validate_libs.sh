@@ -88,8 +88,13 @@ if command -v dpkg >/dev/null 2>&1; then
         echo "Update g++ to $GPP_VERSION or newer (currently $CURRENT_GPP)"
         HAS_FAILED="true"
     fi
-else
+elif command -v vercmp >/dev/null 2>&1; then
     if [[ $(vercmp "$CURRENT_GPP" "$GPP_VERSION") -lt 0 ]]; then
+        echo "Update g++ to $GPP_VERSION or newer (currently $CURRENT_GPP)"
+        HAS_FAILED="true"
+    fi
+else
+    if [[ $(rpmdev-vercmp "$CURRENT_GPP" "$GPP_VERSION" >/dev/null 2>&1) -eq 12 ]]; then
         echo "Update g++ to $GPP_VERSION or newer (currently $CURRENT_GPP)"
         HAS_FAILED="true"
     fi
@@ -106,6 +111,12 @@ if command -v dpkg >/dev/null 2>&1; then
 elif command -v pacman >/dev/null 2>&1; then
     CURRENT_MINGW_W64=$(pacman -Qi mingw-w64-gcc | grep -Po "^Version\s*:\s*\K\d+\.\d+\.\d+")
     if [[ $(vercmp "$CURRENT_MINGW_W64" "$MINGW_W64_VERSION") -lt 0 ]]; then
+        echo "Update mingw-w64 to $MINGW_W64_VERSION or newer (currently $CURRENT_MINGW_W64)"
+        HAS_FAILED="true"
+    fi
+else
+    CURRENT_MINGW_W64=$(rpm -q mingw64-gcc-c++ | grep -Po "(?<=mingw64\-gcc\-c\+\+\-)\d+\.\d+\.\d+")
+    if [[ $(rpmdev-vercmp "$CURRENT_MINGW_W64" "$MINGW_W64_VERSION" >/dev/null 2>&1) -eq 12 ]]; then
         echo "Update mingw-w64 to $MINGW_W64_VERSION or newer (currently $CURRENT_MINGW_W64)"
         HAS_FAILED="true"
     fi

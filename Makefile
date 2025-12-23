@@ -30,9 +30,9 @@ PCH_WIN := $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp
 PCH_LINUX := $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.hpp
 
 CXX_FLAGS := -Wall -Wextra -Winvalid-pch
-STATIC_FLAGS := -static -std=c++20
-LIB_FLAGS := -lbrotlienc -lbrotlicommon -lz -lpthread -lssl -lcrypto -lzstd
-WIN_FLAGS := -lcrypt32 -lws2_32 -mconsole
+STATIC_FLAGS := -std=c++20
+LIB_FLAGS := -static-libstdc++ -static-libgcc -lbrotlienc -lbrotlicommon -lz -lpthread -lssl -lcrypto -lzstd
+WIN_FLAGS := -static -lcrypt32 -lws2_32 -mconsole
 
 # Targets
 TARGET_LINUX := bin/mercury
@@ -60,8 +60,7 @@ $(TARGET_LINUX): $(DEPS) $(ARTIFACTS_LOCK)
 	@./build_tools/validate_libs.sh --q
 	@$(CXX) -include $(PCH_LINUX) \
 		$(SRCS) -o $(TARGET_LINUX) \
-		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_LINUX) $(LIB_LINUX) $(LIB_FLAGS) \
-		2> >(grep -v -E "BIO_lookup_ex|getaddrinfo|gethostbyname|fetchLatestVersion")
+		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_LINUX) $(LIB_LINUX) $(LIB_FLAGS)
 	@upx $(TARGET_LINUX) -qqq
 	@echo "✅ Built for Linux."
 
