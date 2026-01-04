@@ -121,6 +121,10 @@ release:
 	@./build_tools/validate_libs.sh --q
 	@./build_tools/release.sh
 
+# Runs tests against various Docker images
+docker_tests:
+	@./docker/run_tests.sh
+
 ###################################################################
 ############################ TLS CERTS ############################
 ###################################################################
