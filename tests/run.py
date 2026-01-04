@@ -213,16 +213,23 @@ if __name__ == "__main__":
                 elif sys.platform == "linux":
                     proc = subprocess.Popen(
                         [ "../bin/mercury", f"./tests/conf_files/{run['conf_file']}" ],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL
+                        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL
                     )
                 else:
                     print(f"Unrecognized sys.platform: {sys.platform}")
                     raise Exception()
 
+                # Log anything piped from STDERR
+                time.sleep(0.1)
+                err_msg = ""
+                if proc.poll() is not None:
+                    _, stderr = proc.communicate()
+                    err_msg = "From Mercury:\n    " + stderr.strip().decode().replace("\n", "\n    ")
+
                 # Wait to let the program start
                 if not wait_until_live():
                     # Timed out, kill program
-                    print(f"[Error] Server timed out when starting")
+                    print(f"[Error] Server timed out when starting\n{err_msg}")
                     timed_out = True
             except KeyboardInterrupt as e:
                 raise e
