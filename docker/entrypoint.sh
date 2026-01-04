@@ -4,10 +4,19 @@ set -e
 # CD into script directory
 cd "$(dirname "$0")/"
 
-# Installs Python per distro
+# Detect package manager
 chmod +x ../build_tools/tools/getpm
 PKG_MGR=$("../build_tools/tools/getpm")
 
+# Compare GLIBC versions
+glibc=$(ldd --version | grep -Po "\d+\.\d+$")
+
+if [[ "$glibc" != "$HOST_GLIBC" ]] && [ "$(printf '%s\n' "$glibc" "$HOST_GLIBC" | sort -V | head -n1)" = "$glibc" ]; then
+    echo "GLIBC version outdated ($glibc vs $HOST_GLIBC), aborting..."
+    exit 1
+fi
+
+# Installs Python per distro
 case "$PKG_MGR" in
     apt)
         DEBIAN_FRONTEND=noninteractive apt-get update 1>/dev/null

@@ -8,12 +8,15 @@ fi
 # CD into Mercury directory
 cd "$(dirname "$0")/../"
 
+# Grab current GLIBC version
+glibc=$(ldd --version | grep -Po "\d+\.\d+$")
+
 # Initialize Docker
 distros=(
-    # ubuntu:22.04
+    ubuntu:22.04
     ubuntu:24.04
 
-    # debian:12
+    debian:12
     debian:13
 
     archlinux:latest
@@ -23,8 +26,7 @@ distros=(
     fedora:42
     fedora:43
 
-    # centos:7 # For testing yum
-    # rockylinux:9 # CentOS 8+ & REHL replacement
+    rockylinux:9 # CentOS 8+ & REHL replacement
 )
 
 for img in "${distros[@]}"; do
@@ -41,6 +43,7 @@ for img in "${distros[@]}"; do
     # Run the Docker container
     sudo docker run --rm \
         -v "$(pwd)":/workspace \
+        -e HOST_GLIBC="$glibc" \
         --network=host \
         "test-$tag"
 
