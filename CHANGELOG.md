@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.29.4
+- Bump copyright year
+
 ## v0.29.3
 - Added Fedora Linux support
 - Reworked static binaries
