@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.29.6
+- Improve clarity of TLS cert setup instructions
+
 ## v0.29.5
 - Remove `<format>` header in response handler
     - Allows for compiling on GCC 11/MinGW 8

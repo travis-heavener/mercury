@@ -115,17 +115,16 @@ Self-signed TLS 1.3 certs are now available with OpenSSL.
 
 #### For Linux:
 
-OpenSSL comes installed on most Linux distributions.
+OpenSSL comes installed on most Linux distributions, *however* `conf/ssl/makecert.sh` will verify that OpenSSL is actually installed and will attempt to install it if missing.
 
-1. Run `conf/ssl/makecert.sh` and enter the following information to fill out the certificate.
-The script will check to make sure OpenSSL is installed before running.
+1. Run `conf/ssl/makecert.sh` and enter the requested information to fill out the certificate.
 
 #### For Windows:
 
-1. Download [Git for Windows](https://git-scm.com/downloads/win) if not already installed.
-It's crucial that Git is installed since it comes bundled with OpenSSL.
+1. Download [OpenSSL for Windows](https://slproweb.com/products/Win32OpenSSL.html) if not already installed.
+Remember the install location for OpenSSL.
 
-2. Double check the install location of Git. OpenSSL should be installed in the `<Git location>/usr/bin` directory.
+2. Open a 
 Update the `$OPENSSL_PATH` variable in `conf/ssl/makecert.ps1` with your correct path if needed.
 
 3. Run `conf/ssl/makecert.ps1` and enter the following information to fill out the certificate.
@@ -172,8 +171,19 @@ Select "More info" and then "Run anyway".
 
 #### Powershell Scripts
 
-Currently, the only Powershell script in Mercury distributions is for installing PHP for Windows.
-This script should be run through the Mercury CLI via the `phpinit` command, otherwise the script will be blocked from execution.
+There are two important Powershell scripts in Mercury:
+
+1. PHP installer for Windows (`conf/setup_php.ps1`)
+
+2. TLS certificate maker (`conf/ssl/makecert.ps1`)
+
+The script for installing PHP for Windows should be run through the Mercury CLI via the `phpinit` command, otherwise the script will be blocked from execution.
+
+For either of the two scripts, if you attempt to run them manually and receive an error that it's blocked from execution, paste the following into your terminal window to temporarily bypass the Powershell execution policy:
+
+```
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+```
 
 #### Further Troubleshooting
 
