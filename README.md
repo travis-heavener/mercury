@@ -124,10 +124,10 @@ OpenSSL comes installed on most Linux distributions, *however* `conf/ssl/makecer
 1. Download [OpenSSL for Windows](https://slproweb.com/products/Win32OpenSSL.html) if not already installed.
 Remember the install location for OpenSSL.
 
-2. Open a 
-Update the `$OPENSSL_PATH` variable in `conf/ssl/makecert.ps1` with your correct path if needed.
+2. Update the `$OPENSSL_PATH` variable in `conf/ssl/makecert.ps1` with your correct path if needed.
+If you did not change the install location for OpenSSL then you will likely not need to make any changes.
 
-3. Run `conf/ssl/makecert.ps1` and enter the following information to fill out the certificate.
+3. Run `conf/ssl/makecert.ps1` and enter the requested information to fill out the certificate.
 
 #### For Development:
 
