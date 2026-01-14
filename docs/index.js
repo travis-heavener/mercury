@@ -6,6 +6,9 @@ $(() => {
     // Set initial visibility based on current selection
     updateDistroView();
     $("#distro-select").on("change", updateDistroView);
+
+    // Update current copyright year
+    $("#current-year").text((new Date()).getFullYear());
 });
 
 const updateDistroView = () => {
