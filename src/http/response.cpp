@@ -1,7 +1,5 @@
 #include "response.hpp"
 
-#include <format>
-
 #include "compressor_stream.hpp"
 #include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
@@ -9,7 +7,7 @@
 #include "../util/toolbox.hpp"
 
 #define CRLF "\r\n"
-#define str std::to_string
+#define tostr std::to_string
 
 namespace http {
 
@@ -55,7 +53,7 @@ namespace http {
         this->setContentType("text/html; charset=UTF-8");
 
         const int status = loadErrorDoc(statusCode, pBodyStream);
-        this->setHeader("Content-Length", str(this->pBodyStream->size()));
+        this->setHeader("Content-Length", tostr(this->pBodyStream->size()));
         return status;
     }
 
@@ -66,7 +64,7 @@ namespace http {
         if (bodyStatus == IO_SUCCESS && !file.isDirectory)
             this->setHeader("Last-Modified", file.getLastModifiedGMT());
 
-        this->setHeader("Content-Length", str(this->pBodyStream->size()));
+        this->setHeader("Content-Length", tostr(this->pBodyStream->size()));
         return bodyStatus;
     }
 
@@ -298,10 +296,10 @@ namespace http {
                 const size_t startIndex = originalByteRanges[0].first;
                 const size_t endIndex = originalByteRanges[0].second;
 
-                setHeader("Content-Length", str(bodySize));
-                setHeader("Content-Range", "bytes " + str(startIndex) + '-' + str(endIndex) + "/" + str(originalBodySize));
+                setHeader("Content-Length", tostr(bodySize));
+                setHeader("Content-Range", "bytes " + tostr(startIndex) + '-' + tostr(endIndex) + "/" + tostr(originalBodySize));
             } else {
-                this->setHeader("Content-Length", str(bodySize));
+                this->setHeader("Content-Length", tostr(bodySize));
             }
         } else if (usingTransEnc) { // Use chunked transfer encoding
             setHeader("Transfer-Encoding", "chunked");
@@ -314,7 +312,7 @@ namespace http {
                 const size_t startIndex = originalByteRanges[0].first;
                 const size_t endIndex = originalByteRanges[0].second;
 
-                setHeader("Content-Range", "bytes " + str(startIndex) + '-' + str(endIndex) + "/" + str(originalBodySize));
+                setHeader("Content-Range", "bytes " + tostr(startIndex) + '-' + tostr(endIndex) + "/" + tostr(originalBodySize));
             }
         }
 
@@ -328,7 +326,7 @@ namespace http {
             headers += name + ": " + value + CRLF;
 
         // Write to buffer
-        std::string headersBlock = httpVersion + ' ' + str(statusCode) + ' '  + getReasonFromStatus(statusCode) + CRLF + headers + CRLF;
+        std::string headersBlock = httpVersion + ' ' + tostr(statusCode) + ' '  + getReasonFromStatus(statusCode) + CRLF + headers + CRLF;
         ssize_t status = sendFunc(headersBlock.data(), headersBlock.size());
         if (status < 0) return status;
 
@@ -339,7 +337,11 @@ namespace http {
         auto sendWrapper = [&](const std::vector<char>& chunk, const size_t bytesRead) -> int {
             if (bytesRead == 0) return 0;
             if (usingTransEnc) {
-                const std::string header = std::format("{:x}", bytesRead) + "\r\n";
+                // Convert to hex
+                std::stringstream ss;
+                ss << std::hex << bytesRead;
+                const std::string header = ss.str() + "\r\n";
+
                 if (sendFunc(header.data(), header.size()) < 0) return -1;
                 if (sendFunc(chunk.data(), bytesRead) < 0) return -1;
                 if (sendFunc("\r\n", 2) < 0) return -1;
