@@ -239,6 +239,16 @@ Once your TLS certs and PHP are configured, start `tests/run.py` to run a number
 
 **NOTE:** Make sure that Mercury is ***NOT*** running when you start the test script--the script will launch several versions of Mercury to test against, but will not overwrite your configuration settings.
 
+### Docker & Dockerfile
+
+Because Docker installation methods vary wildly between Linux distributions, it does not get installed during the `make lib_deps` step.
+
+Refer to the [DockerDocs](https://docs.docker.com/engine/install/) for your specific distro's install guide.
+
+If you have Docker installed, you can use the `make docker_tests` recipe to run the Python test script against a number of Linux distributions.
+
+Note that the Build & Test workflow uses this Dockerfile to run tests against more than the provided `ubuntu-latest` and `windows-latest` runner instances.
+
 ## Privacy Commitment
 
 As netizens (*noun*. a user of the internet), it is our due diligence to be aware of our presence online and to keep our personal information secure.
