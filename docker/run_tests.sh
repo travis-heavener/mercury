@@ -13,21 +13,15 @@ glibc=$(ldd --version | grep -Po "\d+\.\d+$")
 
 # Initialize Docker
 distros=(
-    ubuntu:22.04
     ubuntu:24.04
-
-    debian:12
     debian:13
-
     archlinux:latest
-
     kalilinux/kali-rolling
-
-    fedora:42
     fedora:43
-
     rockylinux:9 # CentOS 8+ & REHL replacement
 )
+
+results="┌─────────────────────────────────────┐"
 
 for img in "${distros[@]}"; do
     tag=${img//[:\/\.]/-}
@@ -47,5 +41,21 @@ for img in "${distros[@]}"; do
         --network=host \
         "test-$tag"
 
+    if [ $? -ne 0 ]; then
+        printf -v results "%s\n│ %24s : %-8s │" "$results" "$tag" "Failed"
+    else
+        printf -v results "%s\n│ %24s : %-8s │" "$results" "$tag" "Success"
+    fi
     echo "================================================================"
 done
+
+# Print results
+printf -v results "%s\n└─────────────────────────────────────┘\n" "$results"
+printf "$results"
+
+# Handle exit status
+if printf "$results" | grep -Po "Failed"; then
+    exit 1
+else
+    exit 0
+fi
