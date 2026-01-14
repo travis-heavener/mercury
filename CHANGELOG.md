@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.29.5
+- Remove `<format>` header in response handler
+    - Allows for compiling on GCC 11/MinGW 8
+
 ## v0.29.4
 - Bump copyright year
 
