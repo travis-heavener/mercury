@@ -43,11 +43,6 @@ case "$PKG_MGR" in
             python3 python3-brotli python3-zstandard python3-psutil \
             php-cgi 1>/dev/null
         ;;
-    # Not implemented yet
-    # yum)
-    #     sudo yum makecache -y 1>/dev/null
-    #     sudo yum install -y $PKGS 1>/dev/null
-    #     ;;
     *)
         echo "Unknown package manager: $PKG_MGR" >&2
         exit 1
