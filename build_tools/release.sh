@@ -115,7 +115,7 @@ WIN_HASH=$(sha256sum $WIN_ARCHIVE | grep -Po "[^ ]+" | head -1)
 echo "# SHA-256 Hashes" >> "$SUMMARY_FILE"
 echo "| System | SHA-256 Hash Digest |" >> "$SUMMARY_FILE"
 echo "|--------|---------------------|" >> "$SUMMARY_FILE"
-echo -e "| Debian-based | \`$LINUX_HASH\` |" >> "$SUMMARY_FILE"
+echo -e "| Linux | \`$LINUX_HASH\` |" >> "$SUMMARY_FILE"
 echo -n "| Windows | \`$WIN_HASH\` |" >> "$SUMMARY_FILE"
 
 # ==== Clean Up ====
