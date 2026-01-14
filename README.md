@@ -247,8 +247,6 @@ Refer to the [DockerDocs](https://docs.docker.com/engine/install/) for your spec
 
 If you have Docker installed, you can use the `make docker_tests` recipe to run the Python test script against a number of Linux distributions.
 
-Note that the Build & Test workflow uses this Dockerfile to run tests against more than the provided `ubuntu-22.04` and `windows-latest` runner instances.
-
 ## Privacy Commitment
 
 As netizens (*noun*. a user of the internet), it is our due diligence to be aware of our presence online and to keep our personal information secure.
