@@ -155,8 +155,8 @@ As of Mercury v0.22.0, a rich CLI is available to the user. Here is a list of av
 
 #### Linux Executables
 
-Because released Linux executables are compiled from the "ubuntu-latest" GitHub Actions runner, they use an older version of glibc (2.39).
-Since Mercury does not statically link against glibc, the program depends on whatever glibc is available at runtime, which fails on glibc versions >= 2.42.
+Because released Linux executables are compiled from the "ubuntu-22.04" GitHub Actions runner, they use an older version of glibc (2.35).
+Since Mercury does not statically link against glibc, the program depends on whatever glibc is available at runtime.
 
 If you receive crashes (e.g. SIGFPE __libc_early_init /usr/bin/libc.so.6), you will need to build from the Mercury source.
 See [For Developers](#for-developers) for instructions on how to do build Mercury.
@@ -201,15 +201,15 @@ If you're interested in only building for Linux, you can use `make libs -j LINUX
 
 ### Compatibility
 
-All releases are currently built using the "ubuntu-latest" GitHub Actions runner.
+All releases are currently built using the "ubuntu-22.04" GitHub Actions runner.
 All libraries are statically linked except for glibc, which uses the version of it installed on your Linux machine.
 
 The following table contains known compatible versions of software used to build Mercury.
 
 | Name      | Version    |
 |-----------|------------|
-| g++       | 13.3.0     |
-| mingw-w64 | 11.0.1     |
+| g++       | 11.4.0     |
+| mingw-w64 | 8.0.0      |
 
 Note: Older mingw-w64 versions had issues when binding IPv6 sockets with WinAPI. Please update to 11.0.1 or later.
 
@@ -247,7 +247,7 @@ Refer to the [DockerDocs](https://docs.docker.com/engine/install/) for your spec
 
 If you have Docker installed, you can use the `make docker_tests` recipe to run the Python test script against a number of Linux distributions.
 
-Note that the Build & Test workflow uses this Dockerfile to run tests against more than the provided `ubuntu-latest` and `windows-latest` runner instances.
+Note that the Build & Test workflow uses this Dockerfile to run tests against more than the provided `ubuntu-22.04` and `windows-latest` runner instances.
 
 ## Privacy Commitment
 
