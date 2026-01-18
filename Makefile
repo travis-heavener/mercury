@@ -29,7 +29,7 @@ PCH_DIR := src/pch
 PCH_WIN := $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp
 PCH_LINUX := $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.hpp
 
-CXX_FLAGS := -Wall -Wextra -Winvalid-pch
+CXX_FLAGS := -Wall -Wextra -Werror -Winvalid-pch
 STATIC_FLAGS := -std=c++20
 LIB_FLAGS := -static-libstdc++ -static-libgcc -lbrotlienc -lbrotlicommon -lz -lpthread -lssl -lcrypto -lzstd
 WIN_FLAGS := -static -lcrypt32 -lws2_32 -mconsole
