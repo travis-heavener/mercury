@@ -8,7 +8,7 @@ PKG_MGR=$("./tools/getpm")
 
 case "$PKG_MGR" in
     apt)
-        sudo apt-get update 1>/dev/null
+        sudo apt-get update
         sudo apt-get install -y upx \
             build-essential perl wget \
             mingw-w64 nasm \
@@ -17,10 +17,10 @@ case "$PKG_MGR" in
             zip \
             openssl \
             python3 python3-brotli python3-zstandard python3-psutil \
-            php-cgi 1>/dev/null
+            php-cgi
         ;;
     pacman)
-        sudo pacman -Syu --noconfirm 1>/dev/null
+        sudo pacman -Syu --noconfirm
         sudo pacman -S --noconfirm upx \
             base-devel perl wget \
             mingw-w64 nasm \
@@ -29,10 +29,10 @@ case "$PKG_MGR" in
             zip \
             openssl \
             python python-brotli python-zstandard python-psutil \
-            php-cgi 1>/dev/null
+            php-cgi
         ;;
     dnf)
-        sudo dnf makecache -y 1>/dev/null
+        sudo dnf makecache -y
         sudo dnf install -y upx \
             rpmdevtools perl wget \
             mingw64-gcc-c++ libstdc++-static nasm \
@@ -41,7 +41,7 @@ case "$PKG_MGR" in
             zip \
             openssl \
             python3 python3-brotli python3-zstandard python3-psutil \
-            php-cgi 1>/dev/null
+            php-cgi
         ;;
     *)
         echo "Unknown package manager: $PKG_MGR" >&2
