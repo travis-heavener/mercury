@@ -536,3 +536,4 @@ Example:
 ```xml
 <StartupCheckLatestRelease> true </StartupCheckLatestRelease>
 ```
+
