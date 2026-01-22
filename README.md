@@ -154,8 +154,8 @@ Mercury exposes a CLI to the user with the following commands:
 
 #### Linux Executables
 
-Because released Linux executables are compiled from the "ubuntu-22.04" GitHub Actions runner, they use an older version of glibc (2.35).
-Since Mercury does not statically link against glibc, the program depends on whatever glibc is available at runtime.
+Linux executables are compiled from the "ubuntu-22.04" GitHub Actions runner and use an older version of glibc (2.35).
+Since Mercury does not statically link against glibc, the program depends on the glibc version available at runtime.
 
 If you receive crashes (e.g. SIGFPE __libc_early_init /usr/bin/libc.so.6), you will need to build from the Mercury source.
 See [For Developers](#for-developers) for instructions on how to do build Mercury.
@@ -171,7 +171,7 @@ Select "More info" and then "Run anyway".
 
 #### Powershell Scripts
 
-On Windows specifically, there are two important Powershell scripts that are bundled with each release:
+On Windows, there are two Powershell scripts bundled with each release:
 
 1. PHP installer for Windows (`conf/setup_php.ps1`)
 
@@ -214,7 +214,7 @@ Run `make windows`.
 
 Run `make linux`.
 
-If you're interested in *only* building for Linux, you can set `LINUX_ONLY=1` when running `make libs -j` to omit Windows binaries.
+If you're interested in *only* building for Linux, you can set `LINUX_ONLY=1` when running `make libs -j` to prevent building Windows library dependencies.
 
 ### Compatibility
 
