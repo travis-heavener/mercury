@@ -80,7 +80,7 @@ This file must be relative to the Mercury project root or an absolute file.
 A full list of Mercury versions is available on my website, [wowtravis.com/mercury](https://wowtravis.com/mercury).
 New versions include crucial bug fixes or security improvements, so it is encouraged that you update whenever possible.
 
-Any version of Mercury < v1.0.0 is marked as a pre-release and is not an official release.
+Any version of Mercury before v1.0.0 is marked as a pre-release and is not an official release.
 Therefore, bugs and security vulnerabilities are still possible.
 If you encounter any unexpected behavior, please start an Issue on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury/issues).
 
