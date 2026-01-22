@@ -14,3 +14,4 @@ Mercury is made possible with the following third-party libraries:
 
 *Mercury includes and statically links these libraries where applicable.
 All third-party licenses are included in the `licenses/` directory.*
+

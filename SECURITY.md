@@ -2,16 +2,20 @@
 
 ## Supported Versions
 
-Mercury is still in development as of right now, and any version before v1.0.0 is a pre-release version.
-As such, any release may still have bugs and/or security vulnerabilities.
-Each new release resolves issues and adds new features, so it's encouraged that you update when a new version is available.
+Mercury updates are released on a rolling basis.
 
-Currently, there are no LTS versions planned for Mercury--the latest version is *always* going to be the recommended version of Mercury.
+There are no LTS versions planned for Mercury.
+
+### Pre-Release Versions
+
+Any version before v1.0.0 is a pre-release version, which may be more prone to bugs or security issues than official releases.
+It is encouraged that users update Mercury whenever a new update is available.
 
 ## Reporting a Vulnerability
 
-Should you encounter any security vulnerabilities, please open a Bug Report on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury).
+If you encounter any security issues, please open a Bug Report on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury).
 
 Bug Reports, especially security vulnerabilities, are taken very seriously and will be addressed as soon as possible.
 
 If you have any questions, please reach out to [Travis Heavener](https://github.com/travis-heavener) on GitHub or via email [travis.heavener@gmail.com](mailto:travis.heavener@gmail.com)
+

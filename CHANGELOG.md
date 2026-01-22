@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.29.7
+- Global documentation updates (per #257)
+
 ## v0.29.6
 - Improve clarity of TLS cert setup instructions
 
@@ -552,3 +555,4 @@
 ## v0.1.0
 - Added changelog (lol)
 - Added Windows port
+
