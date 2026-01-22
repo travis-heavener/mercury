@@ -44,7 +44,7 @@
 
 Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux\*.
 
-\* Linux copies of Mercury require glibc to be present and currently support distros with APT, Pacman, or DNF.
+\* Linux copies of Mercury require glibc locally installed and support distros with APT, Pacman, or DNF.
 
 ### Performance
 
@@ -72,15 +72,15 @@ Each value is the average of five separate trials using the Python test cases in
 ## Getting Started
 
 Once you've downloaded your own Mercury release, navigate to the `bin/` directory.
-If running on Linux, start `mercury` from the terminal; if running on Windows, start `mercury.exe`.
+From the terminal, start `mercury` on Linux or `mercury.exe` on Windows.
 
 Mercury takes only a single, optional command-line argument, which is the path to a config file if you'd like to use one instead of `conf/mercury.conf`.
 This file must be relative to the Mercury project root or an absolute file.
 
 A full list of Mercury versions is available on my website, [wowtravis.com/mercury](https://wowtravis.com/mercury).
-New versions are continuously being produced and may include crucial bug fixes or security improvements.
+New versions include crucial bug fixes or security improvements, so it is encouraged that you update whenever possible.
 
-Any version of Mercury marked as a "pre-release" (versions starting with "v0.x.x") is not a finalized product.
+Any version of Mercury < v1.0.0 is marked as a pre-release and is not an official release.
 Therefore, bugs and security vulnerabilities are still possible.
 If you encounter any unexpected behavior, please start an Issue on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury/issues).
 
@@ -89,21 +89,21 @@ If you encounter any unexpected behavior, please start an Issue on the [Mercury 
 In the `conf` directory are two config files: "mercury.conf" for server config and "mimes.conf" for a list of supported MIME types.
 The `conf/default/` directory contains default copies these files.
 
-For guidance, [CONFIG.md](CONFIG.md) contains a thorough documentation of each configuration setting/node, including accepted values and usage examples.
+For guidance, [CONFIG.md](CONFIG.md) contains a thorough documentation of each configuration setting, including accepted values and usage examples.
 
 ### Log Files
 
 Once you start Mercury, a `logs` directory will be created, with an access and error log.
-The access log contains a detailed log of all server traffic that is processed, along with status information.
-The error log contains any detailed error messages that the server encounters.
+- access.log: a detailed log of all server traffic that is processed, along with status information.
+- error.log: any detailed error messages that the server encounters.
 
 ### Setting Up PHP
 
-PHP is now supported via php-cgi for Windows and Linux!
+PHP is supported via CGI.
 
 To install, start Mercury and run the `phpinit` command.
 
-Developer environments also come with php-cgi installed after running `make lib_deps` or `make libs`.
+Developer environments will automatically install php-cgi when running `make lib_deps` or `make libs`.
 
 Windows users have the option to use their own PHP installation instead by modifying the path to php-cgi in "mercury.conf" under the WinPHPCGIPath node.
 
@@ -138,7 +138,7 @@ Your certificate will be located at `conf/ssl/cert.pem` and your private key at 
 
 ### CLI
 
-As of Mercury v0.22.0, a rich CLI is available to the user. Here is a list of available commands:
+Mercury exposes a CLI to the user with the following commands:
 
 | Command | Description                 |
 |---------|-----------------------------|
@@ -171,13 +171,13 @@ Select "More info" and then "Run anyway".
 
 #### Powershell Scripts
 
-There are two important Powershell scripts in Mercury:
+On Windows specifically, there are two important Powershell scripts that are bundled with each release:
 
 1. PHP installer for Windows (`conf/setup_php.ps1`)
 
 2. TLS certificate maker (`conf/ssl/makecert.ps1`)
 
-The script for installing PHP for Windows should be run through the Mercury CLI via the `phpinit` command, otherwise the script will be blocked from execution.
+The script for installing PHP for Windows should be run through the Mercury CLI via the `phpinit` command, otherwise it will be blocked from execution.
 
 For either of the two scripts, if you attempt to run them manually and receive an error that it's blocked from execution, paste the following into your terminal window to temporarily bypass the Powershell execution policy:
 
@@ -191,23 +191,30 @@ If you encounter any other issues or unexpected behavior, please consider openin
 
 ## For Developers
 
-When first cloning the repository, run `make clean` to initialize the environment and `make lib_deps` to install library dependencies.
+Currently, the Mercury development environment is only available on Linux environments that support APT, Pacman, or DNF.
+**Windows is not recognized as a development environment and as such the following steps will not work as intended (if at all).**
 
-The `build_tools/` directory contains all necessary shell scripts for building static binaries.
-Binaries are placed in the `bin/` directory, `mercury` for Linux and `mercury.exe` for Windows.
+After cloning the repository, paste the following into your terminal to configure the development environment:
 
-Before building Mercury, you must run `make libs -j` to build all statically linked libraries.
-If you plan to build for Windows and Linux together, run `make -j`.
+```bash
+make clean      # Initialize the environment
+make lib_deps   # Install dependency packages
+make libs -j    # Build static library dependencies
+```
+
+Run `make -j` to build for Windows and Linux or refer to the following sections to build for your specific platform.
+
+Binaries are placed in the `bin/` directory, with `bin/mercury` for Linux and `bin/mercury.exe` for Windows.
 
 ### Windows Builds
 
-To specifically build for Windows from your Linux environment, run `make windows`.
+Run `make windows`.
 
 ### Linux Builds
 
-To specifically build for your Linux distribution, run `make linux`.
+Run `make linux`.
 
-If you're interested in only building for Linux, you can use `make libs -j LINUX_ONLY=1` to omit Windows binaries.
+If you're interested in *only* building for Linux, you can set `LINUX_ONLY=1` when running `make libs -j` to omit Windows binaries.
 
 ### Compatibility
 
@@ -221,31 +228,30 @@ The following table contains known compatible versions of software used to build
 | g++       | 11.4.0     |
 | mingw-w64 | 8.0.0      |
 
-Note: Older mingw-w64 versions had issues when binding IPv6 sockets with WinAPI. Please update to 11.0.1 or later.
-
 ### Making Releases
 
-To build a release, manually dispatch the "Make Release" GitHub Action to automatically build the binaries, test them, then bundle the release and push it to the downloads website.
+To build a release, manually dispatch the "Make Release" GitHub Action to build the binaries, test them, and push the release to the downloads website.
 
 While a release can be manually made locally (via `make release`), this process is now automated and should only be done by dispatching this workflow.
 
-**NOTE**: the "Make Release" workflow will take the most recent changes on main and bundle them with the version committed to main. If you are building a release from a work-in-progress branch, *don't*.
+**NOTE**: the "Make Release" workflow will take the most recent changes on main and bundle them with the version committed to main.
+Do not build a release from a work-in-progress branch.
 
 ### Testing Suite
 
 This project has its own Python test script that manages its own config and test files.
 The test runner is available in the `tests` directory.
 
-Using Python 3, make sure that the following Python packages are installed using your package manager of choice:
-- `brotli`
-- `zstandard`
-- `psutil`
+1. Using Python 3, make sure that the following Python packages are installed using your package manager of choice:
+    - `brotli`
+    - `zstandard`
+    - `psutil`
 
-With Python and its dependencies installed, run `make cert` to create a TLS cert key pair.
+2. With Python and its dependencies installed, run `make cert` to create a TLS cert key pair.
 
-Now, start Mercury once for yourself and run the `phpinit` CLI command to configure the PHP-CGI.
+3. Now, start Mercury once for yourself and run the `phpinit` CLI command to configure the PHP-CGI.
 
-Once your TLS certs and PHP are configured, start `tests/run.py` to run a number of tests against the server.
+4. Once your TLS certs and PHP are configured, start `tests/run.py` to run a number of tests against the server.
 
 **NOTE:** Make sure that Mercury is ***NOT*** running when you start the test script--the script will launch several versions of Mercury to test against, but will not overwrite your configuration settings.
 
@@ -263,14 +269,12 @@ As netizens (*noun*. a user of the internet), it is our due diligence to be awar
 
 **Mercury does not and will never collect any of your personal information.**
 
-That is the bottom line.
-
 The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([wowtravis.com](https://wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf) and to [php.net](https://php.net) on Windows when running the `phpinit` CLI command.
 
 In addition, the Mercury access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs **UNLESS** the RedactLogIPs config variable is set to true (see mercury.conf).
 Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.
 
-All of Mercury's source code is freely available for curious users to view and poke at on GitHub via [https://github.com/travis-heavener/mercury](https://github.com/travis-heavener/mercury).
+All of Mercury's source code is freely available for curious users to inspect on GitHub via [https://github.com/travis-heavener/mercury](https://github.com/travis-heavener/mercury).
 
 That being said, Mercury is a living software, and security patches are rolled out alongside feature updates.
 As such, any update prefixed with v0.X.X (ex. v0.18.2) are pre-release.
@@ -304,3 +308,4 @@ And, if you are a Mercury superfan, consider supporting me directly!
 Contributions play a critical role in covering hosting costs and keeping my projects like Mercury alive.
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/travis.heavener)
+
