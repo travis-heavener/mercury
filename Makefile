@@ -76,6 +76,10 @@ $(PCH_DIR)/common-linux.hpp.gch: $(PCH_LINUX) $(ARTIFACTS_LOCK)
 ###################################################################
 
 $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
+	@if [[ ! -d ./libs/brotli/windows ]] || [[ ! -d ./libs/openssl/windows ]] || [[ ! -d ./libs/zlib/windows ]] || [[ ! -d ./libs/zstd/windows ]]; then \
+		echo "Missing Windows libraries"; \
+		exit 1; \
+	fi
 	@make pch_windows --no-print-directory -s
 	@./build_tools/validate_libs.sh --q
 	@$(MINGW_CXX)-windres src/res/icon.rc -O coff -o $(TARGET_WIN_ICON)
@@ -86,6 +90,10 @@ $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
 	@echo "✅ Built for Windows."
 
 $(PCH_DIR)/common-win.hpp.gch: $(PCH_WIN) $(ARTIFACTS_LOCK)
+	@if [[ ! -d ./libs/brotli/windows ]] || [[ ! -d ./libs/openssl/windows ]] || [[ ! -d ./libs/zlib/windows ]] || [[ ! -d ./libs/zstd/windows ]]; then \
+		echo "Missing Windows libraries"; \
+		exit 1; \
+	fi
 	@./build_tools/validate_libs.sh --q
 	@$(MINGW_CXX)-$(MINGW_CXX_SUFFIX) -x c++-header \
 		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_WIN) $(LIB_WIN) $(LIB_FLAGS) $(WIN_FLAGS) \
