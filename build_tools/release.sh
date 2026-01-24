@@ -14,7 +14,7 @@ $TOOLS_PATH/safe_rm "releases"
 mkdir releases
 
 # Read version
-VERSION=$(cat version.txt)
+VERSION=$(cat version.txt | head -n 1 | tr -d '\n')
 RELEASE_NAME="${VERSION// /_}"
 RELEASE_NAME="${RELEASE_NAME//./_}"
 RELEASE_NAME="${RELEASE_NAME//Mercury_/}"

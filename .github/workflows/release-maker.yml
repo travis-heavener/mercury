@@ -134,7 +134,7 @@ jobs:
       - name: Extract Version
         id: version
         run: |
-          VERSION=$(sed 's/^Mercury //' version.txt)
+          VERSION=$(sed 's/^Mercury //' version.txt | tr -d '\n')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # Delete existing release if it exists
