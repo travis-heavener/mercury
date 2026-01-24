@@ -2,6 +2,7 @@
 
 ## v0.29.8
 - Add optional donation banner (#414)
+    - Added "donate" CLI command to display URL
 
 ## v0.29.7
 - Global documentation updates (per #257)
