@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.29.8
+- Add optional donation banner (#414)
+
 ## v0.29.7
 - Global documentation updates (per #257)
 

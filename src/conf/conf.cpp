@@ -57,6 +57,7 @@ namespace conf {
     #endif
 
     bool SHOW_WELCOME_BANNER;
+    bool SHOW_DONATION_BANNER;
     bool CHECK_LATEST_RELEASE;
 
     std::ofstream accessLogHandle;
@@ -76,7 +77,7 @@ namespace conf {
         "AccessLogFile", "ErrorLogFile", "RedactLogIPs", "EnablePHPCGI", "WinPHPCGIPath", "EnableLegacyHTTPVersions",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
-        "MinResponseCompressionSize", "IdleThreadsPerChild", "MaxThreadsPerChild", "ShowWelcomeBanner", "StartupCheckLatestRelease"
+        "MinResponseCompressionSize", "IdleThreadsPerChild", "MaxThreadsPerChild", "ShowWelcomeBanner", "ShowDonationBanner", "StartupCheckLatestRelease"
     };
 
     const std::vector<std::string> matchNodeNames = {
@@ -190,6 +191,9 @@ namespace conf {
             return CONF_FAILURE;
 
         if (loadBool(root, SHOW_WELCOME_BANNER, "ShowWelcomeBanner") == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadBool(root, SHOW_DONATION_BANNER, "ShowDonationBanner") == CONF_FAILURE)
             return CONF_FAILURE;
 
         if (loadBool(root, CHECK_LATEST_RELEASE, "StartupCheckLatestRelease") == CONF_FAILURE)

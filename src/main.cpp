@@ -117,6 +117,22 @@ void printWelcomeBanner() {
     ACCESS_LOG << conf::VERSION << " started successfully." << std::endl;
 }
 
+// Prints a donation banner on startup, if enabled
+void printDonationBanner() {
+    /**
+     * Prints the following message:
+     *
+     * Love Mercury? Consider supporting this project:
+     *    https://buymeacoffee.com/travis.heavener
+     * (This message can be disabled in mercury.conf)
+     */
+    std::cout << "===============================================\n"
+        << "Love Mercury? Consider supporting this project:\n"
+        << "   https://buymeacoffee.com/travis.heavener\n"
+        << "==============================================="
+        << std::endl;
+}
+
 /******************** ENTRY POINT ********************/
 
 int main(int argc, char* argv[]) {
@@ -189,6 +205,10 @@ int main(int argc, char* argv[]) {
         cleanExit();
         return 1;
     }
+
+    // Print donation banner
+    if (conf::SHOW_DONATION_BANNER)
+        printDonationBanner();
 
     // Print welcome banner
     if (conf::SHOW_WELCOME_BANNER)

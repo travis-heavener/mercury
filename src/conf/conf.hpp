@@ -61,6 +61,7 @@ namespace conf {
     #endif
 
     extern bool SHOW_WELCOME_BANNER;
+    extern bool SHOW_DONATION_BANNER;
     extern bool CHECK_LATEST_RELEASE;
 
     extern std::ofstream accessLogHandle;
