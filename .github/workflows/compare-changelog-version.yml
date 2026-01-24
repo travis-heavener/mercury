@@ -15,7 +15,7 @@ jobs:
       - name: Compare Changelog Version With version.txt
         run: |
           CHANGELOG_VERSION=$( cat CHANGELOG.md | grep -Po "(?<=^## )v\d+\.\d+\.\d+$" | head -1 )
-          STORED_VERSION=$( cat version.txt | grep -Po "(?<=^Mercury )v\d+\.\d+\.\d+$" | head -1 )
+          STORED_VERSION=$( cat version.txt | head -n 1 | tr -d '\n' | grep -Po "(?<=^Mercury )v\d+\.\d+\.\d+$" | head -1 )
 
           if [ "$CHANGELOG_VERSION" != "$STORED_VERSION" ]; then
             exit 1
