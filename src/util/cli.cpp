@@ -126,6 +126,9 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
     // Clean exit
     if (buf == "CLEAR") {
         std::cout << "\033[2J\033[H" << std::flush;
+    } else if (buf == "DONATE") {
+        std::cout << "> Love Mercury? Consider supporting this project:\n"
+            "     https://buymeacoffee.com/travis.heavener" << std::endl;
     } else if (buf == "EXIT") {
         isExiting.store(true);
     } else if (buf == "INFO" || buf == "STATUS") {
@@ -142,6 +145,7 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
         std::cout << "> Pong!" << std::endl;
     } else if (buf == "HELP") {
         std::cout << "> Clear: Clears the terminal window\n"
+            "  Donate: Shows optional donation URL\n"
             "  Exit: Exit Mercury\n"
             "  Help: List available commands\n"
             "  Info: View current utilization\n"

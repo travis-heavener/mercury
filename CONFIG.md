@@ -56,6 +56,7 @@ All configuration nodes must be wrapped within a singular `<Mercury>` node.
 
 ### Misc.
 - [ShowWelcomeBanner](#showwelcomebanner)
+- [ShowDonationBanner](#showdonationbanner)
 - [StartupCheckLatestRelease](#startupchecklatestrelease)
 
 # Config
@@ -522,6 +523,17 @@ Example:
 
 ```xml
 <ShowWelcomeBanner> true </ShowWelcomeBanner>
+```
+
+### ShowDonationBanner
+Whether or not to print the optional donation banner on startup (true/false).
+
+Default: `true`
+
+Example:
+
+```xml
+<ShowDonationBanner> true </ShowDonationBanner>
 ```
 
 ### StartupCheckLatestRelease

@@ -143,6 +143,7 @@ Mercury exposes a CLI to the user with the following commands:
 | Command | Description                 |
 |---------|-----------------------------|
 | clear   | Clears the terminal window  |
+| donate  | Shows optional donation URL |
 | exit    | Exit Mercury                |
 | help    | List available commands     |
 | info    | View current utilization    |

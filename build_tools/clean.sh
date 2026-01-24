@@ -19,7 +19,7 @@ rm -rf libs
 
 # Reset config files
 cp -f conf/default/* conf
-mkdir -p logs bin libs
+mkdir -p logs bin libs tmp
 find ./build_tools -type f -name "*.sh" -exec chmod +x {} \;
 find ./docker -type f -name "*.sh" -exec chmod +x {} \;
 find ./conf/ -type f -name "*.sh" -exec chmod +x {} \;
