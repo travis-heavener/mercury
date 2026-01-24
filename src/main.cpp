@@ -206,13 +206,13 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Print donation banner
-    if (conf::SHOW_DONATION_BANNER)
-        printDonationBanner();
-
     // Print welcome banner
     if (conf::SHOW_WELCOME_BANNER)
         printWelcomeBanner();
+
+    // Print donation banner
+    if (conf::SHOW_DONATION_BANNER)
+        printDonationBanner();
 
     // Accept client responses
     std::vector<std::thread> threads;
