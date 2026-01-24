@@ -3,13 +3,13 @@
 
 #include <memory>
 #include <regex>
+#include <string>
 #include <vector>
 
 #include <pugixml.hpp>
 
 #include "access.hpp"
 #include "mod_headers.hpp"
-#include "../pch/common.hpp"
 
 namespace conf {
 

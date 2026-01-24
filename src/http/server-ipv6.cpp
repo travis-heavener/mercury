@@ -52,7 +52,11 @@ namespace http {
                     return 0;
 
                 // Otherwise, set the errno for failure to bind
-                lastErrno = errno;
+                #ifdef _WIN32
+                    lastErrno = WSAGetLastError();
+                #else
+                    lastErrno = errno;
+                #endif
             } else if (isLastAttempt) {
                 return optsStatus;
             }

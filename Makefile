@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: clean all linux windows pch pch_linux pch_windows \
+.PHONY: clean all linux windows \
 	libs lib_deps libs_no_deps lib_brotli lib_openssl lib_zlib lib_pugixml lib_zstd \
 	release cert
 
@@ -18,18 +18,14 @@ LIB_LINUX = $(shell find libs -type d -name 'lib' | grep -P 'linux/lib' | sed 's
 LIB_WIN = $(shell find libs -type d -name 'lib' | grep -P 'windows/lib' | sed 's/^/-L/' | tr '\n' ' ')
 
 # Compiler
-CXX := g++
+CXX ?= g++
 MINGW_CXX := x86_64-w64-mingw32
 MINGW_CXX_SUFFIX := $(shell if command -v apt >/dev/null 2>&1; then echo g++-posix; else echo g++; fi)
 
 SRCS := $(shell find src -type f -name "*.cpp") $(wildcard $(PUGIXML_DIR)/*.cpp)
 DEPS := $(shell find src -type f -name "*.hpp") $(wildcard $(PUGIXML_DIR)/*.hpp) $(SRCS)
 
-PCH_DIR := src/pch
-PCH_WIN := $(PCH_DIR)/common-win.hpp $(PCH_DIR)/common.hpp
-PCH_LINUX := $(PCH_DIR)/common-linux.hpp $(PCH_DIR)/common.hpp
-
-CXX_FLAGS := -Wall -Wextra -Werror -Winvalid-pch
+CXX_FLAGS := -Wall -Wextra -Werror
 STATIC_FLAGS := -std=c++20
 LIB_FLAGS := -static-libstdc++ -static-libgcc -lbrotlienc -lbrotlicommon -lz -lpthread -lssl -lcrypto -lzstd
 WIN_FLAGS := -static -lcrypt32 -lws2_32 -mconsole
@@ -44,10 +40,6 @@ all: $(TARGET_LINUX) $(TARGET_WIN)
 linux: $(TARGET_LINUX)
 windows: $(TARGET_WIN)
 
-pch: pch_linux pch_windows
-pch_linux: $(PCH_DIR)/common-linux.hpp.gch
-pch_windows: $(PCH_DIR)/common-win.hpp.gch
-
 clean:
 	@./build_tools/clean.sh
 
@@ -56,20 +48,12 @@ clean:
 ###################################################################
 
 $(TARGET_LINUX): $(DEPS) $(ARTIFACTS_LOCK)
-	@make pch_linux --no-print-directory -s
 	@./build_tools/validate_libs.sh --q
-	@$(CXX) -include $(PCH_LINUX) \
+	@$(CXX) \
 		$(SRCS) -o $(TARGET_LINUX) \
 		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_LINUX) $(LIB_LINUX) $(LIB_FLAGS)
 	@upx $(TARGET_LINUX) -qqq
 	@echo "✅ Built for Linux."
-
-$(PCH_DIR)/common-linux.hpp.gch: $(PCH_LINUX) $(ARTIFACTS_LOCK)
-	@./build_tools/validate_libs.sh --q
-	@$(CXX) -x c++-header \
-		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_LINUX) $(LIB_LINUX) $(LIB_FLAGS) \
-		-c $(PCH_DIR)/common.hpp -o $(PCH_DIR)/common-linux.hpp.gch
-	@echo "✅ Built Linux PCH."
 
 ###################################################################
 ############################# WINDOWS #############################
@@ -80,25 +64,13 @@ $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
 		echo "Missing Windows libraries"; \
 		exit 1; \
 	fi
-	@make pch_windows --no-print-directory -s
 	@./build_tools/validate_libs.sh --q
 	@$(MINGW_CXX)-windres src/res/icon.rc -O coff -o $(TARGET_WIN_ICON)
-	@$(MINGW_CXX)-$(MINGW_CXX_SUFFIX) -include $(PCH_WIN) \
+	@$(MINGW_CXX)-$(MINGW_CXX_SUFFIX) \
 		$(SRCS) $(TARGET_WIN_ICON) -o $(TARGET_WIN) \
 		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_WIN) $(LIB_WIN) $(LIB_FLAGS) $(WIN_FLAGS)
 	@upx $(TARGET_WIN) -qqq
 	@echo "✅ Built for Windows."
-
-$(PCH_DIR)/common-win.hpp.gch: $(PCH_WIN) $(ARTIFACTS_LOCK)
-	@if [[ ! -d ./libs/brotli/windows ]] || [[ ! -d ./libs/openssl/windows ]] || [[ ! -d ./libs/zlib/windows ]] || [[ ! -d ./libs/zstd/windows ]]; then \
-		echo "Missing Windows libraries"; \
-		exit 1; \
-	fi
-	@./build_tools/validate_libs.sh --q
-	@$(MINGW_CXX)-$(MINGW_CXX_SUFFIX) -x c++-header \
-		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_WIN) $(LIB_WIN) $(LIB_FLAGS) $(WIN_FLAGS) \
-		-c $(PCH_DIR)/common.hpp -o $(PCH_DIR)/common-win.hpp.gch
-	@echo "✅ Built Windows PCH."
 
 ###################################################################
 ############################ LIBRARIES ############################

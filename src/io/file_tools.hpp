@@ -1,9 +1,10 @@
 #ifndef __FILE_TOOLS_HPP
 #define __FILE_TOOLS_HPP
 
+#include <filesystem>
 #include <shared_mutex>
-
-#include "../pch/common.hpp"
+#include <string>
+#include <unordered_set>
 
 #define NOT_SYMLINK 0
 #define IS_SYMLINK 1

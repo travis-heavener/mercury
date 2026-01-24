@@ -217,6 +217,17 @@ Run `make linux`.
 
 If you're interested in *only* building for Linux, you can set `LINUX_ONLY=1` when running `make libs -j` to prevent building Windows library dependencies.
 
+#### Linux: Alternative Compilers
+
+If you'd like to use a different C++ compiler for Linux builds, set the environment variable `CXX` before running `make linux` or alike.
+
+Example:
+```bash
+CXX=clang++ make linux
+```
+
+Note: currently, only `g++` and `clang++` are supported.
+
 ### Compatibility
 
 All releases are currently built using the "ubuntu-22.04" GitHub Actions runner.

@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
 #include <iomanip>
+#include <string>
 
 #ifdef _WIN32
     #include "../winheader.hpp"
@@ -11,7 +13,6 @@
 #include "string_tools.hpp"
 #include "../conf/conf.hpp"
 #include "../io/file_tools.hpp"
-#include "../pch/common.hpp"
 
 void formatFileSize(size_t fileSize, std::string& buffer) {
     long double truncatedSize;
