@@ -3,10 +3,9 @@
 
 #include <memory>
 #include <regex>
+#include <string>
 
 #include <pugixml.hpp>
-
-#include "../pch/common.hpp"
 
 namespace conf {
 

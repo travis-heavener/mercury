@@ -135,7 +135,6 @@ namespace http {
 
         // Write in chunks
         std::vector<char> readChunk(conf::RESPONSE_BUFFER_SIZE), compressChunk;
-        size_t contentLen = 0;
         while (true) {
             // Read
             size_t bytesRead = pBodyStream->read(readChunk.data(), conf::RESPONSE_BUFFER_SIZE);
@@ -152,7 +151,6 @@ namespace http {
                     }
 
                     // Write
-                    contentLen += bytesRead;
                     handle.write(compressChunk.data(), bytesRead);
                 }
                 break;
@@ -169,11 +167,9 @@ namespace http {
                 }
 
                 // Write
-                contentLen += bytesRead;
                 handle.write(compressChunk.data(), bytesRead);
             } else {
                 // Write w/o compression
-                contentLen += bytesRead;
                 handle.write(readChunk.data(), bytesRead);
             }
         }

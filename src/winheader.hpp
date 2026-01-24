@@ -18,9 +18,4 @@
 #define poll WSAPoll
 #define ssize_t SSIZE_T
 
-#ifdef errno
-    #undef errno
-    #define errno WSAGetLastError()
-#endif
-
 #endif

@@ -5,6 +5,10 @@
 #include <condition_variable>
 #include <mutex>
 #include <ostream>
+#include <queue>
+#include <sstream>
+#include <string>
+#include <thread>
 
 #define ACCESS_LOG Logger::getInstance()(true)
 #define ERROR_LOG Logger::getInstance()(false)

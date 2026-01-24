@@ -1,7 +1,8 @@
 #ifndef __FILE_HPP
 #define __FILE_HPP
 
-#include "../pch/common.hpp"
+#include <memory>
+
 #include "../http/tools.hpp"
 #include "../http/body_stream.hpp"
 

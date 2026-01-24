@@ -2,7 +2,6 @@
 
 #include <iomanip>
 
-#include "../pch/common.hpp"
 #include "../conf/conf.hpp"
 
 Logger::Logger() : isExited(false) {

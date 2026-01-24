@@ -66,9 +66,15 @@ namespace http {
         memcpy(&addr.sin_addr, conf::BIND_ADDR_IPV4->bytes, 4);
 
         if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) < 0) {
+            #ifdef _WIN32
+                int lastErrno = WSAGetLastError();
+            #else
+                int lastErrno = errno;
+            #endif
+
             ERROR_LOG << "Failed to bind socket (" << *this << "), errno: "
-                << errno
-                << (errno == 13 ? ", do you have sudo perms?" : "") // Improve log for errno 13 (needs sudo)
+                << lastErrno
+                << (lastErrno == 13 ? ", do you have sudo perms?" : "") // Improve log for errno 13 (needs sudo)
                 << std::endl;
             return BIND_FAILURE;
         }
@@ -84,7 +90,13 @@ namespace http {
 
         // Listen to socket
         if (listen(this->sock, conf::MAX_REQUEST_BACKLOG) < 0) {
-            ERROR_LOG << "Failed to listen to socket (" << *this << "), errno: " << errno << std::endl;
+            #ifdef _WIN32
+                int lastErrno = WSAGetLastError();
+            #else
+                int lastErrno = errno;
+            #endif
+
+            ERROR_LOG << "Failed to listen to socket (" << *this << "), errno: " << lastErrno << std::endl;
             return LISTEN_FAILURE;
         }
 

@@ -2,8 +2,10 @@
 #define __STRING_TOOLS_HPP
 
 #include <algorithm>
-
-#include "../pch/common.hpp"
+#include <stdexcept>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
 #define NO_COMPRESS 256
 #define COMPRESS_DEFLATE 512

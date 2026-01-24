@@ -1,9 +1,11 @@
 #ifndef __CONF_HPP
 #define __CONF_HPP
 
+#include <filesystem>
+#include <fstream>
 #include <optional>
+#include <string>
 
-#include "../pch/common.hpp"
 #include "match.hpp"
 #include "redirect.hpp"
 #include "rewrite.hpp"
