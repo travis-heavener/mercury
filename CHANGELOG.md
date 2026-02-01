@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.29.9
+- Bump OpenSSL to v3.6.1
+
 ## v0.29.8
 - Add optional donation banner (#414)
     - Added "donate" CLI command to display URL
