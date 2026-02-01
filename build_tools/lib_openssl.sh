@@ -83,10 +83,16 @@ if [ "$LINUX_ONLY" != "1" ]; then
     (
         cd "openssl-$version-windows"
 
-        # Patch Mingw bug for 3.6.0
-        # See https://github.com/openssl/openssl/issues/28679
-        if [ "$version" == "3.6.0" ]; then
-            sed -i '545c#if defined\(OPENSSL_SYS_WINDOWS\) && \!defined\(__MINGW32__\)' test/bioprinttest.c
+        # Patch Mingw bug for 3.6.1 (from https://github.com/openssl/openssl/pull/29826)
+        # See https://github.com/openssl/openssl/issues/29856
+        # and https://github.com/openssl/openssl/issues/29818
+        if [ "$version" == "3.6.1" ]; then
+            sed '78a\
+            #if defined(__MINGW32__) && !defined(SIO_UDP_NETRESET)\
+            #define SIO_UDP_NETRESET _WSAIOW(IOC_VENDOR, 15)\
+            #endif
+            ' ssl/quic/quic_reactor.c > tmp_quic
+            mv -f tmp_quic ssl/quic/quic_reactor.c
         fi
 
         ./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp no-tests no-docs no-legacy --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" 1> /dev/null
