@@ -151,7 +151,7 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
             "  Info: View current utilization\n"
             "  PHPInit: Initializes platform-specific PHP\n"
             "  Ping: ???\n"
-            "  Status: View current utilization"
+            "  Status: See \"info\""
             << std::endl;
     } else if (buf == "PHPINIT") {
         #ifdef _WIN32 // Windows specific
