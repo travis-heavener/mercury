@@ -149,7 +149,7 @@ Mercury exposes a CLI to the user with the following commands:
 | info    | View current utilization    |
 | phpinit | Downloads & configures PHP  |
 | ping    | ???                         |
-| status  | View current utilization    |
+| status  | See "info"                  |
 
 ### Troubleshooting
 
