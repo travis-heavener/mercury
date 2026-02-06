@@ -3,6 +3,7 @@
 ## v0.30.0
 - Improved CLI flush responsiveness (#431)
 - Add "pwd" CLI command to print document root (#432)
+- Added stderr log for bind failure if missing sudo
 
 ## v0.29.9
 - Bump OpenSSL to v3.6.1

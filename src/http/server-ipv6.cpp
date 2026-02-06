@@ -1,5 +1,7 @@
 #include "server-ipv6.hpp"
 
+#include <iostream>
+
 #include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
 
@@ -69,8 +71,10 @@ namespace http {
         // Only reaches here if bind failure
         if (lastErrno == 13) { // Improve error handling for errno 13 (need sudo to listen to port)
             ERROR_LOG << "Failed to bind socket (" << *this << "), errno: " << lastErrno << ", do you have sudo perms?" << std::endl;
+            std::cerr << "Failed to bind socket (" << *this << "), errno: " << lastErrno << ", do you have sudo perms?" << std::endl;
         } else {
             ERROR_LOG << "Failed to bind socket (" << *this << "), errno: " << lastErrno << std::endl;
+            std::cerr << "Failed to bind socket (" << *this << "), errno: " << lastErrno << std::endl;
         }
         return BIND_FAILURE;
     }
