@@ -1,5 +1,7 @@
 #include "server.hpp"
 
+#include <iostream>
+
 #include "../conf/conf.hpp"
 #include "../io/file.hpp"
 #include "../logs/logger.hpp"
@@ -76,6 +78,10 @@ namespace http {
                 << lastErrno
                 << (lastErrno == 13 ? ", do you have sudo perms?" : "") // Improve log for errno 13 (needs sudo)
                 << std::endl;
+
+            // Improve log for errno 13 (needs sudo)
+            if (lastErrno == 13)
+                std::cerr << "Failed to bind socket (" << *this << "), errno: " << lastErrno << ", do you have sudo perms?" << std::endl;
             return BIND_FAILURE;
         }
 

@@ -143,6 +143,8 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
             << std::endl;
     } else if (buf == "PING") {
         std::cout << "> Pong!" << std::endl;
+    } else if (buf == "PWD") {
+        std::cout << conf::DOCUMENT_ROOT.string() << std::endl;
     } else if (buf == "HELP") {
         std::cout << "> Clear: Clears the terminal window\n"
             "  Donate: Shows optional donation URL\n"
@@ -150,7 +152,8 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
             "  Help: List available commands\n"
             "  Info: View current utilization\n"
             "  PHPInit: Initializes platform-specific PHP\n"
-            "  Ping: ???\n"
+            "  Ping: Pong!\n"
+            "  Pwd: Prints the document root\n"
             "  Status: See \"info\""
             << std::endl;
     } else if (buf == "PHPINIT") {
@@ -271,7 +274,6 @@ void awaitCLI(std::atomic<bool>& isExiting, std::vector<std::shared_ptr<http::Se
             #ifdef __linux__
                 history.erase(history.cbegin() + historyIndex);
             #endif
-            SLEEP_BETWEEN_CLI;
             continue;
         }
 
