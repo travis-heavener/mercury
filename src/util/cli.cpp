@@ -274,7 +274,6 @@ void awaitCLI(std::atomic<bool>& isExiting, std::vector<std::shared_ptr<http::Se
             #ifdef __linux__
                 history.erase(history.cbegin() + historyIndex);
             #endif
-            SLEEP_BETWEEN_CLI;
             continue;
         }
 
