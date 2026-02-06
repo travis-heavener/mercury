@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.30.0
+- Add "pwd" CLI command to print document root (#432)
+
 ## v0.29.9
 - Bump OpenSSL to v3.6.1
 
@@ -562,4 +565,3 @@
 ## v0.1.0
 - Added changelog (lol)
 - Added Windows port
-

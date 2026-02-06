@@ -148,7 +148,8 @@ Mercury exposes a CLI to the user with the following commands:
 | help    | List available commands     |
 | info    | View current utilization    |
 | phpinit | Downloads & configures PHP  |
-| ping    | ???                         |
+| ping    | Pong!                       |
+| pwd     | Prints the document root    |
 | status  | See "info"                  |
 
 ### Troubleshooting
