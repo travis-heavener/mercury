@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.30.1
+- Bump Zlib to v1.3.2
+
 ## v0.30.0
 - Improved CLI flush responsiveness (#431)
 - Add "pwd" CLI command to print document root (#432)
