@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.30.2
+- Fix minor memory leak with version checker (#437)
+- Thread safety improvements to CGI handler fork() calls on Linux (#437)
+
 ## v0.30.1
 - Bump Zlib to v1.3.2
 

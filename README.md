@@ -229,6 +229,15 @@ CXX=clang++ make linux
 
 Note: currently, only `g++` and `clang++` are supported.
 
+### Debug Mode
+
+If you'd like to build in debug mode (skip executable compression & run g++ with `-g`), set `DEBUG=1` before running.
+Example:
+
+```bash
+DEBUG=1 make -j -B
+```
+
 ### Compatibility
 
 All releases are currently built using the "ubuntu-22.04" GitHub Actions runner.
