@@ -487,7 +487,7 @@ namespace http::cgi {
 
                 // Close unused fds in child
                 close(stdinRead); close(stdoutWrite); close(stdinWrite); close(stdoutRead);
-                close(stderrPipe[0]);
+                close(stderrPipe[0]); close(stderrPipe[1]);
 
                 // Prepare argv
                 const char* phpCgiPath = "php-cgi"; // Resolved from PATH
@@ -504,11 +504,9 @@ namespace http::cgi {
 
                 // Execve failed, send EOF
                 char c = 1;
-                write(stderrPipe[1], &c, 1);
-                close(stderrPipe[1]);
+                write(STDERR_FILENO, &c, 1);
 
                 // Exit if execve fails
-                ERROR_LOG << "Failed to spawn PHP CGI worker process" << std::endl;
                 closePipes(); // Close pipes since this function doesn't return as the child
                 _exit(127);
             } else { // This is the Parent
