@@ -30,14 +30,17 @@ std::string fetchLatestVersion() {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    if (getaddrinfo(host.c_str(), "443", &hints, &res) != 0)
+    if (getaddrinfo(host.c_str(), "443", &hints, &res) != 0) {
+        freeaddrinfo(res);
         return "";
+    }
 
     // 2. Create socket
     int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (sock < 0) return "";
     if (connect(sock, res->ai_addr, res->ai_addrlen) < 0) {
         close(sock);
+        freeaddrinfo(res);
         return "";
     }
 
@@ -54,6 +57,7 @@ std::string fetchLatestVersion() {
         SSL_free(ssl);
         SSL_CTX_free(ctx);
         close(sock);
+        freeaddrinfo(res);
         return "";
     }
 
