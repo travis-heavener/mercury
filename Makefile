@@ -35,6 +35,12 @@ TARGET_LINUX := bin/mercury
 TARGET_WIN := bin/mercury.exe
 TARGET_WIN_ICON := bin/icon.o
 
+# Debug mode
+DEBUG ?= 0
+ifeq ($(DEBUG),1)
+    CXX_FLAGS += -g -O0
+endif
+
 # Recipes
 all: $(TARGET_LINUX) $(TARGET_WIN)
 linux: $(TARGET_LINUX)
@@ -52,7 +58,9 @@ $(TARGET_LINUX): $(DEPS) $(ARTIFACTS_LOCK)
 	@$(CXX) \
 		$(SRCS) -o $(TARGET_LINUX) \
 		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_LINUX) $(LIB_LINUX) $(LIB_FLAGS)
-	@upx $(TARGET_LINUX) -qqq
+	@if [ "$(DEBUG)" != "1" ]; then \
+		upx $(TARGET_LINUX) -qqq; \
+	fi
 	@echo "✅ Built for Linux."
 
 ###################################################################
@@ -69,7 +77,9 @@ $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
 	@$(MINGW_CXX)-$(MINGW_CXX_SUFFIX) \
 		$(SRCS) $(TARGET_WIN_ICON) -o $(TARGET_WIN) \
 		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_WIN) $(LIB_WIN) $(LIB_FLAGS) $(WIN_FLAGS)
-	@upx $(TARGET_WIN) -qqq
+	@if [ "$(DEBUG)" != "1" ]; then \
+		upx $(TARGET_WIN) -qqq; \
+	fi
 	@echo "✅ Built for Windows."
 
 ###################################################################
