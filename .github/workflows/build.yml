@@ -24,13 +24,13 @@ jobs:
 
       # Cache build outputs by commit hash
       - name: Cache Linux Binaries (Overwritten by Make -B Don't Worry)
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ./bin/mercury
           key: mercury-linux-binaries-${{ github.sha }}
 
       - name: Cache Windows Binaries (Overwritten by Make -B Don't Worry)
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ./bin/mercury.exe
           key: mercury-windows-binaries-${{ github.sha }}
@@ -48,7 +48,7 @@ jobs:
 
       # Mark artifacts for caching
       - name: Cache Library Artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ./libs
           key: >-

@@ -15,7 +15,7 @@ jobs:
 
       # Download binaries
       - name: Cache Linux Binaries
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ./bin/mercury
           key: mercury-linux-binaries-${{ github.sha }}
