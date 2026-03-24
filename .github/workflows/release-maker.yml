@@ -70,7 +70,7 @@ jobs:
       )
     runs-on: ubuntu-24.04 # <--- Use 24.04 instead of 22.04 since python3-zstandard does not have a mirror
     steps:
-      - uses: actions/create-github-app-token@v2
+      - uses: actions/create-github-app-token@v3
         id: app-token
         with:
           app-id: ${{ vars.MERCURY_BOT_APP_ID }}

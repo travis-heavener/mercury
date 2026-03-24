@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-slim
     if: github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/create-github-app-token@v2
+      - uses: actions/create-github-app-token@v3
         id: app-token
         with:
           app-id: ${{ vars.MERCURY_BOT_APP_ID }}
