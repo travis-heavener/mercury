@@ -46,7 +46,8 @@ namespace conf {
 
     std::filesystem::path ACCESS_LOG_FILE;
     std::filesystem::path ERROR_LOG_FILE;
-    bool REDACT_LOG_IPS;
+    int CLIENT_SECURITY_MODE;
+    std::string IP_HASH_SALT;
 
     bool USE_TLS;
     port_t TLS_PORT;
@@ -74,7 +75,7 @@ namespace conf {
 
     const std::vector<std::string> mercuryNodeNames = {
         "DocumentRoot", "BindAddressIPv4", "BindAddressIPv6", "Port", "TLSPort", "Redirect", "Rewrite",
-        "AccessLogFile", "ErrorLogFile", "RedactLogIPs", "EnablePHPCGI", "WinPHPCGIPath", "EnableLegacyHTTPVersions",
+        "AccessLogFile", "ErrorLogFile", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "WinPHPCGIPath", "EnableLegacyHTTPVersions",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
         "MinResponseCompressionSize", "IdleThreadsPerChild", "MaxThreadsPerChild", "ShowWelcomeBanner", "ShowDonationBanner", "StartupCheckLatestRelease"
@@ -97,6 +98,8 @@ namespace conf {
     int loadPath(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName, const bool isLogFile=false);
     int loadDirectoryAndCanonicalize(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName);
     int loadTempFileDirectory();
+    int loadClientSecurityMode(const pugi::xml_node& root, int& var);
+    int loadClientSecurityIPSalt(const pugi::xml_node& root, std::string& var);
 
     // Loads the directory of the running executable to path
     // Returns true if successful or false otherwise
@@ -176,6 +179,14 @@ namespace conf {
             return CONF_FAILURE;
         }
 
+        /************ Load ClientSecurityMode ************/
+
+        if (loadClientSecurityMode(root, CLIENT_SECURITY_MODE) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadClientSecurityIPSalt(root, IP_HASH_SALT) == CONF_FAILURE)
+            return CONF_FAILURE;
+
         /************ LOAD BOOLEANS ************/
 
         if (loadOnOff(root, ENABLE_LEGACY_HTTP, "EnableLegacyHTTPVersions") == CONF_FAILURE)
@@ -185,9 +196,6 @@ namespace conf {
             return CONF_FAILURE;
 
         if (loadOnOff(root, IS_KEEP_ALIVE_ENABLED, "KeepAlive") == CONF_FAILURE)
-            return CONF_FAILURE;
-
-        if (loadBool(root, REDACT_LOG_IPS, "RedactLogIPs") == CONF_FAILURE)
             return CONF_FAILURE;
 
         if (loadBool(root, SHOW_WELCOME_BANNER, "ShowWelcomeBanner") == CONF_FAILURE)
@@ -682,6 +690,59 @@ namespace conf {
         // Set the temp path
         TMP_PATH = tmpPathStr;
 
+        return CONF_SUCCESS;
+    }
+
+    int loadClientSecurityMode(const pugi::xml_node& root, int& var) {
+        pugi::xml_node node = root.child("ClientSecurityMode");
+        if (!node) {
+            std::cerr << "Failed to parse config file, missing ClientSecurityMode node." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Extract and stringify
+        std::string valueStr = node.text().as_string();
+        trimString(valueStr);
+
+        // Verify valid value provided
+        if (valueStr == "Minimal") {
+            var = CLIENT_SEC_MINIMAL;
+        } else if (valueStr == "GPCMasked") {
+            var = CLIENT_SEC_GPC_MASKED;
+        } else if (valueStr == "GPCAnonymous") {
+            var = CLIENT_SEC_GPC_ANON;
+        } else if (valueStr == "Masked") {
+            var = CLIENT_SEC_MASKED;
+        } else if (valueStr == "Anonymous") {
+            var = CLIENT_SEC_ANON;
+        } else {
+            std::cerr << "Failed to parse config file, invalid value for ClientSecurityMode." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Base case
+        return CONF_SUCCESS;
+    }
+
+    int loadClientSecurityIPSalt(const pugi::xml_node& root, std::string& var) {
+        pugi::xml_node node = root.child("ClientSecurityIPSalt");
+        if (!node) {
+            std::cerr << "Failed to parse config file, missing ClientSecurityIPSalt node." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Extract and stringify
+        std::string valueStr = node.text().as_string();
+        trimString(valueStr);
+
+        // Verify valid value provided
+        if (valueStr.size() < 16) {
+            std::cerr << "Failed to parse config file, ClientSecurityIPSalt hash salt must be at least 128 bits." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Base case
+        var = valueStr;
         return CONF_SUCCESS;
     }
 }

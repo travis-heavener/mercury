@@ -1,6 +1,15 @@
 #include "logger.hpp"
 
+#ifdef _WIN32
+    #include "../winheader.hpp"
+#else
+    #include <arpa/inet.h>
+#endif
+
+#include <cstring>
 #include <iomanip>
+#include <openssl/hmac.h>
+#include <sstream>
 
 #include "../conf/conf.hpp"
 
@@ -78,4 +87,58 @@ std::string genTimestamp() {
     std::stringstream ss;
     ss << std::put_time(std::localtime(&tp), "[%m/%d/%y, %I:%M:%S %p] ");
     return ss.str();
+}
+
+// Helper method for formatting client IPs based on the ClientSecurityMode config node
+std::string formatClientIP(const std::string& ipStr, const bool isDNT) {
+    const int secMode = conf::CLIENT_SECURITY_MODE;
+
+    // Check if IP needs to be masked
+    if (secMode == CLIENT_SEC_MASKED || ( secMode == CLIENT_SEC_GPC_MASKED && isDNT )) {
+        // Mask lower bits
+        char buffer[INET6_ADDRSTRLEN] = {0};
+        conf::SanitizedIP sip = conf::parseSanitizedClientIP( ipStr );
+
+        if (sip.family == conf::IPFamily::IPv4) { // Mask lowest 8 bits
+            sip.bytes[3] = 0;
+            inet_ntop(AF_INET, sip.bytes, buffer, INET6_ADDRSTRLEN);
+        } else { // Mask lowest 80 bits
+            std::memset(sip.bytes + 6, 0, 10);
+            inet_ntop(AF_INET6, sip.bytes, buffer, INET6_ADDRSTRLEN);
+        }
+
+        // Return new string
+        return std::string(buffer);
+    }
+
+    // Check if IP needs to be anonymized
+    if (secMode == CLIENT_SEC_ANON || ( secMode == CLIENT_SEC_GPC_ANON && isDNT )) {
+        // Anonymize (hash) all requests
+        conf::SanitizedIP sip = conf::parseSanitizedClientIP( ipStr );
+        unsigned char result[EVP_MAX_MD_SIZE];
+        unsigned int len = 0;
+
+        size_t byteLen = (sip.family == conf::IPFamily::IPv4) ? 4 : 16;
+
+        // Apply HMAC hash
+        HMAC(
+            EVP_sha256(),
+            conf::IP_HASH_SALT.data(), conf::IP_HASH_SALT.size(),
+            sip.bytes, byteLen,
+            result, &len
+        );
+
+        // Convert to hex
+        std::ostringstream oss;
+        for (unsigned int i = 0; i < len; ++i) {
+            oss << std::hex << std::setw(2) << std::setfill('0')
+                << static_cast<int>(result[i]);
+        }
+
+        // Return hash
+        return oss.str();
+    }
+
+    // Otherwise, cleartext
+    return ipStr;
 }
