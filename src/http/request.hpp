@@ -22,6 +22,7 @@ namespace http {
             inline const std::string& getBody() const { return body; };
             inline const std::string& getVersion() const { return httpVersionStr; };
             int getCompressMethod(const std::string& MIME) const;
+            bool isDNT() const;
 
             void rewriteRawPath(const std::string& newPath);
 

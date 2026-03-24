@@ -19,6 +19,7 @@ All configuration nodes must be wrapped within a singular `<Mercury>` node.
 - [AccessLogFile](#accesslogfile)
 - [ErrorLogFile](#errorlogfile)
 - [ClientSecurityMode](#clientsecuritymode)
+- [ClientSecurityIPSalt](#clientsecurityipsalt)
 
 ### PHP
 - [EnablePHPCGI](#enablephpcgi)
@@ -179,6 +180,17 @@ Example:
 
 ```xml
 <ClientSecurityMode> GPCMasked </ClientSecurityMode>
+```
+
+### ClientSecurityIPSalt
+The salt for the ClientSecurityMode hashing algorithm for anonymous IP addresses.
+
+Default: `fAhGD0OnCe4YhSyx`, although **this value is arbitrary and should be changed for production**
+
+Example:
+
+```xml
+<ClientSecurityIPSalt> CXt6NX36UdsVCl5o </ClientSecurityIPSalt>
 ```
 
 ### EnablePHPCGI

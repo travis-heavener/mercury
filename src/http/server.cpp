@@ -387,7 +387,7 @@ namespace http {
 
                 // Log request
                 ACCESS_LOG << request.getMethodStr() << ' '
-                        << (conf::REDACT_LOG_IPS ? "<Anonymous IP>" : request.getIPStr()) << ' '
+                        << formatClientIP( request.getIPStr(), request.isDNT() ) << ' '
                         << request.getPaths().rawPathFromRequest
                         << " -- (" << pResponse->getStatus() << ") ["
                         << request.getVersion() << ']'

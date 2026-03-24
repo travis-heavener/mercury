@@ -293,8 +293,11 @@ As netizens (*noun*. a user of the internet), it is our due diligence to be awar
 
 The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([wowtravis.com](https://wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf) and to [php.net](https://php.net) on Windows when running the `phpinit` CLI command.
 
-In addition, the Mercury access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs **UNLESS** the RedactLogIPs config variable is set to true (see mercury.conf).
+In addition, the Mercury access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs based on the ClientSecurityMode config setting (see mercury.conf and CONFIG.md).
 Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.
+
+As of v0.31.0, Mercury may be configured to honor DNT/Sec-GPC headers, and is configured by default to bit mask client IPs from DNT/Sec-GPC headers by default.
+Users are encouraged to review CONFIG.md while configuring Mercury as it outlines how to properly configure these security settings.
 
 All of Mercury's source code is freely available for curious users to inspect on GitHub via [https://github.com/travis-heavener/mercury](https://github.com/travis-heavener/mercury).
 

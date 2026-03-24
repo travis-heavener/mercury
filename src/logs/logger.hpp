@@ -81,4 +81,7 @@ class Logger {
         std::thread thread;
 };
 
+// Helper method for formatting client IPs based on the ClientSecurityMode config node
+std::string formatClientIP(const std::string&, const bool isDNT);
+
 #endif

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.31.0
+- Replaced RedactLogIPs with more advanced ClientSecurityMode in config file (#442)
+    - Use ClientSecurityIPSalt to specify the hash salt (HMAC)
+
 ## v0.30.2
 - Fix minor memory leak with version checker (#437)
 - Thread safety improvements to CGI handler fork() calls on Linux (#437)

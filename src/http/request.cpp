@@ -119,6 +119,12 @@ namespace http {
         return NO_COMPRESS;
     }
 
+    bool Request::isDNT() const {
+        const std::optional<std::string> dnt = getHeader("DNT");
+        const std::optional<std::string> gpc = getHeader("Sec-GPC");
+        return ( dnt.has_value() && dnt.value() == "1" ) || ( gpc.has_value() && gpc.value() == "1" );
+    }
+
     void Request::rewriteRawPath(const std::string& newPath) {
         // Redo path logic
         this->_has400Error |= !loadRequestPaths(paths, newPath, true);

@@ -13,6 +13,12 @@
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1
 
+#define CLIENT_SEC_MINIMAL    0
+#define CLIENT_SEC_GPC_MASKED 1
+#define CLIENT_SEC_GPC_ANON   2
+#define CLIENT_SEC_MASKED     3
+#define CLIENT_SEC_ANON       4
+
 #define CONF_FILE "conf/mercury.conf"
 #define MIMES_FILE "conf/mimes.conf"
 #define VERSION_FILE "version.txt"
@@ -22,7 +28,7 @@ typedef unsigned short port_t;
 /****** EXTERNAL FIELDS ******/
 
 namespace conf {
-    
+
     extern std::string VERSION;
     extern std::filesystem::path TMP_PATH;
 
@@ -52,7 +58,8 @@ namespace conf {
 
     extern std::filesystem::path ACCESS_LOG_FILE;
     extern std::filesystem::path ERROR_LOG_FILE;
-    extern bool REDACT_LOG_IPS;
+    extern int CLIENT_SECURITY_MODE;
+    extern std::string IP_HASH_SALT;
 
     extern bool USE_TLS;
     extern port_t TLS_PORT;
