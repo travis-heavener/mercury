@@ -112,7 +112,7 @@ std::string formatClientIP(const std::string& ipStr, const bool isDNT) {
     }
 
     // Check if IP needs to be anonymized
-    if (secMode == CLIENT_SEC_ANON || ( secMode == CLIENT_SEC_GPC_ANON && isDNT )) {
+    if (secMode == CLIENT_SEC_HASHED || ( secMode == CLIENT_SEC_GPC_HASHED && isDNT )) {
         // Anonymize (hash) all requests
         conf::SanitizedIP sip = conf::parseSanitizedClientIP( ipStr );
         unsigned char result[EVP_MAX_MD_SIZE];

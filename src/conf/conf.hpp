@@ -15,9 +15,9 @@
 
 #define CLIENT_SEC_MINIMAL    0
 #define CLIENT_SEC_GPC_MASKED 1
-#define CLIENT_SEC_GPC_ANON   2
+#define CLIENT_SEC_GPC_HASHED 2
 #define CLIENT_SEC_MASKED     3
-#define CLIENT_SEC_ANON       4
+#define CLIENT_SEC_HASHED     4
 
 #define CONF_FILE "conf/mercury.conf"
 #define MIMES_FILE "conf/mimes.conf"
