@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.31.1
+- Updated ClientSecurityMode naming scheme (#449)
+    - Renamed Anonymous/GPCAnonymous to Hashed/GPCHashed
+
 ## v0.31.0
 - Replaced RedactLogIPs with more advanced ClientSecurityMode in config file (#442)
     - Use ClientSecurityIPSalt to specify the hash salt (HMAC)

@@ -709,12 +709,12 @@ namespace conf {
             var = CLIENT_SEC_MINIMAL;
         } else if (valueStr == "GPCMasked") {
             var = CLIENT_SEC_GPC_MASKED;
-        } else if (valueStr == "GPCAnonymous") {
-            var = CLIENT_SEC_GPC_ANON;
+        } else if (valueStr == "GPCHashed") {
+            var = CLIENT_SEC_GPC_HASHED;
         } else if (valueStr == "Masked") {
             var = CLIENT_SEC_MASKED;
-        } else if (valueStr == "Anonymous") {
-            var = CLIENT_SEC_ANON;
+        } else if (valueStr == "Hashed") {
+            var = CLIENT_SEC_HASHED;
         } else {
             std::cerr << "Failed to parse config file, invalid value for ClientSecurityMode." << std::endl;
             return CONF_FAILURE;

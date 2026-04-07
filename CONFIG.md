@@ -170,9 +170,9 @@ Controls how incoming client IP addresses are logged.
 
 - Minimal: doesn't obfuscate **ANY** client IPs from logs
 - GPCMasked: doesn't obfuscate any client IPs from logs **EXCEPT** those with a DNT/Sec-GPC header, zeroing the last few bits (8 for IPv4, 80 for IPv6)
-- GPCAnonymous: same as GPCMasked except DNT/Sec-GPC client IPs are completely anomymized by logging a hash of their IP (useful for rate limiting via hash comparison but doesn't reveal their IP directly)
+- GPCHashed: same as GPCMasked except DNT/Sec-GPC client IPs are completely anomymized by logging a hash of their IP (useful for rate limiting via hash comparison but doesn't reveal their IP directly)
 - Masked: **ALL** client IPs have their last few bits masked in logs (8 for IPv4, 80 for IPv6)
-- Anonymous: **ALL** client IPs are hashed in logs
+- Hashed: **ALL** client IPs are hashed in logs
 
 Default: `GPCMasked`
 
