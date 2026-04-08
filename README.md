@@ -45,7 +45,10 @@
 
 </details>
 
-## About
+<details>
+    <summary>
+        <h2>About</h2>
+    </summary>
 
 Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux\*.
 
@@ -73,6 +76,8 @@ Mercury is a lighter-weight alternative to popular HTTP servers like Apache:
 Each value is the average of five separate trials using the Python test cases in the Mercury repository under `tests`.*
 
 *Actual performance will vary between systems; this data is a baseline.*
+
+</details>
 
 <details>
     <summary>
@@ -300,7 +305,10 @@ If you have Docker installed, you can use the `make docker_tests` recipe to run 
 
 </details>
 
-## Privacy Commitment
+<details>
+    <summary>
+        <h2>Privacy Commitment</h2>
+    </summary>
 
 As netizens (*noun*. a user of the internet), it is our due diligence to be aware of our presence online and to keep our personal information secure.
 
@@ -321,6 +329,8 @@ As such, any update prefixed with v0.X.X (ex. v0.18.2) are pre-release.
 These pre-release versions are not guaranteed to be bug-proof (nor should any software ever claim to be bug-proof).
 
 If you notice any security issues or have a suggestion, please refer to [SECURITY.md](SECURITY.md).
+
+</details>
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)
