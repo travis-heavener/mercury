@@ -73,7 +73,7 @@
                 "versions": [ "0.9" ],
                 "cases": [
                     { "method": "GET", "path": "/index.html", "expectedStatus": -1, "expectedBody": "Mercury is successfully running on your machine", "expectedBodyContainsMode": true },
-                    { "method": "HEAD", "path": "/index.html", "expectedStatus": -1, "expectedBody": "Not Implemented | 501", "expectedBodyContainsMode": true }
+                    { "method": "HEAD", "path": "/index.html", "expectedStatus": -1, "expectedBody": "" }
                 ]
             },
 
@@ -300,9 +300,9 @@
                 "desc": "Access Tests HTTP/0.9",
                 "versions": [ "0.9" ],
                 "cases": [
-                    { "method": "GET", "path": "/index.html", "expectedStatus": -1, "expectedBody": "Forbidden | 403", "expectedBodyContainsMode": true },
-                    { "method": "GET", "path": "/index.php", "expectedStatus": -1, "expectedBody": "Forbidden | 403", "expectedBodyContainsMode": true },
-                    { "method": "GET", "path": "/FOOBAR", "expectedStatus": -1, "expectedBody": "Forbidden | 403", "expectedBodyContainsMode": true }
+                    { "method": "GET", "path": "/index.html", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "/index.php", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "/FOOBAR", "expectedStatus": -1, "expectedBody": "" }
                 ]
             }
         ]

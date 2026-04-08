@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.31.2
+- Now properly closes connections on HTTP/0.9 connections in the event of an error
+    - Previously would send an error page HTML response
+    - Performance boost for HTTP/0.9 errors from not loading error page HTML
+
 ## v0.31.1
 - Updated ClientSecurityMode naming scheme (#449)
     - Renamed Anonymous/GPCAnonymous to Hashed/GPCHashed

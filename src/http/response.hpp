@@ -13,6 +13,10 @@
 #include "body_stream.hpp"
 #include "tools.hpp"
 
+// The default status code for HTTP/0.9 response bodies
+// If this changes, an error has occured
+#define RESPONSE_DEFAULT_STATUS_HTTP_0_9 0
+
 namespace http {
 
     class Response {

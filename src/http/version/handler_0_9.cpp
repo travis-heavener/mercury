@@ -10,16 +10,20 @@ namespace http::version::handler_0_9 {
         // Create Response object
         std::unique_ptr<Response> pResponse = std::unique_ptr<Response>(new Response("HTTP/0.9"));
 
+        // Initialize status to by default
+        // Will be overridden if there are any errors
+        pResponse->setStatus(RESPONSE_DEFAULT_STATUS_HTTP_0_9);
+
         // Check if method is valid
         const METHOD method = request.getMethod();
         if (method != METHOD::GET) {
-            pResponse->loadBodyFromErrorDoc(501); // Not Implemented
+            pResponse->setStatus(501); // Not Implemented
             return pResponse;
         }
 
         // Verify no 400 errors have been met
         if ( request.has400Error() ) {
-            pResponse->loadBodyFromErrorDoc(400);
+            pResponse->setStatus(400);
             return pResponse;
         }
 
@@ -36,14 +40,14 @@ namespace http::version::handler_0_9 {
                     if (pMatch->doesRequestMatch(decodedURI, headers)) {
                         // Verify access is permitted
                         if (!pMatch->getAccessControl()->isIPAccepted(sip)) {
-                            pResponse->loadBodyFromErrorDoc(403);
+                            pResponse->setStatus(403);
                             return pResponse;
                         }
                     }
                 }
             } catch (std::invalid_argument&) {
                 ERROR_LOG << "Invalid IP address while parsing sanitized IP" << std::endl;
-                pResponse->loadBodyFromErrorDoc(500);
+                pResponse->setStatus(500);
                 return pResponse;
             }
         }
@@ -63,13 +67,13 @@ namespace http::version::handler_0_9 {
                 // Attempt to buffer resource
                 if (pResponse->loadBodyFromFile(file) == IO_FAILURE) {
                     ERROR_LOG << "HTTP/0.9 loadBodyFromFile IO failure" << std::endl;
-                    pResponse->loadBodyFromErrorDoc(500);
+                    pResponse->setStatus(500);
                     break;
                 }
                 break;
             }
             default: {
-                pResponse->loadBodyFromErrorDoc(400);
+                pResponse->setStatus(400);
                 break;
             }
         }
