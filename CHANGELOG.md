@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.31.3
+- Improved resilience to path attacks
+    - Now rejects requests with URI-encoded null bytes (%00 and %2500)
+
 ## v0.31.2
 - Now properly closes connections on HTTP/0.9 connections in the event of an error
     - Previously would send an error page HTML response
