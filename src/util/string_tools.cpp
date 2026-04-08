@@ -50,6 +50,11 @@ void decodeURI(std::string& str) {
     size_t index;
     while ((index = str.find('%')) != std::string::npos) {
         if (index + 2 < str.size()) {
+            // Verify not a null byte (%00)
+            if (str[index + 1] == '0' && str[index + 2] == '0')
+                throw std::invalid_argument("");
+
+            // Decode normally
             str.replace(
                 index, 3, 1,
                 static_cast<unsigned char>(std::stoi(str.substr(index + 1, 2), nullptr, 16))
