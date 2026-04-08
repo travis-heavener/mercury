@@ -51,7 +51,7 @@
             },
 
             {
-                "desc": "Test Invalid Methods (HTTP/1.0)",
+                "desc": "Test Invalid Methods & Legacy PHP (HTTP/1.0)",
                 "versions": [ "1.0" ],
                 "cases": [
                     { "method": "GET", "path": "/", "expectedStatus": 200 },
@@ -64,7 +64,9 @@
                     { "method": "PATCH", "path": "/", "expectedStatus": 501 },
                     { "method": "DELETE", "path": "/", "expectedStatus": 501 },
                     { "method": "FOO", "path": "/", "expectedStatus": 501 },
-                    { "method": "FOO", "path": "/foo-bar", "expectedStatus": 501 }
+                    { "method": "FOO", "path": "/foo-bar", "expectedStatus": 501 },
+
+                    { "method": "GET", "path": "/index.php", "expectedStatus": 403 }
                 ]
             },
 
@@ -73,7 +75,8 @@
                 "versions": [ "0.9" ],
                 "cases": [
                     { "method": "GET", "path": "/index.html", "expectedStatus": -1, "expectedBody": "Mercury is successfully running on your machine", "expectedBodyContainsMode": true },
-                    { "method": "HEAD", "path": "/index.html", "expectedStatus": -1, "expectedBody": "" }
+                    { "method": "HEAD", "path": "/index.html", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "/index.php", "expectedStatus": -1, "expectedBody": "" }
                 ]
             },
 
@@ -211,7 +214,7 @@
                     { "method": "HEAD", "path": "/", "expectedStatus": 406, "headers": {"Accept": "foobar;bar,;123"} },
                     { "method": "HEAD", "path": "/", "expectedStatus": 200, "headers": {"Accept": "text/html; charset=UTF-8; foo=bar; q=1"} },
 
-                    { "method": "GET", "path": "/index.php", "expectedStatus": 200, "expectedHeaders": {"X-Match-Test-Header": false} },
+                    { "method": "GET", "path": "/A.txt", "expectedStatus": 200, "expectedHeaders": {"X-Match-Test-Header": false} },
                     { "method": "GET", "path": "/index.html", "expectedStatus": 200, "expectedHeaders": {"X-Match-Test-Header": "1"} }
                 ]
             },

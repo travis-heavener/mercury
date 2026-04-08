@@ -4,6 +4,8 @@
 - Now properly closes connections on HTTP/0.9 connections in the event of an error
     - Previously would send an error page HTML response
     - Performance boost for HTTP/0.9 errors from not loading error page HTML
+- Address security hole from using PHP w/ legacy HTTP versions
+    - Now returns 403 Forbidden (HTTP/1.0) or closes the connection (HTTP/0.9)
 
 ## v0.31.1
 - Updated ClientSecurityMode naming scheme (#449)

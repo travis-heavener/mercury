@@ -61,6 +61,12 @@ namespace http::version::handler_0_9 {
         if (!request.isFileValid(*pResponse, file))
             return pResponse;
 
+        // Prevent returning static PHP files over legacy HTTP protocols
+        if (conf::IS_PHP_ENABLED && file.absoluteResourcePath.ends_with(".php")) {
+            pResponse->setStatus(403);
+            return pResponse;
+        }
+
         // Switch on method
         switch (request.getMethod()) {
             case METHOD::GET: {
