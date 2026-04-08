@@ -39,7 +39,13 @@ class TestCase:
             else:
                 self.headers[ku] = v
 
-        self.headers["HOST"] = "localhost"
+        # Check if Host header is already set
+        if "HOST" not in self.headers:
+            self.headers["HOST"] = "localhost"
+        elif self.headers["HOST"] == "":
+            # Remove Host header if blank (for HTTP/1.1 tests)
+            self.headers.pop("HOST")
+
         self.headers["USER-AGENT"] = "Mercury Test Agent"
 
         if len(self.body) > 0:
@@ -142,7 +148,7 @@ class TestCase:
                         self.inline_desc()
                     )
                     return False
-                elif v is not None and k in headers and headers[k] != v:
+                elif v is not True and k in headers and headers[k] != v:
                     lprint(
                         f"Failed {test_desc}: Header mismatch - expected \"{k}\"=\"{v}\", got \"{k}\"=\"{headers[k]}\"\n",
                         self.inline_desc()
