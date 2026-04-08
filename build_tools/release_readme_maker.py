@@ -7,6 +7,15 @@ This file formats the README into a plaintext-compatible version for releases.
 from sys import argv
 import re
 
+def remove_collapsibles(body: str) -> str:
+    body = re.sub( 
+        r"<details>\s*<summary>\s*<h2>(.*?)</h2>\s*</summary>\s*(.*?)\s*</details>",
+        r"## \1\n\n\2",
+        body,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    return body
+
 def remove_until_section(body: str, header: str) -> str:
     # Find start of section
     start = re.search(rf"^## {header}", body, flags=re.MULTILINE)
@@ -61,6 +70,9 @@ def main(path: str):
     # Read
     with open(path, "r") as f:
         body = f.read()
+
+    # Undo collapsible formatting
+    body = remove_collapsibles(body)
 
     # Replace first section
     body = remove_until_section(body, "Table of Contents")

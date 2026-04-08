@@ -16,7 +16,10 @@
 
 ---
 
-## Table of Contents
+<details>
+    <summary>
+        <h2>Table of Contents</h2>
+    </summary>
 
 - [About](#about)
     - [Performance](#performance)
@@ -39,6 +42,8 @@
 - [Credits](#credits)
 - [Fun Facts](#fun-facts)
 - [Support Mercury](#support-mercury)
+
+</details>
 
 ## About
 
@@ -69,7 +74,10 @@ Each value is the average of five separate trials using the Python test cases in
 
 *Actual performance will vary between systems; this data is a baseline.*
 
-## Getting Started
+<details>
+    <summary>
+        <h2>Getting Started</h2>
+    </summary>
 
 Once you've downloaded your own Mercury release, navigate to the `bin/` directory.
 From the terminal, start `mercury` on Linux or `mercury.exe` on Windows.
@@ -191,7 +199,12 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 
 If you encounter any other issues or unexpected behavior, please consider opening an Issue on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury/issues/new/choose).
 
-## For Developers
+</details>
+
+<details>
+    <summary>
+        <h2>For Developers</h2>
+    </summary>
 
 Currently, the Mercury development environment is only available on Linux environments that support APT, Pacman, or DNF.
 **Windows is not recognized as a development environment and as such the following steps will not work as intended (if at all).**
@@ -284,6 +297,8 @@ Because Docker installation methods vary wildly between Linux distributions, it 
 Refer to the [DockerDocs](https://docs.docker.com/engine/install/) for your specific distro's install guide.
 
 If you have Docker installed, you can use the `make docker_tests` recipe to run the Python test script against a number of Linux distributions.
+
+</details>
 
 ## Privacy Commitment
 
