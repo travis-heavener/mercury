@@ -88,7 +88,7 @@ class TestCase:
             body = raw.decode("utf-8").replace("\r", "")
 
             # Verify something is returned
-            if len(raw) == 0:
+            if len(raw) == 0 and len(self.body_match) > 0:
                 lprint(f"Failed {test_desc}: Empty response to HTTP/0.9\n", self.inline_desc())
                 return False
 

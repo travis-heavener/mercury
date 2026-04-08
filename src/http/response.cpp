@@ -189,6 +189,13 @@ namespace http {
 
         // Handle HTTP/0.9 unique format
         if (this->httpVersion == "HTTP/0.9") {
+            // Verify status is unset (only set by errors)
+            if (statusCode != RESPONSE_DEFAULT_STATUS_HTTP_0_9) {
+                // Signal the server to close the connection
+                // By returning < 0
+                return -1;
+            }
+
             // Send chunks
             while (true) {
                 size_t bytesRead = pBodyStream->read(readChunk.data(), conf::RESPONSE_BUFFER_SIZE);
@@ -265,6 +272,7 @@ namespace http {
         } else if (originalByteRanges.size() > 1) {
             // Remove Content-Encoding for multipart byte ranges
             // UNIMPLEMENTED
+            ERROR_LOG << "Unimplemented - multipart byte ranges" << std::endl;
             clearHeader("Content-Encoding");
         }
 

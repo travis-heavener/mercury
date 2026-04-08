@@ -120,7 +120,11 @@ Example:
 ```
 
 ### EnableLegacyHTTPVersions
-Enables or disables legacy HTTP versions (HTTP/0.9, HTTP/1.0)
+Enables or disables legacy HTTP versions (HTTP/0.9, HTTP/1.0).
+
+Note that the minimum HTTP version supported for PHP responses is HTTP/1.1.
+**When PHP is enabled** and the client requests a PHP file on HTTP/0.9, the connection is closed, and on HTTP/1.0 a 403 Forbidden status is returned.
+This prevents leaking sensitive PHP source code as static files, however if PHP is disabled then PHP source files are returned in responses **regardless of HTTP version**.
 
 Default: `on`
 
