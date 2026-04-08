@@ -132,7 +132,7 @@
             },
 
             {
-                "desc": "Path Tests & CRLF Injection",
+                "desc": "Path Tests & CRLF Injection (HTTP/1.x)",
                 "versions": [ "1.0", "1.1" ],
                 "cases": [
                     { "method": "HEAD", "path": ".", "expectedStatus": 400 },
@@ -164,6 +164,42 @@
                     { "method": "HEAD", "path": "", "expectedStatus": 400 },
                     { "method": "HEAD", "path": " ", "expectedStatus": 505 },
                     { "method": "HEAD", "path": "?", "expectedStatus": 400 }
+                ]
+            },
+
+            {
+                "desc": "Path Tests & CRLF Injection (HTTP/0.9)",
+                "versions": [ "0.9" ],
+                "cases": [
+                    { "method": "GET", "path": ".", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "../", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "..\\", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "/../", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "\\..\\", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "%2e%2e%2f", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "%2e%2e%5c", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "%2e%2e/", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "%2e%2e\\", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "..%2f", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "..%5c", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "%252e%252e%255c", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "..%255c", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "/index.html%", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "%00/index.html", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "/%00/index.html", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "/%00", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "/%2500", "expectedStatus": -1, "expectedBody": "" },
+
+                    { "method": "GET", "path": "\\index.html", "expectedStatus": -1, "expectedBody": "Mercury is successfully running on your machine.", "expectedBodyContainsMode": true },
+                    { "method": "GET", "path": "\\\\index.html", "expectedStatus": -1, "expectedBody": "Mercury is successfully running on your machine.", "expectedBodyContainsMode": true },
+                    { "method": "GET", "path": "//index.html", "expectedStatus": -1, "expectedBody": "Mercury is successfully running on your machine.", "expectedBodyContainsMode": true },
+
+                    { "method": "GET", "path": "/%0D%0A", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": "/index.html?q=%0D%0A", "expectedStatus": -1, "expectedBody": "Mercury is successfully running on your machine.", "expectedBodyContainsMode": true },
+
+                    { "method": "GET", "path": "", "expectedStatus": -1, "expectedBody": "" },
+                    { "method": "GET", "path": " ", "expectedStatus": -1, "expectedBody": "HTTP/1.1 505 HTTP Version Not Supported", "expectedBodyContainsMode": true },
+                    { "method": "GET", "path": "?", "expectedStatus": -1, "expectedBody": "" }
                 ]
             },
 
