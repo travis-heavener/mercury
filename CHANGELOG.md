@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.31.4
+- Bump OpenSSL to v3.6.2 (#459)
+
 ## v0.31.3
 - Improved resilience to path attacks
     - Now rejects requests with URI-encoded null bytes (%00 and %2500)
