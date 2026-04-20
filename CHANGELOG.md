@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.31.5
+- Bump OpenSSL to v4.0.0 (#460)
+
 ## v0.31.4
 - Bump OpenSSL to v3.6.2 (#459)
 
