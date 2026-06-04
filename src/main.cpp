@@ -168,6 +168,8 @@ int main(int argc, char* argv[]) {
         try {
             if (latestVersion.length() > 0 && conf::isVersionOutdated(latestVersion))
                 std::cout << "Update available! (" << latestVersion.substr(8) << ")\nVisit https://wowtravis.com/mercury" << std::endl;
+            else if (latestVersion.length() == 0)
+                std::cerr << "Failed to fetch latest version!" << std::endl;
         } catch (std::invalid_argument&) {
             std::cout << "Failed to compare local and remote versions!" << std::endl;
         }

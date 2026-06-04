@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.31.6
+- Fix segmentation fault when fetching latest version w/o active internet connection (#464)
+
 ## v0.31.5
 - Bump OpenSSL to v4.0.0 (#460)
 
