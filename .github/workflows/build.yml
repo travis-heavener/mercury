@@ -20,7 +20,7 @@ jobs:
   Build:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       # Cache build outputs by commit hash
       - name: Cache Linux Binaries (Overwritten by Make -B Don't Worry)
