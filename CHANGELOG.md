@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.31.8
+- Bump PugiXML to v1.16 (#469)
+
 ## v0.31.7
 - Bump OpenSSL to v4.0.1 (#467)
 
