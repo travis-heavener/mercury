@@ -14,16 +14,16 @@ jobs:
     outputs:
       hit: ${{ steps.check.outputs.hit }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Restore Linux Binaries
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ./bin/mercury
           key: mercury-linux-binaries-${{ github.sha }}
 
       - name: Restore Windows Binaries
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ./bin/mercury.exe
           key: mercury-windows-binaries-${{ github.sha }}
@@ -31,7 +31,7 @@ jobs:
 
       - name: Restore Libs
         id: lib-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ./libs
           key: >-
@@ -76,7 +76,7 @@ jobs:
           app-id: ${{ vars.MERCURY_BOT_APP_ID }}
           private-key: ${{ secrets.MERCURY_BOT_KEY }}
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           token: ${{ steps.app-token.outputs.token }}
           fetch-depth: 0
@@ -89,13 +89,13 @@ jobs:
 
       # Download binaries & static libs
       - name: Restore Linux Binaries
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ./bin/mercury
           key: mercury-linux-binaries-${{ github.sha }}
 
       - name: Restore Windows Binaries
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ./bin/mercury.exe
           key: mercury-windows-binaries-${{ github.sha }}
@@ -108,7 +108,7 @@ jobs:
           chmod +x ./build_tools/tools/*
 
       - name: Restore Cached Libs
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ./libs
           key: >-
