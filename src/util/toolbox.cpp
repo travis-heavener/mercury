@@ -55,8 +55,21 @@ void formatDate(std::filesystem::file_time_type dur, std::string& buffer) {
     buffer = ss.str();
 }
 
+// Loads a status or error document, attempting to lookup custom ones provided
+//  by the user in the document root (e.g. /404.html, /500.htm).
 int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) {
-    const std::filesystem::path templatePath = conf::CWD / "conf/html/err.html";
+    // Attempt to locate custom user-provided status document
+    const std::string userFilename = std::to_string(status) + ".html";
+    std::filesystem::path templatePath = conf::DOCUMENT_ROOT / userFilename;
+    bool isUserProvidedPath = false;
+
+    if ( std::filesystem::is_regular_file(templatePath) ) {
+        // Mark status doc as user-provided to prevent checking escape sequences
+        isUserProvidedPath = true;
+    } else {
+        // Use default template path
+        templatePath = conf::CWD / "conf/html/err.html";
+    }
 
     // Open file
     std::ifstream handle( templatePath.string(), std::ios::binary );
@@ -83,6 +96,12 @@ int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) 
     while (!handle.eof()) {
         handle.read(buffer.data(), bufferSize);
         const size_t bytesRead = handle.gcount();
+
+        // Skip escape checking for user-provided status documents
+        if (isUserProvidedPath) {
+            tmpHandle.write(buffer.data(), bytesRead);
+            continue;
+        }
 
         // Check for % escaped chars
         size_t offset = 0;
