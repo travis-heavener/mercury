@@ -38,7 +38,7 @@ case "$PKG_MGR" in
         python3 -m pip install brotli zstandard psutil &>/dev/null
         ;;
     *)
-        echo "Unknown package manager: $PKG_MGR" >&2
+        echo "Unsupported package manager: $PKG_MGR" >&2
         exit 1
         ;;
 esac

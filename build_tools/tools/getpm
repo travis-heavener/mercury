@@ -8,5 +8,5 @@ elif command -v pacman >/dev/null 2>&1; then
 elif command -v dnf >/dev/null 2>&1; then
     echo "dnf"
 else
-    echo "unknown"
+    echo "unsupported"
 fi
