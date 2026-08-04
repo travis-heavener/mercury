@@ -6,6 +6,7 @@
         - E.g. /500.html, /403.html
     - File extensions for supported status documents must be .html files
     - Files must be immediate children under the document root
+- Add EnableCustomStatusDocs config node to toggle support for aforementioned custom status pages (#448)
 
 ## v0.31.8
 - Bump PugiXML to v1.16 (#469)

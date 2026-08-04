@@ -46,6 +46,7 @@ namespace conf {
     extern unsigned int MIN_COMPRESSION_SIZE;
 
     extern bool ENABLE_LEGACY_HTTP;
+    extern bool ENABLE_CUSTOM_STATUS_DOCS;
     extern unsigned short MAX_REQUEST_BACKLOG;
     extern unsigned int MAX_REQUEST_LINE_LENGTH;
     extern unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;

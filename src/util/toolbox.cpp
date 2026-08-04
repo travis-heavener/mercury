@@ -63,7 +63,7 @@ int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) 
     std::filesystem::path templatePath = conf::DOCUMENT_ROOT / userFilename;
     bool isUserProvidedPath = false;
 
-    if ( std::filesystem::is_regular_file(templatePath) ) {
+    if ( conf::ENABLE_CUSTOM_STATUS_DOCS && std::filesystem::is_regular_file(templatePath) ) {
         // Mark status doc as user-provided to prevent checking escape sequences
         isUserProvidedPath = true;
     } else {
