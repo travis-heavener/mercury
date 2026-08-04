@@ -40,6 +40,7 @@ All configuration nodes must be wrapped within a singular `<Mercury>` node.
 - [KeepAlive](#keepalive)
 - [KeepAliveMaxTimeout](#keepalivemaxtimeout)
 - [KeepAliveMaxRequests](#keepalivemaxrequests)
+- [EnableCustomStatusDocs](#enablecustomstatusdocs)
 
 ### File & Socket I/O
 - [IndexFiles](#indexfiles)
@@ -419,6 +420,20 @@ Example:
 
 ```xml
 <KeepAliveMaxRequests> 100 </KeepAliveMaxRequests>
+```
+
+### EnableCustomStatusDocs
+When enabled, overrides default HTTP status & error documents with user-defined ones.
+Custom status documents must be immediate children of the document root and must have the ".html" extension.
+
+Each status document should be named with the 3-digit HTTP status code, such as `/500.html`, `/404.html`, and so forth.
+
+Default: `on`
+
+Example:
+
+```xml
+<EnableCustomStatusDocs> on </EnableCustomStatusDocs>
 ```
 
 ### MaxRequestLineLength

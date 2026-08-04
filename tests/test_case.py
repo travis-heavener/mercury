@@ -184,7 +184,7 @@ class TestCase:
             # Check content encoding
             if "CONTENT-ENCODING" in self.expected_headers and self.expected_headers["CONTENT-ENCODING"] is not None and self.expected_headers["CONTENT-ENCODING"] != False:
                 script_dir = pathlib.Path(__file__).parent.resolve()
-                path = script_dir.joinpath("files").joinpath(self.path[1:])
+                path = script_dir.joinpath("root").joinpath(self.path[1:])
                 if not self._verify_decode( path, body, self.expected_headers["CONTENT-ENCODING"] ):
                     lprint(
                         f"Failed {test_desc}: Content-Encoding decode failed ({self.expected_headers['CONTENT-ENCODING']})\n",

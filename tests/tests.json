@@ -259,6 +259,14 @@
             },
 
             {
+                "desc": "Test w/o Custom Status Documents",
+                "versions": [ "1.0", "1.1" ],
+                "cases": [
+                    { "method": "GET", "path": "/foobar", "expectedStatus": 404, "expectedBody": "Mercury", "expectedBodyContainsMode": true }
+                ]
+            },
+
+            {
                 "desc": "Misc. Statuses",
                 "versions": [ "1.0", "1.1" ],
                 "cases": [
@@ -523,6 +531,21 @@
                 "cases": [
                     { "method": "GET", "path": "/index.php", "expectedStatus": -1, "expectedBody": "Your Mercury installation is successfully parsing PHP via CGI.", "expectedBodyContainsMode": true },
                     { "method": "GET", "path": "/path_info_test.php", "expectedStatus": -1, "expectedBody": "echo $_SERVER[\"PATH_INFO\"];", "expectedBodyContainsMode": true }
+                ]
+            }
+        ]
+    },
+    {
+        "desc": "Custom Status Documents Tests",
+        "confFile": "status-docs.conf",
+        "cases": [
+            {
+                "desc": "HTTP/1.x Tests",
+                "versions": [ "1.0", "1.1" ],
+                "cases": [
+                    { "method": "GET", "path": "/404.html", "expectedStatus": 200, "expectedBody": "UniQue StrInG" },
+                    { "method": "GET", "path": "/foo-bar", "expectedStatus": 404, "expectedBody": "UniQue StrInG" },
+                    { "method": "GET", "path": "/path/that/doesnt/exist", "expectedStatus": 404, "expectedBody": "UniQue StrInG" }
                 ]
             }
         ]

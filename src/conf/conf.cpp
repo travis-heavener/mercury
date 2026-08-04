@@ -34,6 +34,7 @@ namespace conf {
     unsigned int MIN_COMPRESSION_SIZE;
 
     bool ENABLE_LEGACY_HTTP;
+    bool ENABLE_CUSTOM_STATUS_DOCS;
     unsigned short MAX_REQUEST_BACKLOG;
     unsigned int MAX_REQUEST_LINE_LENGTH;
     unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
@@ -75,7 +76,7 @@ namespace conf {
 
     const std::vector<std::string> mercuryNodeNames = {
         "DocumentRoot", "BindAddressIPv4", "BindAddressIPv6", "Port", "TLSPort", "Redirect", "Rewrite",
-        "AccessLogFile", "ErrorLogFile", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "WinPHPCGIPath", "EnableLegacyHTTPVersions",
+        "AccessLogFile", "ErrorLogFile", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "WinPHPCGIPath", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
         "MinResponseCompressionSize", "IdleThreadsPerChild", "MaxThreadsPerChild", "ShowWelcomeBanner", "ShowDonationBanner", "StartupCheckLatestRelease"
@@ -190,6 +191,9 @@ namespace conf {
         /************ LOAD BOOLEANS ************/
 
         if (loadOnOff(root, ENABLE_LEGACY_HTTP, "EnableLegacyHTTPVersions") == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadOnOff(root, ENABLE_CUSTOM_STATUS_DOCS, "EnableCustomStatusDocs") == CONF_FAILURE)
             return CONF_FAILURE;
 
         if (loadOnOff(root, IS_PHP_ENABLED, "EnablePHPCGI") == CONF_FAILURE)

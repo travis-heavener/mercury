@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.32.0
+- Add support for custom HTTP status & error pages (#448)
+    - Each status document must be named as the 3-digit HTTP status code you'd like to override
+        - E.g. /500.html, /403.html
+    - File extensions for supported status documents must be .html files
+    - Files must be immediate children under the document root
+- Add EnableCustomStatusDocs config node to toggle support for aforementioned custom status pages (#448)
+
 ## v0.31.8
 - Bump PugiXML to v1.16 (#469)
 
