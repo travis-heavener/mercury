@@ -73,7 +73,7 @@ jobs:
       - uses: actions/create-github-app-token@v3
         id: app-token
         with:
-          app-id: ${{ vars.MERCURY_BOT_APP_ID }}
+          client-id: ${{ vars.MERCURY_BOT_APP_ID }}
           private-key: ${{ secrets.MERCURY_BOT_KEY }}
 
       - uses: actions/checkout@v7
