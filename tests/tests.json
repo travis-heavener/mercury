@@ -526,5 +526,20 @@
                 ]
             }
         ]
+    },
+    {
+        "desc": "Custom Status Documents Tests",
+        "confFile": "status-docs.conf",
+        "cases": [
+            {
+                "desc": "HTTP/1.x Tests",
+                "versions": [ "1.0", "1.1" ],
+                "cases": [
+                    { "method": "GET", "path": "/404.html", "expectedStatus": 200, "expectedBody": "UniQue StrInG" },
+                    { "method": "GET", "path": "/foo-bar", "expectedStatus": 404, "expectedBody": "UniQue StrInG" },
+                    { "method": "GET", "path": "/path/that/doesnt/exist", "expectedStatus": 404, "expectedBody": "UniQue StrInG" }
+                ]
+            }
+        ]
     }
 ]
