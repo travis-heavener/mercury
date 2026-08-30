@@ -7,10 +7,10 @@ If you'd like to go rogue and make your own Issue without a template that is all
 Please make use of available labels for Issues and Pull Requests, they exist for a reason.
 
 ## Branch Cleanup
-When closing a Pull Request, it is encouraged that you delete your branch from the remote (GitHub).
-While this isn't a hard *requirement*, it is strongly encouraged as it improves the clarity of what branches are open or not.
+When closing a Pull Request, it is encouraged that you delete your branch from GitHub.
+While this isn't a hard *requirement*, it is strongly encouraged as it improves the clarity as to what branches are actively being worked on.
 
-Committing directly to main is disabled, so you must create a Pull Request for every change you'd like to make to main.
+Committing directly to main is disabled, you must open a Pull Request instead.
 
 ## Reviewing Pull Requests
 In general, Pull Requests must pass all tests that are applicable.
