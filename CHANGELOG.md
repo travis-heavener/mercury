@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.32.1
+- Bump OpenSSL to v4.0.2 (#475)
+- README improvements
+
 ## v0.32.0
 - Add support for custom HTTP status & error pages (#448)
     - Each status document must be named as the 3-digit HTTP status code you'd like to override
