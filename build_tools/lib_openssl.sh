@@ -69,7 +69,7 @@ mv "openssl-$version-linux/LICENSE.txt" ../licenses/OpenSSL_LICENSE.txt
 (
     cd "openssl-$version-linux"
 
-    ./Configure linux-x86_64 no-shared no-dso no-asm no-ssl3 no-comp no-tests no-docs no-legacy --prefix="$LIB_PATH/openssl/linux" 1> /dev/null
+    ./Configure linux-x86_64 no-shared no-dso no-asm no-comp no-tests no-docs no-legacy --prefix="$LIB_PATH/openssl/linux" 1> /dev/null
     make -j$(nproc) &>/dev/null
     make install_sw &>/dev/null
 
@@ -83,7 +83,7 @@ if [ "$LINUX_ONLY" != "1" ]; then
     (
         cd "openssl-$version-windows"
 
-        ./Configure mingw64 no-shared no-dso no-asm no-ssl3 no-comp no-tests no-docs no-legacy --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" 1> /dev/null
+        ./Configure mingw64 no-shared no-dso no-asm no-comp no-tests no-docs no-legacy --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" 1> /dev/null
         make -j$(nproc) &>/dev/null
         make install_sw &>/dev/null
 
