@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.32.2
+- Bump OpenSSL to v4.0.3 (#478)
+
 ## v0.32.1
 - Bump OpenSSL to v4.0.2 (#475)
 - README improvements
