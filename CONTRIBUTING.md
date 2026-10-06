@@ -19,3 +19,17 @@ Each PR should ideally be reviewed by a third-party, unless approved by [@travis
 
 Like Issues, the proper labels should be applied.
 
+## Tests
+For bug fixes and behavior changes, add a focused test that would catch the issue again.
+Prefer adding a case to `tests/tests.json`; use `tests/regressions.py` when checking exact protocol bytes, binary payloads, or connection behavior requires direct socket control.
+Both run through the same `tests/run.py` entry point in Build & Test on Linux and Windows.
+
+See [tests/README.md](tests/README.md) for prerequisites, the JSON format, and examples.
+Run the complete suite locally before opening a Pull Request, and check the platform workflow results before merging.
+
+## Version Updates
+When preparing a release, add a new `## vX.Y.Z` entry at the top of [CHANGELOG.md](CHANGELOG.md), following its existing bullet format.
+Set `version.txt` to the matching `Mercury vX.Y.Z` without a trailing newline.
+The Compare Changelog Version workflow checks that these versions match.
+The release workflow generates the downloads website's version metadata when the release is built.
+

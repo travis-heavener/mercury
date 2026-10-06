@@ -1,5 +1,5 @@
 import brotli
-from datetime import datetime, timezone
+from datetime import datetime
 import io
 import json
 import pathlib
@@ -9,8 +9,6 @@ import zlib
 import zstandard as zstd
 
 READ_BUF_SIZE = 1024 * 16 # Read buffer size for recv
-
-gmt_now = lambda: datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
 
 print_lock = Lock()
 def lprint(*args: list[any]):
@@ -29,7 +27,7 @@ class TestCase:
 
         # Format headers
         self.headers = {}
-        for k, v in headers.items():
+        for k, v in (headers or {}).items():
             ku = k.upper()
             if ku in self.headers:
                 if ku == "ACCEPT" or ku == "ACCEPT-ENCODING":
@@ -49,7 +47,7 @@ class TestCase:
         self.headers["USER-AGENT"] = "Mercury Test Agent"
 
         if len(self.body) > 0:
-            self.headers["Content-Length"] = f"{len(self.body)}"
+            self.headers["Content-Length"] = str(len(self.body.encode("utf-8")))
 
         # Format expected_headers
         expected_headers = {} if expected_headers is None else expected_headers
@@ -74,7 +72,7 @@ class TestCase:
 
         if len(self.expected_headers): s += "  Expected Res. Headers:\n"
         for k, v in self.expected_headers.items():
-            s += f"    {k}: {'<any>' if v is None else '<unset>' if v == False else v}\n"
+            s += f"    {k}: {'<any>' if v is True else '<unset>' if v == False else v}\n"
 
         # Return everything except extra newline
         return s[:-1]
@@ -85,10 +83,17 @@ class TestCase:
         if self.https_only and "SSL" not in test_desc: return True
 
         # Send payload
+        s.settimeout(5)
         s.sendall(str(self).encode("utf-8"))
 
         # Read response
         raw = s.recv(READ_BUF_SIZE)
+        if self.version != "HTTP/0.9":
+            while b"\r\n\r\n" not in raw:
+                chunk = s.recv(READ_BUF_SIZE)
+                if not chunk:
+                    raise ConnectionError("Truncated response headers")
+                raw += chunk
 
         if self.version == "HTTP/0.9":
             body = raw.decode("utf-8").replace("\r", "")
@@ -181,8 +186,8 @@ class TestCase:
                     )
                     return False
 
-            # Check content encoding
-            if "CONTENT-ENCODING" in self.expected_headers and self.expected_headers["CONTENT-ENCODING"] is not None and self.expected_headers["CONTENT-ENCODING"] != False:
+            # Decode only when a specific encoding is expected; True checks presence only.
+            if isinstance(self.expected_headers.get("CONTENT-ENCODING"), str):
                 script_dir = pathlib.Path(__file__).parent.resolve()
                 path = script_dir.joinpath("root").joinpath(self.path[1:])
                 if not self._verify_decode( path, body, self.expected_headers["CONTENT-ENCODING"] ):
@@ -198,6 +203,8 @@ class TestCase:
     # Stringify the test case
     def __str__(self) -> str:
         if self.version == "HTTP/0.9":
+            # Keep the original terminator for existing malformed-request cases.
+            # regressions.py separately checks proper one-line HTTP/0.9 framing.
             return f"{self.method} {self.path}\r\n\r\n"
         else:
             s = f"{self.method} {self.path} {self.version}\r\n"
@@ -231,6 +238,12 @@ class TestCase:
         return False
 
 # Used to read the entire body including over transfer encoding
+def recv_body_bytes(s: socket.socket) -> bytes:
+    data = s.recv(READ_BUF_SIZE)
+    if not data:
+        raise ConnectionError("Connection closed before the response body was complete")
+    return data
+
 def read_body(s: socket.socket, headers: dict, raw: bytes) -> tuple[bytes, bool]:
     # Check for content length
     if "CONTENT-LENGTH" in headers:
@@ -239,7 +252,7 @@ def read_body(s: socket.socket, headers: dict, raw: bytes) -> tuple[bytes, bool]
 
         start = datetime.now().timestamp()
         while len(body) < content_len:
-            body += s.recv(READ_BUF_SIZE)
+            body += recv_body_bytes(s)
             if len(body) < content_len and datetime.now().timestamp() > start + 5:
                 return (body, False) # Handle connection timeout
 
@@ -254,14 +267,14 @@ def read_body(s: socket.socket, headers: dict, raw: bytes) -> tuple[bytes, bool]
             # Read octet size
             size_index = buf.find(b"\r\n")
             while size_index == -1:
-                buf += s.recv(READ_BUF_SIZE)
+                buf += recv_body_bytes(s)
                 size_index = buf.find(b"\r\n")
             size = int(buf[ :size_index ].decode("utf-8"), 16)
 
             # Determine end of body
             end_of_chunk = size_index + 2 + size + 2
             while len(buf) < end_of_chunk:
-                buf += s.recv(READ_BUF_SIZE)
+                buf += recv_body_bytes(s)
 
             # Append body
             body += buf[ size_index+2 : end_of_chunk-2 ]
@@ -311,6 +324,7 @@ def load_runs() -> list[TestCase]:
         runs.append({
             "desc": run["desc"],
             "conf_file": run["confFile"],
+            "wire_regressions": run.get("wireRegressions", False),
             "cases": cases
         })
 

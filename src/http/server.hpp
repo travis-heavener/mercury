@@ -58,12 +58,10 @@ namespace http {
             void getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections);
         protected:
             // Socket methods
-            void clearBuffer(std::vector<char>&);
             ssize_t readClientSock(char*, const int, SSL*);
             ssize_t writeClientSock(const int, SSL*, const char*, const size_t);
             int closeSocket(const int);
             int closeClientSocket(const int, SSL*);
-            void drainClientSocket(const int, SSL*, size_t);
 
             // Request loop helper methods
             void extractClientIP(struct sockaddr_storage&, char*) const;
@@ -71,12 +69,12 @@ namespace http {
             int acceptConnection(struct sockaddr_storage&, socklen_t&);
 
             // Client socket tracking methods
-            void trackClient(const int);
+            bool trackClient(const int);
             void untrackClient(const int);
 
             // Protected fields
             const port_t port;
-            int sock = SOCKET_UNSET;
+            std::atomic<int> sock{SOCKET_UNSET};
             std::unordered_set<int> clientSocks;
 
             // For multithreading

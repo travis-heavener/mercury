@@ -229,6 +229,8 @@ Match allows individual file/directory control over resource access via regex ma
 
 Note that the pattern matches the URI w/o the query string from the HTTP request, NOT an absolute path.
 
+The URI is percent-decoded once before matching. Backslashes and repeated slashes are normalized to forward slashes, and single-dot path segments are removed before access checks. Parent-directory segments (`..`), malformed percent escapes, and decoded control characters are rejected. A double-encoded escape remains literal text after the single decoding pass (e.g. `%2520` becomes `%20`, not a space).
+
 Default: `on`
 
 Example:
@@ -362,7 +364,7 @@ You can use capture groups like $1 and $2 to reference specific capture groups i
 
 Note A: the "to" attribute is NOT a regular expression, but does support referencing capture groups from the pattern.
 
-Note B: the pattern attribute does NOT capture query strings. Query strings are preserved from the original request.
+Note B: the pattern attribute matches the decoded, normalized URI and does NOT capture query strings. Query strings are preserved in their original encoded form, so `%26` stays `%26` rather than becoming a new parameter separator.
 
 The example below permanently redirects any HTML files in any directory under /foo/bar to the corresponding HTML file and directory in /baz/qux (see commented-out example below).
 
@@ -379,7 +381,7 @@ You can use capture groups like $1 and $2 to reference specific capture groups i
 
 Note A: the "to" attribute is NOT a regular expression, but does support referencing capture groups from the pattern.
 
-Note B: the pattern attribute does NOT capture query strings. Query strings are preserved from the original request.
+Note B: the pattern attribute matches the decoded, normalized URI and does NOT capture query strings. Query strings are preserved in their original encoded form, so `%26` stays `%26` rather than becoming a new parameter separator. Rewrites do not percent-decode the replacement path again.
 
 The example below rewrites traffic to any HTML files in any directory under /foo/bar to the corresponding HTML file and directory in /baz/qux (see commented-out example below).
 
@@ -390,7 +392,11 @@ Example:
 ```
 
 ### KeepAlive
-Controls whether or not to honor keep-alive headers in requests to maintain a connection that later requests can come through.
+Controls whether connections may remain open for later requests.
+
+When enabled, HTTP/1.1 connections are persistent by default; HTTP/1.0 requests must explicitly include the `keep-alive` Connection option. Option names are case-insensitive, and `close` takes precedence over `keep-alive`, including across repeated Connection headers. HTTP/0.9 connections close after the response.
+
+When disabled, connections close after each response. KeepAliveMaxTimeout and KeepAliveMaxRequests still limit persistence when enabled.
 
 Default: `on`
 
@@ -463,6 +469,8 @@ Example:
 ### RequestBufferSize
 Specifies how large the read buffer is for requests, in bytes.
 
+This does not change the fixed 64 KiB limit for the request line and header section, including its terminating blank line. Exceeding that limit returns 431 Request Header Fields Too Large; MaxRequestLineLength separately limits the request line.
+
 Default: `16384`
 
 Example:
@@ -484,6 +492,8 @@ Example:
 
 ### MaxRequestBody
 Specifies how large an incoming request's body is allowed to be, in bytes.
+
+Request bodies use Content-Length framing. Invalid or overflowing lengths, duplicate Content-Length headers, and unsupported request Transfer-Encoding are rejected with 400 Bad Request. Chunked request bodies are not supported; this does not affect chunked responses.
 
 If you experience 413 Content Too Large statuses being returned, you can increase this value but beware that increasing this value too large may slow down your machine and/or cause issues.
 
@@ -524,7 +534,7 @@ Example:
 ### IdleThreadsPerChild
 Specifies how many connection threads exist for each server thread.
 
-Note that under heavy load, up to MaxBurstThreadsPerChild threads may be created per server thread--this value is purely the default "idle" amount of threads available.
+Note that under heavy load, up to MaxThreadsPerChild threads may be created per server thread--this value is purely the default "idle" amount of threads available.
 
 There are four server threads: IPv4, IPv4 w/ TLS, IPv6, and IPv6 w/ TLS.
 
@@ -539,7 +549,7 @@ Example:
 ### MaxThreadsPerChild
 Specifies the maximum number of connection threads exist for each server thread under load.
 
-Note that under normal circumstances, only the amount of IdleThreadsPerChild threads will be used--up to MaxBurstThreadsPerChild threads will be utilized to decrease the overall size of the connection backlog on each server thread to improve client performance.
+Note that under normal circumstances, only the amount of IdleThreadsPerChild threads will be used--up to MaxThreadsPerChild threads will be utilized to decrease the overall size of the connection backlog on each server thread to improve client performance.
 
 There are four server threads: IPv4, IPv4 w/ TLS, IPv6, and IPv6 w/ TLS.
 

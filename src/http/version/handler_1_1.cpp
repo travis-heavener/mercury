@@ -100,7 +100,7 @@ namespace http::version::handler_1_1 {
 
                 // New location found, set status
                 pResponse->setStatus( pRedirect->getStatus() );
-                pResponse->setHeader( "Location", locationBuf + request.getDecodedQueryString() );
+                pResponse->setHeader( "Location", locationBuf + request.getPaths().rawQueryString );
                 return pResponse;
             }
         }

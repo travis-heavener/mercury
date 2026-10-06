@@ -9,7 +9,7 @@
 
 namespace http {
 
-    int bindSocketOpts(ServerV6& server, int& sock, const bool logErrors) {
+    int bindSocketOpts(ServerV6& server, const int sock, const bool logErrors) {
         if (sock < 0) {
             if (logErrors)
                 ERROR_LOG << "Failed to open socket (" << server << ") on port " << server.getPort() << std::endl;
@@ -50,7 +50,7 @@ namespace http {
                 memcpy(&addr.sin6_addr, conf::BIND_ADDR_IPV6->bytes, 16);
 
                 // If bound properly, exit early
-                if (bind(this->sock, (const struct sockaddr*)&addr, sizeof(addr)) >= 0)
+                if (::bind(this->sock.load(), (const struct sockaddr*)&addr, sizeof(addr)) >= 0)
                     return 0;
 
                 // Otherwise, set the errno for failure to bind

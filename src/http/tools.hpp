@@ -25,6 +25,10 @@ namespace http {
     // Interval merge helper for byte ranges
     void intervalMergeByteRanges(const std::vector<byte_range_t>& ranges, std::vector<byte_range_t>& sortedRanges, const size_t streamSize);
 
+    bool parseUnsignedDecimal(const std::string&, size_t&);
+    bool isValidHeaderName(const std::string&);
+    bool isValidHeaderValue(const std::string&);
+
     // Used to extract headers and status info from partial request
     typedef std::unordered_map<std::string, std::string> headers_map_t;
     void loadEarlyHeaders(headers_map_t&, const std::string&);

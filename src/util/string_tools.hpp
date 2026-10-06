@@ -2,6 +2,7 @@
 #define __STRING_TOOLS_HPP
 
 #include <algorithm>
+#include <cctype>
 #include <stdexcept>
 #include <string>
 #include <unordered_set>
@@ -14,7 +15,9 @@
 #define COMPRESS_ZSTD 4096
 
 inline void strToUpper(std::string& str) {
-    std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return static_cast<char>(std::toupper(c));
+    });
 }
 
 void splitString(std::vector<std::string>&, const std::string&, const char, const bool);
@@ -25,17 +28,18 @@ inline void stringReplaceAll(std::string& haystack, const std::string& needle, c
     size_t index = 0;
     while ((index = haystack.find(needle, index)) != std::string::npos) {
         haystack.replace(index, needle.size(), sub);
-        index += sub.size()-1;
+        // Skip inserted text; an empty replacement continues at the same index.
+        index += sub.size();
     }
 }
 
 inline void trimString(std::string& str) {
-    size_t start = str.find_first_not_of(' ');
+    size_t start = str.find_first_not_of(" \t");
     if (start == std::string::npos) {
         str.clear();
         return;
     }
-    str = str.substr(start, str.find_last_not_of(' ') - start + 1);
+    str = str.substr(start, str.find_last_not_of(" \t") - start + 1);
 }
 
 void decodeURI(std::string&);

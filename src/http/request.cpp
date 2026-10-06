@@ -72,11 +72,11 @@ namespace http {
         // Determine compression method
         if (this->isEncodingAccepted("zstd"))
             this->compressMethods |= COMPRESS_ZSTD;
-        else if (this->isHTTPS && this->isEncodingAccepted("br"))
+        if (this->isHTTPS && this->isEncodingAccepted("br"))
             this->compressMethods |= COMPRESS_BROTLI;
-        else if (this->isEncodingAccepted("gzip"))
+        if (this->isEncodingAccepted("gzip"))
             this->compressMethods |= COMPRESS_GZIP;
-        else if (this->isEncodingAccepted("deflate"))
+        if (this->isEncodingAccepted("deflate"))
             this->compressMethods |= COMPRESS_DEFLATE;
 
         // Verify Host header is present for HTTP/1.1+ (RFC 2616)
@@ -95,12 +95,13 @@ namespace http {
 
     int Request::getCompressMethod(const std::string& MIME) const {
         // Decide what compression type to use of what's available
-        if (this->compressMethods & (COMPRESS_ZSTD | COMPRESS_BROTLI)) {
+        if ((this->compressMethods & (COMPRESS_ZSTD | COMPRESS_BROTLI)) == (COMPRESS_ZSTD | COMPRESS_BROTLI)) {
             // Pick Zstandard or Brotli based on MIME
-            if (MIME == "text/javascript" || MIME == "application/json" || MIME == "text/html" ||
-                MIME == "text/css" || MIME == "image/svg+xml" || MIME == "text/plain" ||
-                MIME == "application/wasm" || MIME == "application/xml" || MIME == "application/xhtml+xml" ||
-                MIME == "application/ld+json")
+            const std::string mediaType = MIME.substr(0, MIME.find(';'));
+            if (mediaType == "text/javascript" || mediaType == "application/json" || mediaType == "text/html" ||
+                mediaType == "text/css" || mediaType == "image/svg+xml" || mediaType == "text/plain" ||
+                mediaType == "application/wasm" || mediaType == "application/xml" || mediaType == "application/xhtml+xml" ||
+                mediaType == "application/ld+json")
                 return COMPRESS_BROTLI;
 
             // Base case, use ZSTD
@@ -133,7 +134,7 @@ namespace http {
     // This method exists to combine common methods from the version handlers
     bool Request::isInDocumentRoot(Response& response, const std::string& allowedMethods) const {
         // Prevent lookups to files outside of the document root
-        if (paths.decodedURI.size() == 0 || paths.decodedURI[0] != '/' || paths.decodedURI.find("..") != std::string::npos) {
+        if (paths.decodedURI.size() == 0 || paths.decodedURI[0] != '/') {
             response.setHeader("Allow", allowedMethods);
             setStatusMaybeErrorDoc(response, 400);
             return false;

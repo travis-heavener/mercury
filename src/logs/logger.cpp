@@ -18,13 +18,18 @@ Logger::Logger() : isExited(false) {
 }
 
 Logger::~Logger() {
+    stop();
+}
+
+void Logger::stop() {
+    std::lock_guard<std::mutex> stopLock(stopMutex);
     // Join & close thread
     {
         std::lock_guard<std::mutex> lock(writeMutex);
         isExited = true;
     }
 
-    // Flush queues (logs closed by config handler)
+    // Drain queued records before closing the log handles below.
     cv.notify_one();
 
     if (thread.joinable())
@@ -85,7 +90,13 @@ std::string genTimestamp() {
 
     // Read output
     std::stringstream ss;
-    ss << std::put_time(std::localtime(&tp), "[%m/%d/%y, %I:%M:%S %p] ");
+    std::tm localTime{};
+    #ifdef _WIN32
+        localtime_s(&localTime, &tp);
+    #else
+        localtime_r(&tp, &localTime);
+    #endif
+    ss << std::put_time(&localTime, "[%m/%d/%y, %I:%M:%S %p] ");
     return ss.str();
 }
 

@@ -47,23 +47,28 @@ void splitStringUnique(std::unordered_set<std::string>& set, const std::string& 
 }
 
 void decodeURI(std::string& str) {
-    size_t index;
-    while ((index = str.find('%')) != std::string::npos) {
-        if (index + 2 < str.size()) {
-            // Verify not a null byte (%00)
-            if (str[index + 1] == '0' && str[index + 2] == '0')
-                throw std::invalid_argument("");
+    auto hexValue = [](const char c) -> int {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
+    };
 
-            // Decode normally
-            str.replace(
-                index, 3, 1,
-                static_cast<unsigned char>(std::stoi(str.substr(index + 1, 2), nullptr, 16))
-            );
-            ++index;
-        } else {
-            throw std::invalid_argument("");
+    std::string decoded;
+    decoded.reserve(str.size());
+    for (size_t i = 0; i < str.size(); ++i) {
+        unsigned char c = static_cast<unsigned char>(str[i]);
+        if (c == '%') {
+            if (i + 2 >= str.size()) throw std::invalid_argument("Incomplete URI escape");
+            const int high = hexValue(str[i + 1]), low = hexValue(str[i + 2]);
+            if (high < 0 || low < 0) throw std::invalid_argument("Invalid URI escape");
+            c = static_cast<unsigned char>((high << 4) | low);
+            i += 2;
         }
+        if (c == 0) throw std::invalid_argument("NUL in URI");
+        decoded.push_back(static_cast<char>(c));
     }
+    str = std::move(decoded);
 }
 
 void formatHeaderCasing(std::string& header) {

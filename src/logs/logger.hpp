@@ -47,6 +47,7 @@ class Logger {
         };
         Logger();
         ~Logger();
+        void stop();
         Logger(const Logger&) = delete; // Prevent copies
         void operator=(const Logger&) = delete; // Prevent copies
 
@@ -54,14 +55,16 @@ class Logger {
 
         // Queues access logs
         inline void queueAccessLog(const std::string& log) {
-            std::lock_guard<std::mutex> lock(accessQueueMutex);
+            std::lock_guard<std::mutex> lock(writeMutex);
+            if (isExited) return;
             accessQueue.push(log);
             cv.notify_one();
         }
 
         // Queues error logs
         inline void queueErrorLog(const std::string& log) {
-            std::lock_guard<std::mutex> lock(errorQueueMutex);
+            std::lock_guard<std::mutex> lock(writeMutex);
+            if (isExited) return;
             errorQueue.push(log);
             cv.notify_one();
         }
@@ -74,9 +77,8 @@ class Logger {
         std::atomic<bool> isExited;
         std::condition_variable cv;
 
-        std::mutex accessQueueMutex;
-        std::mutex errorQueueMutex;
         std::mutex writeMutex;
+        std::mutex stopMutex;
 
         std::thread thread;
 };

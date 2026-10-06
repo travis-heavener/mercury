@@ -98,7 +98,7 @@ namespace http::version::handler_1_0 {
                 const unsigned int status = pRedirect->getStatus();
                 if (status > 302) ERROR_LOG << "HTTP/1.0 falling back from " << status << " status to 302 status" << std::endl;
                 pResponse->setStatus( status > 302 ? 302 : status );
-                pResponse->setHeader( "Location", locationBuf + request.getDecodedQueryString() );
+                pResponse->setHeader( "Location", locationBuf + request.getPaths().rawQueryString );
                 return pResponse;
             }
         }

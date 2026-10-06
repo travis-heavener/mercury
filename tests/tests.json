@@ -111,7 +111,7 @@
                     { "method": "GET", "path": "/rewrite_from/foo.txt", "expectedStatus": 200, "expectedBody": "redirect_to/foo.txt" },
                     { "method": "GET", "path": "/rewrite_from/%66oo.txt", "expectedStatus": 200, "expectedBody": "redirect_to/foo.txt" },
                     { "method": "GET", "path": "/rewrite_from/bar.txt", "expectedStatus": 200, "expectedBody": "redirect_to/bar.txt" },
-                    { "method": "GET", "path": "/rewrite_from/query_test.php?q=1", "expectedStatus": 200, "expectedBody": "?q=1" }
+                    { "method": "GET", "path": "/rewrite_from/query_test.php?q=1", "expectedStatus": 200, "expectedBody": "q=1" }
                 ]
             },
 
@@ -152,13 +152,13 @@
                     { "method": "HEAD", "path": "%00/index.html", "expectedStatus": 400 },
                     { "method": "HEAD", "path": "/%00/index.html", "expectedStatus": 400 },
                     { "method": "HEAD", "path": "/%00", "expectedStatus": 400 },
-                    { "method": "HEAD", "path": "/%2500", "expectedStatus": 400 },
+                    { "method": "HEAD", "path": "/%2500", "expectedStatus": 404 },
 
                     { "method": "GET", "path": "\\index.html", "expectedStatus": 200 },
                     { "method": "GET", "path": "\\\\index.html", "expectedStatus": 200 },
                     { "method": "GET", "path": "//index.html", "expectedStatus": 200 },
 
-                    { "method": "HEAD", "path": "/%0D%0A", "expectedStatus": 404 },
+                    { "method": "HEAD", "path": "/%0D%0A", "expectedStatus": 400 },
                     { "method": "HEAD", "path": "/index.html?q=%0D%0A", "expectedStatus": 200 },
 
                     { "method": "HEAD", "path": "", "expectedStatus": 400 },
@@ -307,7 +307,7 @@
                 "desc": "Compression Tests",
                 "versions": [ "1.0", "1.1" ],
                 "cases": [
-                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd, br"}, "expectedHeaders": {"Content-Encoding": "br"} },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd, br"}, "expectedHeaders": {"Content-Encoding": "br"}, "httpsOnly": true },
                     { "method": "GET", "path": "/favicon.jpg", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd, br"}, "expectedHeaders": {"Content-Encoding": "zstd"} },
 
                     { "method": "GET", "path": "/favicon.jpg", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd"}, "expectedHeaders": {"Content-Encoding": "zstd"} },
@@ -486,7 +486,7 @@
                 "desc": "Compression Tests w/ CTE (HTTP/1.1 ONLY)",
                 "versions": [ "1.1" ],
                 "cases": [
-                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd, br"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Encoding": "br"} },
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd, br"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Encoding": "br"}, "httpsOnly": true },
                     { "method": "GET", "path": "/favicon.jpg", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd, br"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Encoding": "zstd"} },
 
                     { "method": "GET", "path": "/favicon.jpg", "expectedStatus": 200, "headers": {"Accept-Encoding": "zstd"}, "expectedHeaders": {"Transfer-Encoding": "chunked", "Content-Encoding": "zstd"} },
@@ -546,6 +546,49 @@
                     { "method": "GET", "path": "/404.html", "expectedStatus": 200, "expectedBody": "UniQue StrInG" },
                     { "method": "GET", "path": "/foo-bar", "expectedStatus": 404, "expectedBody": "UniQue StrInG" },
                     { "method": "GET", "path": "/path/that/doesnt/exist", "expectedStatus": 404, "expectedBody": "UniQue StrInG" }
+                ]
+            }
+        ]
+    },
+    {
+        "desc": "Bug-fix regressions",
+        "confFile": "regressions.conf",
+        "wireRegressions": true,
+        "cases": [
+            {
+                "desc": "Encoding, literal escapes, and query preservation",
+                "versions": [ "1.1" ],
+                "cases": [
+                    { "method": "GET", "path": "/index.html", "expectedStatus": 200, "headers": { "Accept-Encoding": "zstd" }, "expectedHeaders": { "Content-Encoding": "zstd" } },
+                    { "method": "GET", "path": "/favicon.jpg", "expectedStatus": 200, "headers": { "Accept-Encoding": "br" }, "expectedHeaders": { "Content-Encoding": "br" }, "httpsOnly": true },
+                    { "method": "GET", "path": "/literal%25.txt", "expectedStatus": 200, "expectedBody": "literal percent" },
+                    { "method": "GET", "path": "/literal%2520.txt", "expectedStatus": 200, "expectedBody": "single decode" },
+                    { "method": "GET", "path": "/literal%0G.txt", "expectedStatus": 400 },
+                    { "method": "GET", "path": "/rewrite_from/query_test.php?name=a%26b&url=https://example.test/a//b", "expectedStatus": 200, "expectedBody": "name=a%26b&url=https://example.test/a//b" }
+                ]
+            },
+            {
+                "desc": "Header validation boundaries",
+                "versions": [ "1.0", "1.1" ],
+                "cases": [
+                    { "comments": "Reject NUL in a header value.", "method": "GET", "path": "/small.txt", "headers": { "X-Test": "before\u0000after" }, "expectedStatus": 400 },
+                    { "comments": "Reject DEL in a header value.", "method": "GET", "path": "/small.txt", "headers": { "X-Test": "before\u007fafter" }, "expectedStatus": 400 },
+                    { "comments": "Reject a bare carriage return in a header value.", "method": "GET", "path": "/small.txt", "headers": { "X-Test": "before\rafter" }, "expectedStatus": 400 },
+                    { "comments": "Reject whitespace inside a header name.", "method": "GET", "path": "/small.txt", "headers": { "X Bad": "value" }, "expectedStatus": 400 },
+                    { "comments": "Reject separators in a header name.", "method": "GET", "path": "/small.txt", "headers": { "X;Bad": "value" }, "expectedStatus": 400 },
+                    { "comments": "Reject an empty header name.", "method": "GET", "path": "/small.txt", "headers": { "": "value" }, "expectedStatus": 400 },
+                    { "comments": "Reject obsolete folded headers instead of accepting a hidden continuation.", "method": "GET", "path": "/small.txt", "headers": { "X-Test": "first\r\n second" }, "expectedStatus": 400 },
+                    { "comments": "Allow horizontal tab as optional whitespace around Accept.", "method": "GET", "path": "/small.txt", "headers": { "Accept": "\ttext/plain\t" }, "expectedStatus": 200, "expectedBody": "HELLO WORLD" },
+                    { "comments": "Allow valid punctuation in a header token.", "method": "GET", "path": "/small.txt", "headers": { "X!#$%&'*+-.^_`|~": "value" }, "expectedStatus": 200, "expectedBody": "HELLO WORLD" }
+                ]
+            },
+            {
+                "desc": "CGI body framing and encoding presence",
+                "versions": [ "1.1" ],
+                "cases": [
+                    { "comments": "Content-Length counts UTF-8 bytes, not characters.", "method": "POST", "path": "/body_tests/raw.php", "body": "caf\u00e9 \u2603", "expectedStatus": 200, "expectedBody": "caf\u00e9 \u2603" },
+                    { "comments": "A request-looking body remains payload rather than another request.", "method": "POST", "path": "/body_tests/raw.php", "body": "prefix\r\n\r\nGET /private/file.txt HTTP/1.1\r\nHost: localhost\r\n\r\n", "expectedStatus": 200, "expectedBody": "prefix\r\n\r\nGET /private/file.txt HTTP/1.1\r\nHost: localhost\r\n\r\n" },
+                    { "comments": "Boolean expectations check header presence without selecting a decoder.", "method": "GET", "path": "/index.html", "headers": { "Accept-Encoding": "gzip" }, "expectedStatus": 200, "expectedHeaders": { "Content-Encoding": true } }
                 ]
             }
         ]

@@ -15,6 +15,14 @@ namespace http {
         this->byteRanges.emplace_back( std::move(byteRange) );
     }
 
+    size_t MemoryStream::size() const {
+        if (byteRanges.empty()) return data.size();
+        size_t total = 0;
+        for (const byte_range_t& range : byteRanges)
+            total += range.second - range.first + 1;
+        return total;
+    }
+
     size_t MemoryStream::read(char* buffer, size_t maxBytes) {
         // Handle byte ranges
         if (byteRangeIndex < byteRanges.size() && !byteRanges.empty() && offset > byteRanges[byteRangeIndex].second) {
@@ -24,7 +32,7 @@ namespace http {
 
         size_t remaining;
         if (!byteRanges.empty()) {
-            if (byteRangeIndex + 1 == byteRanges.size()) return 0;
+            if (byteRangeIndex >= byteRanges.size()) return 0;
 
             byte_range_t& front = byteRanges[byteRangeIndex];
             if (offset < front.first) offset = front.first; // Reset the offset if needed
@@ -53,8 +61,18 @@ namespace http {
             return;
         }
 
-        originalSize = handle.tellg(); // Grab size of file
-        handle.seekg(0, std::ios::beg); // Revert to start
+        // Verify the size and initial seek before exposing this stream to callers
+        const auto end = handle.tellg();
+        if (end == std::streampos(-1)) {
+            this->_status = STREAM_FAILURE;
+            return;
+        }
+        handle.seekg(0, std::ios::beg);
+        if (!handle) {
+            this->_status = STREAM_FAILURE;
+            return;
+        }
+        originalSize = static_cast<size_t>(end);
     }
 
     FileStream::~FileStream() {
@@ -76,6 +94,9 @@ namespace http {
     }
 
     size_t FileStream::read(char* buffer, size_t maxBytes) {
+        // A failed open or an exhausted stream has no readable bytes
+        if (_status != STREAM_SUCCESS || !handle || maxBytes == 0) return 0;
+
         // Handle byte ranges
         while (byteRangeIndex < byteRanges.size() && !byteRanges.empty()) {
             byte_range_t& front = byteRanges[byteRangeIndex];
