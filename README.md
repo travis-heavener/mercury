@@ -270,7 +270,7 @@ The following table contains known compatible versions of software used to build
 
 ### Making Releases
 
-To build a release, manually dispatch the "Make Release" GitHub Action on main. It builds the Linux and Windows binaries, runs the Python suite on both platforms, and packages those tested binaries before publishing the release to GitHub and the downloads website.
+To build a release, manually dispatch the "Make Release" GitHub Action on main. It reuses cached Linux and Windows binaries for the selected commit when both binaries and the library cache are available. Otherwise, it runs Build & Test before packaging and publishing the release to GitHub and the downloads website. A cache hit skips Build & Test, so check that the platform tests passed for that commit before dispatching a release.
 
 While a release can be manually made locally (via `make release`), this process is now automated and should only be done by dispatching this workflow.
 

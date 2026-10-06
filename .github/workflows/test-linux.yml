@@ -43,17 +43,11 @@ jobs:
             -nodes \
             -subj "/C=XX/ST=New York/L=NYC/O=The Mercury Project/OU=GitHub Action Runner/CN=The Mercury Developers"
 
-      # Run Python test cases
+      # run.py includes JSON cases and wire regressions.
       - name: Python Test Runner
-        run: |
-          python3 tests/run.py
-          status=$?
-          
-          # Print logs
-          echo "====================================================="
-          echo "                     Error Log"
-          echo "====================================================="
-          cat logs/error.log
+        run: python3 tests/run.py
 
-          # Exit with status code
-          exit $status
+      # Print diagnostics even when the test command fails.
+      - name: Print Error Log
+        if: always()
+        run: if [ -f logs/error.log ]; then cat logs/error.log; fi

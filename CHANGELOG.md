@@ -26,7 +26,7 @@
     - Cover malformed headers, injection attempts, body framing, pipelining, and concurrent clients
     - Fix UTF-8 request lengths, fragmented-response reads, and boolean Content-Encoding expectations in the test runner
     - Add tests/README.md with setup instructions, JSON attributes, and guidance for extending coverage
-- Update Build & Test and release workflows to test both platforms and package the tested binaries
+- Fix documentation publishing with unchanged files and validation of fork pull requests
 - Update configuration and contributor documentation
 
 ## v0.32.2

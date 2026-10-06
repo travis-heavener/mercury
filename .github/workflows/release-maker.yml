@@ -49,7 +49,7 @@ jobs:
       - name: Determine if both caches exist
         id: check
         run: |
-          if [ -f "./bin/mercury" ] && [ -f "./bin/mercury.exe" ] && [ -d "./libs" ]; then
+          if [ -s "./bin/mercury" ] && [ -s "./bin/mercury.exe" ] && [ -d "./libs" ]; then
             echo "hit=true" >> $GITHUB_OUTPUT
           else
             echo "hit=false" >> $GITHUB_OUTPUT
@@ -63,10 +63,12 @@ jobs:
   release:
     needs: [check-cache, build]
     if: >
+      !cancelled() &&
       github.ref == 'refs/heads/main' &&
+      needs.check-cache.result == 'success' &&
       (
         needs.check-cache.outputs.hit == 'true' ||
-        always() && needs.build.result == 'success'
+        needs.build.result == 'success'
       )
     runs-on: ubuntu-24.04 # <--- Use 24.04 instead of 22.04 since python3-zstandard does not have a mirror
     steps:
@@ -80,7 +82,7 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
           fetch-depth: 0
-          ref: main
+          ref: ${{ github.sha }}
 
       - name: Set User
         run: |
@@ -126,6 +128,9 @@ jobs:
       # Run release builder
       - name: Make Release
         run: |
+          # Do not let make -t create empty targets if a binary cache disappeared.
+          test -s bin/mercury
+          test -s bin/mercury.exe
           make -t all # Force to be up-to-date
           make lib_deps
           make release
@@ -179,6 +184,7 @@ jobs:
 
           # Create release (tag is the version only, title keeps "Mercury vX.X.X")
           gh release create "$VERSION" "$TAR_FILE" "$ZIP_FILE" \
+            --target "${{ github.sha }}" \
             --title "Mercury $VERSION" \
             --notes-file "$SUMMARY_FILE" \
             $PRERELEASE
