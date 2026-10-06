@@ -52,13 +52,13 @@ namespace http::cgi {
                     handle.close();
                     return;
                 } else if (buffer[0] == '<') { // HTML or XML
-                    res.setContentType(std::strstr(buffer, "<html") ? "text/html" : "application/xml");
+                    res.setContentType(std::string(buffer, bytesRead).find("<html") != std::string::npos ? "text/html" : "application/xml");
                     return;
                 }
             }
 
             // Otherwise, count ASCII
-            numAsciiChars = countAscii(buffer, bytesRead);
+            numAsciiChars += countAscii(buffer, bytesRead);
         }
 
         // Evaluate ascii chars
@@ -186,7 +186,7 @@ namespace http::cgi {
 
         // Read from temp file
         tmpOutHandle.close();
-        std::ifstream tmpInHandle( tmpPath );
+        std::ifstream tmpInHandle( tmpPath, std::ios::binary );
         if (!tmpInHandle.is_open()) {
             ERROR_LOG << "Failed to open temp file: " << tmpPath << std::endl;
             res.setStatus(500);
@@ -203,7 +203,7 @@ namespace http::cgi {
             return;
         }
 
-        std::ofstream tmpBodyHandle( tmpBodyPath );
+        std::ofstream tmpBodyHandle( tmpBodyPath, std::ios::binary );
         if (!tmpBodyHandle.is_open()) {
             ERROR_LOG << "Failed to open temp file: " << tmpBodyPath << std::endl;
             res.setStatus(500);
@@ -245,8 +245,7 @@ namespace http::cgi {
         }
 
         // Read remainder of the body to the body temp file
-        while (std::getline(tmpInHandle, line))
-            tmpBodyHandle << line;
+        tmpBodyHandle << tmpInHandle.rdbuf();
 
         // Close file handles
         tmpBodyHandle.close();

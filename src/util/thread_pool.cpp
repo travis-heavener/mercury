@@ -1,14 +1,19 @@
 #include "thread_pool.hpp"
 
 #include "../conf/conf.hpp"
+#include "../logs/logger.hpp"
 
 ThreadPool::ThreadPool() {
-    // Create idle threads
+    std::unique_lock<std::mutex> lock(queueMutex);
     workers.reserve(conf::MAX_THREADS_PER_CHILD);
-
-    for (size_t i = 0; i < conf::IDLE_THREADS_PER_CHILD; ++i) {
-        workers.emplace_back( ThreadWrapper(false) );
-        workers.back().setThread( std::thread([this] { this->workerLoop(workers.back()); }) );
+    try {
+        for (size_t i = 0; i < conf::IDLE_THREADS_PER_CHILD; ++i)
+            addWorker(false);
+    } catch (...) {
+        // A failed constructor has no destructor: join workers already started.
+        lock.unlock();
+        stop();
+        throw;
     }
 }
 
@@ -16,110 +21,106 @@ ThreadPool::~ThreadPool() {
     stop();
 }
 
-void ThreadPool::enqueue(std::function<void()> task) {
-    {
-        std::lock_guard<std::mutex> lock(queueMutex);
-        tasks.push(std::move(task));
-
-        // Check if there are too many connections pending
-        if (tasks.size() > workers.size() && workers.size() < conf::MAX_THREADS_PER_CHILD) {
-            // Create a new temporary thread
-            workers.emplace_back( ThreadWrapper(true) );
-            workers.back().setThread( std::thread([this] { this->workerLoop(workers.back()); }) );
-        }
+// Called under queueMutex. The worker object stays at the same address when
+// the vector grows or when other workers are removed.
+void ThreadPool::addWorker(const bool isTemporary) {
+    auto worker = std::make_unique<ThreadWrapper>(isTemporary);
+    ThreadWrapper* identity = worker.get();
+    workers.push_back(std::move(worker));
+    try {
+        identity->setThread(std::thread([this, identity] { workerLoop(*identity); }));
+    } catch (...) {
+        workers.pop_back();
+        throw;
     }
-
-    // Notify next available worker
-    condition.notify_one();
 }
 
-// Continuously load tasks onto worker threads
+bool ThreadPool::enqueue(std::function<void()> task) {
+    {
+        std::lock_guard<std::mutex> lock(queueMutex);
+        if (isStopping) return false;
+        pruneTempThreads();
+
+        size_t idleWorkers = 0;
+        for (const auto& worker : workers)
+            if (!worker->isInUse) ++idleWorkers;
+
+        // Grow before accepting the task, so a thread creation failure cannot
+        // leave a queued task whose caller believes it was rejected.
+        if (tasks.size() + 1 > idleWorkers && workers.size() < conf::MAX_THREADS_PER_CHILD)
+            addWorker(true);
+        tasks.push(std::move(task));
+    }
+    condition.notify_one();
+    return true;
+}
+
 void ThreadPool::workerLoop(ThreadWrapper& thisThread) {
     while (true) {
         std::function<void()> task;
-
         {
-            // Prevent race condition
             std::unique_lock<std::mutex> lock(queueMutex);
-            condition.wait(lock, [this] {
-                return isStopping || !tasks.empty();
-            });
+            condition.wait(lock, [this] { return isStopping || !tasks.empty(); });
+            if (isStopping && tasks.empty()) return;
 
-            // Exit early if stopping
-            if (isStopping && tasks.empty())
-                return;
-
-            // Pop task from front
             task = std::move(tasks.front());
             tasks.pop();
+            thisThread.isInUse = true;
         }
 
-        thisThread.isInUse = true;
-        task(); // Run task
-        thisThread.isInUse = false;
+        // Request handlers own their cleanup. A task failure must not terminate
+        // the process or permanently remove a worker from the pool.
+        try {
+            task();
+        } catch (...) {
+            ERROR_LOG << "Unhandled worker task exception" << std::endl;
+        }
 
-        // If this is a temporary thread and the backlog is decreasing in size, destroy self
         {
             std::lock_guard<std::mutex> lock(queueMutex);
-            if (thisThread.isTemporary && tasks.size() < workers.size()) {
-                // Tell the ThreadPool to prune temporary threads
+            thisThread.isInUse = false;
+            if (thisThread.isTemporary && tasks.empty()) {
                 thisThread.isDone = true;
-                this->shouldPruneWorkers = true;
                 return;
-            } else if (!thisThread.isTemporary && this->shouldPruneWorkers) {
-                // Invoke prune
-                this->pruneTempThreads();
             }
         }
     }
 }
 
-// Prunes any finished threads
+// Only enqueue prunes workers, under queueMutex. Finished workers do not
+// acquire this mutex again, so joining them here cannot deadlock.
 void ThreadPool::pruneTempThreads() {
-    // Already called while locked, no need to lock here!
-    for (size_t i = 0; i < workers.size(); ++i) {
-        if (!workers[i].isTemporary || !workers[i].isDone) continue;
-
-        // Temp thread is done, erase it
-        std::thread& t = workers[i].getThread();
-        if (t.joinable())
-            t.join();
-
-        workers.erase(workers.begin() + i);
-        --i;
+    for (auto it = workers.begin(); it != workers.end();) {
+        if (!(*it)->isDone) {
+            ++it;
+            continue;
+        }
+        if ((*it)->getThread().joinable()) (*it)->getThread().join();
+        it = workers.erase(it);
     }
-
-    // Reset flag
-    this->shouldPruneWorkers = false;
 }
 
-// Join each existing thread for shutdown
 void ThreadPool::stop() {
+    std::lock_guard<std::mutex> stopLock(stopMutex);
+    std::vector<std::unique_ptr<ThreadWrapper>> joining;
     {
         std::lock_guard<std::mutex> lock(queueMutex);
         isStopping = true;
+        joining.swap(workers);
     }
-
     condition.notify_all();
 
-    // Join all threads
-    while (!workers.empty()) {
-        // Join thread
-        std::thread& t = workers.back().getThread();
-        if (t.joinable())
-            t.join();
-
-        // Destroy ThreadWrapper
-        workers.pop_back();
-    }
+    // Join without holding the queue lock; workers drain accepted tasks first.
+    for (const auto& worker : joining)
+        if (worker->getThread().joinable()) worker->getThread().join();
 }
 
-// Gathers usage info for this ThreadPool
 void ThreadPool::getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections) {
-    // Protect against consecutive IO to workers
     std::lock_guard<std::mutex> lock(queueMutex);
-    for (const ThreadWrapper& tw : workers)
-        usedThreads += tw.isInUse ? 1 : 0;
-    totalThreads += workers.size();
+    for (const auto& worker : workers)
+        if (!worker->isDone) {
+            usedThreads += worker->isInUse ? 1 : 0;
+            ++totalThreads;
+        }
     pendingConnections += tasks.size();
 }

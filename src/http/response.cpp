@@ -17,6 +17,9 @@ namespace http {
     }
 
     void Response::setHeader(std::string name, const std::string& value) {
+        if (!isValidHeaderName(name) || !isValidHeaderValue(value))
+            throw std::invalid_argument("Invalid response header");
+
         // Update header casing (ex. cOntENt-LeNGTh --> Content-Length)
         formatHeaderCasing(name);
 
@@ -48,17 +51,48 @@ namespace http {
         }
     }
 
+    bool Response::shouldCloseConnection() const {
+        auto connection = headers.find("Connection");
+        if (connection == headers.end()) return false;
+        std::string value = connection->second;
+        strToUpper(value);
+        std::vector<std::string> tokens;
+        splitString(tokens, value, ',', true);
+        for (auto token : tokens) {
+            trimString(token);
+            if (token == "CLOSE") return true;
+        }
+        return false;
+    }
+
+    void Response::clearByteRanges() {
+        originalByteRanges.clear();
+        originalBodySize = totalByteRangeSize = 0;
+        clearHeader("Content-Range");
+    }
+
     int Response::loadBodyFromErrorDoc(const uint16_t statusCode) {
         this->setStatus(statusCode);
         this->setContentType("text/html; charset=UTF-8");
 
+        // A replacement document must not inherit the original representation's ranges.
+        // Start empty so a failed load cannot disclose the previous response body.
+        clearByteRanges();
+        setBodyStream(std::make_unique<MemoryStream>(""));
         const int status = loadErrorDoc(statusCode, pBodyStream);
+        if (status != IO_SUCCESS) setBodyStream(std::make_unique<MemoryStream>(""));
         this->setHeader("Content-Length", tostr(this->pBodyStream->size()));
         return status;
     }
 
     int Response::loadBodyFromFile(File& file) {
         const int bodyStatus = file.loadToBuffer(pBodyStream);
+
+        // Do not retain an old body or inspect an unusable stream after a failed load
+        if (bodyStatus != IO_SUCCESS) {
+            clearByteRanges();
+            setBodyStream(std::make_unique<MemoryStream>(""));
+        }
 
         // Get last modified GMT string
         if (bodyStatus == IO_SUCCESS && !file.isDirectory)
@@ -76,7 +110,7 @@ namespace http {
 
     size_t Response::getContentLength() const {
         auto type = this->headers.find("Content-Length");
-        if (type == this->headers.end()) return -1;
+        if (type == this->headers.end()) return pBodyStream->size();
         return std::stoull(type->second);
     }
 
@@ -146,6 +180,7 @@ namespace http {
                     bytesRead = pCompressor->finish(compressChunk);
                     if (pCompressor->status() != STREAM_SUCCESS) {
                         ERROR_LOG << "Precompression error (end flush)." << std::endl;
+                        handle.close();
                         removeTempFile(tmpPath);
                         return false;
                     }
@@ -162,6 +197,7 @@ namespace http {
                 bytesRead = pCompressor->compress(readChunk.data(), compressChunk, bytesRead);
                 if (pCompressor->status() != STREAM_SUCCESS) {
                     ERROR_LOG << "Precompression error." << std::endl;
+                    handle.close();
                     removeTempFile(tmpPath);
                     return false;
                 }
@@ -176,15 +212,31 @@ namespace http {
 
         // Close the file
         handle.close();
+        if (handle.fail()) {
+            removeTempFile(tmpPath);
+            return false;
+        }
 
         // Create FileStream in place of body stream to buffer the response
-        setBodyStream( std::unique_ptr<IBodyStream>(new FileStream(tmpPath, true)) );
+        auto compressed = std::make_unique<FileStream>(tmpPath, true);
+        if (compressed->status() != STREAM_SUCCESS) return false;
+        setBodyStream(std::move(compressed));
 
         // Base case, successful
         return true;
     }
 
-    ssize_t Response::streamBody(const bool isHTMLAccepted, const bool omitBody, std::function<ssize_t(const char*, const size_t)>& sendFunc) {
+    ssize_t Response::streamBody(const bool isHTMLAccepted, const bool omitBody, std::function<ssize_t(const char*, const size_t)>& writeFunc) {
+        // A successful socket write may consume only part of a header or body chunk.
+        auto sendFunc = [&](const char* data, const size_t size) -> ssize_t {
+            size_t sent = 0;
+            while (sent < size) {
+                const ssize_t n = writeFunc(data + sent, size - sent);
+                if (n <= 0 || static_cast<size_t>(n) > size - sent) return -1;
+                sent += static_cast<size_t>(n);
+            }
+            return static_cast<ssize_t>(sent);
+        };
         std::vector<char> readChunk(conf::RESPONSE_BUFFER_SIZE), compressChunk;
 
         // Handle HTTP/0.9 unique format
@@ -208,6 +260,9 @@ namespace http {
 
         // Lambda to reset Content-Length, close the connection, and wipe the stream
         auto clearBodyAndResetStream = [&]() {
+            clearByteRanges();
+            compressMethod = NO_COMPRESS;
+            clearHeader("Content-Encoding");
             this->clearHeader("Content-Type");
             this->clearHeader("Keep-Alive");
             this->setHeader("Content-Length", "0");
@@ -247,10 +302,11 @@ namespace http {
             )
         ) {
             if (!this->precompressBody()) { // Failed to compress body
-                // Send uncompresesed error page
-                this->originalByteRanges.clear();
-                this->originalBodySize = 0;
+                // The error page is a new, uncompressed representation.
+                clearByteRanges();
+                compressMethod = NO_COMPRESS;
                 clearHeaders();
+                setHeader("Connection", "close");
 
                 ERROR_LOG << "Body precompression failure (could be from failure to create temp file)" << std::endl;
                 setStatus(500);
@@ -262,9 +318,7 @@ namespace http {
                     if (pBodyStream->size() > conf::MAX_RESPONSE_BODY)
                         clearBodyAndResetStream();
                 } else { // Remove body
-                    clearHeaders();
-                    setHeader("Content-Length", "0");
-                    setBodyStream( std::unique_ptr<IBodyStream>( new MemoryStream("") ) );
+                    clearBodyAndResetStream();
                 }
             } else {
                 wasPrecompressed = true;
@@ -287,7 +341,6 @@ namespace http {
 
         // Update transfer encoding
         const size_t bodySize = pBodyStream->size();
-        const std::string originalContentType = this->getContentType();
 
         const bool isTransEncSupported = this->httpVersion != "HTTP/1.0";
         const bool usingTransEnc = isTransEncSupported && bodySize > conf::RESPONSE_BUFFER_SIZE;
@@ -319,6 +372,10 @@ namespace http {
                 setHeader("Content-Range", "bytes " + tostr(startIndex) + '-' + tostr(endIndex) + "/" + tostr(originalBodySize));
             }
         }
+
+        // Frame empty redirects/errors on persistent connections as well.
+        if (bodySize == 0 && statusCode != 204 && statusCode != 304)
+            setHeader("Content-Length", "0");
 
         // Load config headers last to overwrite any dupes that have been previously set
         setHeader("Server", "Mercury/" + conf::VERSION.substr(9)); // Skip "Mercury v"
@@ -395,8 +452,8 @@ namespace http {
         }
 
         // End chunked transfer
-        if (usingTransEnc)
-            sendFunc("0\r\n\r\n", 5);
+        if (usingTransEnc && sendFunc("0\r\n\r\n", 5) < 0)
+            return -1;
 
         // Base case, success
         return 0;

@@ -10,6 +10,7 @@
 #include <optional>
 #include <queue>
 #include <thread>
+#include <vector>
 
 class ThreadWrapper {
     public:
@@ -28,20 +29,21 @@ class ThreadPool {
         ThreadPool();
         ~ThreadPool();
 
-        void enqueue(std::function<void()> task);
+        bool enqueue(std::function<void()> task);
         void stop();
         void getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections);
     private:
         void workerLoop(ThreadWrapper& thisThread);
         void pruneTempThreads();
+        void addWorker(const bool isTemporary);
 
-        std::vector<ThreadWrapper> workers;
+        std::vector<std::unique_ptr<ThreadWrapper>> workers;
         std::queue<std::function<void()>> tasks;
 
         std::mutex queueMutex;
+        std::mutex stopMutex;
         std::condition_variable condition;
         std::atomic<bool> isStopping{false};
-        std::atomic<bool> shouldPruneWorkers{false};
 };
 
 #endif

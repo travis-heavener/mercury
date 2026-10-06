@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.33.0
+- Improve request parsing and resilience to malformed requests
+    - Reject invalid header names/values, duplicate Host/Content-Length/Transfer-Encoding headers, and invalid or overflowing Content-Length values
+    - Limit request headers to 64 KiB and return 431 when exceeded
+    - Reject unsupported request Transfer-Encoding with 400; chunked responses remain supported
+    - Preserve pipelined requests and keep request bodies separate from subsequent requests
+- Improve URI handling and access checks
+    - Decode paths once and normalize separators and single-dot segments before checking access rules
+    - Reject malformed percent escapes, encoded control characters in paths, and parent-directory traversal
+    - Preserve encoded query strings through redirects, rewrites, and PHP-CGI
+    - Prevent response-header injection and correctly handle literal percent signs in filenames
+- Fix thread pool and logger synchronization and shutdown behavior
+    - Preserve client IP addresses while connections wait for workers
+    - Use thread-safe log timestamp formatting
+- Fix incomplete socket writes, empty-response framing, and connection closure handling
+- Fix keep-alive option parsing and honor Connection: close across repeated headers
+- Fix HTTP/0.9 requests waiting for an extra header terminator
+- Fix compression negotiation and handling of MIME types with parameters
+- Preserve binary PHP-CGI request and response bodies
+- Fix byte ranges for generated responses and clear stale range/compression headers on errors
+- Improve file-stream error handling and temporary-file cleanup
+- Remove unused methods and variables and improve code comments
+- Expand JSON tests and add raw-socket regression coverage to the existing Python suite
+    - Cover malformed headers, injection attempts, body framing, pipelining, and concurrent clients
+    - Fix UTF-8 request lengths, fragmented-response reads, and boolean Content-Encoding expectations in the test runner
+    - Add tests/README.md with setup instructions, JSON attributes, and guidance for extending coverage
+- Fix documentation publishing with unchanged files and validation of fork pull requests
+- Update configuration and contributor documentation
+
 ## v0.32.2
 - Bump OpenSSL to v4.0.3 (#478)
 

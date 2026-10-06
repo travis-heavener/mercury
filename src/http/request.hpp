@@ -18,7 +18,6 @@ namespace http {
             inline const std::string& getMethodStr() const { return methodStr; };
             inline const RequestPath& getPaths() const { return paths; };
             inline const std::string& getDecodedURI() const { return paths.decodedURI; };
-            inline const std::string& getDecodedQueryString() const { return paths.decodedQueryString; };
             inline const std::string& getBody() const { return body; };
             inline const std::string& getVersion() const { return httpVersionStr; };
             int getCompressMethod(const std::string& MIME) const;
@@ -57,7 +56,7 @@ namespace http {
 
             RequestPath paths;
 
-            bool _hasExplicitHTTP0_9; // Set to true if the status line has HTTP/0.9 explicitly in it (not allowed)
+            bool _hasExplicitHTTP0_9 = false; // Set to true if the status line has HTTP/0.9 explicitly in it (not allowed)
             bool _has400Error = false; // If true, handle as 400 Bad Request
 
             std::string httpVersionStr;

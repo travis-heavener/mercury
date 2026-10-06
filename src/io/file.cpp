@@ -7,7 +7,7 @@
 
 File::File(const http::RequestPath& paths) {
     this->decodedURIWithoutPathInfo = paths.decodedURI;
-    this->queryString = paths.decodedQueryString;
+    this->queryString = paths.rawQueryString.empty() ? "" : paths.rawQueryString.substr(1);
 
     // Extract PHP path info
     std::filesystem::path rawPathNoPathInfo;

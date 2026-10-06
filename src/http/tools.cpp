@@ -1,6 +1,7 @@
 #include "tools.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <string>
 
 #include "../logs/logger.hpp"
@@ -45,42 +46,63 @@ namespace http {
         }
     }
 
-    // Used to extract headers and status info from partial request
+    bool parseUnsignedDecimal(const std::string& value, size_t& result) {
+        if (value.empty()) return false;
+        for (const char c : value)
+            if (c < '0' || c > '9') return false;
+        const auto parsed = std::from_chars(value.data(), value.data() + value.size(), result);
+        return parsed.ec == std::errc() && parsed.ptr == value.data() + value.size();
+    }
+
+    bool isValidHeaderName(const std::string& name) {
+        if (name.empty()) return false;
+        for (const unsigned char c : name) {
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) continue;
+            if (std::string("!#$%&'*+-.^_`|~").find(c) == std::string::npos) return false;
+        }
+        return true;
+    }
+
+    bool isValidHeaderValue(const std::string& value) {
+        for (const unsigned char c : value)
+            if ((c < 32 && c != '\t') || c == 127) return false;
+        return true;
+    }
+
+    // Parse headers strictly before deciding how many body bytes to consume.
     void loadEarlyHeaders(headers_map_t& headers, const std::string& raw) {
-        // Skip status line
         std::string line;
         size_t startIndex = 0;
-        readLine(raw, line, startIndex);
+        if (!readLine(raw, line, startIndex) || line.empty() || line.back() != '\r')
+            throw http::Exception();
 
-        // Read headers from buffer
         while (readLine(raw, line, startIndex)) {
-            if (line.size() <= 1) break; // Parse body
-
-            // Check for invalid line format
-            if (line.back() != '\r')
-                throw http::Exception();
+            if (line == "\r") return;
+            if (line.empty() || line.back() != '\r') throw http::Exception();
             line.pop_back();
 
-            // Find first colon-space delimiter
-            size_t firstSpaceIndex = line.find(": ");
-            if (firstSpaceIndex != std::string::npos) {
-                std::string key = line.substr(0, firstSpaceIndex);
-                std::string value = line.substr(firstSpaceIndex+2);
-                strToUpper(key);
+            const size_t colon = line.find(':');
+            if (colon == std::string::npos) throw http::Exception();
+            std::string key = line.substr(0, colon);
+            std::string value = line.substr(colon + 1);
+            if (!isValidHeaderName(key) || !isValidHeaderValue(value)) throw http::Exception();
+            trimString(value);
+            strToUpper(key);
 
-                // Combine extra list headers
-                if ((key == "ACCEPT" && headers.contains("ACCEPT")) ||
-                    (key == "ACCEPT-ENCODING" && headers.contains("ACCEPT-ENCODING"))) {
-                    headers[key].append(',' + value);
-                } else if (key == "RANGE" && headers.contains("RANGE")) {
-                    size_t bytesEnd = value.find('=');
-                    if (bytesEnd != std::string::npos && bytesEnd + 1 < value.length())
-                        headers[key].append(',' + value.substr(bytesEnd+1) );
-                } else {
-                    headers.insert({key, value});
-                }
+            if ((key == "CONTENT-LENGTH" || key == "HOST" || key == "TRANSFER-ENCODING") && headers.contains(key))
+                throw http::Exception(); // Reject ambiguous framing and routing.
+
+            if ((key == "ACCEPT" || key == "ACCEPT-ENCODING" || key == "CONNECTION") && headers.contains(key)) {
+                headers[key].append(',' + value);
+            } else if (key == "RANGE" && headers.contains(key)) {
+                const size_t bytesEnd = value.find('=');
+                if (bytesEnd != std::string::npos)
+                    headers[key].append(',' + value.substr(bytesEnd + 1));
+            } else {
+                headers.insert({key, value});
             }
         }
+        throw http::Exception(); // Missing header terminator.
     }
 
     void parseAcceptHeader(std::unordered_set<std::string>& splitVec, std::string& string) {
@@ -109,12 +131,11 @@ namespace http {
 
     void parseRangeHeader(std::vector<byte_range_t>& splitVec, std::string& rawHeader) {
         trimString(rawHeader);
-        size_t unitStart = rawHeader.find("bytes");
-        if (unitStart == std::string::npos) return;
+        if (!rawHeader.starts_with("bytes=")) return;
 
         // Break apart ranges into string pairs
         std::vector<std::string> intermediateVec;
-        std::string rawRanges( rawHeader.substr(unitStart + 6) );
+        std::string rawRanges( rawHeader.substr(6) );
         splitString(intermediateVec, rawRanges, ',', true);
 
         // Parse each range
@@ -136,12 +157,8 @@ namespace http {
 
             size_t startIndex = std::string::npos;
             size_t endIndex = std::string::npos;
-            try {
-                if (!startBuf.empty()) startIndex = std::stoull(startBuf);
-                if (!endBuf.empty())   endIndex =   std::stoull(endBuf);
-            } catch (std::invalid_argument&) {
-                // Handle invalid range
-                ERROR_LOG << "Parse failure for Range header" << std::endl;
+            if ((!startBuf.empty() && (!parseUnsignedDecimal(startBuf, startIndex) || startIndex == std::string::npos)) ||
+                (!endBuf.empty() && (!parseUnsignedDecimal(endBuf, endIndex) || endIndex == std::string::npos))) {
                 splitVec.clear();
                 return;
             }
@@ -151,46 +168,48 @@ namespace http {
         }
     }
 
-    // Returns true if the path loading was successful, false otherwise
+    // Normalize the path before access checks, but preserve query bytes for CGI/redirects.
     bool loadRequestPaths(RequestPath& paths, const std::string& rawRequestPath, const bool preserveQueryString) {
-        bool isSuccess = true;
-        paths.rawPathFromRequest = rawRequestPath;
+        if (rawRequestPath.empty()) return false;
+        if (!preserveQueryString) paths.rawPathFromRequest = rawRequestPath;
 
-        if (rawRequestPath.size() == 0) return false;
-
-        // Normalize the request path
-        std::string normalizedPath = rawRequestPath;
-        stringReplaceAll(normalizedPath, "\\", "/");
-        stringReplaceAll(normalizedPath, "//", "/");
-
-        // Split query string & URI
-        size_t queryIndex = normalizedPath.find('?');
-
-        // Split URI
-        if (queryIndex == 0) { // Path is '?'
-            isSuccess = false;
-        } else {
-            paths.rawURI = paths.decodedURI = normalizedPath.substr(0, queryIndex == std::string::npos ? normalizedPath.size() : queryIndex);
-        }
-
+        // Rewrite rules receive an already-decoded path. Do not decode it a second time.
+        const size_t queryIndex = preserveQueryString ? std::string::npos : rawRequestPath.find('?');
+        paths.rawURI = rawRequestPath.substr(0, queryIndex);
+        std::string decoded = paths.rawURI;
         try {
-            decodeURI(paths.decodedURI);
-        } catch (std::invalid_argument&) {
-            isSuccess = false;
-        }
-
-        // Break off query string (if not preserving it)
-        if (!preserveQueryString && queryIndex != std::string::npos) {
-            paths.rawQueryString = paths.decodedQueryString = normalizedPath.substr(queryIndex);
-            try {
+            if (!preserveQueryString) decodeURI(decoded);
+            if (!preserveQueryString) {
+                paths.rawQueryString = queryIndex == std::string::npos ? "" : rawRequestPath.substr(queryIndex);
+                paths.decodedQueryString = paths.rawQueryString;
                 decodeURI(paths.decodedQueryString);
-            } catch (std::invalid_argument&) {
-                isSuccess = false;
             }
+        } catch (const std::invalid_argument&) {
+            return false;
         }
 
-        // Return success status
-        return isSuccess;
+        for (char& c : decoded) {
+            if (static_cast<unsigned char>(c) < 32 || c == 127) return false;
+            if (c == '\\') c = '/';
+        }
+        if (decoded == "*") {
+            paths.decodedURI = decoded;
+            return true;
+        }
+        if (decoded.empty() || decoded.front() != '/') return false;
+
+        const bool trailingSlash = decoded.back() == '/' || decoded.ends_with("/.");
+        std::vector<std::string> segments;
+        splitString(segments, decoded, '/', false);
+        std::string normalized;
+        for (const std::string& segment : segments) {
+            if (segment == "..") return false;
+            if (segment != ".") normalized += '/' + segment;
+        }
+        if (normalized.empty()) normalized = "/";
+        else if (trailingSlash) normalized += '/';
+        paths.decodedURI = std::move(normalized);
+        return true;
     }
 
 }

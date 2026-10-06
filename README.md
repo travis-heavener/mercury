@@ -270,17 +270,18 @@ The following table contains known compatible versions of software used to build
 
 ### Making Releases
 
-To build a release, manually dispatch the "Make Release" GitHub Action to build the binaries, test them, and push the release to the downloads website.
+To build a release, manually dispatch the "Make Release" GitHub Action on main. It reuses cached Linux and Windows binaries for the selected commit when both binaries and the library cache are available. Otherwise, it runs Build & Test before packaging and publishing the release to GitHub and the downloads website. A cache hit skips Build & Test, so check that the platform tests passed for that commit before dispatching a release.
 
 While a release can be manually made locally (via `make release`), this process is now automated and should only be done by dispatching this workflow.
 
-**NOTE**: the "Make Release" workflow will take the most recent changes on main and bundle them with the version committed to main.
+**NOTE**: the "Make Release" workflow uses the main commit selected when the workflow starts, including its `version.txt` and `CHANGELOG.md`. Update both files before dispatching it.
 Do not build a release from a work-in-progress branch.
 
 ### Testing Suite
 
 This project has its own Python test script that manages its own config and test files.
-The test runner is available in the `tests` directory.
+The test runner is available in the `tests` directory and runs both JSON request/response cases and raw-socket wire regressions.
+See [tests/README.md](tests/README.md) for full setup instructions, every JSON attribute, and guidance on adding meaningful tests.
 
 1. Using Python 3, make sure that the following Python packages are installed using your package manager of choice:
     - `brotli`
@@ -291,9 +292,9 @@ The test runner is available in the `tests` directory.
 
 3. Now, start Mercury once for yourself and run the `phpinit` CLI command to configure the PHP-CGI.
 
-4. Once your TLS certs and PHP are configured, start `tests/run.py` to run a number of tests against the server.
+4. Once your TLS certs and PHP are configured, run `python3 tests/run.py` from the repository root (`python tests/run.py` on Windows). IPv4 and IPv6 loopback must be available, with ports 8080 and 8081 free. Do not use Python optimization (`-O` or `PYTHONOPTIMIZE`), since wire regressions use assertions.
 
-**NOTE:** Make sure that Mercury is ***NOT*** running when you start the test script--the script will launch several versions of Mercury to test against, but will not overwrite your configuration settings.
+**NOTE:** Make sure that Mercury is ***NOT*** running when you start the test script--the script will launch Mercury with several test configurations, but will not overwrite your configuration settings.
 
 ### Docker & Dockerfile
 

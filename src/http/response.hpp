@@ -41,6 +41,7 @@ namespace http {
             const std::string getContentType() const;
 
             size_t getContentLength() const;
+            bool shouldCloseConnection() const;
 
             ssize_t streamBody(const bool isHTMLAccepted, const bool omitBody, std::function<ssize_t(const char*, const size_t)>&);
 
@@ -48,9 +49,10 @@ namespace http {
             bool extendByteRanges(const std::vector<byte_range_t>& byteRanges);
         private:
             bool precompressBody();
+            void clearByteRanges();
 
             std::string httpVersion;
-            uint16_t statusCode;
+            uint16_t statusCode = 200;
             std::unique_ptr<IBodyStream> pBodyStream;
             int compressMethod = NO_COMPRESS;
 

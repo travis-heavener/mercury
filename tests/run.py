@@ -18,6 +18,7 @@ import sys
 import time
 
 from test_case import TestCase, load_runs
+from regressions import WIRE_TEST_COUNT, run_wire_regressions
 
 host = "127.0.0.1"
 host_v6 = "::1"
@@ -191,7 +192,7 @@ if __name__ == "__main__":
         # Load cases
         runs = load_runs()
         num_passing = 0
-        num_total = sum( [len(run["cases"]) for run in runs] ) * 4
+        num_total = sum(len(run["cases"]) * 4 + (WIRE_TEST_COUNT if run["wire_regressions"] else 0) for run in runs)
 
         # Init SSL
         ssl_ctx = init_ssl()
@@ -199,7 +200,8 @@ if __name__ == "__main__":
         # Handle each run
         for run in runs:
             print("=" * 80)
-            print(f"Starting run: {run['desc']} ({len(run['cases']) * 4} tests)")
+            run_total = len(run["cases"]) * 4 + (WIRE_TEST_COUNT if run["wire_regressions"] else 0)
+            print(f"Starting run: {run['desc']} ({run_total} tests)")
 
             # Start Mercury
             timed_out = False
@@ -247,8 +249,18 @@ if __name__ == "__main__":
                 except:
                     print(f"[Error] Failed running tests")
 
-                if num_passing - run_start_num_passing == len(run["cases"]) * 4:
-                    print("✅ Passing")
+                # Run wire checks before reporting this configuration's result
+                wire_passed = None
+                if run["wire_regressions"]:
+                    wire_passed = run_wire_regressions(host, host_v6, port, ssl_port)
+                    num_passing += wire_passed
+
+                # Keep one result line; never print Passing before wire failures
+                if num_passing - run_start_num_passing == run_total:
+                    suffix = f" (wire regressions: {wire_passed}/{WIRE_TEST_COUNT})" if wire_passed is not None else ""
+                    print("✅ Passing" + suffix)
+                elif wire_passed is not None:
+                    print(f"❌ Failing (wire regressions: {wire_passed}/{WIRE_TEST_COUNT})")
 
                 # Allow buffer time before terminate
                 time.sleep(1)
@@ -260,7 +272,7 @@ if __name__ == "__main__":
                         proc.send_signal(signal.CTRL_BREAK_EVENT)
                     elif sys.platform == "linux":
                         proc.send_signal(signal.SIGINT)
-                    proc.wait()
+                    proc.wait(timeout=15)
             except:
                 print(f"[Error] Failed to kill Mercury, aborting remaining tests...")
                 break
@@ -280,7 +292,7 @@ if __name__ == "__main__":
                 proc.send_signal(signal.CTRL_BREAK_EVENT)
             elif sys.platform == "linux":
                 proc.send_signal(signal.SIGINT)
-            proc.wait()
+            proc.wait(timeout=15)
             print("Killed Mercury")
 
         exit(1)
