@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.33.1
+- Migrate to new website URL ([https://mercury.wowtravis.com/](https://mercury.wowtravis.com/))
+
 ## v0.33.0
 - Improve request parsing and resilience to malformed requests
     - Reject invalid header names/values, duplicate Host/Content-Length/Transfer-Encoding headers, and invalid or overflowing Content-Length values

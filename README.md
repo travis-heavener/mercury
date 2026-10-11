@@ -91,7 +91,7 @@ From the terminal, start `mercury` on Linux or `mercury.exe` on Windows.
 Mercury takes only a single, optional command-line argument, which is the path to a config file if you'd like to use one instead of `conf/mercury.conf`.
 This file must be relative to the Mercury project root or an absolute file.
 
-A full list of Mercury versions is available on my website, [wowtravis.com/mercury](https://wowtravis.com/mercury).
+A full list of Mercury versions is available on my website, [https://mercury.wowtravis.com](https://mercury.wowtravis.com/).
 New versions include crucial bug fixes or security improvements, so it is encouraged that you update whenever possible.
 
 Any version of Mercury before v1.0.0 is marked as a pre-release and is not an official release.
@@ -316,7 +316,7 @@ As netizens (*noun*. a user of the internet), it is our due diligence to be awar
 
 **Mercury does not and will never collect any of your personal information.**
 
-The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([wowtravis.com](https://wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf) and to [php.net](https://php.net) on Windows when running the `phpinit` CLI command.
+The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([mercury.wowtravis.com](https://mercury.wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf) and to [php.net](https://php.net) on Windows when running the `phpinit` CLI command.
 
 In addition, the Mercury access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs based on the ClientSecurityMode config setting (see mercury.conf and CONFIG.md).
 Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.

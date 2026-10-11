@@ -20,8 +20,8 @@
 
 // Used to fetch the latest version from remote
 std::string fetchLatestVersion() {
-    const std::string host = "wowtravis.com";
-    const std::string path = "/mercury/latest";
+    const std::string host = "mercury.wowtravis.com";
+    const std::string path = "/latest";
 
     // 1. Resolve host
     addrinfo hints{};
