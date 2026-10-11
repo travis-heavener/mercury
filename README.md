@@ -10,6 +10,7 @@
 
 <div align="center">
     <a href="https://github.com/travis-heavener/mercury/actions/workflows/build.yml"><img style="margin-top: 0.5rem; margin-bottom: 0" src="https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg"></a>
+    <a href="https://github.com/travis-heavener/mercury/actions/workflows/website-deploy.yml"><img style="margin-top: 0.5rem; margin-bottom: 0" src="https://github.com/travis-heavener/mercury/actions/workflows/website-deploy.yml/badge.svg"></a>
     <h3><em>A lightweight, configurable HTTP server</em></h3>
     <h3>Project by Travis Heavener</h3>
 </div>
