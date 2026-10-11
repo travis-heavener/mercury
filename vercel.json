@@ -2,5 +2,5 @@
   "git": {
     "deploymentEnabled": false
   },
-  "outputDirectory": "public"
+  "outputDirectory": "website"
 }

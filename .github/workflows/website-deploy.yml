@@ -6,11 +6,13 @@ on:
     paths:
       - "website/**"
       - ".github/workflows/website-deploy.yml"
+      - "vercel.json"
   pull_request:
     branches: ["main"]
     paths:
       - "website/**"
       - ".github/workflows/website-deploy.yml"
+      - "vercel.json"
 
 jobs:
   Website-Build:
