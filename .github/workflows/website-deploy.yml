@@ -1,0 +1,89 @@
+name: Website Deploy
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "website/**"
+      - ".github/workflows/website-deploy.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "website/**"
+      - ".github/workflows/website-deploy.yml"
+
+jobs:
+  Website-Build:
+    runs-on: ubuntu-latest
+    steps:
+      # When running on PRs, only minify & validate!
+      # PR runs do not need a publishing token or access to secrets
+      - uses: actions/create-github-app-token@v3
+        if: github.event_name != 'pull_request'
+        id: app-token
+        with:
+          client-id: ${{ vars.MERCURY_BOT_APP_ID }}
+          private-key: ${{ secrets.MERCURY_BOT_KEY }}
+
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ steps.app-token.outputs.token || github.token }}
+
+      #################### MINIFY ####################
+      - name: Minify
+        run: |
+          npm i -g html-minifier-terser lightningcss-cli terser
+
+          # Minify JS
+          find ./website -name "*.js" -print0 | xargs -0 -I {} -P 4 terser {} -c -m -o {}
+
+          # Minify CSS
+          find ./website -name "*.css" -exec lightningcss --minify {} --output-dir ./website \;
+
+          # Minify HTML
+          html-minifier-terser --input-dir ./website --output-dir ./website --file-ext html --collapse-whitespace --remove-comments --minify-js true --minify-css true --process-scripts "application/ld+json"
+
+      #################### VALIDATE ####################
+      - name: W3 Validate HTML
+        uses: anishathalye/proof-html@v2
+        with:
+          directory: ./website/
+          enforce_https: false
+          disable_external: true
+
+      #################### UPLOAD ARTIFACT ####################
+      - name: Upload Built Website Directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-site
+          path: website/
+
+  Website-Deploy-Production:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: Website-Build
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download Built Website Directory
+        uses: actions/download-artifact@v4
+        with:
+          name: public-site
+          path: website/
+
+      #################### DEPLOY ####################
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
