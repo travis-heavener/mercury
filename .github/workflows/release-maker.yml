@@ -196,7 +196,7 @@ jobs:
         run: |
           # Create branch & commit
           git checkout -b release-update-${{ steps.version.outputs.version }}
-          git add docs/releases.json docs/latest
+          git add website/releases.json website/latest
           git commit -m "Update release metadata for ${{ steps.version.outputs.version }}" || echo "No changes to commit"
           git restore .
           git push origin HEAD

@@ -8,7 +8,7 @@ def main(version_full: str, linux_hash: str, win_hash: str):
     # Load existing JSON
     releases_json: list = None
 
-    with open("./docs/releases.json", "r") as f:
+    with open("./website/releases.json", "r") as f:
         releases_json = json.load(f)
 
     # Remove existing releases with matching version
@@ -23,7 +23,7 @@ def main(version_full: str, linux_hash: str, win_hash: str):
     })
 
     # Update file
-    with open("./docs/releases.json", "w+") as f:
+    with open("./website/releases.json", "w+") as f:
         json.dump(releases_json, f, indent=4)
 
 if __name__ == "__main__":
