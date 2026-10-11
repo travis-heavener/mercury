@@ -56,7 +56,7 @@ jobs:
       #################### UPLOAD ARTIFACT ####################
       - name: Upload Built Website Directory
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: public-site
           path: website/
@@ -72,7 +72,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Download Built Website Directory
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: public-site
           path: website/
