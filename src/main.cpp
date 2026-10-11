@@ -167,7 +167,7 @@ int main(int argc, char* argv[]) {
         const std::string latestVersion = fetchLatestVersion();
         try {
             if (latestVersion.length() > 0 && conf::isVersionOutdated(latestVersion))
-                std::cout << "Update available! (" << latestVersion.substr(8) << ")\nVisit https://wowtravis.com/mercury" << std::endl;
+                std::cout << "Update available! (" << latestVersion.substr(8) << ")\nVisit https://mercury.wowtravis.com/" << std::endl;
             else if (latestVersion.length() == 0)
                 std::cerr << "Failed to fetch latest version!" << std::endl;
         } catch (std::invalid_argument&) {
