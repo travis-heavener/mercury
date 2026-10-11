@@ -53,6 +53,7 @@ jobs:
 
       #################### UPLOAD ARTIFACT ####################
       - name: Upload Built Website Directory
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
           name: public-site
