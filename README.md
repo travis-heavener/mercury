@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="docs/og-image.jpg" width="300" height="158">
+    <img src="website/og-image.jpg" width="300" height="158">
     <br>
     <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-orange.svg"></a>
     <img src="https://img.shields.io/badge/Language-C%2B%2B-orange">
