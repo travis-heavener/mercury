@@ -2,5 +2,12 @@
   "git": {
     "deploymentEnabled": false
   },
-  "outputDirectory": "website"
+  "outputDirectory": "website",
+  "redirects": [
+    {
+      "source": "/robots.txt",
+      "destination": "https://wowtravis.com/robots.txt",
+      "permanent": false
+    }
+  ]
 }
