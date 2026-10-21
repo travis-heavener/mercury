@@ -4,7 +4,10 @@
 - Added: `-t, --test` CLI argument, tests configuration file syntax and validity before exiting
 - Added: `-r, --root <path>` CLI argument, overrides configured `DocumentRoot` directory
 - Added: `-p, --port <port>` CLI argument, overrides configured HTTP `Port`
-- Added: `stats` console command (aliases: `status`, `info`, `metrics`), displaying server uptime, active connections, thread pool utilization, total requests, HTTP status distribution, and ingress/egress bandwidth
+- Added: `stats` console command (aliases: `status`, `info`, `metrics`, `uptime`), displaying server uptime, active connections, thread pool utilization, total requests, HTTP status distribution, and ingress/egress bandwidth
+- Added: `config` (alias: `conf`) console command, displays loaded server configuration parameters (ports, network bindings, buffer sizes, body limits, timeouts, and security settings)
+- Added: `mimes` (alias: `mime`) console command, displays or filters configured MIME type mappings (`mimes [query]`)
+- Added: `version` (alias: `ver`) console command, displays Mercury version, supported HTTP protocols, and encryption capabilities
 - Added: `routes` (alias: `rules`) console command, displays active routing rules including Match blocks, Access ACLs, custom headers, Directory Index settings, Redirects, and Rewrites
 - Added: `tls` (alias: `cert`) console command, inspects TLS status and X.509 certificate metadata (subject, issuer, validity period, and expiration status)
 - Added: `logs` (alias: `tail`) console command, views tail of access or error log files with configurable line counts (`logs [access|error] [n]`)

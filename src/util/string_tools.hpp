@@ -14,9 +14,17 @@
 #define COMPRESS_BROTLI 2048
 #define COMPRESS_ZSTD 4096
 
+// Convert string characters to uppercase in-place
 inline void strToUpper(std::string& str) {
     std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
         return static_cast<char>(std::toupper(c));
+    });
+}
+
+// Convert string characters to lowercase in-place
+inline void strToLower(std::string& str) {
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
     });
 }
 
