@@ -125,13 +125,13 @@
 #endif
 
 void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std::vector<std::shared_ptr<http::Server>>& serversVec) {
-    // Clean exit
-    if (buf == "CLEAR") {
+    // Handle terminal clear
+    if (buf == "CLEAR" || buf == "CLS") {
         std::cout << "\033[2J\033[H" << std::flush;
     } else if (buf == "DONATE") {
         std::cout << "> Love Mercury? Consider supporting this project:\n"
             "     https://buymeacoffee.com/travis.heavener" << std::endl;
-    } else if (buf == "EXIT") {
+    } else if (buf == "EXIT" || buf == "QUIT" || buf == "Q") {
         isExiting.store(true);
     } else if (buf == "INFO" || buf == "STATUS") {
         // Print usage info
@@ -147,11 +147,11 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
         std::cout << "> Pong!" << std::endl;
     } else if (buf == "PWD") {
         std::cout << conf::DOCUMENT_ROOT.string() << std::endl;
-    } else if (buf == "HELP") {
-        std::cout << "> Clear: Clears the terminal window\n"
+    } else if (buf == "HELP" || buf == "?") {
+        std::cout << "> Clear: Clears the terminal window (alias: cls)\n"
             "  Donate: Shows optional donation URL\n"
-            "  Exit: Exit Mercury\n"
-            "  Help: List available commands\n"
+            "  Exit: Exit Mercury (aliases: quit, q)\n"
+            "  Help: List available commands (alias: ?)\n"
             "  Info: View current utilization\n"
             "  PHPInit: Initializes platform-specific PHP\n"
             "  Ping: Pong!\n"

@@ -4,6 +4,7 @@
 - Added: `-t, --test` CLI argument, tests configuration file syntax and validity before exiting
 - Added: `-r, --root <path>` CLI argument, overrides configured `DocumentRoot` directory
 - Added: `-p, --port <port>` CLI argument, overrides configured HTTP `Port`
+- Added: CLI console command aliases `quit`/`q` (`exit`), `?` (`help`), and `cls` (`clear`)
 - Docs: Update SECURITY.md contact email
 - Fix: free OpenSSL context (`SSL_CTX_free`) if certificate or private key loading fails in `initTLSContext`
 - Fix: verify private key matches public certificate during TLS initialization (`SSL_CTX_check_private_key`)
