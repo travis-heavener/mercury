@@ -12,6 +12,7 @@
 
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1
+#define CONF_EXIT    2
 
 #define CLIENT_SEC_MINIMAL    0
 #define CLIENT_SEC_GPC_MASKED 1
@@ -84,6 +85,8 @@ namespace conf {
     int loadConfig(int argc, char* argv[]);
     void cleanupConfig();
     bool isVersionOutdated(const std::string& latestRemoteVersion);
+    void printHelp();
+    void printVersion();
 }
 
 #endif

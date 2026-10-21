@@ -62,7 +62,13 @@ By default, Mercury looks for configuration in `conf/mercury.conf`:
 
 To run with an alternate or test configuration:
 ```bash
-./bin/mercury tests/conf_files/normal.conf
+./bin/mercury -c tests/conf_files/normal.conf
+# or: ./bin/mercury --config /path/to/custom.conf
+```
+
+To display command-line options and help:
+```bash
+./bin/mercury --help
 ```
 
 ### Interactive CLI Commands
@@ -132,11 +138,11 @@ Mercury maintains strict version alignment across files.
 ### Version Synchronization Rule
 When cutting a new release or preparing version bumps:
 1. `version.txt` must contain the exact string `Mercury vX.Y.Z` without a trailing newline.
-2. `CHANGELOG.md` must have a corresponding top header `## vX.Y.Z`.
+2. `CHANGELOG.md` must have a corresponding top header `## [X.Y.Z] - YYYY-MM-DD`.
 3. The CI workflow `.github/workflows/compare-changelog-version.yml` validates this equivalence:
    ```bash
-   CHANGELOG_VERSION=$( cat CHANGELOG.md | grep -Po "(?<=^## )v\d+\.\d+\.\d+$" | head -1 )
-   STORED_VERSION=$( cat version.txt | head -n 1 | tr -d '\n' | grep -Po "(?<=^Mercury )v\d+\.\d+\.\d+$" | head -1 )
+   CHANGELOG_VERSION=$( cat CHANGELOG.md | grep -Po "(?<=^## \[)\d+\.\d+\.\d+(?=\] - \d{4}-\d{2}-\d{2})" | head -1 )
+   STORED_VERSION=$( cat version.txt | head -n 1 | tr -d '\n' | grep -Po "(?<=^Mercury v)\d+\.\d+\.\d+$" | head -1 )
    [ "$CHANGELOG_VERSION" = "$STORED_VERSION" ]
    ```
 

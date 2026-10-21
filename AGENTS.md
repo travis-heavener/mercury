@@ -14,7 +14,7 @@ Mercury is a lightweight, high-performance, configurable HTTP server implemented
 | **Build Windows** | `make windows` | Cross-compiles `bin/mercury.exe` using MinGW-w64 |
 | **Build All** | `make all` | Builds both Linux and Windows binaries |
 | **Debug Build** | `DEBUG=1 make -j -B` | Enables `-g -O0` and skips UPX compression |
-| **Run Server** | `./bin/mercury [conf-file]` | Defaults to `conf/mercury.conf` |
+| **Run Server** | `./bin/mercury [-c conf-file]` | Defaults to `conf/mercury.conf` (`--help` for options) |
 | **Create TLS Certs** | `make cert` | Generates self-signed test keypair in `conf/ssl/` |
 | **Run Test Suite** | `python3 tests/run.py` | Runs JSON cases and socket wire regressions |
 | **Multi-Distro Tests** | `make docker_tests` | Tests across Ubuntu, Debian, Alpine, Fedora, Arch |
@@ -77,7 +77,7 @@ Adhere strictly to [`agents/CONVENTIONS.md`](agents/CONVENTIONS.md):
 - Header lines are limited to 64 KiB (returning 431 on overflow), and malformed or duplicate framing headers (`Content-Length`, `Transfer-Encoding`) must return 400.
 
 ### 5. Version Synchronization
-- Any version change must update both `version.txt` (`Mercury vX.Y.Z`) and `CHANGELOG.md` (`## vX.Y.Z`) identically. The CI workflow will fail if these diverge.
+- Any version change must update both `version.txt` (`Mercury vX.Y.Z`) and `CHANGELOG.md` (`## [X.Y.Z] - YYYY-MM-DD`). The CI workflow will fail if these diverge.
 
 ---
 

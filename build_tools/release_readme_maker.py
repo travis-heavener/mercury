@@ -74,11 +74,17 @@ def main(path: str):
     # Undo collapsible formatting
     body = remove_collapsibles(body)
 
-    # Replace first section
-    body = remove_until_section(body, "Table of Contents")
+    # Strip horizontal dividers before section headers for cleaner plaintext output
+    body = re.sub(r"\n---\s*\n(?=\s*## )", "\n\n", body)
 
-    # Remove sections
-    body = remove_section(body, "Table of Contents")
+    # Strip badges and header down to first release section
+    if re.search(r"^## Table of Contents", body, flags=re.MULTILINE):
+        body = remove_until_section(body, "Table of Contents")
+        body = remove_section(body, "Table of Contents")
+    elif re.search(r"^## Getting Started", body, flags=re.MULTILINE):
+        body = remove_until_section(body, "Getting Started")
+
+    # Remove non-release sections
     body = remove_section(body, "About")
     body = remove_section(body, "Contributing")
     body = remove_section(body, "Changelog")

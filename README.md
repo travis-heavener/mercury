@@ -1,363 +1,206 @@
 <div align="center">
-    <img src="website/og-image.jpg" width="300" height="158">
+    <img src="website/og-image.jpg" width="300" height="158" alt="Mercury Banner">
     <br>
-    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-orange.svg"></a>
-    <img src="https://img.shields.io/badge/Language-C%2B%2B-orange">
-    <img src="https://img.shields.io/github/stars/travis-heavener/mercury?style=flat&label=Stars&color=orange">
+    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-orange.svg" alt="License"></a>
+    <img src="https://img.shields.io/badge/Language-C%2B%2B20-orange" alt="C++20">
+    <img src="https://img.shields.io/github/stars/travis-heavener/mercury?style=flat&label=Stars&color=orange" alt="Stars">
     <br>
     <h1>Mercury</h1>
-</div>
-
-<div align="center">
-    <a href="https://github.com/travis-heavener/mercury/actions/workflows/build.yml"><img style="margin-top: 0.5rem; margin-bottom: 0" src="https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg"></a>
-    <a href="https://github.com/travis-heavener/mercury/actions/workflows/website-deploy.yml"><img style="margin-top: 0.5rem; margin-bottom: 0" src="https://github.com/travis-heavener/mercury/actions/workflows/website-deploy.yml/badge.svg"></a>
-    <h3><em>A lightweight, configurable HTTP server</em></h3>
-    <h3>Project by Travis Heavener</h3>
+    <a href="https://github.com/travis-heavener/mercury/actions/workflows/build.yml"><img src="https://github.com/travis-heavener/mercury/actions/workflows/build.yml/badge.svg" alt="Build Status"></a>
+    <a href="https://github.com/travis-heavener/mercury/actions/workflows/website-deploy.yml"><img src="https://github.com/travis-heavener/mercury/actions/workflows/website-deploy.yml/badge.svg" alt="Deploy Status"></a>
+    <h3><em>A lightweight, high-performance HTTP server for Linux and Windows</em></h3>
+    <p>Project by <a href="https://github.com/travis-heavener">Travis Heavener</a> &bull; <a href="https://mercury.wowtravis.com">mercury.wowtravis.com</a></p>
 </div>
 
 ---
 
-<details>
-    <summary>
-        <h2>Table of Contents</h2>
-    </summary>
+Mercury is a lightweight, configurable HTTP web server implemented in modern C++20. Designed as an efficient alternative to heavyweight servers like Apache, it combines low memory utilization with modern protocol features, streaming compression, dynamic CGI scripting, and robust security defaults.
+
+## Key Features
+
+- **Blazing Fast & Low Memory**: Uses up to 58% less idle memory than Apache with sub-millisecond static response times.
+- **Protocol Support**: Full HTTP/1.1 (keep-alive, pipelining, chunked transfer encoding) with backward-compatible HTTP/1.0 and HTTP/0.9 handlers.
+- **Modern TLS**: TLS 1.3 encryption powered by OpenSSL with self-signed certificate automation.
+- **Streaming Compression**: Dynamic, on-the-fly compression supporting **Brotli**, **Zstandard**, **Gzip**, and **Deflate**.
+- **Fast PHP-CGI**: Native RFC 3875 CGI execution engine for PHP scripts.
+- **Flexible XML Configuration**: Declarative virtual host rules, regex URL rewrites, HTTP redirects (301/302/308), CIDR/IP access control lists, and custom status pages.
+- **Privacy First**: Zero telemetry, no external calls, and built-in DNT/Sec-GPC client IP bit-masking and hashing.
+- **Privilege Separation**: Safely drops root privileges when started via `sudo` or `doas` after binding privileged ports, preserving invoking user ownership on logs and temp files.
+- **Cross-Platform**: Compiles natively on Linux and cross-compiles for Windows with zero external runtime DLL dependencies.
+
+---
+
+## Table of Contents
 
 - [About](#about)
-    - [Performance](#performance)
+- [Performance](#performance)
 - [Getting Started](#getting-started)
-    - [Config Files](#config-files)
-    - [Log Files](#log-files)
+    - [Configuration](#config-files)
+    - [Logging](#log-files)
     - [Setting Up PHP](#setting-up-php)
-    - [TLS Certs](#tls-certs)
-    - [CLI](#cli)
+    - [TLS Certificates](#tls-certs)
+    - [Interactive CLI](#cli)
     - [Troubleshooting](#troubleshooting)
 - [For Developers](#for-developers)
-    - [Windows Builds](#windows-builds)
-    - [Linux Builds](#linux-builds)
-    - [Compatibility](#compatibility)
-    - [Making Releases](#making-releases)
-    - [Testing Suite](#testing-suite)
 - [Privacy Commitment](#privacy-commitment)
 - [Contributing](#contributing)
-- [Changelog](#changelog)
-- [Credits](#credits)
-- [Fun Facts](#fun-facts)
+- [License](#license)
 - [Support Mercury](#support-mercury)
 
-</details>
+---
 
-<details>
-    <summary>
-        <h2>About</h2>
-    </summary>
-
-Mercury is a lightweight, configurable HTTP server made in C++ for Windows and Linux\*.
-
-\* Linux binaries depend on your local glibc and only support distros using APT, Pacman, or DNF.
+## About
 
 ### Performance
 
-Mercury is a lighter-weight alternative to popular HTTP servers like Apache:
+Mercury is significantly lighter on system resources compared to traditional web servers:
 
-#### Linux
+#### Linux (Ubuntu 22.04)
 
-|                  | Mercury      | Apache   | Comparison                  |
-|------------------|--------------|----------|:---------------------------:|
-| Avg. Idle Memory | **9216 KB**  | 21906 KB | **Mercury is 58% lighter!** |
-| Avg. Load Memory | **27914 KB** | 31198 KB | **Mercury is 11% lighter!** |
+| Metric | Mercury | Apache | Comparison |
+|---|---|---|:---:|
+| **Avg. Idle Memory** | **9.2 MB** | 21.9 MB | **Mercury is 58% lighter** |
+| **Avg. Load Memory** | **27.9 MB** | 31.2 MB | **Mercury is 11% lighter** |
 
-#### Windows
+#### Windows (x64)
 
-|                  | Mercury      | Apache   | Comparison                  |
-|------------------|--------------|----------|:---------------------------:|
-| Avg. Idle Memory | **16320 KB** | 30026 KB | **Mercury is 46% lighter!** |
-| Avg. Load Memory | **20331 KB** | 32658 KB | **Mercury is 38% lighter!** |
+| Metric | Mercury | Apache | Comparison |
+|---|---|---|:---:|
+| **Avg. Idle Memory** | **16.3 MB** | 30.0 MB | **Mercury is 46% lighter** |
+| **Avg. Load Memory** | **20.3 MB** | 32.7 MB | **Mercury is 38% lighter** |
 
-*Note: tests were conducted over IPv4 & IPv6 connections w/ and w/o SSL (using Mercury v0.22.2).
-Each value is the average of five separate trials using the Python test cases in the Mercury repository under `tests`.*
+*Baseline averages across 5 trials over IPv4 and IPv6 connections using the test suite.*
 
-*Actual performance will vary between systems; this data is a baseline.*
+---
 
-</details>
+## Getting Started
 
-<details>
-    <summary>
-        <h2>Getting Started</h2>
-    </summary>
+### Running Mercury
 
-Once you've downloaded your own Mercury release, navigate to the `bin/` directory.
-From the terminal, start `mercury` on Linux or `mercury.exe` on Windows.
+Download the latest release archive from [mercury.wowtravis.com](https://mercury.wowtravis.com) or the [Releases](https://github.com/travis-heavener/mercury/releases) page.
 
-Mercury takes only a single, optional command-line argument, which is the path to a config file if you'd like to use one instead of `conf/mercury.conf`.
-This file must be relative to the Mercury project root or an absolute file.
+- **Linux**: `./bin/mercury [options]`
+- **Windows**: `bin\mercury.exe [options]`
 
-A full list of Mercury versions is available on my website, [https://mercury.wowtravis.com](https://mercury.wowtravis.com/).
-New versions include crucial bug fixes or security improvements, so it is encouraged that you update whenever possible.
+Common options:
+- `-c, --config <file>`: Specify path to configuration file (defaults to `conf/mercury.conf`)
+- `-h, --help`: Display usage and command-line options
+- `-v, --version`: Display version information
 
-Any version of Mercury before v1.0.0 is marked as a pre-release and is not an official release.
-Therefore, bugs and security vulnerabilities are still possible.
-If you encounter any unexpected behavior, please start an Issue on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury/issues).
+> [!NOTE]
+> All versions before `v1.0.0` are pre-releases. Pre-release updates may introduce breaking changes or configuration adjustments between versions, so be sure to consult [`CHANGELOG.md`](CHANGELOG.md) when upgrading. If you encounter any unexpected behavior, please [open an issue](https://github.com/travis-heavener/mercury/issues).
 
 ### Config Files
 
-In the `conf` directory are two config files: "mercury.conf" for server config and "mimes.conf" for a list of supported MIME types.
-The `conf/default/` directory contains default copies these files.
+- `conf/mercury.conf`: Primary server configuration (ports, document root, security modes, match rules, rewrite/redirect directives).
+- `conf/mimes.conf`: MIME type mapping table.
+- Default templates are located in `conf/default/`.
 
-For guidance, [CONFIG.md](CONFIG.md) contains a thorough documentation of each configuration setting, including accepted values and usage examples.
+> [!TIP]
+> Always review [`CONFIG.md`](CONFIG.md) when setting up configuration files—it provides thorough documentation of each configuration setting, including accepted values and usage examples. If you use hashed IP logging (`GPCHashed` or `Hashed`), remember to change the `ClientSecurityIPSalt` node in `conf/mercury.conf` to a unique secret string to properly salt anonymous GPC hash entries.
 
 ### Log Files
 
-Once you start Mercury, a `logs` directory will be created, with an access and error log.
-- access.log: a detailed log of all server traffic that is processed, along with status information.
-- error.log: any detailed error messages that the server encounters.
+Mercury automatically creates a `logs/` directory upon startup:
+- `logs/access.log`: Processed requests with client IP, timestamp, method, path, status, and HTTP version.
+- `logs/error.log`: Diagnostic, socket, and CGI error logs.
 
 ### Setting Up PHP
 
-PHP is supported via CGI.
-
-To install, start Mercury and run the `phpinit` command.
-
-Developer environments will automatically install php-cgi when running `make lib_deps` or `make libs`.
-
-Windows users have the option to use their own PHP installation instead by modifying the path to php-cgi in "mercury.conf" under the WinPHPCGIPath node.
-
-**Note: By default, in "mercury.conf" PHP support is disabled. Enable PHP by changing the value of the EnablePHPCGI node to on.**
+PHP is supported via CGI:
+1. Start Mercury and type `phpinit` in the interactive console to automatically install and configure `php-cgi`.
+2. In `conf/mercury.conf`, enable PHP by setting `<EnablePHPCGI> on </EnablePHPCGI>`.
+3. Windows users can customize the path via the `<WinPHPCGIPath>` node in `mercury.conf`.
 
 ### TLS Certs
 
-Self-signed TLS 1.3 certs are now available with OpenSSL.
-
-#### For Linux:
-
-OpenSSL comes installed on most Linux distributions, *however* `conf/ssl/makecert.sh` will verify that OpenSSL is actually installed and will attempt to install it if missing.
-
-1. Run `conf/ssl/makecert.sh` and enter the requested information to fill out the certificate.
-
-#### For Windows:
-
-1. Download [OpenSSL for Windows](https://slproweb.com/products/Win32OpenSSL.html) if not already installed.
-Remember the install location for OpenSSL.
-
-2. Update the `$OPENSSL_PATH` variable in `conf/ssl/makecert.ps1` with your correct path if needed.
-If you did not change the install location for OpenSSL then you will likely not need to make any changes.
-
-3. Run `conf/ssl/makecert.ps1` and enter the requested information to fill out the certificate.
-
-#### For Development:
-
-In your Linux environment, use `make cert` in the root directory of this project and enter your information to create a new certificate pair.
-Your certificate will be located at `conf/ssl/cert.pem` and your private key at `conf/ssl/key.pem`.
-
-**Note: By default, in "mercury.conf" TLS is disabled. Enable TLS by changing the value of the TLSPort node to a port like 443.**
+Self-signed TLS 1.3 certificates can be generated with a single command:
+- **Linux**: Run `conf/ssl/makecert.sh` (or `make cert` in the source repository).
+- **Windows**: Run `conf/ssl/makecert.ps1` (ensure OpenSSL is installed).
+- Certificates are saved to `conf/ssl/cert.pem` and `conf/ssl/key.pem`.
+- Enable TLS by setting `<TLSPort> 443 </TLSPort>` (or another port) in `conf/mercury.conf`.
 
 ### CLI
 
-Mercury exposes a CLI to the user with the following commands:
+Mercury provides an interactive terminal command interface:
 
-| Command | Description                 |
-|---------|-----------------------------|
-| clear   | Clears the terminal window  |
-| donate  | Shows optional donation URL |
-| exit    | Exit Mercury                |
-| help    | List available commands     |
-| info    | View current utilization    |
-| phpinit | Downloads & configures PHP  |
-| ping    | Pong!                       |
-| pwd     | Prints the document root    |
-| status  | See "info"                  |
+| Command | Action |
+|---|---|
+| `help` | List available commands |
+| `info` / `status` | View active thread pool usage and connection queue |
+| `pwd` | Print document root directory |
+| `ping` | Healthcheck response (`Pong!`) |
+| `phpinit` | Download and configure PHP-CGI |
+| `clear` | Clear terminal output |
+| `donate` | Display optional donation link |
+| `exit` | Gracefully shut down the server |
 
 ### Troubleshooting
 
-#### Linux Executables
+- **Linux (glibc mismatch)**: Prebuilt binaries are compiled against glibc 2.35 (Ubuntu 22.04). If you encounter `SIGFPE` or dynamic loader errors on older distributions, build from source via `make linux`.
+- **Windows SmartScreen**: Select **More info** $\rightarrow$ **Run anyway** if prompted by Microsoft Defender SmartScreen on unsigned binaries.
+- **PowerShell Execution Policy**: If `.ps1` scripts are blocked on Windows, run:
+  ```powershell
+  Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+  ```
+- **Port Conflicts**: Ensure ports 80/8080 and 443/8081 are not already bound by another web server.
+- **Configuration & XML Errors**: If Mercury fails to start due to a malformed configuration file, it pinpoints the exact XML syntax error along with line and column numbers. Ensure all opening tags match their closing tags and that required configuration directives are present.
 
-Linux executables are compiled from the "ubuntu-22.04" GitHub Actions runner and use an older version of glibc (2.35).
-Since Mercury does not statically link against glibc, the program depends on the glibc version available at runtime.
+---
 
-If you receive crashes (e.g. SIGFPE __libc_early_init /usr/bin/libc.so.6), you will need to build from the Mercury source.
-See [For Developers](#for-developers) for instructions on how to do build Mercury.
+## For Developers
 
-#### Windows Executables
+Developers and automated agents should reference [`AGENTS.md`](AGENTS.md) and the [`agents/`](agents/) directory for architecture breakdowns, testing specs, and engineering conventions.
 
-Windows executable of Mercury are blocked by default from running on client devices.
-
-If you encounter a message along the lines of:
-> Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.
-
-Select "More info" and then "Run anyway".
-
-#### Powershell Scripts
-
-On Windows, there are two Powershell scripts bundled with each release:
-
-1. PHP installer for Windows (`conf/setup_php.ps1`)
-
-2. TLS certificate maker (`conf/ssl/makecert.ps1`)
-
-The script for installing PHP for Windows should be run through the Mercury CLI via the `phpinit` command, otherwise it will be blocked from execution.
-
-For either of the two scripts, if you attempt to run them manually and receive an error that it's blocked from execution, paste the following into your terminal window to temporarily bypass the Powershell execution policy:
-
-```
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-```
-
-#### Further Troubleshooting
-
-If you encounter any other issues or unexpected behavior, please consider opening an Issue on the [Mercury GitHub repository](https://github.com/travis-heavener/mercury/issues/new/choose).
-
-</details>
-
-<details>
-    <summary>
-        <h2>For Developers</h2>
-    </summary>
-
-Currently, the Mercury development environment is only available on Linux environments that support APT, Pacman, or DNF.
-**Windows is not recognized as a development environment and as such the following steps will not work as intended (if at all).**
-
-After cloning the repository, paste the following into your terminal to configure the development environment:
+### Quick Build Commands
 
 ```bash
-make clean      # Initialize the environment
-make lib_deps   # Install dependency packages
-make libs -j    # Build static library dependencies
+make clean      # Clean previous build artifacts
+make lib_deps   # Install build dependencies (APT, Pacman, DNF)
+make libs -j    # Build static dependencies (OpenSSL, Brotli, Zstd, Zlib, PugiXML)
+make linux      # Compile bin/mercury
+make windows    # Cross-compile bin/mercury.exe (MinGW-w64)
 ```
 
-Run `make -j` to build for Windows and Linux or refer to the following sections to build for your specific platform.
+- **Debug Builds**: Run `DEBUG=1 make -j -B` to compile with `-g -O0` and bypass UPX binary compression.
+- **Running Tests**: Run `python3 tests/run.py` to execute the JSON test cases and socket wire regressions (requires `brotli`, `zstandard`, `psutil`, and generated TLS certs via `make cert`).
+- **Multi-Distro Testing**: Run `make docker_tests` to execute tests across Ubuntu, Debian, Alpine, Fedora, and Arch containers.
 
-Binaries are placed in the `bin/` directory, with `bin/mercury` for Linux and `bin/mercury.exe` for Windows.
+See [`agents/WORKFLOWS.md`](agents/WORKFLOWS.md) and [`agents/TESTING.md`](agents/TESTING.md) for complete runbooks.
 
-### Windows Builds
+---
 
-Run `make windows`.
+## Privacy Commitment
 
-### Linux Builds
+Mercury values user privacy and adheres to strict standards:
+- **Zero Telemetry**: Mercury never collects personal data, telemetry, or analytics.
+- **Minimal Network Calls**: The only outbound connection is an optional startup version check to `mercury.wowtravis.com` (which can be disabled via `<StartupCheckLatestRelease> off </StartupCheckLatestRelease>`), plus `php.net` during Windows `phpinit`.
+- **DNT / Sec-GPC Compliance**: Client IPs in `access.log` can be automatically bit-masked or salted/hashed when `Do-Not-Track` or `Sec-GPC` headers are detected (configured via `<ClientSecurityMode>`). Review [`CONFIG.md`](CONFIG.md) for configuration guidance, and be sure to change `<ClientSecurityIPSalt>` to your own unique secret value when using hashed IP logging.
 
-Run `make linux`.
-
-If you're interested in *only* building for Linux, you can set `LINUX_ONLY=1` when running `make libs -j` to prevent building Windows library dependencies.
-
-#### Linux: Alternative Compilers
-
-If you'd like to use a different C++ compiler for Linux builds, set the environment variable `CXX` before running `make linux` or alike.
-
-Example:
-```bash
-CXX=clang++ make linux
-```
-
-Note: currently, only `g++` and `clang++` are supported.
-
-### Debug Mode
-
-If you'd like to build in debug mode (skip executable compression & run g++ with `-g`), set `DEBUG=1` before running.
-Example:
-
-```bash
-DEBUG=1 make -j -B
-```
-
-### Compatibility
-
-All releases are currently built using the "ubuntu-22.04" GitHub Actions runner.
-All libraries are statically linked except for glibc, which uses the version of it installed on your Linux machine.
-
-The following table contains known compatible versions of software used to build Mercury.
-
-| Name      | Version    |
-|-----------|------------|
-| g++       | 11.4.0     |
-| mingw-w64 | 8.0.0      |
-
-### Making Releases
-
-To build a release, manually dispatch the "Make Release" GitHub Action on main. It reuses cached Linux and Windows binaries for the selected commit when both binaries and the library cache are available. Otherwise, it runs Build & Test before packaging and publishing the release to GitHub and the downloads website. A cache hit skips Build & Test, so check that the platform tests passed for that commit before dispatching a release.
-
-While a release can be manually made locally (via `make release`), this process is now automated and should only be done by dispatching this workflow.
-
-**NOTE**: the "Make Release" workflow uses the main commit selected when the workflow starts, including its `version.txt` and `CHANGELOG.md`. Update both files before dispatching it.
-Do not build a release from a work-in-progress branch.
-
-### Testing Suite
-
-This project has its own Python test script that manages its own config and test files.
-The test runner is available in the `tests` directory and runs both JSON request/response cases and raw-socket wire regressions.
-See [tests/README.md](tests/README.md) for full setup instructions, every JSON attribute, and guidance on adding meaningful tests.
-
-1. Using Python 3, make sure that the following Python packages are installed using your package manager of choice:
-    - `brotli`
-    - `zstandard`
-    - `psutil`
-
-2. With Python and its dependencies installed, run `make cert` to create a TLS cert key pair.
-
-3. Now, start Mercury once for yourself and run the `phpinit` CLI command to configure the PHP-CGI.
-
-4. Once your TLS certs and PHP are configured, run `python3 tests/run.py` from the repository root (`python tests/run.py` on Windows). IPv4 and IPv6 loopback must be available, with ports 8080 and 8081 free. Do not use Python optimization (`-O` or `PYTHONOPTIMIZE`), since wire regressions use assertions.
-
-**NOTE:** Make sure that Mercury is ***NOT*** running when you start the test script--the script will launch Mercury with several test configurations, but will not overwrite your configuration settings.
-
-### Docker & Dockerfile
-
-Because Docker installation methods vary wildly between Linux distributions, it does not get installed during the `make lib_deps` step.
-
-Refer to the [DockerDocs](https://docs.docker.com/engine/install/) for your specific distro's install guide.
-
-If you have Docker installed, you can use the `make docker_tests` recipe to run the Python test script against a number of Linux distributions.
-
-</details>
-
-<details>
-    <summary>
-        <h2>Privacy Commitment</h2>
-    </summary>
-
-As netizens (*noun*. a user of the internet), it is our due diligence to be aware of our presence online and to keep our personal information secure.
-
-**Mercury does not and will never collect any of your personal information.**
-
-The ***only*** outgoing connections ***ever made*** from Mercury are to my personal website ([mercury.wowtravis.com](https://mercury.wowtravis.com/)) to check for the latest version (a process which can be disabled in mercury.conf) and to [php.net](https://php.net) on Windows when running the `phpinit` CLI command.
-
-In addition, the Mercury access and error logs (logs/access.log and logs/error.log) record all incoming HTTP traffic including client IPs based on the ClientSecurityMode config setting (see mercury.conf and CONFIG.md).
-Because of this, deployments of Mercury may keep track of client IPs however and if they choose, but the Mercury project itself does not collect this information.
-
-As of v0.31.0, Mercury may be configured to honor DNT/Sec-GPC headers, and is configured by default to bit mask client IPs from DNT/Sec-GPC headers by default.
-Users are encouraged to review CONFIG.md while configuring Mercury as it outlines how to properly configure these security settings.
-
-All of Mercury's source code is freely available for curious users to inspect on GitHub via [https://github.com/travis-heavener/mercury](https://github.com/travis-heavener/mercury).
-
-That being said, Mercury is a living software, and security patches are rolled out alongside feature updates.
-As such, any update prefixed with v0.X.X (ex. v0.18.2) are pre-release.
-These pre-release versions are not guaranteed to be bug-proof (nor should any software ever claim to be bug-proof).
-
-If you notice any security issues or have a suggestion, please refer to [SECURITY.md](SECURITY.md).
-
-</details>
+---
 
 ## Contributing
-See [CONTRIBUTING.md](CONTRIBUTING.md)
+
+Contributions, bug reports, and pull requests are welcome! See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`agents/CONVENTIONS.md`](agents/CONVENTIONS.md) for contribution guidelines and coding standards.
+
+---
 
 ## Changelog
-See [CHANGELOG.md](CHANGELOG.md)
+
+See [`CHANGELOG.md`](CHANGELOG.md) for version release notes and history.
+
+---
 
 ## Credits
-See [CREDITS.md](CREDITS.md)
 
-## Fun Facts
+See [`CREDITS.md`](CREDITS.md) for project contributors and third-party library licenses.
 
-- Mercury was initially named "Mars", however the name was changed to "Mercury" before the first version was released.
-- The project itself was nearly abandoned after v0.2.7, however more bugs became apparent and I became more invested in Mercury.
-- Mercury almost had a CGI-powered Node JS extension for serving non-static content, however it was scrapped and PHP support was later added (see [Branch: archive/node-driver](https://github.com/travis-heavener/mercury/tree/archive/node-driver)).
+---
 
 ## Support Mercury
 
-If Mercury has helped you in any way, be sure to star it on GitHub!
+If you find Mercury helpful, consider giving it a star on [GitHub](https://github.com/travis-heavener/mercury)!
 
-[![GitHub Repo stars](https://img.shields.io/github/stars/travis-heavener/mercury?style=flat&label=Stars&color=orange)](https://github.com/travis-heavener/mercury)
+Contributions help cover hosting costs and support ongoing open-source development:
 
-And, if you are a Mercury superfan, consider supporting me directly!
-
-Contributions play a critical role in covering hosting costs and keeping my projects like Mercury alive.
-
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/travis.heavener)
-
+[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/travis.heavener)

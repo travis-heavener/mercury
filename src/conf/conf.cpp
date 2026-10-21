@@ -1,6 +1,8 @@
 #include "conf.hpp"
 
+#include <cctype>
 #include <iostream>
+#include <utility>
 
 #include <pugixml.hpp>
 
@@ -9,6 +11,7 @@
 #endif
 
 #include "../io/file_tools.hpp"
+#include "../util/privilege.hpp"
 #include "../util/string_tools.hpp"
 
 #define LOAD_UINT_FORBID_ZERO false
@@ -87,8 +90,18 @@ namespace conf {
         "Header", "ShowDirectoryIndexes", "Access"
     };
 
+    struct TagMismatchInfo {
+        std::string expectedTag; // Expected closing tag name
+        size_t openLine = 0;     // 1-based line number of opening tag
+        size_t openCol = 0;      // 1-based column number of opening tag
+        std::string foundTag;    // Actual closing tag name found
+    };
+
     // Forward decs
     int precheckNodeNames(pugi::xml_document& doc);
+
+    std::pair<size_t, size_t> getLineAndColumn(const std::string& filePath, ptrdiff_t offset);
+    std::optional<TagMismatchInfo> findTagMismatch(const std::string& filePath);
 
     int loadMIMES();
     int loadUint(const pugi::xml_node& root, unsigned int& var, const std::string& nodeName, const bool allowZero=true);
@@ -120,6 +133,207 @@ namespace conf {
         return true;
     }
 
+    // Print command line help documentation
+    void printHelp() {
+        std::cout << "Mercury - A lightweight, configurable HTTP server\n\n"
+            << "Usage:\n"
+            << "    mercury [options]\n"
+            << "    mercury [options] -c <config-file>\n\n"
+            << "Options:\n"
+            << "    -c, --config <file>     Path to configuration file (default: " << CONF_FILE << ")\n"
+            << "    -h, --help              Display this help message and exit\n"
+            << "    -v, --version           Display version information and exit\n\n"
+            << "Examples:\n"
+            << "    mercury\n"
+            << "    mercury -c conf/mercury.conf\n"
+            << "    mercury --config /etc/mercury/mercury.conf\n\n"
+            << "For detailed configuration directives, see CONFIG.md or visit:\n"
+            << "    https://mercury.wowtravis.com/" << std::endl;
+    }
+
+    // Print server version
+    void printVersion() {
+        std::cout << (VERSION.empty() ? "Mercury" : VERSION) << std::endl;
+    }
+
+    // Used to calculate 1-based line and column numbers from byte offset
+    std::pair<size_t, size_t> getLineAndColumn(const std::string& filePath, ptrdiff_t offset) {
+        std::ifstream file(filePath, std::ios::binary);
+        if (!file.is_open()) return {0, 0};
+
+        size_t line = 1;
+        size_t col = 1;
+        char ch = 0;
+        for (ptrdiff_t i = 0; i < offset && file.get(ch); ++i) {
+            if (ch == '\n') {
+                ++line;
+                col = 1;
+            } else {
+                ++col;
+            }
+        }
+        return {line, col};
+    }
+
+    // Used to find unclosed or mismatched tags for detailed diagnostics
+    std::optional<TagMismatchInfo> findTagMismatch(const std::string& filePath) {
+        std::ifstream file(filePath, std::ios::binary);
+        if (!file.is_open()) return std::nullopt;
+
+        std::string content((std::istreambuf_iterator<char>(file)),
+                             std::istreambuf_iterator<char>());
+        file.close();
+
+        struct OpenTag {
+            std::string name; // Element tag name
+            size_t line;      // 1-based line number
+            size_t col;       // 1-based column number
+        };
+
+        std::vector<OpenTag> tagStack;
+        size_t i = 0;
+        size_t line = 1;
+        size_t col = 1;
+
+        auto advance = [&](size_t count = 1) {
+            for (size_t c = 0; c < count && i < content.size(); ++c) {
+                if (content[i] == '\n') {
+                    ++line;
+                    col = 1;
+                } else {
+                    ++col;
+                }
+                ++i;
+            }
+        };
+
+        while (i < content.size()) {
+            if (content[i] != '<') {
+                advance();
+                continue;
+            }
+
+            const size_t tagLine = line;
+            const size_t tagCol = col;
+
+            // Check comment
+            if (i + 3 < content.size() && content.compare(i, 4, "<!--") == 0) {
+                advance(4);
+                while (i + 2 < content.size() &&
+                       !(content[i] == '-' && content[i + 1] == '-' && content[i + 2] == '>')) {
+                    advance();
+                }
+                if (i + 2 < content.size()) advance(3);
+                continue;
+            }
+
+            // Check CDATA section
+            if (i + 8 < content.size() && content.compare(i, 9, "<![CDATA[") == 0) {
+                advance(9);
+                while (i + 2 < content.size() &&
+                       !(content[i] == ']' && content[i + 1] == ']' && content[i + 2] == '>')) {
+                    advance();
+                }
+                if (i + 2 < content.size()) advance(3);
+                continue;
+            }
+
+            // Check processing instruction
+            if (i + 1 < content.size() && content.compare(i, 2, "<?") == 0) {
+                advance(2);
+                while (i + 1 < content.size() &&
+                       !(content[i] == '?' && content[i + 1] == '>')) {
+                    advance();
+                }
+                if (i + 1 < content.size()) advance(2);
+                continue;
+            }
+
+            // Check declaration
+            if (i + 1 < content.size() && content[i + 1] == '!') {
+                advance(2);
+                while (i < content.size() && content[i] != '>') {
+                    advance();
+                }
+                if (i < content.size()) advance();
+                continue;
+            }
+
+            // Check closing tag
+            if (i + 1 < content.size() && content[i + 1] == '/') {
+                advance(2);
+
+                while (i < content.size() && std::isspace(static_cast<unsigned char>(content[i]))) {
+                    advance();
+                }
+
+                std::string closingName;
+                while (i < content.size() && !std::isspace(static_cast<unsigned char>(content[i])) &&
+                       content[i] != '>') {
+                    closingName += content[i];
+                    advance();
+                }
+
+                while (i < content.size() && content[i] != '>') {
+                    advance();
+                }
+                if (i < content.size()) advance();
+
+                if (tagStack.empty()) return TagMismatchInfo{"", 0, 0, closingName};
+
+                if (tagStack.back().name != closingName)
+                    return TagMismatchInfo{tagStack.back().name, tagStack.back().line, tagStack.back().col, closingName};
+
+                tagStack.pop_back();
+                continue;
+            }
+
+            // Check opening tag
+            advance();
+
+            while (i < content.size() && std::isspace(static_cast<unsigned char>(content[i]))) {
+                advance();
+            }
+
+            std::string openName;
+            while (i < content.size() && !std::isspace(static_cast<unsigned char>(content[i])) &&
+                   content[i] != '>' && content[i] != '/') {
+                openName += content[i];
+                advance();
+            }
+
+            if (openName.empty()) continue;
+
+            bool isSelfClosing = false;
+            char inQuote = 0;
+            while (i < content.size()) {
+                const char c = content[i];
+                if (inQuote != 0) {
+                    if (c == inQuote) inQuote = 0;
+                } else {
+                    if (c == '"' || c == '\'') {
+                        inQuote = c;
+                    } else if (c == '/' && i + 1 < content.size() && content[i + 1] == '>') {
+                        isSelfClosing = true;
+                    } else if (c == '>') {
+                        advance();
+                        break;
+                    }
+                }
+                advance();
+            }
+
+            if (!isSelfClosing) {
+                tagStack.push_back({openName, tagLine, tagCol});
+            }
+        }
+
+        if (!tagStack.empty())
+            return TagMismatchInfo{tagStack.back().name, tagStack.back().line, tagStack.back().col, ""};
+
+        return std::nullopt;
+    }
+
     int loadConfig(int argc, char* argv[]) {
         // Set CWD to Mercury project root
         if (!loadExecutableDirectory(CWD)) {
@@ -129,14 +343,100 @@ namespace conf {
 
         std::filesystem::current_path( CWD = CWD.parent_path() );
 
+        // Load version
+        std::ifstream versionHandle( VERSION_FILE );
+        if (versionHandle.is_open()) {
+            std::getline(versionHandle, VERSION);
+            if (!VERSION.empty() && VERSION.back() == '\n') VERSION.pop_back();
+            if (!VERSION.empty() && VERSION.back() == '\r') VERSION.pop_back();
+            versionHandle.close();
+        }
+
+        // Parse CLI arguments
+        std::string configPath = CONF_FILE;
+        for (int i = 1; i < argc; ++i) {
+            const std::string arg = argv[i];
+
+            if (arg == "-h" || arg == "--help") {
+                printHelp();
+                return CONF_EXIT;
+            }
+
+            if (arg == "-v" || arg == "--version") {
+                printVersion();
+                return CONF_EXIT;
+            }
+
+            if (arg == "-c" || arg == "--config") {
+                if (++i >= argc) {
+                    std::cerr << "Error: Option '" << arg << "' requires a configuration file path.\n"
+                        << "Try 'mercury --help' for usage information." << std::endl;
+                    return CONF_FAILURE;
+                }
+                configPath = argv[i];
+            } else if (arg.starts_with("-c=")) {
+                configPath = arg.substr(3);
+            } else if (arg.starts_with("--config=")) {
+                configPath = arg.substr(9);
+            } else if (!arg.starts_with("-")) {
+                // Positional argument for backward compatibility
+                configPath = arg;
+            } else {
+                std::cerr << "Error: Unrecognized option '" << arg << "'.\n"
+                    << "Try 'mercury --help' for usage information." << std::endl;
+                return CONF_FAILURE;
+            }
+        }
+
+        if (configPath.empty()) {
+            std::cerr << "Error: Configuration file path cannot be empty.\n"
+                << "Try 'mercury --help' for usage information." << std::endl;
+            return CONF_FAILURE;
+        }
+
         // Read XML config file
         pugi::xml_document doc;
-        pugi::xml_parse_result result;
-        try {
-            result = doc.load_file(argc > 1 ? argv[1] : CONF_FILE);
-            if (!result) throw 0;
-        } catch (...) {
-            std::cerr << "Failed to open config file." << std::endl;
+        pugi::xml_parse_result result = doc.load_file(configPath.c_str());
+
+        if (!result) {
+            std::error_code ec;
+            if (result.status == pugi::status_file_not_found || !std::filesystem::exists(configPath, ec)) {
+                std::cerr << "Failed to open config file (" << configPath << "): File does not exist." << std::endl;
+            } else if (std::filesystem::is_directory(configPath, ec)) {
+                std::cerr << "Failed to open config file (" << configPath << "): Path is a directory." << std::endl;
+            } else if (result.status == pugi::status_io_error) {
+                std::cerr << "Failed to open config file (" << configPath << "): Error reading file." << std::endl;
+            } else if (result.status == pugi::status_out_of_memory) {
+                std::cerr << "Failed to load config file (" << configPath << "): Out of memory." << std::endl;
+            } else {
+                const auto [line, col] = getLineAndColumn(configPath, result.offset);
+                std::string errorDesc = result.description();
+
+                if (result.status == pugi::status_end_element_mismatch) {
+                    const auto mismatch = findTagMismatch(configPath);
+                    if (mismatch) {
+                        if (!mismatch->expectedTag.empty() && !mismatch->foundTag.empty()) {
+                            errorDesc += " (expected '</" + mismatch->expectedTag + ">' for tag opened at line "
+                                + std::to_string(mismatch->openLine) + ", column " + std::to_string(mismatch->openCol)
+                                + ", but found '</" + mismatch->foundTag + ">')";
+                        } else if (!mismatch->expectedTag.empty()) {
+                            errorDesc += " (unclosed tag '<" + mismatch->expectedTag + ">' opened at line "
+                                + std::to_string(mismatch->openLine) + ", column " + std::to_string(mismatch->openCol) + ")";
+                        } else if (!mismatch->foundTag.empty()) {
+                            errorDesc += " (unexpected closing tag '</" + mismatch->foundTag + ">')";
+                        }
+                    }
+                }
+
+                if (line > 0) {
+                    std::cerr << "Failed to parse XML syntax in config file (" << configPath
+                        << ") at line " << line << ", column " << col << ": "
+                        << errorDesc << "." << std::endl;
+                } else {
+                    std::cerr << "Failed to parse XML syntax in config file (" << configPath
+                        << "): " << errorDesc << "." << std::endl;
+                }
+            }
             return CONF_FAILURE;
         }
 
@@ -147,13 +447,6 @@ namespace conf {
         // Load tmp file directory
         if (loadTempFileDirectory() == CONF_FAILURE)
             return CONF_FAILURE;
-
-        // Load version
-        std::ifstream versionHandle( VERSION_FILE );
-        std::getline(versionHandle, VERSION);
-        if (VERSION.back() == '\n') VERSION.pop_back();
-        if (VERSION.back() == '\r') VERSION.pop_back();
-        versionHandle.close();
 
         // Extract root node
         pugi::xml_node root = doc.child("Mercury");
@@ -347,12 +640,14 @@ namespace conf {
             std::cerr << "Failed to open Access Log File." << std::endl;
             return CONF_FAILURE;
         }
+        util::privilege::applyOwnershipAndPermissions(ACCESS_LOG_FILE, 0644);
 
         errorLogHandle = std::ofstream(ERROR_LOG_FILE, std::ios_base::app);
         if (!errorLogHandle.is_open()) {
             std::cerr << "Failed to open Error Log File." << std::endl;
             return CONF_FAILURE;
         }
+        util::privilege::applyOwnershipAndPermissions(ERROR_LOG_FILE, 0644);
 
         // Return success
         return CONF_SUCCESS;
@@ -686,6 +981,7 @@ namespace conf {
                 std::cerr << "Failed to open \"tmp\" directory: \"tmp\" already exists as a file in the Mercury root directory." << std::endl;
                 return CONF_FAILURE;
             }
+            util::privilege::applyOwnershipAndPermissions(tmpPathStr, 0755);
         } catch (std::filesystem::filesystem_error&) {
             std::cerr << "Failed to create \"tmp\" directory in the Mercury root directory." << std::endl;
             return CONF_FAILURE;

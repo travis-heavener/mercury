@@ -73,7 +73,7 @@
     * Use anonymous lexical blocks (`{ ... }`) to bound the lifetime of RAII mutex locks (`std::unique_lock lock(clientsMutex);`) and isolate temporary initialization variables.
     * Define local lambdas or closures inside complex orchestration methods (e.g., `readMore`, `reject`, `bindReq`) to encapsulate repetitive stateful helpers that do not belong on the class interface.
   * **Fail-Fast Validation**
-    * Validate CLI arguments, file paths, sockets, and library dependencies upfront, logging actionable diagnostics (e.g., checking `errno == 13` for `sudo` permissions) and exiting immediately on fatal setup errors.
+    * Validate CLI arguments, file paths, sockets, and library dependencies upfront, logging actionable diagnostics (e.g., checking `errno == 13` for elevated permissions) and exiting immediately on fatal setup errors.
 
 * **Data Modeling, Literals, and Low-Level Idioms**
   * **Literals and Formatting**

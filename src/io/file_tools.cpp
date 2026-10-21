@@ -9,6 +9,7 @@
 
 #include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
+#include "../util/privilege.hpp"
 
 #define TMP_FILE_MAX_RETRIES 50
 #define TMP_FILE_NAME_LEN 12
@@ -141,7 +142,10 @@ std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path) {
 void createLogDirectoryIfMissing(const std::filesystem::path& path) {
     // Check if the full path exists
     const std::filesystem::path parentPath = path.parent_path();
-    if (std::filesystem::exists( parentPath )) return;
+    if (std::filesystem::exists( parentPath )) {
+        util::privilege::applyOwnershipAndPermissions(parentPath, 0755);
+        return;
+    }
 
     // Parent path does not exist, check if it's parent path does
     const std::filesystem::path grandparentPath = parentPath.parent_path();
@@ -150,6 +154,7 @@ void createLogDirectoryIfMissing(const std::filesystem::path& path) {
     // Parent does not exist, but grandparent does
     try {
         std::filesystem::create_directory( parentPath );
+        util::privilege::applyOwnershipAndPermissions(parentPath, 0755);
     } catch (...) {
         // Silently fail
         return;

@@ -28,7 +28,7 @@ See [tests/README.md](tests/README.md) for prerequisites, the JSON format, and e
 Run the complete suite locally before opening a Pull Request, and check the platform workflow results before merging.
 
 ## Version Updates
-When preparing a release, add a new `## vX.Y.Z` entry at the top of [CHANGELOG.md](CHANGELOG.md), following its existing bullet format.
+When preparing a release, add a new `## [X.Y.Z] - YYYY-MM-DD` entry at the top of [CHANGELOG.md](CHANGELOG.md), following its existing bullet format.
 Set `version.txt` to the matching `Mercury vX.Y.Z` without a trailing newline.
 The Compare Changelog Version workflow checks that these versions match.
 The release workflow generates the downloads website's version metadata when the release is built.

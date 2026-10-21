@@ -93,7 +93,7 @@ echo -e "# Changelog\n### [Read Full Changelog](https://github.com/travis-heaven
 # Copy most recent 5 changelog entries
 
 awk '
-  /^## v[0-9]+\.[0-9]+\.[0-9]+/ {
+  /^## (\[v?[0-9]+\.[0-9]+\.[0-9]+\]|v[0-9]+\.[0-9]+\.[0-9]+)/ {
     if (count == 5) exit
     if (entry) print entry
     entry = $0
