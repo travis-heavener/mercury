@@ -5,6 +5,7 @@
 - Added: `-v, --version` CLI argument, shows current Mercury version
 - Added: `-c, --config <file>` CLI argument, retaining existing functionality for specifying alternate config files at runtime
 - Changed: distinguish configuration file open/read failures from XML syntax errors with line and column reporting (including invalid configuration values, finally!)
+- Changed: generalize socket bind errno 13 message to formally reference elevated permissions (sudo, doas, etc.)
 - Docs: improve README conciseness
 - Docs: add disclaimer in README for breaking changes in pre-release builds
 - Docs: add disclaimer for quick-start users to ensure they configure a fresh GPC hash salt

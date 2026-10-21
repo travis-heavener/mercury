@@ -91,12 +91,12 @@ namespace http {
 
             ERROR_LOG << "Failed to bind socket (" << *this << "), errno: "
                 << lastErrno
-                << (lastErrno == 13 ? ", do you have sudo perms?" : "") // Improve log for errno 13 (needs sudo)
+                << (lastErrno == 13 ? ", do you have elevated permissions (e.g. sudo, doas)?" : "") // Improve log for errno 13 (needs elevated permissions)
                 << std::endl;
 
-            // Improve log for errno 13 (needs sudo)
+            // Improve log for errno 13 (needs elevated permissions)
             if (lastErrno == 13)
-                std::cerr << "Failed to bind socket (" << *this << "), errno: " << lastErrno << ", do you have sudo perms?" << std::endl;
+                std::cerr << "Failed to bind socket (" << *this << "), errno: " << lastErrno << ", do you have elevated permissions (e.g. sudo, doas)?" << std::endl;
             return BIND_FAILURE;
         }
 
