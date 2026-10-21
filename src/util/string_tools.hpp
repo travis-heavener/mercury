@@ -14,9 +14,17 @@
 #define COMPRESS_BROTLI 2048
 #define COMPRESS_ZSTD 4096
 
+// Convert string characters to uppercase in-place
 inline void strToUpper(std::string& str) {
     std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
         return static_cast<char>(std::toupper(c));
+    });
+}
+
+// Convert string characters to lowercase in-place
+inline void strToLower(std::string& str) {
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
     });
 }
 
@@ -34,12 +42,14 @@ inline void stringReplaceAll(std::string& haystack, const std::string& needle, c
 }
 
 inline void trimString(std::string& str) {
-    size_t start = str.find_first_not_of(" \t");
+    const size_t start = str.find_first_not_of(" \t");
     if (start == std::string::npos) {
         str.clear();
         return;
     }
-    str = str.substr(start, str.find_last_not_of(" \t") - start + 1);
+    const size_t end = str.find_last_not_of(" \t");
+    if (end + 1 < str.size()) str.erase(end + 1);
+    if (start > 0) str.erase(0, start);
 }
 
 void decodeURI(std::string&);

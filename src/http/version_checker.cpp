@@ -54,7 +54,20 @@ std::string fetchLatestVersion() {
 
     const SSL_METHOD* method = TLS_client_method();
     SSL_CTX* ctx = SSL_CTX_new(method);
+    if (!ctx) {
+        close(sock);
+        freeaddrinfo(res);
+        return "";
+    }
+
     SSL* ssl = SSL_new(ctx);
+    if (!ssl) {
+        SSL_CTX_free(ctx);
+        close(sock);
+        freeaddrinfo(res);
+        return "";
+    }
+
     SSL_set_fd(ssl, sock);
     SSL_set_tlsext_host_name(ssl, host.c_str());
 

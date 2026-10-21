@@ -3,6 +3,9 @@
 
 #include <openssl/ssl.h>
 
-SSL_CTX* initTLSContext();
+namespace http {
+    SSL_CTX* initTLSContext();
+    void printTLSInfo();
+}
 
 #endif

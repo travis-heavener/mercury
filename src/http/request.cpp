@@ -52,10 +52,8 @@ namespace http {
 
         // Skip headers & read remaining buffer
         startIndex = raw.find("\r\n\r\n");
-        if (startIndex != std::string::npos) {
-            this->body = std::move(raw);
-            this->body.erase(0, startIndex + 4);
-        }
+        if (startIndex != std::string::npos && startIndex + 4 <= raw.size())
+            this->body = raw.substr(startIndex + 4);
 
         // Extract accepted MIME types
         if (this->headers.find("ACCEPT") != this->headers.end())

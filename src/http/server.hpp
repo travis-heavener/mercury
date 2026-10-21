@@ -42,7 +42,9 @@ namespace http {
     class Server : public std::enable_shared_from_this<Server> {
         public:
             Server(const port_t port, const bool useTLS);
-            virtual ~Server() = default;
+            virtual ~Server();
+            Server(const Server&) = delete;
+            Server& operator=(const Server&) = delete;
 
             // Overridden by IPv6 servers
             virtual int bindSocket();
@@ -56,6 +58,7 @@ namespace http {
             void kill();
             std::unique_ptr<Response> genResponse(Request&);
             void getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections);
+            size_t getActiveClientCount();
         protected:
             // Socket methods
             ssize_t readClientSock(char*, const int, SSL*);

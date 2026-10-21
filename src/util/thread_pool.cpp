@@ -113,6 +113,13 @@ void ThreadPool::stop() {
     // Join without holding the queue lock; workers drain accepted tasks first.
     for (const auto& worker : joining)
         if (worker->getThread().joinable()) worker->getThread().join();
+
+    // Discard any remaining queued tasks to release captured resources
+    {
+        std::lock_guard<std::mutex> lock(queueMutex);
+        while (!tasks.empty())
+            tasks.pop();
+    }
 }
 
 void ThreadPool::getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections) {

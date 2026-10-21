@@ -48,47 +48,38 @@ void formatDate(std::filesystem::file_time_type dur, std::string& buffer) {
     );
 
     // Format date string
-    std::stringstream ss;
-    ss << std::put_time(std::localtime(&tp), "%m/%d/%y, %I:%M:%S %p");
+    std::tm localTime{};
+    #ifdef _WIN32
+        localtime_s(&localTime, &tp);
+    #else
+        localtime_r(&tp, &localTime);
+    #endif
 
-    // Write to buffer
-    buffer = ss.str();
+    char dateBuf[32];
+    const size_t n = std::strftime(dateBuf, sizeof(dateBuf), "%m/%d/%y, %I:%M:%S %p", &localTime);
+    buffer.assign(dateBuf, n);
 }
 
-// Loads a status or error document, attempting to lookup custom ones provided
-//  by the user in the document root (e.g. /404.html, /500.htm).
+// Used to load status or error document, attempting custom ones in document root
 int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) {
     // Attempt to locate custom user-provided status document
     const std::string userFilename = std::to_string(status) + ".html";
     std::filesystem::path templatePath = conf::DOCUMENT_ROOT / userFilename;
-    bool isUserProvidedPath = false;
 
-    if ( conf::ENABLE_CUSTOM_STATUS_DOCS && std::filesystem::is_regular_file(templatePath) ) {
-        // Mark status doc as user-provided to prevent checking escape sequences
-        isUserProvidedPath = true;
-    } else {
-        // Use default template path
-        templatePath = conf::CWD / "conf/html/err.html";
+    std::error_code ec;
+    if (conf::ENABLE_CUSTOM_STATUS_DOCS && std::filesystem::is_regular_file(templatePath, ec)) {
+        pStream = std::make_unique<http::FileStream>(templatePath.string(), false);
+        return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
     }
+
+    // Use default template path
+    templatePath = conf::CWD / "conf/html/err.html";
 
     // Open file
     std::ifstream handle( templatePath.string(), std::ios::binary );
     if (!handle.is_open()) return IO_FAILURE;
 
-    // Get path to a temp file
-    std::string tmpPath;
-    if (!createTempFile(tmpPath)) {
-        handle.close();
-        return IO_FAILURE;
-    }
-
-    // Buffer file to temp file
-    std::ofstream tmpHandle(tmpPath, std::ios::binary);
-    if (!tmpHandle.is_open()) {
-        handle.close();
-        removeTempFile(tmpPath);
-        return IO_FAILURE;
-    }
+    std::ostringstream out;
 
     // Read file to buffer
     const size_t bufferSize = 8192;
@@ -97,12 +88,6 @@ int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) 
         handle.read(buffer.data(), bufferSize);
         const size_t bytesRead = handle.gcount();
 
-        // Skip escape checking for user-provided status documents
-        if (isUserProvidedPath) {
-            tmpHandle.write(buffer.data(), bytesRead);
-            continue;
-        }
-
         // Check for % escaped chars
         size_t offset = 0;
         do {
@@ -110,20 +95,20 @@ int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) 
 
             size_t percIndex = buffer.find('%', offset);
             if (percIndex == std::string::npos) {
-                tmpHandle.write(buffer.data() + offset, bytesRead - offset);
+                out.write(buffer.data() + offset, bytesRead - offset);
                 break;
             }
 
             // Write up to the %
-            tmpHandle.write(buffer.data() + offset, percIndex - offset);
+            out.write(buffer.data() + offset, percIndex - offset);
 
             // Check for end of escaped sequence
             if (percIndex+1 < bytesRead) {
                 // Check escaped char
-                if (buffer[percIndex+1] == 'A')      tmpHandle << getReasonFromStatus(status);
-                else if (buffer[percIndex+1] == 'B') tmpHandle << status;
-                else if (buffer[percIndex+1] == 'C') tmpHandle << conf::VERSION;
-                else                                 tmpHandle << '%' << buffer[percIndex+1];
+                if (buffer[percIndex+1] == 'A')      out << getReasonFromStatus(status);
+                else if (buffer[percIndex+1] == 'B') out << status;
+                else if (buffer[percIndex+1] == 'C') out << conf::VERSION;
+                else                                 out << '%' << buffer[percIndex+1];
 
                 // Update the offset (skip % and letter)
                 offset = percIndex + 2;
@@ -136,30 +121,30 @@ int loadErrorDoc(const int status, std::unique_ptr<http::IBodyStream>& pStream) 
 
             // Break if nothing read
             if (handle.gcount() == 0) {
-                tmpHandle << '%';
+                out << '%';
                 break;
             }
 
             // Check escaped char
-            if (nextChar == 'A')      tmpHandle << getReasonFromStatus(status);
-            else if (nextChar == 'B') tmpHandle << status;
-            else if (nextChar == 'C') tmpHandle << conf::VERSION;
-            else                      tmpHandle << '%' << nextChar;
+            if (nextChar == 'A')      out << getReasonFromStatus(status);
+            else if (nextChar == 'B') out << status;
+            else if (nextChar == 'C') out << conf::VERSION;
+            else                      out << '%' << nextChar;
 
             // End of chunk
             break;
         } while (true);
     }
 
-    // Close handles
+    // Close handle
     handle.close();
-    tmpHandle.close();
 
-    // Load to FileStream
-    pStream = std::unique_ptr<http::IBodyStream>( new http::FileStream(tmpPath, true) );
-    return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
+    // Stream from memory
+    pStream = std::make_unique<http::MemoryStream>(std::move(out).str());
+    return IO_SUCCESS;
 }
 
+// Used to generate HTML directory listing for a directory path
 int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std::string& path, const std::string& rawPath) {
     const std::filesystem::path templatePath = conf::CWD / "conf/html/dir_index.html";
 
@@ -167,22 +152,9 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std:
     std::ifstream handle( templatePath.string(), std::ios::binary );
     if (!handle.is_open()) return IO_FAILURE;
 
-    // Get path to a temp file
-    std::string tmpPath;
-    if (!createTempFile(tmpPath)) {
-        handle.close();
-        return IO_FAILURE;
-    }
+    std::ostringstream out;
 
-    // Buffer file to temp file
-    std::ofstream tmpHandle(tmpPath, std::ios::binary);
-    if (!tmpHandle.is_open()) {
-        handle.close();
-        removeTempFile(tmpPath);
-        return IO_FAILURE;
-    }
-
-    // Lambda to load all files to the tmpHandle
+    // Lambda to load all files to the output stream
     auto writeFiles = [&]() -> void {
         std::string fnameBuf, fsizeBufStr, modTsBufStr, hrefBuf;
 
@@ -194,55 +166,59 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std:
 
             if (!rawPathBuf.empty()) {
                 // Format href
-                hrefBuf = std::filesystem::path(rawPathBuf).parent_path().string();
+                hrefBuf = std::filesystem::path(rawPathBuf).parent_path().generic_string();
                 hrefBuf += hrefBuf.back() != '/' ? "/" : ""; // Affix trailing fwd slash
 
                 // Format timestamp
                 modTsBufStr.clear();
-                formatDate(std::filesystem::last_write_time(std::filesystem::path(path).parent_path()), modTsBufStr);
-                tmpHandle << "<tr> <td><a href=\"" << hrefBuf << "\">..</a></td> <td></td> <td>" << modTsBufStr << "</td> </tr>\n";
+                std::error_code timeEc;
+                formatDate(std::filesystem::last_write_time(std::filesystem::path(path).parent_path(), timeEc), modTsBufStr);
+                out << "<tr> <td><a href=\"" << hrefBuf << "\">..</a></td> <td></td> <td>" << modTsBufStr << "</td> </tr>\n";
             }
         }
 
         // Add directories first
-        for (const auto& file : std::filesystem::directory_iterator(path)) {
-            if (!std::filesystem::is_directory(file)) continue;
+        std::error_code dirEc;
+        for (const auto& file : std::filesystem::directory_iterator(path, dirEc)) {
+            if (dirEc || !file.is_directory(dirEc)) continue;
 
             // Get file/directory name
-            fnameBuf = file.path().filename().string();
-            if (std::filesystem::is_directory(file)) fnameBuf += '/';
+            fnameBuf = file.path().filename().generic_string();
+            fnameBuf += '/';
 
             // Get file size
             fsizeBufStr.clear();
 
             // Format last modified timestamp & href
             modTsBufStr.clear();
-            formatDate(std::filesystem::last_write_time(file), modTsBufStr);
-            hrefBuf = (std::filesystem::path(rawPath) / fnameBuf).string();
+            std::error_code fileEc;
+            formatDate(file.last_write_time(fileEc), modTsBufStr);
+            hrefBuf = (std::filesystem::path(rawPath) / fnameBuf).generic_string();
 
             // Append to document
-            tmpHandle << "<tr> <td><a href=\"" << hrefBuf << "\">" << fnameBuf << "</a></td> <td>" << fsizeBufStr << "</td> <td>" << modTsBufStr << "</td> </tr>\n";
+            out << "<tr> <td><a href=\"" << hrefBuf << "\">" << fnameBuf << "</a></td> <td>" << fsizeBufStr << "</td> <td>" << modTsBufStr << "</td> </tr>\n";
         }
 
         // Add other file contents
-        for (const auto& file : std::filesystem::directory_iterator(path)) {
-            if (std::filesystem::is_directory(file)) continue;
+        for (const auto& file : std::filesystem::directory_iterator(path, dirEc)) {
+            if (dirEc || file.is_directory(dirEc)) continue;
 
             // Get file/directory name
-            fnameBuf = file.path().filename().string();
+            fnameBuf = file.path().filename().generic_string();
 
             // Get file size
             fsizeBufStr.clear();
-            if (!std::filesystem::is_directory(file))
-                formatFileSize(file.file_size(), fsizeBufStr);
+            std::error_code sizeEc;
+            formatFileSize(file.file_size(sizeEc), fsizeBufStr);
 
             // Format last modified timestamp & href
             modTsBufStr.clear();
-            formatDate(std::filesystem::last_write_time(file), modTsBufStr);
-            hrefBuf = (std::filesystem::path(rawPath) / fnameBuf).string();
+            std::error_code fileEc;
+            formatDate(file.last_write_time(fileEc), modTsBufStr);
+            hrefBuf = (std::filesystem::path(rawPath) / fnameBuf).generic_string();
 
             // Append to document
-            tmpHandle << "<tr> <td><a href=\"" << hrefBuf << "\">" << fnameBuf << "</a></td> <td>" << fsizeBufStr << "</td> <td>" << modTsBufStr << "</td> </tr>\n";
+            out << "<tr> <td><a href=\"" << hrefBuf << "\">" << fnameBuf << "</a></td> <td>" << fsizeBufStr << "</td> <td>" << modTsBufStr << "</td> </tr>\n";
         }
     };
 
@@ -260,20 +236,20 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std:
 
             size_t percIndex = buffer.find('%', offset);
             if (percIndex == std::string::npos) {
-                tmpHandle.write(buffer.data() + offset, bytesRead - offset);
+                out.write(buffer.data() + offset, bytesRead - offset);
                 break;
             }
 
             // Write up to the %
-            tmpHandle.write(buffer.data() + offset, percIndex - offset);
+            out.write(buffer.data() + offset, percIndex - offset);
 
             // Check for end of escaped sequence
             if (percIndex+1 < bytesRead) {
                 // Check escaped char
-                if (buffer[percIndex+1] == 'A')      tmpHandle << rawPath;
-                else if (buffer[percIndex+1] == 'B') tmpHandle << conf::VERSION;
+                if (buffer[percIndex+1] == 'A')      out << rawPath;
+                else if (buffer[percIndex+1] == 'B') out << conf::VERSION;
                 else if (buffer[percIndex+1] == 'C') writeFiles(); // Load each file
-                else                                 tmpHandle << '%' << buffer[percIndex+1];
+                else                                 out << '%' << buffer[percIndex+1];
 
                 // Update the offset (skip % and letter)
                 offset = percIndex + 2;
@@ -286,28 +262,27 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std:
 
             // Break if nothing read
             if (handle.gcount() == 0) {
-                tmpHandle << '%';
+                out << '%';
                 break;
             }
 
             // Check escaped char
-            if (nextChar == 'A')      tmpHandle << rawPath;
-            else if (nextChar == 'B') tmpHandle << conf::VERSION;
+            if (nextChar == 'A')      out << rawPath;
+            else if (nextChar == 'B') out << conf::VERSION;
             else if (nextChar == 'C') writeFiles(); // Load each file
-            else                      tmpHandle << '%' << nextChar;
+            else                      out << '%' << nextChar;
 
             // End of chunk
             break;
         } while (true);
     }
 
-    // Close handles
+    // Close handle
     handle.close();
-    tmpHandle.close();
 
-    // Load to FileStream
-    pStream = std::unique_ptr<http::IBodyStream>( new http::FileStream(tmpPath, true) );
-    return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
+    // Stream from memory
+    pStream = std::make_unique<http::MemoryStream>(std::move(out).str());
+    return IO_SUCCESS;
 }
 
 std::time_t getTimeTFromGMT(const std::string& gmtString) {
@@ -339,20 +314,32 @@ std::string getFileModGMTString(const std::string& filePath) {
     std::time_t time = getFileModTimeT(filePath);
 
     // Format as GMT string
-    std::tm* gmtTime = std::gmtime(&time);
-    std::stringstream ss;
-    ss << std::put_time(gmtTime, "%a, %d %b %Y %H:%M:%S GMT");
-    return ss.str();
+    std::tm gmtTime{};
+    #ifdef _WIN32
+        gmtime_s(&gmtTime, &time);
+    #else
+        gmtime_r(&time, &gmtTime);
+    #endif
+
+    char gmtBuf[32];
+    const size_t n = std::strftime(gmtBuf, sizeof(gmtBuf), "%a, %d %b %Y %H:%M:%S GMT", &gmtTime);
+    return std::string(gmtBuf, n);
 }
 
 std::string getCurrentGMTString() {
     std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
     // Format as GMT string
-    std::tm* gmtTime = std::gmtime(&time);
-    std::stringstream ss;
-    ss << std::put_time(gmtTime, "%a, %d %b %Y %H:%M:%S GMT");
-    return ss.str();
+    std::tm gmtTime{};
+    #ifdef _WIN32
+        gmtime_s(&gmtTime, &time);
+    #else
+        gmtime_r(&time, &gmtTime);
+    #endif
+
+    char gmtBuf[32];
+    const size_t n = std::strftime(gmtBuf, sizeof(gmtBuf), "%a, %d %b %Y %H:%M:%S GMT", &gmtTime);
+    return std::string(gmtBuf, n);
 }
 
 const char* getReasonFromStatus(uint16_t code) {

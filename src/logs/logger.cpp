@@ -70,11 +70,11 @@ void Logger::threadWrite() {
 LoggerStream& LoggerStream::operator<<(StreamManipulator manip) {
     if (manip == static_cast<StreamManipulator>(std::endl)) {
         // Queue to logger
-        const std::string log = genTimestamp() + buffer.str();
+        std::string log = genTimestamp() + buffer.str();
         if (isAccess) {
-            logger.queueAccessLog(log);
+            logger.queueAccessLog(std::move(log));
         } else {
-            logger.queueErrorLog(log);
+            logger.queueErrorLog(std::move(log));
         }
 
         buffer.str(""); // Wipe buffer

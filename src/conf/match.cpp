@@ -6,8 +6,7 @@
 
 namespace conf {
 
-    Match::Match(const std::string& pattern) {
-        this->pattern = std::regex(pattern);
+    Match::Match(const std::string& pattern) : pattern(pattern), patternStr(pattern) {
     }
 
     std::unique_ptr<Match> loadMatch(pugi::xml_node& root) {

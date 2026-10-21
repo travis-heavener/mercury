@@ -1,8 +1,15 @@
 #include "cli.hpp"
 
+#include <algorithm>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
+#include <vector>
 
 #include "../conf/conf.hpp"
+#include "../http/stats.hpp"
+#include "../http/tls.hpp"
 
 #ifdef _WIN32
     // Only used in Windows builds for canonicalizing the path to the PHP init script
@@ -69,9 +76,11 @@
                     std::cout << '\n' << std::flush;
                     isExiting = true;
                     return;
-                case 12: // Ctrl+L (clear)
+                case 12: // Ctrl+L (clear terminal and redraw line)
                     std::cout << "\033[2J\033[H" << std::flush;
-                    return;
+                    showLine(history[historyIndex]);
+                    std::cout << "\033[" << (cursor + 3) << 'G' << std::flush;
+                    break;
                 case '\n': // Update history
                     if (historyIndex != static_cast<int>(history.size()) - 1)
                         history.pop_back();
@@ -122,41 +131,335 @@
     }
 #endif
 
+// Used to format boolean as on/off string
+static const char* formatOnOff(const bool b) {
+    return b ? "on" : "off";
+}
+
+// Used to format byte count into compact human-readable string
+static std::string formatByteSize(const size_t bytes) {
+    const char* units[] = {"B", "KB", "MB", "GB"};
+    int idx = 0;
+    double val = static_cast<double>(bytes);
+    while (val >= 1024.0 && idx < 3) {
+        val /= 1024.0;
+        ++idx;
+    }
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(idx == 0 ? 0 : 2) << val << ' ' << units[idx];
+    return oss.str();
+}
+
+// Used to stringify client security mode
+static const char* formatSecurityMode(const int mode) {
+    switch (mode) {
+        case CLIENT_SEC_MINIMAL:    return "Minimal";
+        case CLIENT_SEC_GPC_MASKED: return "GPCMasked";
+        case CLIENT_SEC_GPC_HASHED: return "GPCHashed";
+        case CLIENT_SEC_MASKED:     return "Masked";
+        case CLIENT_SEC_HASHED:     return "Hashed";
+        default:                    return "Unknown";
+    }
+}
+
+// Used to read and print last N lines of log file safely
+static void readLogTail(const std::filesystem::path& path, size_t lineCount) {
+    if (path.empty()) {
+        std::cout << "> Log file is not configured" << std::endl;
+        return;
+    }
+
+    // Clamp line count within safe bounds
+    if (lineCount == 0) lineCount = 10;
+    if (lineCount > 1000) lineCount = 1000;
+
+    // Open log file in binary mode positioned at end
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        std::cout << "> Failed to open log file (" << path.string() << ")" << std::endl;
+        return;
+    }
+
+    // Check for empty log file
+    const std::streampos fileSize = file.tellg();
+    if (fileSize <= 0) {
+        std::cout << "> Log file is empty (" << path.string() << ")" << std::endl;
+        return;
+    }
+
+    // Scan backwards from end of file for newlines
+    size_t linesFound = 0;
+    std::streampos pos = fileSize;
+    constexpr size_t CHUNK_SIZE = 4096;
+    std::vector<char> buffer(CHUNK_SIZE);
+
+    // Skip trailing newline if present to prevent blank line
+    file.seekg(pos - std::streampos(1));
+    char lastChar = 0;
+    if (file.get(lastChar) && lastChar == '\n') {
+        pos -= std::streampos(1);
+        if (pos > 0) {
+            file.seekg(pos - std::streampos(1));
+            if (file.get(lastChar) && lastChar == '\r')
+                pos -= std::streampos(1);
+        }
+    }
+    file.clear();
+
+    // Read chunks backwards until required line count is found
+    while (pos > 0 && linesFound < lineCount) {
+        const size_t bytesToRead = (pos >= static_cast<std::streampos>(CHUNK_SIZE))
+            ? CHUNK_SIZE : static_cast<size_t>(pos);
+        pos -= static_cast<std::streampos>(bytesToRead);
+        file.clear();
+        file.seekg(pos);
+        file.read(buffer.data(), bytesToRead);
+        const size_t bytesRead = file.gcount();
+
+        // Count newlines from right to left
+        for (size_t i = bytesRead; i > 0; --i) {
+            if (buffer[i - 1] == '\n') {
+                if (++linesFound == lineCount) {
+                    pos += static_cast<std::streampos>(i);
+                    break;
+                }
+            }
+        }
+    }
+
+    // Seek to calculated file offset and output lines
+    file.clear();
+    file.seekg(pos);
+    std::string line;
+    size_t printed = 0;
+    std::cout << "> Log output (" << path.string() << "):\n";
+    while (std::getline(file, line) && printed < lineCount) {
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        std::cout << "  " << line << '\n';
+        ++printed;
+    }
+    std::cout << std::flush;
+}
+
 void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std::vector<std::shared_ptr<http::Server>>& serversVec) {
-    // Clean exit
-    if (buf == "CLEAR") {
+    // Separate command and arguments
+    std::string cmd = buf;
+    std::string args;
+    const size_t spacePos = buf.find(' ');
+    if (spacePos != std::string::npos) {
+        cmd = buf.substr(0, spacePos);
+        args = buf.substr(spacePos + 1);
+        trimString(args);
+    }
+
+    // Handle terminal clear
+    if (cmd == "CLEAR" || cmd == "CLS") {
         std::cout << "\033[2J\033[H" << std::flush;
-    } else if (buf == "DONATE") {
+    } else if (cmd == "CONFIG" || cmd == "CONF") {
+        // Format index files into comma-separated list
+        std::string indexFilesStr;
+        for (size_t i = 0; i < conf::INDEX_FILES.size(); ++i) {
+            if (i > 0) indexFilesStr += ", ";
+            indexFilesStr += conf::INDEX_FILES[i];
+        }
+
+        std::cout << "> Active Server Configuration:\n"
+                  << "  [Core & Network]\n"
+                  << "    DocumentRoot:             " << conf::DOCUMENT_ROOT.string() << '\n'
+                  << "    HTTP Port:                " << conf::PORT
+                  << " (IPv4: " << formatOnOff(conf::IS_IPV4_ENABLED)
+                  << ", IPv6: " << formatOnOff(conf::IS_IPV6_ENABLED) << ")\n"
+                  << "    TLS Port:                 " << conf::TLS_PORT
+                  << " (TLS: " << formatOnOff(conf::USE_TLS) << ")\n"
+                  << "    Legacy HTTP (1.0/0.9):    " << formatOnOff(conf::ENABLE_LEGACY_HTTP) << "\n"
+                  << "  [Connection & Limits]\n"
+                  << "    Keep-Alive:               " << formatOnOff(conf::IS_KEEP_ALIVE_ENABLED)
+                  << " (timeout: " << conf::KEEP_ALIVE_TIMEOUT << "s, max: " << conf::MAX_KEEP_ALIVE_REQUESTS << " reqs)\n"
+                  << "    Max Backlog:              " << conf::MAX_REQUEST_BACKLOG << '\n'
+                  << "    Max Request Line:         " << conf::MAX_REQUEST_LINE_LENGTH << " B\n"
+                  << "    Buffer Size (Req/Res):    " << formatByteSize(conf::REQUEST_BUFFER_SIZE)
+                  << " / " << formatByteSize(conf::RESPONSE_BUFFER_SIZE) << '\n'
+                  << "    Max Body Size (Req/Res):  " << formatByteSize(conf::MAX_REQUEST_BODY)
+                  << " / " << formatByteSize(conf::MAX_RESPONSE_BODY) << '\n'
+                  << "    Min Compression Size:     " << conf::MIN_COMPRESSION_SIZE << " B\n"
+                  << "  [Content & CGI]\n"
+                  << "    Index Files:              " << (indexFilesStr.empty() ? "(None)" : indexFilesStr) << '\n'
+                  << "    Custom Status Docs:       " << formatOnOff(conf::ENABLE_CUSTOM_STATUS_DOCS) << '\n'
+                  << "    PHP-CGI:                  " << formatOnOff(conf::IS_PHP_ENABLED) << '\n'
+                  << "  [Security & Logging]\n"
+                  << "    Client Security Mode:     " << formatSecurityMode(conf::CLIENT_SECURITY_MODE) << '\n'
+                  << "    Access Log File:          " << conf::ACCESS_LOG_FILE.string() << '\n'
+                  << "    Error Log File:           " << conf::ERROR_LOG_FILE.string()
+                  << std::endl;
+    } else if (cmd == "DONATE") {
         std::cout << "> Love Mercury? Consider supporting this project:\n"
             "     https://buymeacoffee.com/travis.heavener" << std::endl;
-    } else if (buf == "EXIT") {
+    } else if (cmd == "EXIT" || cmd == "QUIT" || cmd == "Q") {
         isExiting.store(true);
-    } else if (buf == "INFO" || buf == "STATUS") {
-        // Print usage info
+    } else if (cmd == "STATS" || cmd == "METRICS" || cmd == "STATUS" || cmd == "INFO" || cmd == "UPTIME") {
+        // Aggregate thread pool and active connection metrics
         size_t usedThreads = 0, totalThreads = 0, pendingConnections = 0;
-        for (auto& pServer : serversVec)
+        size_t activeClients = 0;
+        for (auto& pServer : serversVec) {
+            if (!pServer) continue;
             pServer->getUsageInfo(usedThreads, totalThreads, pendingConnections);
+            activeClients += pServer->getActiveClientCount();
+        }
 
-        std::cout << std::fixed << std::setprecision(1) << "> "
-            << std::min(static_cast<double>(usedThreads) / totalThreads * 100, 100.0) << "% usage ("
-            << usedThreads << '/' << totalThreads << " threads, " << pendingConnections << " pending connections)"
-            << std::endl;
-    } else if (buf == "PING") {
+        // Print formatted server statistics report
+        std::cout << http::ServerStats::getInstance().formatStats(usedThreads, totalThreads, pendingConnections, activeClients) << std::endl;
+    } else if (cmd == "ROUTES" || cmd == "RULES") {
+        // Print active routing directives
+        std::cout << "> Configured Routing Directives:\n";
+        std::cout << "  [Match Rules] (" << conf::matchConfigs.size() << ")\n";
+        if (conf::matchConfigs.empty()) {
+            std::cout << "    (None)\n";
+        } else {
+            size_t idx = 0;
+            for (const auto& pMatch : conf::matchConfigs) {
+                if (!pMatch) continue;
+                std::cout << "    #" << (++idx) << ": Pattern: \"" << pMatch->getPattern() << "\"\n";
+                if (pMatch->getAccessControl()) {
+                    std::cout << "        Access: " << (pMatch->getAccessControl()->isDenyAll() ? "deny all" : "allow all");
+                    const auto& exceptions = pMatch->getAccessControl()->getExceptions();
+                    if (!exceptions.empty())
+                        std::cout << " (" << exceptions.size() << " exception" << (exceptions.size() > 1 ? "s" : "") << ")";
+                    std::cout << '\n';
+                }
+                std::cout << "        Directory Indexes: " << (pMatch->showDirectoryIndexes() ? "on" : "off") << '\n';
+                const auto& headers = pMatch->getHeaders();
+                if (!headers.empty()) {
+                    std::cout << "        Headers:\n";
+                    for (const auto& [name, val] : headers)
+                        std::cout << "          " << name << ": " << val << '\n';
+                }
+            }
+        }
+
+        // Print configured redirect rules
+        std::cout << "  [Redirect Rules] (" << conf::redirectRules.size() << ")\n";
+        if (conf::redirectRules.empty()) {
+            std::cout << "    (None)\n";
+        } else {
+            size_t idx = 0;
+            for (const auto& pRedir : conf::redirectRules) {
+                if (!pRedir) continue;
+                std::cout << "    #" << (++idx) << ": \"" << pRedir->getPatternStr() << "\" -> \""
+                          << pRedir->getTarget() << "\" (" << pRedir->getStatus() << ")\n";
+            }
+        }
+
+        // Print configured rewrite rules
+        std::cout << "  [Rewrite Rules] (" << conf::rewriteRules.size() << ")\n";
+        if (conf::rewriteRules.empty()) {
+            std::cout << "    (None)\n";
+        } else {
+            size_t idx = 0;
+            for (const auto& pRewrite : conf::rewriteRules) {
+                if (!pRewrite) continue;
+                std::cout << "    #" << (++idx) << ": \"" << pRewrite->getPatternStr() << "\" -> \""
+                          << pRewrite->getTarget() << "\"\n";
+            }
+        }
+        std::cout << std::flush;
+    } else if (cmd == "TLS" || cmd == "CERT") {
+        // Print TLS status and X.509 certificate metadata
+        http::printTLSInfo();
+    } else if (cmd == "LOGS" || cmd == "TAIL") {
+        // Parse target log file and line count arguments
+        std::filesystem::path targetFile = conf::ACCESS_LOG_FILE;
+        size_t lineCount = 10;
+        if (!args.empty()) {
+            std::string sub = args;
+            strToUpper(sub);
+            if (sub.starts_with("ERROR")) {
+                targetFile = conf::ERROR_LOG_FILE;
+                std::string rest = args.substr(5);
+                trimString(rest);
+                if (!rest.empty()) {
+                    try { lineCount = std::stoul(rest); } catch (...) {}
+                }
+            } else if (sub.starts_with("ACCESS")) {
+                targetFile = conf::ACCESS_LOG_FILE;
+                std::string rest = args.substr(6);
+                trimString(rest);
+                if (!rest.empty()) {
+                    try { lineCount = std::stoul(rest); } catch (...) {}
+                }
+            } else {
+                try { lineCount = std::stoul(args); } catch (...) {}
+            }
+        }
+        readLogTail(targetFile, lineCount);
+    } else if (cmd == "MIMES" || cmd == "MIME") {
+        // Collect and sort MIME mappings alphabetically by extension
+        std::vector<std::pair<std::string, std::string>> sortedMimes(conf::MIMES.begin(), conf::MIMES.end());
+        std::sort(sortedMimes.begin(), sortedMimes.end(), [](const auto& a, const auto& b) {
+            return a.first < b.first;
+        });
+
+        if (args.empty()) {
+            // Display all configured MIME types
+            std::cout << "> Configured MIME Types (" << sortedMimes.size() << " mappings):\n";
+            for (const auto& [ext, mime] : sortedMimes) {
+                std::cout << "    ." << std::left << std::setw(12) << ext << " -> " << mime << '\n';
+            }
+        } else {
+            // Filter MIME mappings by search query
+            std::string query = args;
+            strToLower(query);
+            if (query.starts_with('.'))
+                query = query.substr(1);
+
+            std::vector<std::pair<std::string, std::string>> matches;
+            for (const auto& entry : sortedMimes) {
+                std::string extLower = entry.first;
+                std::string mimeLower = entry.second;
+                strToLower(extLower);
+                strToLower(mimeLower);
+                if (extLower.find(query) != std::string::npos || mimeLower.find(query) != std::string::npos)
+                    matches.push_back(entry);
+            }
+
+            if (matches.empty()) {
+                std::cout << "> No MIME mappings found matching \"" << args << "\"" << std::endl;
+            } else {
+                std::cout << "> Matching MIME Types (" << matches.size() << " match"
+                          << (matches.size() > 1 ? "es" : "") << "):\n";
+                for (const auto& [ext, mime] : matches) {
+                    std::cout << "    ." << std::left << std::setw(12) << ext << " -> " << mime << '\n';
+                }
+            }
+        }
+        std::cout << std::flush;
+    } else if (cmd == "VERSION" || cmd == "VER") {
+        // Print version and protocol capabilities
+        std::cout << "> " << (conf::VERSION.empty() ? "Mercury" : conf::VERSION) << '\n'
+                  << "  Protocols:   HTTP/1.1 (default), HTTP/1.0, HTTP/0.9\n"
+                  << "  Encryption:  TLSv1.3 (OpenSSL)" << std::endl;
+    } else if (cmd == "PING") {
         std::cout << "> Pong!" << std::endl;
-    } else if (buf == "PWD") {
+    } else if (cmd == "PWD") {
         std::cout << conf::DOCUMENT_ROOT.string() << std::endl;
-    } else if (buf == "HELP") {
-        std::cout << "> Clear: Clears the terminal window\n"
-            "  Donate: Shows optional donation URL\n"
-            "  Exit: Exit Mercury\n"
-            "  Help: List available commands\n"
-            "  Info: View current utilization\n"
-            "  PHPInit: Initializes platform-specific PHP\n"
-            "  Ping: Pong!\n"
-            "  Pwd: Prints the document root\n"
-            "  Status: See \"info\""
+    } else if (cmd == "HELP" || cmd == "?") {
+        std::cout << "> Available Console Commands:\n"
+            "  clear, cls                  Clear terminal screen\n"
+            "  config, conf                View loaded server configuration\n"
+            "  donate                      Show optional donation link\n"
+            "  exit, quit, q               Exit Mercury\n"
+            "  help, ?                     List available commands\n"
+            "  logs, tail [file] [n]       View recent access or error logs\n"
+            "  mimes, mime [query]         List or search configured MIME types\n"
+            "  phpinit                     Initialize platform-specific PHP\n"
+            "  ping                        Test CLI responsiveness (Pong!)\n"
+            "  pwd                         Print document root directory\n"
+            "  routes, rules               View Match, Redirect, and Rewrite rules\n"
+            "  stats, status, metrics      View live traffic, requests, and utilization\n"
+            "  tls, cert                   View TLS configuration and certificate status\n"
+            "  version, ver                View Mercury version and capabilities"
             << std::endl;
-    } else if (buf == "PHPINIT") {
+    } else if (cmd == "PHPINIT") {
         #ifdef _WIN32 // Windows specific
             std::cout << "> Running `conf/setup_php.ps1`" << std::endl;
             std::string scriptPath;
@@ -235,9 +538,14 @@ void awaitCLI(std::atomic<bool>& isExiting, std::vector<std::shared_ptr<http::Se
                 return;
             }
         }
-    #endif
+    #else
+        // Check if stdin is a terminal on Linux
+        if (!isatty(STDIN_FILENO)) {
+            while (!isExiting)
+                SLEEP_BETWEEN_CLI;
+            return;
+        }
 
-    #ifdef __linux__
         TermiosGuard tg;
     #endif
 

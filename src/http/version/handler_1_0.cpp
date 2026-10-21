@@ -57,7 +57,7 @@ namespace http::version::handler_1_0 {
         // Verify access is permitted
         if (!conf::matchConfigs.empty()) {
             // Create sanitized IP address
-            const std::string decodedURI = request.getDecodedURI();
+            const std::string& decodedURI = request.getDecodedURI();
             const headers_map_t& headers = request.getHeaders();
             try {
                 conf::SanitizedIP sip( conf::parseSanitizedClientIP(request.getIPStr()) );
@@ -88,7 +88,7 @@ namespace http::version::handler_1_0 {
         // Handle redirects
         if (!conf::redirectRules.empty()) {
             // Check redirect rule patterns
-            const std::string decodedURI = request.getDecodedURI();
+            const std::string& decodedURI = request.getDecodedURI();
             std::string locationBuf;
             for (const std::unique_ptr<conf::Redirect>& pRedirect : conf::redirectRules) {
                 pRedirect->loadRedirectedPath(decodedURI, locationBuf);
@@ -157,11 +157,11 @@ namespace http::version::handler_1_0 {
                     pResponse->setHeader("Content-Type", file.MIME);
 
                 // Load additional headers for body loading
-                const std::string reqDecodedURI = request.getDecodedURI();
+                const std::string& reqDecodedURI = request.getDecodedURI();
                 const headers_map_t& reqHeaders = request.getHeaders();
                 for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
                     if (pMatch->doesRequestMatch(reqDecodedURI, reqHeaders))
-                        for (auto [name, value] : pMatch->getHeaders())
+                        for (const auto& [name, value] : pMatch->getHeaders())
                             pResponse->setHeader(name, value);
                 break;
             }

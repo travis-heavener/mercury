@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.35.0] - 2026-10-21
+- Added: `-t, --test` CLI argument, tests configuration file syntax and validity before exiting
+- Added: `-r, --root <path>` CLI argument, overrides configured `DocumentRoot` directory
+- Added: `-p, --port <port>` CLI argument, overrides configured HTTP `Port`
+- Added: `stats` console command (aliases: `status`, `info`, `metrics`, `uptime`), displaying server uptime, active connections, thread pool utilization, total requests, HTTP status distribution, and ingress/egress bandwidth
+- Added: `config` (alias: `conf`) console command, displays loaded server configuration parameters (ports, network bindings, buffer sizes, body limits, timeouts, and security settings)
+- Added: `mimes` (alias: `mime`) console command, displays or filters configured MIME type mappings (`mimes [query]`)
+- Added: `version` (alias: `ver`) console command, displays Mercury version, supported HTTP protocols, and encryption capabilities
+- Added: `routes` (alias: `rules`) console command, displays active routing rules including Match blocks, Access ACLs, custom headers, Directory Index settings, Redirects, and Rewrites
+- Added: `tls` (alias: `cert`) console command, inspects TLS status and X.509 certificate metadata (subject, issuer, validity period, and expiration status)
+- Added: `logs` (alias: `tail`) console command, views tail of access or error log files with configurable line counts (`logs [access|error] [n]`)
+- Added: CLI console command aliases `quit`/`q` (`exit`), `?` (`help`), and `cls` (`clear`)
+- Changed: format interactive console help menu into clean, column-aligned command table
+- Docs: Update SECURITY.md contact email
+- Fix: free OpenSSL context (`SSL_CTX_free`) if certificate or private key loading fails in `initTLSContext`
+- Fix: verify private key matches public certificate during TLS initialization (`SSL_CTX_check_private_key`)
+- Fix: ensure `Server` destructor cleans up `pSSL_CTX` if initialized
+- Fix: drain `ThreadPool` tasks on `stop()` to eliminate potential cyclic references
+- Fix: prevent shutdown hang in `cleanupConfig` by acquiring mutex and ensuring failed file removals are untracked
+- Fix: guard filesystem calls in directory listings, status docs, and config cleanup with error codes to prevent uncaught exceptions
+- Fix: prevent intra-process temporary file collisions by checking candidate paths against active temp files under lock
+- Fix: validate compressor initialization in `precompressBody` to prevent emitting uncompressed bodies under `Content-Encoding` headers
+- Fix: use generic paths for directory index hyperlinks to prevent backslashes in Windows URLs
+- Fix: add null-pointer checks for `SSL_CTX` and `SSL` creation in remote version checker
+- Fix: replace non-thread-safe `std::gmtime` and `std::localtime` with thread-safe `gmtime_r`/`gmtime_s` and `localtime_r`/`localtime_s`
+- Fix: avoid 100% CPU spinning in CLI loop when stdin is not a TTY (background/daemon mode)
+- Fix: redraw current line on Ctrl+L in CLI instead of erroneously executing typed command
+- Perf: stream error documents (404/500/etc.) and directory listings directly from memory instead of writing temporary files to disk
+- Perf: use in-memory compression for small response bodies, eliminating disk I/O in precompression
+- Perf: eliminate redundant string copies and false moves in `Request`, `MemoryStream`, routing handlers, and header casing
+- Perf: optimize `trimString` to operate in-place without heap reallocation
+- Perf: optimize GMT and local date formatting with thread-safe `strftime`, eliminating repeated `stringstream` allocations
+- Perf: cap asynchronous logger queue capacity to prevent unbounded memory growth
+- Perf: move string payloads directly into asynchronous logger queues to eliminate redundant allocations
+- Perf: achieve up to 45% higher throughput, ~30% lower latency, and 10% lower peak memory on dynamic and compressed workloads
+
 ## [0.34.0] - 2026-10-21
 - Added: `-h, --help` CLI argument, shows brief help information for using Mercury
 - Added: `-v, --version` CLI argument, shows current Mercury version

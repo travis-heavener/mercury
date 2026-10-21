@@ -17,6 +17,7 @@ namespace conf {
         public:
             Match(const std::string& pattern);
             inline void addHeader(const std::string& k, const std::string& v) { headers.insert({k, v}); }
+            inline const std::string& getPattern() const { return patternStr; }
             inline const std::unordered_map<std::string, std::string>& getHeaders() const { return headers; }
             inline bool showDirectoryIndexes() const { return _showDirectoryIndexes; }
             inline void setShowDirectoryIndexes(const bool b) { _showDirectoryIndexes = b; }
@@ -27,6 +28,7 @@ namespace conf {
             void addHeaderFilter(std::unique_ptr<IModHeader> p) { headerFilters.push_back(std::move(p)); };
         private:
             std::regex pattern;
+            std::string patternStr;
             std::unordered_map<std::string, std::string> headers;
             bool _showDirectoryIndexes;
             std::unique_ptr<Access> pAccess;

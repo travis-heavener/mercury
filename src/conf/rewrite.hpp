@@ -13,11 +13,14 @@ namespace conf {
         public:
             Rewrite(const std::string& pattern, const std::string& to);
             inline const std::regex& getPattern() const { return pattern; }
+            inline const std::string& getPatternStr() const { return patternStr; }
+            inline const std::string& getTarget() const { return to; }
 
             // Loads the rewritten path to outPath if present, otherwise sets the path to the empty string
             bool loadRewrittenPath(std::string& path) const;
         private:
             std::regex pattern;
+            std::string patternStr;
             std::string to;
     };
 
