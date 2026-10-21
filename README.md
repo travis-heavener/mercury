@@ -83,11 +83,17 @@ Download the latest release archive from [mercury.wowtravis.com](https://mercury
 
 *(Optionally specify a custom configuration file path; defaults to `conf/mercury.conf`)*
 
+> [!NOTE]
+> All versions before `v1.0.0` are pre-releases. Pre-release updates may introduce breaking changes or configuration adjustments between versions, so be sure to consult [`CHANGELOG.md`](CHANGELOG.md) when upgrading. If you encounter any unexpected behavior, please [open an issue](https://github.com/travis-heavener/mercury/issues).
+
 ### Config Files
 
-- `conf/mercury.conf`: Primary server configuration (ports, document root, match rules, rewrite/redirect directives).
+- `conf/mercury.conf`: Primary server configuration (ports, document root, security modes, match rules, rewrite/redirect directives).
 - `conf/mimes.conf`: MIME type mapping table.
-- Default templates are located in `conf/default/`. See [CONFIG.md](CONFIG.md) for full configuration directive documentation.
+- Default templates are located in `conf/default/`.
+
+> [!TIP]
+> Always review [`CONFIG.md`](CONFIG.md) when setting up configuration files—it provides thorough documentation of each configuration setting, including accepted values and usage examples. If you use hashed IP logging (`GPCHashed` or `Hashed`), remember to change the `ClientSecurityIPSalt` node in `conf/mercury.conf` to a unique secret string to properly salt anonymous GPC hash entries.
 
 ### Log Files
 
@@ -164,7 +170,7 @@ See [`agents/WORKFLOWS.md`](agents/WORKFLOWS.md) and [`agents/TESTING.md`](agent
 Mercury values user privacy and adheres to strict standards:
 - **Zero Telemetry**: Mercury never collects personal data, telemetry, or analytics.
 - **Minimal Network Calls**: The only outbound connection is an optional startup version check to `mercury.wowtravis.com` (which can be disabled via `<StartupCheckLatestRelease> off </StartupCheckLatestRelease>`), plus `php.net` during Windows `phpinit`.
-- **DNT / Sec-GPC Compliance**: Client IPs in `access.log` can be automatically bit-masked or salted/hashed when `Do-Not-Track` or `Sec-GPC` headers are detected (configured via `<ClientSecurityMode>`).
+- **DNT / Sec-GPC Compliance**: Client IPs in `access.log` can be automatically bit-masked or salted/hashed when `Do-Not-Track` or `Sec-GPC` headers are detected (configured via `<ClientSecurityMode>`). Review [`CONFIG.md`](CONFIG.md) for configuration guidance, and be sure to change `<ClientSecurityIPSalt>` to your own unique secret value when using hashed IP logging.
 
 ---
 

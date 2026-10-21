@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.34.0] - 2026-10-21
+- Docs: improve README conciceness
+- Docs: add disclaimer in README for breaking changes in pre-release builds
+- Docs: add disclaimer for quick-start users to ensure they configure a fresh GPC hash salt
+
 ## v0.33.1
 - Migrate to new website URL ([https://mercury.wowtravis.com/](https://mercury.wowtravis.com/))
 
