@@ -77,7 +77,7 @@ Adhere strictly to [`agents/CONVENTIONS.md`](agents/CONVENTIONS.md):
 - Header lines are limited to 64 KiB (returning 431 on overflow), and malformed or duplicate framing headers (`Content-Length`, `Transfer-Encoding`) must return 400.
 
 ### 5. Version Synchronization
-- Any version change must update both `version.txt` (`Mercury vX.Y.Z`) and `CHANGELOG.md` (`## vX.Y.Z`) identically. The CI workflow will fail if these diverge.
+- Any version change must update both `version.txt` (`Mercury vX.Y.Z`) and `CHANGELOG.md` (`## [X.Y.Z] - YYYY-MM-DD`). The CI workflow will fail if these diverge.
 
 ---
 

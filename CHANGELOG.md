@@ -1,14 +1,15 @@
 # Changelog
 
-## [v0.34.0] - 2026-10-21
+## [0.34.0] - 2026-10-21
 - Docs: improve README conciceness
 - Docs: add disclaimer in README for breaking changes in pre-release builds
 - Docs: add disclaimer for quick-start users to ensure they configure a fresh GPC hash salt
+- Docs: improve CHANGELOG formatting, adhering loosely to [Keep A Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/)
 
-## v0.33.1
+## [0.33.1] - 2026-10-11
 - Migrate to new website URL ([https://mercury.wowtravis.com/](https://mercury.wowtravis.com/))
 
-## v0.33.0
+## [0.33.0] - 2026-10-06
 - Improve request parsing and resilience to malformed requests
     - Reject invalid header names/values, duplicate Host/Content-Length/Transfer-Encoding headers, and invalid or overflowing Content-Length values
     - Limit request headers to 64 KiB and return 431 when exceeded
@@ -37,14 +38,14 @@
 - Fix documentation publishing with unchanged files and validation of fork pull requests
 - Update configuration and contributor documentation
 
-## v0.32.2
+## [0.32.2] - 2026-10-05
 - Bump OpenSSL to v4.0.3 (#478)
 
-## v0.32.1
+## [0.32.1] - 2026-10-05
 - Bump OpenSSL to v4.0.2 (#475)
 - README improvements
 
-## v0.32.0
+## [0.32.0] - 2026-08-04
 - Add support for custom HTTP status & error pages (#448)
     - Each status document must be named as the 3-digit HTTP status code you'd like to override
         - E.g. /500.html, /403.html
@@ -52,123 +53,123 @@
     - Files must be immediate children under the document root
 - Add EnableCustomStatusDocs config node to toggle support for aforementioned custom status pages (#448)
 
-## v0.31.8
+## [0.31.8] - 2026-06-24
 - Bump PugiXML to v1.16 (#469)
 
-## v0.31.7
+## [0.31.7] - 2026-06-14
 - Bump OpenSSL to v4.0.1 (#467)
 
-## v0.31.6
+## [0.31.6] - 2026-06-04
 - Fix segmentation fault when fetching latest version w/o active internet connection (#464)
 
-## v0.31.5
+## [0.31.5] - 2026-04-20
 - Bump OpenSSL to v4.0.0 (#460)
 
-## v0.31.4
+## [0.31.4] - 2026-04-12
 - Bump OpenSSL to v3.6.2 (#459)
 
-## v0.31.3
+## [0.31.3] - 2026-04-08
 - Improved resilience to path attacks
     - Now rejects requests with URI-encoded null bytes (%00 and %2500)
 
-## v0.31.2
+## [0.31.2] - 2026-04-08
 - Now properly closes connections on HTTP/0.9 connections in the event of an error
     - Previously would send an error page HTML response
     - Performance boost for HTTP/0.9 errors from not loading error page HTML
 - Address security hole from using PHP w/ legacy HTTP versions
     - Now returns 403 Forbidden (HTTP/1.0) or closes the connection (HTTP/0.9)
 
-## v0.31.1
+## [0.31.1] - 2026-04-07
 - Updated ClientSecurityMode naming scheme (#449)
     - Renamed Anonymous/GPCAnonymous to Hashed/GPCHashed
 
-## v0.31.0
+## [0.31.0] - 2026-03-24
 - Replaced RedactLogIPs with more advanced ClientSecurityMode in config file (#442)
     - Use ClientSecurityIPSalt to specify the hash salt (HMAC)
 
-## v0.30.2
+## [0.30.2] - 2026-02-23
 - Fix minor memory leak with version checker (#437)
 - Thread safety improvements to CGI handler fork() calls on Linux (#437)
 
-## v0.30.1
+## [0.30.1] - 2026-02-22
 - Bump Zlib to v1.3.2
 
-## v0.30.0
+## [0.30.0] - 2026-02-06
 - Improved CLI flush responsiveness (#431)
 - Add "pwd" CLI command to print document root (#432)
 - Added stderr log for bind failure if missing sudo
 
-## v0.29.9
+## [0.29.9] - 2026-02-01
 - Bump OpenSSL to v3.6.1
 
-## v0.29.8
+## [0.29.8] - 2026-01-24
 - Add optional donation banner (#414)
     - Added "donate" CLI command to display URL
 
-## v0.29.7
+## [0.29.7] - 2026-01-22
 - Global documentation updates (per #257)
 
-## v0.29.6
+## [0.29.6] - 2026-01-14
 - Improve clarity of TLS cert setup instructions
 
-## v0.29.5
+## [0.29.5] - 2026-01-14
 - Remove `<format>` header in response handler
     - Allows for compiling on GCC 11/MinGW 8
 
-## v0.29.4
+## [0.29.4] - 2026-01-14
 - Bump copyright year
 
-## v0.29.3
+## [0.29.3] - 2025-12-23
 - Added Fedora Linux support
 - Reworked static binaries
     - Appears to work between distros that have glibc version differences (e.g. Arch's glibc 2.42 and Ubuntu's glibc 2.39)
 
-## v0.29.2
+## [0.29.2] - 2025-12-13
 - Slight improvements to Windows PHP CGI pipe handling
 
-## v0.29.1
+## [0.29.1] - 2025-12-12
 - Remove PHP license since PHP has not been bundled since v0.14.0
 
-## v0.29.0
+## [0.29.0] - 2025-12-11
 - Added checks for invalid config nodes (#363)
 
-## v0.28.5
+## [0.28.5] - 2025-12-11
 - Correct minor inconsistency with license naming
     - Zstandard License -> BSD License in CREDITS.md
 
-## v0.28.4
+## [0.28.4] - 2025-11-16
 - Improve documentation for cross-platform builds
 - Fix generated README after refactor from v0.28.3
 - Fix program hanging when attempting to close on Linux
 - Add support for Kali Linux (#372)
 
-## v0.28.3
+## [0.28.3] - 2025-11-15
 - Add unofficial support for Arch Linux (#372)
 - Fix potential crash from PHP CGI on Arch Linux
 - README improvements for cross-platform Linux builds
 
-## v0.28.2
+## [0.28.2] - 2025-11-12
 - Windows PHP init script now fetches the latest PHP version (#374)
 
-## v0.28.1
+## [0.28.1] - 2025-11-12
 - Updated README table for CLI commands
 - Add note about outgoing connection to php.net
 - Updated README to include note about CONFIG.md
 
-## v0.28.0
+## [0.28.0] - 2025-11-12
 - Added rich CLI w/ command history (#347)
 - Fixed sending Ctrl+C to Windows executable running via WSL
 - Explicitly disabled Content-Encoding for byte range responses
     - If the Range header is present in a request, Content-Encoding is not honored
 
-## v0.27.0
+## [0.27.0] - 2025-11-11
 - Added "status" command as an alias for "info" (#357)
 - Added "phpinit" CLI command (#357)
     - Works for Windows and Linux
         - Invokes conf/setup_php.ps1 from the program on Windows
         - Runs `sudo apt install php-cgi` on Linux
 
-## v0.26.0
+## [0.26.0] - 2025-11-11
 - Add CONFIG.md for config file documentation (#305)
 - Add header matching support for Match nodes (#350)
 - Extend MIME types list (#351)
@@ -176,13 +177,13 @@
 - Fix using regex_search instead of regex_match for Redirect & Rewrite rules
 - Rewrite and Redirect classes now have separate header files
 
-## v0.25.0
+## [0.25.0] - 2025-11-09
 - Slightly reduced executable size
     - Removed unused -lbrotlidec library
 - Update Brotli (v1.1.0 -> v1.2.0)
 - Added safeguard against long URIs (#343)
 
-## v0.24.0
+## [0.24.0] - 2025-10-27
 - Minor codebase improvements
     - Request::getHeader now returns std::optional instead of const std::string*
     - Migrated bulk setsockopt calls to macrodef
@@ -195,54 +196,54 @@
     - Ex. HTML, CSS, and JS files
 - Added application/wasm to default mimes.conf
 
-## v0.23.10
+## [0.23.10] - 2025-10-24
 - Fixed crash when URI was a "?" (#344)
 - Improved error logging for 500 Internal Server Error
 - Now takes path to config file as an optional CMD argument
     - Should ideally only used by the testing script
     - File path is relative to the Mercury project root
 
-## v0.23.9
+## [0.23.9] - 2025-10-23
 - Fixed byte range size calculations for FileStream objects (#338)
 - Fixed byte ranges for PHP files (#339)
 - Remove Range header support from HTTP/1.0
     - Didn't exist in spec
 
-## v0.23.8
+## [0.23.8] - 2025-10-22
 - Switch to fully, locally static Zlib for Linux (#326)
 
-## v0.23.7
+## [0.23.7] - 2025-10-21
 - Now properly intercepts SIGTERM on Linux & exits gracefully
 - Now handles more Windows termination signals instead of POSIX ones
     - E.g. CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT
 
-## v0.23.6
+## [0.23.6] - 2025-10-20
 - Debloated README (#307)
 - Fixed min. compression size config control for HTTP/1.0 (#308)
 
-## v0.23.5
+## [0.23.5] - 2025-10-18
 - Now resolves `//` as `/` in request paths (#298)
 - Fixed Windows PHP setup script using relative `tmp` path (#299)
     - Previously broke file uploads
 - Fixed HTTP body uploads for PHP files on Linux caused by pipe deadlock (#301)
 
-## v0.23.4
+## [0.23.4] - 2025-10-09
 - Improve consistency of file paths in docs (#284)
 
-## v0.23.3
+## [0.23.3] - 2025-10-09
 - Fix broken website hyperlink (#273)
 
-## v0.23.2
+## [0.23.2] - 2025-10-09
 - Add Fun Facts section to README (#132)
 - Fix typo in README Privacy Commitment (#267)
 - Fix test suite config file path in README (#268)
 - Fixed phrasing in CREDITS.md for PHP usage (#269)
 - Normalized "Issue" and "Pull Request" capitalization in docs (#270)
 
-## v0.23.1
+## [0.23.1] - 2025-10-08
 - Bump OpenSSL to v3.6.0 (#258)
 
-## v0.23.0
+## [0.23.0] - 2025-10-08
 - Justified CLI table in README (#240)
 - Updated Performance section in README to include what version was tested
 - Add config controls for keep-alive connections & minimum response body size for compression (#237)
@@ -254,18 +255,18 @@
 - Access logs now include the raw incoming path instead of the parsed path
 - Fixed URI-encoded question marks breaking query string parsing in Match (and the new Redirect) nodes (#246)
 
-## v0.22.2
+## [0.22.2] - 2025-10-03
 - Removed update.ps1 and update.sh update scripts
     - Introduced a number of problems and disk I/O risks
     - Could lock up and crash if the directory was open by another program
 
-## v0.22.1
+## [0.22.1] - 2025-10-02
 - Minor performance boost for repeated mallocs with server buffers
 - Added performance comparison w/ Apache to README (#220)
 - Added "CLI" section to README Table of Contents (#236)
 - Added Ztandard license
 
-## v0.22.0
+## [0.22.0] - 2025-09-29
 - Add thread-safe temp file tracker (#211)
 - Fix printing extra "< " after a shutdown is requested
 - Added temporary thread creation when the connection backlog grows (#225)
@@ -278,7 +279,7 @@
     - update.ps1 on Windows
     - update.sh on Linux
 
-## v0.21.0
+## [0.21.0] - 2025-09-28
 - Add support for running Mercury outside the `bin` directory (#215)
     - Working across UNC paths for Windows as well
 - Added support for typing "exit" to exit (#221)
@@ -286,21 +287,21 @@
 - Now checks the individual version pattern (vX.X.X) when comparing against remote latest version (#195)
 - Stylistically improved welcome banner :)
 
-## v0.20.1
+## [0.20.1] - 2025-09-28
 - Fix Windows port checking if WinPHPCGIPath exists even if EnablePHPCGI is set to off (#217)
 
-## v0.20.0
+## [0.20.0] - 2025-09-28
 - Migrate PugiXML to build_tools install with all other libs (#212)
 - Add Zstandard (Zstd) compression (#159)
     - New compression preference order goes Zstd -> Brotli (if HTTPS) -> gzip -> deflate -> plaintext
 - Update CREDITS.md to reflect PHP setup script from [v0.15.0](#v0150)
 - Fix PugiXML license hyperlink in CREDITS.md
 
-## v0.19.0
+## [0.19.0] - 2025-09-28
 - Added streaming for PHP CGI response bodies (#147)
 - Added support for PHP path info URIs (#127)
 
-## v0.18.4
+## [0.18.4] - 2025-09-27
 - Fixed directory index lookups on UNC paths (#201)
 - Fixed directory index listings returning last modified GMT timestamps (#201)
 - Fixed document root `.` not running in Mercury root (#200)
@@ -308,7 +309,7 @@
 - Migrate Contributing section to CONTRIBUTING.md (#197)
 - Reviewed and updated SECURITY.md security policy (#199)
 
-## v0.18.3
+## [0.18.3] - 2025-09-26
 - Removed canonicalization of tmp directory
 - Added support for UNC paths in DocumentRoot (#186)
     - Allows Windows executable execution from within a WSL environment
@@ -316,7 +317,7 @@
 - Improved plaintext viewing for README.md (now README.txt) in releases (#176)
 - Bump OpenSSL to v3.5.3 (#184)
 
-## v0.18.2
+## [0.18.2] - 2025-09-25
 - Stylistic README updates
     - Added Support Mercury section
     - Cleaned Table of Contents
@@ -324,11 +325,11 @@
 - Added RedactLogIPs config node (#169)
 - Subtly improved error handling for mercury.conf with value hints
 
-## v0.18.1
+## [0.18.1] - 2025-09-24
 - Fixed precompression making an extra temp file if no compression method was to be used (#166)
 - More thoroughly removes temp files if precompression fails
 
-## v0.18.0
+## [0.18.0] - 2025-09-23
 - Minor performance improvements for frequently used methods
 - Improved default public HTML
     - Distinguished index.php from index.html
@@ -338,7 +339,7 @@
 - Updated Windows PHP path to an archived 8.4.12 version
     - This recently broke as PHP updated to 8.4.13, but this archived version should remain parked
 
-## v0.17.0
+## [0.17.0] - 2025-09-17
 - Fixed bad URI handling for legacy HTTP versions
 - Dramatically reduced memory usage when parsing Requests
 - Now skips Chunked Transfer Encoding for bodies smaller than the response buffer size
@@ -353,7 +354,7 @@
 - Windows PHP setup script now initializes php.ini
     - Now properly initializes PHP's upload_tmp_dir to tmp in the Mercury root
 
-## v0.16.0
+## [0.16.0] - 2025-09-15
 - Refactored & streamlined config loader script (#128)
     - Now gracefully handles invalid formatting for lines in mimes.conf
 - Extended index file support to allow multiple files (#137)
@@ -367,11 +368,11 @@
 - Added BindAddressIPv4 and BindAddressIPv6 nodes to control bind address (#122)
     - Replaced EnableIPv4 and EnableIPv6 nodes
 
-## v0.15.1
+## [0.15.1] - 2025-09-08
 - Remove unused string compression methods
 - Remove unused brotli-cpp lib
 
-## v0.15.0
+## [0.15.0] - 2025-09-08
 - Clarified supported Linux distributions in README & website (#133)
 - Added TLS cert creation scripts to releases (#131)
     - Release builder now ships w/o default TLS certs
@@ -393,7 +394,7 @@
 - Added compression bypass for small bodies (#139)
 - Fixed sending blank HTTP request bodies over TLS (#143)
 
-## v0.14.0
+## [0.14.0] - 2025-09-04
 - Fully reworked PHP processing (#97)
     - Now uses traditional CGI
     - Removed PHP support for legacy HTTP versions (HTTP/0.9 and HTTP/1.0)
@@ -408,7 +409,7 @@
     - Updated Brotli license
     - Updated zlib license
 
-## v0.13.1
+## [0.13.1] - 2025-09-02
 - Fix Response object headers not being overwritten if multiple of the same name are applied in succession
     - This causes the default MIME type for PHP scripts to not function as intended
 - Add lazy MIME inferring for PHP CGI responses
@@ -417,7 +418,7 @@
     - Resulted in Content-Length of 0 and broke early type inferring
 - Now applies Match node headers for PHP files
 
-## v0.13.0
+## [0.13.0] - 2025-09-02
 - PHP CGI improvements (#110)
     - Now initially sets the Content-Type if not received from PHP CGI (as fallback)
     - Force overrides the Content-Length header to the actual length of returned content
@@ -430,7 +431,7 @@
 - Release bundler script now places files inside a directory within the release archive (#114)
 - Add Windows executable icon (#116)
 
-## v0.12.0
+## [0.12.0] - 2025-08-26
 - Add basic php-fpm support for Linux (#97)
     - Install via `sudo apt install php8.3-fpm`
 - Bump C++ version from C++17 to C++20
@@ -440,7 +441,7 @@
 - Fix access logging w/ HTTP/0.9 status codes (now prints all status codes as 0)
 - Fix stoull throwing std::invalid_argument when passing non-numeric port in mercury.conf
 
-## v0.11.0
+## [0.11.0] - 2025-08-25
 - Now checks for a new version at startup (#91)
     - Can be toggled off in mercury.conf
     - Can now toggle startup welcome banner
@@ -448,215 +449,215 @@
 - Now makes immediate log file directory if missing (#5)
 - Updated default public HTML (#92)
 
-## v0.10.0
+## [0.10.0] - 2025-08-14
 - Modularized request handlers (#39)
     - Added foundation for implementing future HTTP versions > HTTP/1.1
 - Add support for HTTP/0.9 (finally closed #16!)
 
-## v0.9.2
+## [0.9.2] - 2025-08-14
 - Bump Brotli to v1.1.0
 - Bump OpenSSL to v3.5.2
 - Bump zlib to v1.3.1
 
-## v0.9.1
+## [0.9.1] - 2025-08-10
 - Fixed IPv6 for Windows (again)
     - Now zeroes out sockaddr_in6 which could sometimes fail by using garbage data as an invalid socket
 - Now properly closes an IPv6 socket while trying to rebind in startup loop
 
-## v0.9.0
+## [0.9.0] - 2025-08-10
 - Fixed IPv6 for Windows (#57)
 - Now returns proper Allow header methods per the server's HTTP version (not hard-coded as a macrodef)
 - Global codebase refactor (#51)
 - Added precompiled headers to reduce compilation overhead (#37)
 - Minor performance improvements (#51)
 
-## v0.8.0
+## [0.8.0] - 2025-08-07
 - Fix cross-platform segmentation fault (#42)
     - Resulted from race condition when concurrently modifying STL structures (unordered_set, queue) across threads
 - Implemented ThreadPool to prevent thread explosion
 - Minor performance improvements
 
-## v0.7.8
+## [0.7.8] - 2025-08-05
 - Remove OPTIONS method support from HTTP/1.0 (#40)
 - Fix path checking logic before checking for invalid methods (#41)
 
-## v0.7.7
+## [0.7.7] - 2025-07-31
 - Reduce excessive error logging
 - Improved clarity of socket error & init logs (now includes TLS status & IPv4/IPv6 mode)
 - Now writes access logs after processing the request, not before
     - Added request HTTP version
     - Added response status
 
-## v0.7.6
+## [0.7.6] - 2025-07-29
 - Add support for toggling directory index listings in config file Match nodes
 - Can now toggle IPv4 & IPv6 independently in config file
 - Now explicitly rejects accessing symlinked content
     - Symlinking the document root itself is still allowed
     - Note than an Internal Server Error (500) may occur if attempting to access Linux symlinks on Windows
 
-## v0.7.5
+## [0.7.5] - 2025-07-24
 - Add support for HTTP/1.0 ([#16](https://github.com/travis-heavener/mercury/issues/16))
 - Normalized response header plaintext formatting (ex. cOntENt-LeNGTh --> Content-Length)
 - Fix socket init failure handling (now properly exits if all sockets fail)
 - Improved handling of individual main threads for each socket
 
-## v0.7.4
+## [0.7.4] - 2025-06-18
 - Replaced existing logger w/ dedicated, thread-safe Logger class
 
-## v0.7.3
+## [0.7.3] - 2025-06-07
 - Added Keep-Alive connection support
 - Now detaches threads for each accepted client connection (vastly improves support for Keep-Alive connections)
 
-## v0.7.2
+## [0.7.2] - 2025-05-31
 - Fixed bug where invalid/incomplete query strings would cause fatal crash
 
-## v0.7.1
+## [0.7.1] - 2025-05-31
 - Improved support against CRLF injection
 - Force CRLF for request & response
 
-## v0.7.0
+## [0.7.0] - 2025-05-29
 - Fixed major path injection bug
 - Added explicit support for forward slashes in document roots
 - Fixed status code handling when text/html isn't accepted as a MIME
 - Improved support with Windows-style directory separators '\\'
 - Now enforces HTTP/1.1 and returns 505 status when there's a version mismatch
 
-## v0.6.4
+## [0.6.4] - 2025-05-28
 - Refactored executable names (main -> mercury)
 
-## v0.6.3
+## [0.6.3] - 2025-04-26
 - Add MIT license
 
-## v0.6.2
+## [0.6.2] - 2025-04-26
 - Fully migrated to static Linux binaries
 - Port OpenSSL for Windows (now allows TLS certs)
 - Port Brotli for Windows (now allows Brotli compression)
 - All build tools are now shell scripts!
 
-## v0.6.1
+## [0.6.1] - 2025-04-26
 - Fix connections hanging on Windows port & handling of client sockets closing
     - Now polls client sockets for incoming data
 
-## v0.6.0
+## [0.6.0] - 2025-04-26
 - Add IPv6 support (fixes additional overhead from localhost resolution in Chrome)
 - Increase max request backlog size from 25 to 100
 - Fix error log buffer not flushing
 - Remove Host node from config file
 
-## v0.5.1
+## [0.5.1] - 2025-04-26
 - Add support for If-Modified-Since headers and 304 Not Modified responses
 
-## v0.5.0
+## [0.5.0] - 2025-04-25
 - Add HEAD verb support
 - Add OPTIONS verb support
 - Fix handling of invalid methods (405 status code)
 
-## v0.4.3
+## [0.4.3] - 2025-04-25
 - Add Date header to outgoing requests
 
-## v0.4.2
+## [0.4.2] - 2025-04-25
 - Fix RFC2616 compliance by enforcing Host header on requests
 
-## v0.4.1
+## [0.4.1] - 2025-04-25
 - Add Last-Modified header built-in support for GET requests
 
-## v0.4.0
+## [0.4.0] - 2025-04-25
 - Add support for Brotli compression (only over HTTPS)
 - Enabled compression for non-text MIMEs
 - Revert Linux static build (resolves OpenSSL errors)
 
-## v0.3.3
+## [0.3.3] - 2025-04-25
 - Fix errno 13 additional error text
 
-## v0.3.2
+## [0.3.2] - 2025-04-25
 - Consolidate response handling into Response class (similar to Request)
 - Update build info w/ SSL
 
-## v0.3.1
+## [0.3.1] - 2025-04-25
 - Add default config
 
-## v0.3.0
+## [0.3.0] - 2025-04-25
 - Add OpenSSL support for Linux builds
     - See conf/ssl/cert.pem and conf/ssl/key.pem
     - Uses multithreaded sockets
 
-## v0.2.8
+## [0.2.8] - 2025-04-23
 - Switch to static build for Linux
 
-## v0.2.7
+## [0.2.7] - 2025-02-14
 - File I/O improvements
 - Improved latency on systems with slower disk I/O speeds
 
-## v0.2.6
+## [0.2.6] - 2025-02-14
 - Improved handling of blank packets
 
-## v0.2.5
+## [0.2.5] - 2025-01-30
 - Added IndexFile config directive
 
-## v0.2.4
+## [0.2.4] - 2025-01-22
 - Added access & error log files
 - Updated default config file headers
 - Added icon & favicon for default HTML sites
 
-## v0.2.3
+## [0.2.3] - 2025-01-22
 - Extended control of request buffer size & backlog to config file
 
-## v0.2.2
+## [0.2.2] - 2025-01-22
 - Extended content encoding support for both gzip & zlib deflate
 - Fixed terminology of Host node in config file
 - Global refactor of C++ source files & binaries
 
-## v0.2.1
+## [0.2.1] - 2025-01-22
 - Improved parsing support for Accept header
 
-## v0.2.0
+## [0.2.0] - 2025-01-22
 - **URI decoding is now supported**
 - Added directory index file listings
 - Fixed Windows bug where Document Root not terminated by a forward slash fails to recognize index.html in root directory
 
-## v0.1.8
+## [0.1.8] - 2025-01-21
 - Improved handling of program exits
 - Fixed memory leak w/ deflateText calling delete instead of delete[]
 - Fixed major memory leak w/ deflateText calling deflateInit2_ twice
 - Refactored string tools
 - Added Match & Header nodes to config
 
-## v0.1.7
+## [0.1.7] - 2025-01-21
 - Fixed config loader error checking
 - Added Host node to config data to control hosted IPv4 address
 - Welcome message now shows after config data loads
 
-## v0.1.6
+## [0.1.6] - 2025-01-21
 - Fixed [#3](https://github.com/travis-heavener/mercury/issues/3) (socket bind failure in immediate re-execution)
 - Added Table of Contents ([#4](https://github.com/travis-heavener/mercury/issues/4))
 
-## v0.1.5
+## [0.1.5] - 2025-01-21
 - Added mercury.conf configuration XML file
     - Config file has logfile directives that don't currently do anything yet
     - Parsed by [PugiXML](https://github.com/zeux/pugixml)!
 - Refactored & reduced unused methods
     - Known MIME types are now loaded by the loadConfig method in conf.hpp
 
-## v0.1.4
+## [0.1.4] - 2025-01-21
 - Accept header now processes `*/*` as intended
 - Now explicitly prevents users from accessing files above the document root
 - Improved handling of 405 Method Not Allowed status codes
     - Response now appropriately specifies Allow header
     - Now only returns HTML display if explicitly Accepted by the request
 
-## v0.1.3
+## [0.1.3] - 2025-01-21
 - Fixed MAJOR file compression bug on Windows systems
 - Improved overall handling of file compression
 
-## v0.1.2
+## [0.1.2] - 2025-01-21
 - File paths with query strings are now handled as intended
 - Improved handling of index files
 
-## v0.1.1
+## [0.1.1] - 2025-01-21
 - Added initial welcome note
 - Fixed [Dependencies](README.md#build-info) with Windows info
 - Windows port now allows deflate compresesion via zlib port
 
-## v0.1.0
+## [0.1.0] - 2025-01-21
 - Added changelog (lol)
 - Added Windows port
