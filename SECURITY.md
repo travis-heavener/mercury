@@ -17,5 +17,5 @@ If you encounter any security issues, please open a Bug Report on the [Mercury G
 
 Bug Reports, especially security vulnerabilities, are taken very seriously and will be addressed as soon as possible.
 
-If you have any questions, please reach out to [Travis Heavener](https://github.com/travis-heavener) on GitHub or via email [travis.heavener@gmail.com](mailto:travis.heavener@gmail.com)
+If you have any questions, please reach out to [Travis Heavener](https://github.com/travis-heavener) on GitHub or via email [travis@wowtravis.com](mailto:travis@wowtravis.com)
 

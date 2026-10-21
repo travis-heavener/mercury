@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.35.0] - 2026-10-21
+- Docs: Update SECURITY.md contact email
+
 ## [0.34.0] - 2026-10-21
 - Added: `-h, --help` CLI argument, shows brief help information for using Mercury
 - Added: `-v, --version` CLI argument, shows current Mercury version
