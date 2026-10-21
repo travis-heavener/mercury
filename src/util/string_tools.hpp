@@ -34,12 +34,14 @@ inline void stringReplaceAll(std::string& haystack, const std::string& needle, c
 }
 
 inline void trimString(std::string& str) {
-    size_t start = str.find_first_not_of(" \t");
+    const size_t start = str.find_first_not_of(" \t");
     if (start == std::string::npos) {
         str.clear();
         return;
     }
-    str = str.substr(start, str.find_last_not_of(" \t") - start + 1);
+    const size_t end = str.find_last_not_of(" \t");
+    if (end + 1 < str.size()) str.erase(end + 1);
+    if (start > 0) str.erase(0, start);
 }
 
 void decodeURI(std::string&);

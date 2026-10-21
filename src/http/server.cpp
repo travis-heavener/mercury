@@ -23,6 +23,13 @@ namespace http {
     Server::Server(const port_t port, const bool useTLS) : port(port),
         threadPool(), useTLS(useTLS) {};
 
+    Server::~Server() {
+        if (pSSL_CTX != nullptr) {
+            SSL_CTX_free(pSSL_CTX);
+            pSSL_CTX = nullptr;
+        }
+    }
+
     // Stop accepting clients, drain workers, then release shared TLS state
     void Server::kill() {
         // Make repeated shutdown requests harmless
@@ -52,7 +59,7 @@ namespace http {
         }
         // Workers may still use the TLS context until their requests finish
         threadPool.stop();
-        if (useTLS) {
+        if (useTLS && pSSL_CTX != nullptr) {
             SSL_CTX_free(pSSL_CTX);
             pSSL_CTX = nullptr;
         }

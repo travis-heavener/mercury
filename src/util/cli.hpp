@@ -9,6 +9,7 @@
 // Enables raw terminal input mode
 #ifdef __linux__
     #include <termios.h>
+    #include <unistd.h>
 
     // RAII termios guard
     struct TermiosGuard {

@@ -23,11 +23,19 @@ SSL_CTX* initTLSContext() {
 
     if ( SSL_CTX_use_certificate_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM) <= 0) {
         ERROR_LOG << "Failed to load ./conf/ssl/cert.pem" << std::endl;
+        SSL_CTX_free(ctx);
         return nullptr;
     }
 
     if ( SSL_CTX_use_PrivateKey_file(ctx, keyPath.c_str(), SSL_FILETYPE_PEM) <= 0) {
         ERROR_LOG << "Failed to load ./conf/ssl/key.pem" << std::endl;
+        SSL_CTX_free(ctx);
+        return nullptr;
+    }
+
+    if (!SSL_CTX_check_private_key(ctx)) {
+        ERROR_LOG << "Private key does not match public certificate" << std::endl;
+        SSL_CTX_free(ctx);
         return nullptr;
     }
 

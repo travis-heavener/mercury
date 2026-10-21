@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <iostream>
+#include <mutex>
 #include <utility>
 
 #include <pugixml.hpp>
@@ -676,15 +677,26 @@ namespace conf {
     }
 
     void cleanupConfig() {
-        // Clear match configs
+        // Clear match configs and rules
         matchConfigs.clear();
+        rewriteRules.clear();
+        redirectRules.clear();
 
-        // Remove any stray temp files
-        while (!currentTempFiles.empty())
-            removeTempFile(*currentTempFiles.begin());
+        // Remove any stray temp files under lock
+        std::unordered_set<std::string> remainingTempFiles;
+        {
+            std::unique_lock lock(tempFileSetMutex);
+            remainingTempFiles = std::move(currentTempFiles);
+        }
+
+        for (const std::string& tmpPath : remainingTempFiles) {
+            std::error_code ec;
+            std::filesystem::remove(tmpPath, ec);
+        }
 
         // Reset CWD
-        std::filesystem::current_path( previousCWD );
+        std::error_code ec;
+        std::filesystem::current_path( previousCWD, ec );
     }
 
     void getMajorMinorPatchFromVersion(std::string ver, int& major, int& minor, int& patch) {

@@ -151,8 +151,54 @@ namespace http {
 
     bool Response::precompressBody() {
         if (this->compressMethod == NO_COMPRESS && this->originalByteRanges.empty()) return true;
+        if (pBodyStream == nullptr) return false;
 
-        // Get path to a temp file
+        // Create compressor
+        std::unique_ptr<ICompressor> pCompressor = std::unique_ptr<ICompressor>( createCompressorStream(this->compressMethod) );
+        if (this->compressMethod != NO_COMPRESS && (pCompressor == nullptr || pCompressor->status() != STREAM_SUCCESS)) {
+            ERROR_LOG << "Precompression error: failed to initialize compressor." << std::endl;
+            return false;
+        }
+        this->setCompressMethod(this->compressMethod); // Update header
+
+        // Compress entirely in-memory if body fits within response buffer
+        if (pBodyStream->size() <= conf::RESPONSE_BUFFER_SIZE) {
+            std::string inMemoryBuffer;
+            inMemoryBuffer.reserve(pBodyStream->size());
+            std::vector<char> readChunk(conf::RESPONSE_BUFFER_SIZE), compressChunk;
+            while (true) {
+                size_t bytesRead = pBodyStream->read(readChunk.data(), conf::RESPONSE_BUFFER_SIZE);
+                if (bytesRead == 0) {
+                    if (pCompressor != nullptr) {
+                        compressChunk.clear();
+                        bytesRead = pCompressor->finish(compressChunk);
+                        if (pCompressor->status() != STREAM_SUCCESS) {
+                            ERROR_LOG << "Precompression error (end flush)." << std::endl;
+                            return false;
+                        }
+                        inMemoryBuffer.append(compressChunk.data(), bytesRead);
+                    }
+                    break;
+                }
+
+                if (pCompressor != nullptr) {
+                    compressChunk.clear();
+                    bytesRead = pCompressor->compress(readChunk.data(), compressChunk, bytesRead);
+                    if (pCompressor->status() != STREAM_SUCCESS) {
+                        ERROR_LOG << "Precompression error." << std::endl;
+                        return false;
+                    }
+                    inMemoryBuffer.append(compressChunk.data(), bytesRead);
+                } else {
+                    inMemoryBuffer.append(readChunk.data(), bytesRead);
+                }
+            }
+
+            setBodyStream(std::make_unique<MemoryStream>(std::move(inMemoryBuffer)));
+            return true;
+        }
+
+        // Buffer large bodies to temp file on disk
         std::string tmpPath;
         if (!createTempFile(tmpPath)) return false;
 
@@ -162,10 +208,6 @@ namespace http {
             removeTempFile(tmpPath);
             return false;
         }
-
-        // Create compressor
-        std::unique_ptr<ICompressor> pCompressor = std::unique_ptr<ICompressor>( createCompressorStream(this->compressMethod) );
-        this->setCompressMethod(this->compressMethod); // Update header
 
         // Write in chunks
         std::vector<char> readChunk(conf::RESPONSE_BUFFER_SIZE), compressChunk;

@@ -235,9 +235,14 @@ void awaitCLI(std::atomic<bool>& isExiting, std::vector<std::shared_ptr<http::Se
                 return;
             }
         }
-    #endif
+    #else
+        // Check if stdin is a terminal on Linux
+        if (!isatty(STDIN_FILENO)) {
+            while (!isExiting)
+                SLEEP_BETWEEN_CLI;
+            return;
+        }
 
-    #ifdef __linux__
         TermiosGuard tg;
     #endif
 

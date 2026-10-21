@@ -2,6 +2,25 @@
 
 ## [0.35.0] - 2026-10-21
 - Docs: Update SECURITY.md contact email
+- Fix: free OpenSSL context (`SSL_CTX_free`) if certificate or private key loading fails in `initTLSContext`
+- Fix: verify private key matches public certificate during TLS initialization (`SSL_CTX_check_private_key`)
+- Fix: ensure `Server` destructor cleans up `pSSL_CTX` if initialized
+- Fix: drain `ThreadPool` tasks on `stop()` to eliminate potential cyclic references
+- Fix: prevent shutdown hang in `cleanupConfig` by acquiring mutex and ensuring failed file removals are untracked
+- Fix: guard filesystem calls in directory listings, status docs, and config cleanup with error codes to prevent uncaught exceptions
+- Fix: prevent intra-process temporary file collisions by checking candidate paths against active temp files under lock
+- Fix: validate compressor initialization in `precompressBody` to prevent emitting uncompressed bodies under `Content-Encoding` headers
+- Fix: use generic paths for directory index hyperlinks to prevent backslashes in Windows URLs
+- Fix: add null-pointer checks for `SSL_CTX` and `SSL` creation in remote version checker
+- Fix: replace non-thread-safe `std::gmtime` and `std::localtime` with thread-safe `gmtime_r`/`gmtime_s` and `localtime_r`/`localtime_s`
+- Fix: avoid 100% CPU spinning in CLI loop when stdin is not a TTY (background/daemon mode)
+- Perf: stream error documents (404/500/etc.) and directory listings directly from memory instead of writing temporary files to disk
+- Perf: use in-memory compression for small response bodies, eliminating disk I/O in precompression
+- Perf: eliminate redundant string copies and false moves in `Request`, `MemoryStream`, routing handlers, and header casing
+- Perf: optimize `trimString` to operate in-place without heap reallocation
+- Perf: optimize GMT and local date formatting with thread-safe `strftime`, eliminating repeated `stringstream` allocations
+- Perf: cap asynchronous logger queue capacity to prevent unbounded memory growth
+- Perf: move string payloads directly into asynchronous logger queues to eliminate redundant allocations
 
 ## [0.34.0] - 2026-10-21
 - Added: `-h, --help` CLI argument, shows brief help information for using Mercury

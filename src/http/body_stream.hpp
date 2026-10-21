@@ -51,7 +51,7 @@ namespace http {
 
     class MemoryStream : public IBodyStream {
         public:
-            explicit MemoryStream(const std::string& s) : data(std::move(s)), offset(0) {};
+            explicit MemoryStream(std::string s) : data(std::move(s)), offset(0) {}
             size_t read(char* buffer, size_t maxBytes);
             size_t size() const;
         private:

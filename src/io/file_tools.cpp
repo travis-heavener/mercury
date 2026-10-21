@@ -161,17 +161,16 @@ void createLogDirectoryIfMissing(const std::filesystem::path& path) {
     }
 }
 
-// Generates a random string (helper for createTempFile)
+// Used to generate random string for temporary file names
 static const char randomCharset[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 void genRandomString(std::string& result, size_t length) {
-    // Create randomizer
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dist(0, sizeof(randomCharset) - 2); // Exclude null byte
+    // Thread-local random generator avoids re-opening /dev/urandom on every call
+    thread_local std::mt19937 gen(std::random_device{}());
+    thread_local std::uniform_int_distribution<size_t> dist(0, sizeof(randomCharset) - 2);
 
-    // Place random characters
+    result.resize(length);
     for (size_t i = 0; i < length; ++i)
-        result += randomCharset[dist(gen)];
+        result[i] = randomCharset[dist(gen)];
 }
 
 // Temp file managers
@@ -181,39 +180,39 @@ std::shared_mutex tempFileSetMutex;
 // Creates and returns the full, absolute path to a new tmp file, returning true if successful
 bool createTempFile(std::string& outPath) {
     std::string buffer;
-    buffer.reserve(TMP_FILE_NAME_LEN);
+    std::error_code ec;
 
     int i = 0;
+    std::unique_lock lock(tempFileSetMutex);
     do {
         // Determine temp file name
         genRandomString(buffer, TMP_FILE_NAME_LEN);
         outPath = (conf::TMP_PATH / buffer).string();
-    } while (++i < TMP_FILE_MAX_RETRIES && std::filesystem::exists(outPath));
+    } while (++i < TMP_FILE_MAX_RETRIES && (currentTempFiles.find(outPath) != currentTempFiles.end() || std::filesystem::exists(outPath, ec)));
 
-    // Return true if the filename is available
-    bool isAvailable = !std::filesystem::exists(outPath);
-    if (isAvailable) {
-        std::unique_lock lock(tempFileSetMutex);
+    // Return true if filename is available
+    if (currentTempFiles.find(outPath) == currentTempFiles.end() && !std::filesystem::exists(outPath, ec)) {
         currentTempFiles.insert(outPath);
-    } else {
-        ERROR_LOG << "Failed to create temp file: " << outPath << std::endl;
+        return true;
     }
-    return isAvailable;
+
+    ERROR_LOG << "Failed to create temp file: " << outPath << std::endl;
+    return false;
 }
 
 // Attempts to remove the temp file, returns true if successful
 bool removeTempFile(const std::string& tmpPath) {
-    try { // Attempt to remove
-        std::filesystem::remove(tmpPath);
-    } catch (...) {
-        ERROR_LOG << "Failed to remove temp file: " << tmpPath << std::endl;
-        return false;
-    }
-
-    // Remove from current temp files
+    // Always untrack path from currentTempFiles, even if filesystem remove fails
     {
         std::unique_lock lock(tempFileSetMutex);
         currentTempFiles.erase(tmpPath);
+    }
+
+    std::error_code ec;
+    std::filesystem::remove(tmpPath, ec);
+    if (ec) {
+        ERROR_LOG << "Failed to remove temp file: " << tmpPath << ", error: " << ec.message() << std::endl;
+        return false;
     }
     return true;
 }

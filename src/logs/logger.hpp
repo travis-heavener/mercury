@@ -53,19 +53,25 @@ class Logger {
 
         inline LoggerStream operator()(const bool isAccess) { return LoggerStream(*this, isAccess); }
 
+        static constexpr size_t MAX_LOG_QUEUE_SIZE = 10000;
+
         // Queues access logs
-        inline void queueAccessLog(const std::string& log) {
+        inline void queueAccessLog(std::string log) {
             std::lock_guard<std::mutex> lock(writeMutex);
             if (isExited) return;
-            accessQueue.push(log);
+            if (accessQueue.size() >= MAX_LOG_QUEUE_SIZE)
+                accessQueue.pop();
+            accessQueue.push(std::move(log));
             cv.notify_one();
         }
 
         // Queues error logs
-        inline void queueErrorLog(const std::string& log) {
+        inline void queueErrorLog(std::string log) {
             std::lock_guard<std::mutex> lock(writeMutex);
             if (isExited) return;
-            errorQueue.push(log);
+            if (errorQueue.size() >= MAX_LOG_QUEUE_SIZE)
+                errorQueue.pop();
+            errorQueue.push(std::move(log));
             cv.notify_one();
         }
 
