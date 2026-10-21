@@ -27,6 +27,9 @@ namespace conf {
             // Returns true if the IP is allowed access by the exceptions list
             bool isIPAccepted(SanitizedIP& ip) const;
 
+            inline bool isDenyAll() const { return isDenyFirst; }
+            inline const std::vector<SanitizedIP>& getExceptions() const { return exceptions; }
+
             inline void insertIP(SanitizedIP ip) { exceptions.push_back(ip); }
         private:
             const bool isDenyFirst;

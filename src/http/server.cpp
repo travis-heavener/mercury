@@ -9,6 +9,7 @@
 #include "../util/toolbox.hpp"
 
 #include "tools.hpp"
+#include "stats.hpp"
 #include "version/handler_1_1.hpp"
 #include "version/handler_1_0.hpp"
 #include "version/handler_0_9.hpp"
@@ -141,10 +142,15 @@ namespace http {
     }
 
     ssize_t Server::readClientSock(char* readBuffer, const int client, SSL* pSSL) {
+        ssize_t n;
         if (this->useTLS)
-            return SSL_read(pSSL, readBuffer, conf::REQUEST_BUFFER_SIZE);
+            n = SSL_read(pSSL, readBuffer, conf::REQUEST_BUFFER_SIZE);
         else
-            return recv(client, readBuffer, conf::REQUEST_BUFFER_SIZE, 0);
+            n = recv(client, readBuffer, conf::REQUEST_BUFFER_SIZE, 0);
+
+        if (n > 0)
+            ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
+        return n;
     }
 
     ssize_t Server::writeClientSock(const int client, SSL* pSSL, const char* resBuffer, const size_t n) {
@@ -158,6 +164,8 @@ namespace http {
                 status = send(client, resBuffer, n, 0);
             #endif
         }
+        if (status > 0)
+            ServerStats::getInstance().recordBytesSent(static_cast<size_t>(status));
         return (status <= 0) ? -1 : status;
     }
 
@@ -317,6 +325,8 @@ namespace http {
                 response.setHeader("Connection", "close");
                 response.setHeader("Content-Length", "0");
                 response.streamBody(false, true, sendFunc);
+                ServerStats::getInstance().recordRequest();
+                ServerStats::getInstance().recordStatusCode(status);
             };
 
             // Process requests until the connection limit, shutdown, or an error
@@ -390,6 +400,8 @@ namespace http {
                 const std::string raw = pending.substr(0, requestSize);
                 pending.erase(0, requestSize);
 
+                ServerStats::getInstance().recordRequest();
+
                 // Generate the response using the validated request and owned client IP
                 RequestFlags flags;
                 Request request(reqHeaders, raw, clientIPStr, useTLS, flags);
@@ -417,6 +429,8 @@ namespace http {
 
                 // Send headers and body (HEAD sends headers only)
                 const ssize_t status = response->streamBody(request.isMIMEAccepted("text/html"), request.getMethod() == METHOD::HEAD, sendFunc);
+
+                ServerStats::getInstance().recordStatusCode(response->getStatus());
 
                 // Log the final status, including errors detected while preparing the body
                 ACCESS_LOG << request.getMethodStr() << ' '
@@ -467,6 +481,11 @@ namespace http {
 
     void Server::getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections) {
         threadPool.getUsageInfo(usedThreads, totalThreads, pendingConnections);
+    }
+
+    size_t Server::getActiveClientCount() {
+        std::unique_lock lock(clientsMutex);
+        return clientSocks.size();
     }
 
     std::ostream& operator<<(std::ostream& os, const Server& server) {

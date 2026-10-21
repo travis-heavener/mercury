@@ -4,6 +4,10 @@
 - Added: `-t, --test` CLI argument, tests configuration file syntax and validity before exiting
 - Added: `-r, --root <path>` CLI argument, overrides configured `DocumentRoot` directory
 - Added: `-p, --port <port>` CLI argument, overrides configured HTTP `Port`
+- Added: `stats` console command (aliases: `status`, `info`, `metrics`), displaying server uptime, active connections, thread pool utilization, total requests, HTTP status distribution, and ingress/egress bandwidth
+- Added: `routes` (alias: `rules`) console command, displays active routing rules including Match blocks, Access ACLs, custom headers, Directory Index settings, Redirects, and Rewrites
+- Added: `tls` (alias: `cert`) console command, inspects TLS status and X.509 certificate metadata (subject, issuer, validity period, and expiration status)
+- Added: `logs` (alias: `tail`) console command, views tail of access or error log files with configurable line counts (`logs [access|error] [n]`)
 - Added: CLI console command aliases `quit`/`q` (`exit`), `?` (`help`), and `cls` (`clear`)
 - Docs: Update SECURITY.md contact email
 - Fix: free OpenSSL context (`SSL_CTX_free`) if certificate or private key loading fails in `initTLSContext`

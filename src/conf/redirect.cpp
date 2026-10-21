@@ -6,11 +6,8 @@
 
 namespace conf {
 
-    Redirect::Redirect(const std::string& pattern, const std::string& to, const unsigned int status) {
-        this->pattern = std::regex(pattern);
-        this->to = to;
-        this->status = status;
-    }
+    Redirect::Redirect(const std::string& pattern, const std::string& to, const unsigned int status)
+        : pattern(pattern), patternStr(pattern), to(to), status(status) {}
 
     void Redirect::loadRedirectedPath(const std::string& currentPath, std::string& outPath) const {
         outPath.clear();

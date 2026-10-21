@@ -58,6 +58,7 @@ namespace http {
             void kill();
             std::unique_ptr<Response> genResponse(Request&);
             void getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections);
+            size_t getActiveClientCount();
         protected:
             // Socket methods
             ssize_t readClientSock(char*, const int, SSL*);

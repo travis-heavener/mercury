@@ -6,10 +6,8 @@
 
 namespace conf {
 
-    Rewrite::Rewrite(const std::string& pattern, const std::string& to) {
-        this->pattern = std::regex(pattern);
-        this->to = to;
-    }
+    Rewrite::Rewrite(const std::string& pattern, const std::string& to)
+        : pattern(pattern), patternStr(pattern), to(to) {}
 
     bool Rewrite::loadRewrittenPath(std::string& path) const {
         // Check if the regex matches
