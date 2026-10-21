@@ -2,12 +2,17 @@
 #include <iostream>
 #include <signal.h>
 
+#ifndef _WIN32
+    #include <sys/stat.h>
+#endif
+
 #include "conf/conf.hpp"
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
-#include "logs/logger.hpp"
 #include "http/version_checker.hpp"
+#include "logs/logger.hpp"
 #include "util/cli.hpp"
+#include "util/privilege.hpp"
 
 // Global termination flag (atomic)
 std::atomic<bool> isExiting{false};
@@ -151,6 +156,9 @@ int main(int argc, char* argv[]) {
             mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
             SetConsoleMode(hOut, mode);
         }
+    #else
+        // Set standard umask
+        umask(0022);
     #endif
 
     // Configure interrupt handler
@@ -211,6 +219,12 @@ int main(int argc, char* argv[]) {
     }
 
     if (serversVec.size() == 0) { // All failed to start, exit
+        cleanExit();
+        return 1;
+    }
+
+    // Drop root privileges if running under sudo or doas
+    if (!util::privilege::dropPrivileges()) {
         cleanExit();
         return 1;
     }

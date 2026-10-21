@@ -4,6 +4,7 @@
 - Added: `-h, --help` CLI argument, shows brief help information for using Mercury
 - Added: `-v, --version` CLI argument, shows current Mercury version
 - Added: `-c, --config <file>` CLI argument, retaining existing functionality for specifying alternate config files at runtime
+- Added: automatic privilege dropping and user ownership preservation when executed via sudo/doas to protect system files and prevent mismatched permissions
 - Changed: distinguish configuration file open/read failures from XML syntax errors with line and column reporting (including invalid configuration values, finally!)
 - Changed: generalize socket bind errno 13 message to formally reference elevated permissions (sudo, doas, etc.)
 - Docs: improve README conciseness

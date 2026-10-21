@@ -25,6 +25,7 @@ Mercury is a lightweight, configurable HTTP web server implemented in modern C++
 - **Fast PHP-CGI**: Native RFC 3875 CGI execution engine for PHP scripts.
 - **Flexible XML Configuration**: Declarative virtual host rules, regex URL rewrites, HTTP redirects (301/302/308), CIDR/IP access control lists, and custom status pages.
 - **Privacy First**: Zero telemetry, no external calls, and built-in DNT/Sec-GPC client IP bit-masking and hashing.
+- **Privilege Separation**: Safely drops root privileges when started via `sudo` or `doas` after binding privileged ports, preserving invoking user ownership on logs and temp files.
 - **Cross-Platform**: Compiles natively on Linux and cross-compiles for Windows with zero external runtime DLL dependencies.
 
 ---

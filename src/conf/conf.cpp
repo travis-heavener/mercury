@@ -11,6 +11,7 @@
 #endif
 
 #include "../io/file_tools.hpp"
+#include "../util/privilege.hpp"
 #include "../util/string_tools.hpp"
 
 #define LOAD_UINT_FORBID_ZERO false
@@ -639,12 +640,14 @@ namespace conf {
             std::cerr << "Failed to open Access Log File." << std::endl;
             return CONF_FAILURE;
         }
+        util::privilege::applyOwnershipAndPermissions(ACCESS_LOG_FILE, 0644);
 
         errorLogHandle = std::ofstream(ERROR_LOG_FILE, std::ios_base::app);
         if (!errorLogHandle.is_open()) {
             std::cerr << "Failed to open Error Log File." << std::endl;
             return CONF_FAILURE;
         }
+        util::privilege::applyOwnershipAndPermissions(ERROR_LOG_FILE, 0644);
 
         // Return success
         return CONF_SUCCESS;
@@ -978,6 +981,7 @@ namespace conf {
                 std::cerr << "Failed to open \"tmp\" directory: \"tmp\" already exists as a file in the Mercury root directory." << std::endl;
                 return CONF_FAILURE;
             }
+            util::privilege::applyOwnershipAndPermissions(tmpPathStr, 0755);
         } catch (std::filesystem::filesystem_error&) {
             std::cerr << "Failed to create \"tmp\" directory in the Mercury root directory." << std::endl;
             return CONF_FAILURE;
