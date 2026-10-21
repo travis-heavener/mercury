@@ -14,6 +14,7 @@
 - Fix: add null-pointer checks for `SSL_CTX` and `SSL` creation in remote version checker
 - Fix: replace non-thread-safe `std::gmtime` and `std::localtime` with thread-safe `gmtime_r`/`gmtime_s` and `localtime_r`/`localtime_s`
 - Fix: avoid 100% CPU spinning in CLI loop when stdin is not a TTY (background/daemon mode)
+- Fix: redraw current line on Ctrl+L in CLI instead of erroneously executing typed command
 - Perf: stream error documents (404/500/etc.) and directory listings directly from memory instead of writing temporary files to disk
 - Perf: use in-memory compression for small response bodies, eliminating disk I/O in precompression
 - Perf: eliminate redundant string copies and false moves in `Request`, `MemoryStream`, routing handlers, and header casing

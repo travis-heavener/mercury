@@ -69,9 +69,11 @@
                     std::cout << '\n' << std::flush;
                     isExiting = true;
                     return;
-                case 12: // Ctrl+L (clear)
+                case 12: // Ctrl+L (clear terminal and redraw line)
                     std::cout << "\033[2J\033[H" << std::flush;
-                    return;
+                    showLine(history[historyIndex]);
+                    std::cout << "\033[" << (cursor + 3) << 'G' << std::flush;
+                    break;
                 case '\n': // Update history
                     if (historyIndex != static_cast<int>(history.size()) - 1)
                         history.pop_back();
