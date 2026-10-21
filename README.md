@@ -85,6 +85,9 @@ Download the latest release archive from [mercury.wowtravis.com](https://mercury
 Common options:
 - `-c, --config <file>`: Specify path to configuration file (defaults to `conf/mercury.conf`)
 - `-h, --help`: Display usage and command-line options
+- `-p, --port <port>`: Override HTTP port
+- `-r, --root <path>`: Override document root directory
+- `-t, --test`: Test configuration file syntax and exit
 - `-v, --version`: Display version information
 
 > [!NOTE]

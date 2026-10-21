@@ -112,6 +112,8 @@ namespace conf {
     int loadBool(const pugi::xml_node& root, bool& var, const std::string& nodeName);
     int loadPath(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName, const bool isLogFile=false);
     int loadDirectoryAndCanonicalize(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName);
+    int canonicalizeDirectory(std::filesystem::path& var, const std::string& nodeName);
+    int setDocumentRoot(const std::filesystem::path& path);
     int loadTempFileDirectory();
     int loadClientSecurityMode(const pugi::xml_node& root, int& var);
     int loadClientSecurityIPSalt(const pugi::xml_node& root, std::string& var);
@@ -143,11 +145,16 @@ namespace conf {
             << "Options:\n"
             << "    -c, --config <file>     Path to configuration file (default: " << CONF_FILE << ")\n"
             << "    -h, --help              Display this help message and exit\n"
+            << "    -p, --port <port>       Override HTTP port\n"
+            << "    -r, --root <path>       Override document root directory\n"
+            << "    -t, --test              Test configuration file syntax and exit\n"
             << "    -v, --version           Display version information and exit\n\n"
             << "Examples:\n"
             << "    mercury\n"
             << "    mercury -c conf/mercury.conf\n"
-            << "    mercury --config /etc/mercury/mercury.conf\n\n"
+            << "    mercury -t\n"
+            << "    mercury -t -c /etc/mercury/mercury.conf\n"
+            << "    mercury -r ./public -p 8080\n\n"
             << "For detailed configuration directives, see CONFIG.md or visit:\n"
             << "    https://mercury.wowtravis.com/" << std::endl;
     }
@@ -355,6 +362,27 @@ namespace conf {
 
         // Parse CLI arguments
         std::string configPath = CONF_FILE;
+        std::optional<std::string> overrideDocumentRoot;
+        std::optional<port_t> overridePort;
+        bool isTestMode = false;
+
+        auto parsePortValue = [](const std::string& portStr, const std::string& optName) -> std::optional<port_t> {
+            try {
+                if (portStr.empty() || portStr[0] == '-') throw std::invalid_argument("");
+                for (char c : portStr) {
+                    if (!std::isdigit(static_cast<unsigned char>(c)))
+                        throw std::invalid_argument("");
+                }
+                const unsigned long p = std::stoul(portStr);
+                if (p == 0 || p > 65535) throw std::out_of_range("");
+                return static_cast<port_t>(p);
+            } catch (...) {
+                std::cerr << "Error: Invalid port number '" << portStr << "' for option '" << optName << "'. Port must be between 1 and 65535.\n"
+                    << "Try 'mercury --help' for usage information." << std::endl;
+                return std::nullopt;
+            }
+        };
+
         for (int i = 1; i < argc; ++i) {
             const std::string arg = argv[i];
 
@@ -368,7 +396,9 @@ namespace conf {
                 return CONF_EXIT;
             }
 
-            if (arg == "-c" || arg == "--config") {
+            if (arg == "-t" || arg == "--test" || arg == "--test-config") {
+                isTestMode = true;
+            } else if (arg == "-c" || arg == "--config") {
                 if (++i >= argc) {
                     std::cerr << "Error: Option '" << arg << "' requires a configuration file path.\n"
                         << "Try 'mercury --help' for usage information." << std::endl;
@@ -379,6 +409,34 @@ namespace conf {
                 configPath = arg.substr(3);
             } else if (arg.starts_with("--config=")) {
                 configPath = arg.substr(9);
+            } else if (arg == "-r" || arg == "--root") {
+                if (++i >= argc) {
+                    std::cerr << "Error: Option '" << arg << "' requires a document root path.\n"
+                        << "Try 'mercury --help' for usage information." << std::endl;
+                    return CONF_FAILURE;
+                }
+                overrideDocumentRoot = argv[i];
+            } else if (arg.starts_with("-r=")) {
+                overrideDocumentRoot = arg.substr(3);
+            } else if (arg.starts_with("--root=")) {
+                overrideDocumentRoot = arg.substr(7);
+            } else if (arg == "-p" || arg == "--port") {
+                if (++i >= argc) {
+                    std::cerr << "Error: Option '" << arg << "' requires a port number.\n"
+                        << "Try 'mercury --help' for usage information." << std::endl;
+                    return CONF_FAILURE;
+                }
+                auto parsed = parsePortValue(argv[i], arg);
+                if (!parsed.has_value()) return CONF_FAILURE;
+                overridePort = *parsed;
+            } else if (arg.starts_with("-p=")) {
+                auto parsed = parsePortValue(arg.substr(3), "-p");
+                if (!parsed.has_value()) return CONF_FAILURE;
+                overridePort = *parsed;
+            } else if (arg.starts_with("--port=")) {
+                auto parsed = parsePortValue(arg.substr(7), "--port");
+                if (!parsed.has_value()) return CONF_FAILURE;
+                overridePort = *parsed;
             } else if (!arg.starts_with("-")) {
                 // Positional argument for backward compatibility
                 configPath = arg;
@@ -395,26 +453,39 @@ namespace conf {
             return CONF_FAILURE;
         }
 
+        if (overrideDocumentRoot.has_value() && overrideDocumentRoot->empty()) {
+            std::cerr << "Error: Document root path cannot be empty.\n"
+                << "Try 'mercury --help' for usage information." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Resolve configuration file path relative to invocation directory if necessary
+        std::filesystem::path resolvedConfigPath = configPath;
+        std::error_code ecConf;
+        if (!resolvedConfigPath.is_absolute() && std::filesystem::exists(previousCWD / resolvedConfigPath, ecConf)) {
+            resolvedConfigPath = previousCWD / resolvedConfigPath;
+        }
+
         // Read XML config file
         pugi::xml_document doc;
-        pugi::xml_parse_result result = doc.load_file(configPath.c_str());
+        pugi::xml_parse_result result = doc.load_file(resolvedConfigPath.c_str());
 
         if (!result) {
             std::error_code ec;
-            if (result.status == pugi::status_file_not_found || !std::filesystem::exists(configPath, ec)) {
+            if (result.status == pugi::status_file_not_found || !std::filesystem::exists(resolvedConfigPath, ec)) {
                 std::cerr << "Failed to open config file (" << configPath << "): File does not exist." << std::endl;
-            } else if (std::filesystem::is_directory(configPath, ec)) {
+            } else if (std::filesystem::is_directory(resolvedConfigPath, ec)) {
                 std::cerr << "Failed to open config file (" << configPath << "): Path is a directory." << std::endl;
             } else if (result.status == pugi::status_io_error) {
                 std::cerr << "Failed to open config file (" << configPath << "): Error reading file." << std::endl;
             } else if (result.status == pugi::status_out_of_memory) {
                 std::cerr << "Failed to load config file (" << configPath << "): Out of memory." << std::endl;
             } else {
-                const auto [line, col] = getLineAndColumn(configPath, result.offset);
+                const auto [line, col] = getLineAndColumn(resolvedConfigPath.string(), result.offset);
                 std::string errorDesc = result.description();
 
                 if (result.status == pugi::status_end_element_mismatch) {
-                    const auto mismatch = findTagMismatch(configPath);
+                    const auto mismatch = findTagMismatch(resolvedConfigPath.string());
                     if (mismatch) {
                         if (!mismatch->expectedTag.empty() && !mismatch->foundTag.empty()) {
                             errorDesc += " (expected '</" + mismatch->expectedTag + ">' for tag opened at line "
@@ -458,8 +529,13 @@ namespace conf {
 
         /************************** Extract DocumentRoot **************************/
 
-        if (loadDirectoryAndCanonicalize(root, DOCUMENT_ROOT, "DocumentRoot") == CONF_FAILURE)
-            return CONF_FAILURE;
+        if (overrideDocumentRoot.has_value()) {
+            if (setDocumentRoot(*overrideDocumentRoot) == CONF_FAILURE)
+                return CONF_FAILURE;
+        } else {
+            if (loadDirectoryAndCanonicalize(root, DOCUMENT_ROOT, "DocumentRoot") == CONF_FAILURE)
+                return CONF_FAILURE;
+        }
 
         /************************** LOAD IPv4/IPv6 TOGGLES **************************/
 
@@ -530,6 +606,9 @@ namespace conf {
 
         if (loadUint(root, PORT, "Port", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
             return CONF_FAILURE;
+
+        if (overridePort.has_value())
+            PORT = *overridePort;
 
         if (loadUint(root, MAX_REQUEST_LINE_LENGTH, "MaxRequestLineLength", LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
             return CONF_FAILURE;
@@ -649,6 +728,16 @@ namespace conf {
             return CONF_FAILURE;
         }
         util::privilege::applyOwnershipAndPermissions(ERROR_LOG_FILE, 0644);
+
+        // Handle configuration test mode
+        if (isTestMode) {
+            accessLogHandle.close();
+            errorLogHandle.close();
+            cleanupConfig();
+            std::cout << "Configuration file " << configPath << " syntax is OK\n"
+                << "Configuration file " << configPath << " test is successful" << std::endl;
+            return CONF_EXIT;
+        }
 
         // Return success
         return CONF_SUCCESS;
@@ -947,10 +1036,8 @@ namespace conf {
         return CONF_SUCCESS;
     }
 
-    int loadDirectoryAndCanonicalize(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName) {
-        if (loadPath(root, var, nodeName) == CONF_FAILURE) return CONF_FAILURE;
-
-        // Canonicalize document root
+    // Canonicalize directory path, affix trailing slash, and verify existence
+    int canonicalizeDirectory(std::filesystem::path& var, const std::string& nodeName) {
         try {
             var = resolveCanonicalPath(var);
 
@@ -980,6 +1067,27 @@ namespace conf {
             return CONF_FAILURE;
         }
 
+        return CONF_SUCCESS;
+    }
+
+    int loadDirectoryAndCanonicalize(const pugi::xml_node& root, std::filesystem::path& var, const std::string& nodeName) {
+        if (loadPath(root, var, nodeName) == CONF_FAILURE) return CONF_FAILURE;
+        return canonicalizeDirectory(var, nodeName);
+    }
+
+    // Canonicalize and set document root directory
+    int setDocumentRoot(const std::filesystem::path& path) {
+        std::filesystem::path target = path;
+        if (!target.is_absolute()) {
+            std::error_code ec;
+            if (std::filesystem::exists(previousCWD / target, ec))
+                target = previousCWD / target;
+        }
+
+        if (canonicalizeDirectory(target, "DocumentRoot") == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        DOCUMENT_ROOT = target;
         return CONF_SUCCESS;
     }
 

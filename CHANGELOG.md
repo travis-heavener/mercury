@@ -1,6 +1,9 @@
 # Changelog
 
 ## [0.35.0] - 2026-10-21
+- Added: `-t, --test` CLI argument, tests configuration file syntax and validity before exiting
+- Added: `-r, --root <path>` CLI argument, overrides configured `DocumentRoot` directory
+- Added: `-p, --port <port>` CLI argument, overrides configured HTTP `Port`
 - Docs: Update SECURITY.md contact email
 - Fix: free OpenSSL context (`SSL_CTX_free`) if certificate or private key loading fails in `initTLSContext`
 - Fix: verify private key matches public certificate during TLS initialization (`SSL_CTX_check_private_key`)
