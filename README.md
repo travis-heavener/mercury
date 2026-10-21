@@ -143,6 +143,7 @@ Mercury provides an interactive terminal command interface:
   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
   ```
 - **Port Conflicts**: Ensure ports 80/8080 and 443/8081 are not already bound by another web server.
+- **Configuration & XML Errors**: If Mercury fails to start due to a malformed configuration file, it pinpoints the exact XML syntax error along with line and column numbers. Ensure all opening tags match their closing tags and that required configuration directives are present.
 
 ---
 
