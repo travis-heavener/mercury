@@ -156,8 +156,15 @@ int main(int argc, char* argv[]) {
     // Configure interrupt handler
     initSigHandler();
 
-    // Load config files
-    if (conf::loadConfig(argc, argv) == CONF_FAILURE) {
+    // Load config files & parse CLI arguments
+    const int confStatus = conf::loadConfig(argc, argv);
+    if (confStatus == CONF_EXIT) {
+        #ifdef _WIN32
+            WSACleanup();
+        #endif
+        return 0;
+    }
+    if (confStatus == CONF_FAILURE) {
         cleanExit();
         return 1;
     }

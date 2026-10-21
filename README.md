@@ -78,10 +78,13 @@ Mercury is significantly lighter on system resources compared to traditional web
 
 Download the latest release archive from [mercury.wowtravis.com](https://mercury.wowtravis.com) or the [Releases](https://github.com/travis-heavener/mercury/releases) page.
 
-- **Linux**: `./bin/mercury [conf-file]`
-- **Windows**: `bin\mercury.exe [conf-file]`
+- **Linux**: `./bin/mercury [options]`
+- **Windows**: `bin\mercury.exe [options]`
 
-*(Optionally specify a custom configuration file path; defaults to `conf/mercury.conf`)*
+Common options:
+- `-c, --config <file>`: Specify path to configuration file (defaults to `conf/mercury.conf`)
+- `-h, --help`: Display usage and command-line options
+- `-v, --version`: Display version information
 
 > [!NOTE]
 > All versions before `v1.0.0` are pre-releases. Pre-release updates may introduce breaking changes or configuration adjustments between versions, so be sure to consult [`CHANGELOG.md`](CHANGELOG.md) when upgrading. If you encounter any unexpected behavior, please [open an issue](https://github.com/travis-heavener/mercury/issues).

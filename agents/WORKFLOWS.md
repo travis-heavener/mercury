@@ -62,7 +62,13 @@ By default, Mercury looks for configuration in `conf/mercury.conf`:
 
 To run with an alternate or test configuration:
 ```bash
-./bin/mercury tests/conf_files/normal.conf
+./bin/mercury -c tests/conf_files/normal.conf
+# or: ./bin/mercury --config /path/to/custom.conf
+```
+
+To display command-line options and help:
+```bash
+./bin/mercury --help
 ```
 
 ### Interactive CLI Commands

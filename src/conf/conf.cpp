@@ -120,6 +120,29 @@ namespace conf {
         return true;
     }
 
+    // Print command line help documentation
+    void printHelp() {
+        std::cout << "Mercury - A lightweight, configurable HTTP server\n\n"
+            << "Usage:\n"
+            << "    mercury [options]\n"
+            << "    mercury [options] -c <config-file>\n\n"
+            << "Options:\n"
+            << "    -c, --config <file>     Path to configuration file (default: " << CONF_FILE << ")\n"
+            << "    -h, --help              Display this help message and exit\n"
+            << "    -v, --version           Display version information and exit\n\n"
+            << "Examples:\n"
+            << "    mercury\n"
+            << "    mercury -c conf/mercury.conf\n"
+            << "    mercury --config /etc/mercury/mercury.conf\n\n"
+            << "For detailed configuration directives, see CONFIG.md or visit:\n"
+            << "    https://mercury.wowtravis.com/" << std::endl;
+    }
+
+    // Print server version
+    void printVersion() {
+        std::cout << (VERSION.empty() ? "Mercury" : VERSION) << std::endl;
+    }
+
     int loadConfig(int argc, char* argv[]) {
         // Set CWD to Mercury project root
         if (!loadExecutableDirectory(CWD)) {
@@ -129,14 +152,65 @@ namespace conf {
 
         std::filesystem::current_path( CWD = CWD.parent_path() );
 
+        // Load version
+        std::ifstream versionHandle( VERSION_FILE );
+        if (versionHandle.is_open()) {
+            std::getline(versionHandle, VERSION);
+            if (!VERSION.empty() && VERSION.back() == '\n') VERSION.pop_back();
+            if (!VERSION.empty() && VERSION.back() == '\r') VERSION.pop_back();
+            versionHandle.close();
+        }
+
+        // Parse CLI arguments
+        std::string configPath = CONF_FILE;
+        for (int i = 1; i < argc; ++i) {
+            const std::string arg = argv[i];
+
+            if (arg == "-h" || arg == "--help") {
+                printHelp();
+                return CONF_EXIT;
+            }
+
+            if (arg == "-v" || arg == "--version") {
+                printVersion();
+                return CONF_EXIT;
+            }
+
+            if (arg == "-c" || arg == "--config") {
+                if (++i >= argc) {
+                    std::cerr << "Error: Option '" << arg << "' requires a configuration file path.\n"
+                        << "Try 'mercury --help' for usage information." << std::endl;
+                    return CONF_FAILURE;
+                }
+                configPath = argv[i];
+            } else if (arg.starts_with("-c=")) {
+                configPath = arg.substr(3);
+            } else if (arg.starts_with("--config=")) {
+                configPath = arg.substr(9);
+            } else if (!arg.starts_with("-")) {
+                // Positional argument for backward compatibility
+                configPath = arg;
+            } else {
+                std::cerr << "Error: Unrecognized option '" << arg << "'.\n"
+                    << "Try 'mercury --help' for usage information." << std::endl;
+                return CONF_FAILURE;
+            }
+        }
+
+        if (configPath.empty()) {
+            std::cerr << "Error: Configuration file path cannot be empty.\n"
+                << "Try 'mercury --help' for usage information." << std::endl;
+            return CONF_FAILURE;
+        }
+
         // Read XML config file
         pugi::xml_document doc;
         pugi::xml_parse_result result;
         try {
-            result = doc.load_file(argc > 1 ? argv[1] : CONF_FILE);
+            result = doc.load_file(configPath.c_str());
             if (!result) throw 0;
         } catch (...) {
-            std::cerr << "Failed to open config file." << std::endl;
+            std::cerr << "Failed to open config file (" << configPath << ")." << std::endl;
             return CONF_FAILURE;
         }
 
@@ -147,13 +221,6 @@ namespace conf {
         // Load tmp file directory
         if (loadTempFileDirectory() == CONF_FAILURE)
             return CONF_FAILURE;
-
-        // Load version
-        std::ifstream versionHandle( VERSION_FILE );
-        std::getline(versionHandle, VERSION);
-        if (VERSION.back() == '\n') VERSION.pop_back();
-        if (VERSION.back() == '\r') VERSION.pop_back();
-        versionHandle.close();
 
         // Extract root node
         pugi::xml_node root = doc.child("Mercury");

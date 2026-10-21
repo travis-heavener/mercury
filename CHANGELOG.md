@@ -1,6 +1,9 @@
 # Changelog
 
 ## [0.34.0] - 2026-10-21
+- Added: `-h, --help` CLI argument, shows brief help information for using Mercury
+- Added: `-v, --version` CLI argument, shows current Mercury version
+- Added: `-c, --config <file>` CLI argument, retaining existing functionality for specifying alternate config files at runtime
 - Docs: improve README conciceness
 - Docs: add disclaimer in README for breaking changes in pre-release builds
 - Docs: add disclaimer for quick-start users to ensure they configure a fresh GPC hash salt

@@ -208,13 +208,13 @@ if __name__ == "__main__":
             try:
                 if sys.platform in ["win32", "cygwin"]:
                     proc = subprocess.Popen(
-                        [ "../bin/mercury.exe", f"./tests/conf_files/{run['conf_file']}" ],
+                        [ "../bin/mercury.exe", "-c", f"./tests/conf_files/{run['conf_file']}" ],
                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
                         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
                     )
                 elif sys.platform == "linux":
                     proc = subprocess.Popen(
-                        [ "../bin/mercury", f"./tests/conf_files/{run['conf_file']}" ],
+                        [ "../bin/mercury", "-c", f"./tests/conf_files/{run['conf_file']}" ],
                         stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL
                     )
                 else:
