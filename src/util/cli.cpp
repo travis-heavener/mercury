@@ -443,20 +443,21 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
     } else if (cmd == "PWD") {
         std::cout << conf::DOCUMENT_ROOT.string() << std::endl;
     } else if (cmd == "HELP" || cmd == "?") {
-        std::cout << "> Clear: Clears the terminal window (alias: cls)\n"
-            "  Config: View active server configuration directives (alias: conf)\n"
-            "  Donate: Shows optional donation URL\n"
-            "  Exit: Exit Mercury (aliases: quit, q)\n"
-            "  Help: List available commands (alias: ?)\n"
-            "  Logs: View recent access or error logs (e.g. \"logs [access|error] [n]\") (alias: tail)\n"
-            "  Mimes: View or search configured MIME type mappings (e.g. \"mimes [query]\") (alias: mime)\n"
-            "  PHPInit: Initializes platform-specific PHP\n"
-            "  Ping: Pong!\n"
-            "  Pwd: Prints the document root\n"
-            "  Routes: View active Match, Redirect, and Rewrite rules (alias: rules)\n"
-            "  Stats: View live traffic, request count, and HTTP status distribution (aliases: status, info, metrics, uptime)\n"
-            "  TLS: View TLS configuration and certificate status (alias: cert)\n"
-            "  Version: View Mercury version and protocol capabilities (alias: ver)"
+        std::cout << "> Available Console Commands:\n"
+            "  clear, cls                  Clear terminal screen\n"
+            "  config, conf                View loaded server configuration\n"
+            "  donate                      Show optional donation link\n"
+            "  exit, quit, q               Exit Mercury\n"
+            "  help, ?                     List available commands\n"
+            "  logs, tail [file] [n]       View recent access or error logs\n"
+            "  mimes, mime [query]         List or search configured MIME types\n"
+            "  phpinit                     Initialize platform-specific PHP\n"
+            "  ping                        Test CLI responsiveness (Pong!)\n"
+            "  pwd                         Print document root directory\n"
+            "  routes, rules               View Match, Redirect, and Rewrite rules\n"
+            "  stats, status, metrics      View live traffic, requests, and utilization\n"
+            "  tls, cert                   View TLS configuration and certificate status\n"
+            "  version, ver                View Mercury version and capabilities"
             << std::endl;
     } else if (cmd == "PHPINIT") {
         #ifdef _WIN32 // Windows specific

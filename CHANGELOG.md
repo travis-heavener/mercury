@@ -12,6 +12,7 @@
 - Added: `tls` (alias: `cert`) console command, inspects TLS status and X.509 certificate metadata (subject, issuer, validity period, and expiration status)
 - Added: `logs` (alias: `tail`) console command, views tail of access or error log files with configurable line counts (`logs [access|error] [n]`)
 - Added: CLI console command aliases `quit`/`q` (`exit`), `?` (`help`), and `cls` (`clear`)
+- Changed: format interactive console help menu into clean, column-aligned command table
 - Docs: Update SECURITY.md contact email
 - Fix: free OpenSSL context (`SSL_CTX_free`) if certificate or private key loading fails in `initTLSContext`
 - Fix: verify private key matches public certificate during TLS initialization (`SSL_CTX_check_private_key`)
