@@ -44,7 +44,7 @@
                         case 'D': return KEY_LEFT;
                     }
                 } else if (seq[1] == '3') {
-                    read(STDIN_FILENO, &seq[2], 1); // Should be '~'
+                    if (read(STDIN_FILENO, &seq[2], 1) != 1) return '\x1b'; // Should be '~'
                     return KEY_DELETE;
                 }
             }

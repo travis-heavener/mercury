@@ -326,20 +326,27 @@ std::string getFileModGMTString(const std::string& filePath) {
     return std::string(gmtBuf, n);
 }
 
-std::string getCurrentGMTString() {
-    std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+const std::string& getCurrentGMTString() {
+    thread_local std::time_t tlsLastSec = 0;
+    thread_local std::string tlsCachedDate;
 
-    // Format as GMT string
-    std::tm gmtTime{};
-    #ifdef _WIN32
-        gmtime_s(&gmtTime, &time);
-    #else
-        gmtime_r(&time, &gmtTime);
-    #endif
+    const std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    if (now != tlsLastSec) {
+        tlsLastSec = now;
 
-    char gmtBuf[32];
-    const size_t n = std::strftime(gmtBuf, sizeof(gmtBuf), "%a, %d %b %Y %H:%M:%S GMT", &gmtTime);
-    return std::string(gmtBuf, n);
+        // Format as GMT string
+        std::tm gmtTime{};
+        #ifdef _WIN32
+            gmtime_s(&gmtTime, &now);
+        #else
+            gmtime_r(&now, &gmtTime);
+        #endif
+
+        char gmtBuf[32];
+        const size_t n = std::strftime(gmtBuf, sizeof(gmtBuf), "%a, %d %b %Y %H:%M:%S GMT", &gmtTime);
+        tlsCachedDate.assign(gmtBuf, n);
+    }
+    return tlsCachedDate;
 }
 
 const char* getReasonFromStatus(uint16_t code) {

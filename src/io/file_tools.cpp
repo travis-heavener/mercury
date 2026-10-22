@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <random>
+#include <sys/stat.h>
 
 #include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
@@ -21,35 +22,77 @@ void normalizeBackslashes(std::string& path) {
         std::replace( path.begin(), path.end(), '\\', '/' );
 }
 
+bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
+    if (path.empty()) return false;
+
+    #ifdef _WIN32
+        std::string winPath = path;
+        normalizeBackslashes(winPath);
+
+        // Strip trailing slashes unless drive root (e.g. "C:/" or "/")
+        while (winPath.size() > 1 && winPath.back() == '/') {
+            if (winPath.size() == 3 && winPath[1] == ':') break;
+            winPath.pop_back();
+        }
+
+        struct _stat64 st;
+        if (_wstat64(std::filesystem::path(winPath).wstring().c_str(), &st) != 0) return false;
+        outMeta.exists = true;
+        outMeta.isDirectory = (st.st_mode & _S_IFDIR) != 0;
+        outMeta.isRegularFile = (st.st_mode & _S_IFREG) != 0;
+        outMeta.size = static_cast<size_t>(st.st_size);
+        outMeta.lastModTime = st.st_mtime;
+        return true;
+    #else
+        struct stat st;
+        if (stat(path.c_str(), &st) != 0) return false;
+        outMeta.exists = true;
+        outMeta.isDirectory = S_ISDIR(st.st_mode);
+        outMeta.isRegularFile = S_ISREG(st.st_mode);
+        outMeta.size = static_cast<size_t>(st.st_size);
+        outMeta.lastModTime = st.st_mtime;
+        return true;
+    #endif
+}
+
 bool doesFileExist(const std::string& path, const bool forceInDocumentRoot) {
-    const bool isFile = std::filesystem::is_regular_file(path);
+    FileMetadata meta;
+    if (!queryFileMetadata(path, meta) || !meta.isRegularFile) return false;
+    if (!forceInDocumentRoot) return true;
     std::string docRootStr = conf::DOCUMENT_ROOT.string();
-    normalizeBackslashes( docRootStr );
-    return isFile && (!forceInDocumentRoot || path.find(docRootStr) == 0);
+    normalizeBackslashes(docRootStr);
+    std::string normPath = path;
+    normalizeBackslashes(normPath);
+    return normPath.find(docRootStr) == 0;
 }
 
 bool doesDirectoryExist(const std::string& path, const bool forceInDocumentRoot) {
-    if (!forceInDocumentRoot) {
-        return std::filesystem::is_directory(path);
-    } else { // Match document root at start of filename
-        std::string docRootStr = conf::DOCUMENT_ROOT.string();
-        normalizeBackslashes( docRootStr );
-        return std::filesystem::is_directory(path) && path.find(docRootStr) == 0;
-    }
+    FileMetadata meta;
+    if (!queryFileMetadata(path, meta) || !meta.isDirectory) return false;
+    if (!forceInDocumentRoot) return true;
+    std::string docRootStr = conf::DOCUMENT_ROOT.string();
+    normalizeBackslashes(docRootStr);
+    std::string normPath = path;
+    normalizeBackslashes(normPath);
+    return normPath.find(docRootStr) == 0;
 }
 
-int isSymlinked(const std::filesystem::path& path) {
+int isSymlinked(const std::filesystem::path& path, const bool isAlreadyCanonical) {
     namespace fs = std::filesystem; // Make my life EASIER
 
     // Resolve canonical paths
     const fs::path canonicalRoot = conf::DOCUMENT_ROOT;
     fs::path absolutePath;
-    try {
-        absolutePath = resolveCanonicalPath(path);
-    } catch (std::filesystem::filesystem_error&) {
-        return FILE_NOT_EXIST; // Invalid path, handles as 404
-    } catch (std::runtime_error&) {
-        return INTERNAL_ERROR; // Manually thrown by IO failure
+    if (isAlreadyCanonical) {
+        absolutePath = path;
+    } else {
+        try {
+            absolutePath = resolveCanonicalPath(path);
+        } catch (std::filesystem::filesystem_error&) {
+            return FILE_NOT_EXIST; // Invalid path, handles as 404
+        } catch (std::runtime_error&) {
+            return INTERNAL_ERROR; // Manually thrown by IO failure
+        }
     }
 
     // Verify canonical path is within document root (could escape via symlink)

@@ -21,7 +21,7 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>&, const std::string&
 std::time_t getTimeTFromGMT(const std::string&);
 std::time_t getFileModTimeT(const std::string&);
 std::string getFileModGMTString(const std::string&);
-std::string getCurrentGMTString();
+const std::string& getCurrentGMTString();
 
 const char* getReasonFromStatus(uint16_t code);
 

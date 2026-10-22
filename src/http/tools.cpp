@@ -1,8 +1,10 @@
 #include "tools.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <string>
+#include <string_view>
 
 #include "../logs/logger.hpp"
 #include "../util/string_tools.hpp"
@@ -46,7 +48,7 @@ namespace http {
         }
     }
 
-    bool parseUnsignedDecimal(const std::string& value, size_t& result) {
+    bool parseUnsignedDecimal(std::string_view value, size_t& result) {
         if (value.empty()) return false;
         for (const char c : value)
             if (c < '0' || c > '9') return false;
@@ -54,55 +56,89 @@ namespace http {
         return parsed.ec == std::errc() && parsed.ptr == value.data() + value.size();
     }
 
-    bool isValidHeaderName(const std::string& name) {
+    bool isValidHeaderName(std::string_view name) {
         if (name.empty()) return false;
+        constexpr std::string_view VALID_HEADER_SPECIAL = "!#$%&'*+-.^_`|~";
         for (const unsigned char c : name) {
             if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) continue;
-            if (std::string("!#$%&'*+-.^_`|~").find(c) == std::string::npos) return false;
+            if (VALID_HEADER_SPECIAL.find(static_cast<char>(c)) == std::string_view::npos) return false;
         }
         return true;
     }
 
-    bool isValidHeaderValue(const std::string& value) {
+    bool isValidHeaderValue(std::string_view value) {
         for (const unsigned char c : value)
             if ((c < 32 && c != '\t') || c == 127) return false;
         return true;
     }
 
-    // Parse headers strictly before deciding how many body bytes to consume.
-    void loadEarlyHeaders(headers_map_t& headers, const std::string& raw) {
-        std::string line;
+    // Parse headers strictly before deciding how many body bytes to consume
+    void loadEarlyHeaders(headers_map_t& headers, std::string_view raw) {
+        auto readLineView = [](std::string_view input, std::string_view& lineBuf, size_t& startIndex) -> bool {
+            if (startIndex >= input.size()) return false;
+            const size_t endIndex = input.find('\n', startIndex);
+            if (endIndex == std::string_view::npos) {
+                lineBuf = input.substr(startIndex);
+                startIndex = input.size();
+            } else {
+                lineBuf = input.substr(startIndex, endIndex - startIndex);
+                startIndex = endIndex + 1;
+            }
+            return true;
+        };
+
+        std::string_view line;
         size_t startIndex = 0;
-        if (!readLine(raw, line, startIndex) || line.empty() || line.back() != '\r')
+        if (!readLineView(raw, line, startIndex) || line.empty() || line.back() != '\r')
             throw http::Exception();
 
-        while (readLine(raw, line, startIndex)) {
+        while (readLineView(raw, line, startIndex)) {
             if (line == "\r") return;
             if (line.empty() || line.back() != '\r') throw http::Exception();
-            line.pop_back();
+            line.remove_suffix(1);
 
             const size_t colon = line.find(':');
-            if (colon == std::string::npos) throw http::Exception();
-            std::string key = line.substr(0, colon);
-            std::string value = line.substr(colon + 1);
-            if (!isValidHeaderName(key) || !isValidHeaderValue(value)) throw http::Exception();
-            trimString(value);
-            strToUpper(key);
+            if (colon == std::string_view::npos) throw http::Exception();
+            const std::string_view keyView = line.substr(0, colon);
+            std::string_view valueView = line.substr(colon + 1);
+            if (!isValidHeaderName(keyView) || !isValidHeaderValue(valueView)) throw http::Exception();
 
-            if ((key == "CONTENT-LENGTH" || key == "HOST" || key == "TRANSFER-ENCODING") && headers.contains(key))
-                throw http::Exception(); // Reject ambiguous framing and routing.
-
-            if ((key == "ACCEPT" || key == "ACCEPT-ENCODING" || key == "CONNECTION") && headers.contains(key)) {
-                headers[key].append(',' + value);
-            } else if (key == "RANGE" && headers.contains(key)) {
-                const size_t bytesEnd = value.find('=');
-                if (bytesEnd != std::string::npos)
-                    headers[key].append(',' + value.substr(bytesEnd + 1));
+            // Trim leading and trailing whitespace
+            const size_t firstNotSpace = valueView.find_first_not_of(" \t");
+            if (firstNotSpace == std::string_view::npos) {
+                valueView = {};
             } else {
-                headers.insert({key, value});
+                const size_t lastNotSpace = valueView.find_last_not_of(" \t");
+                valueView = valueView.substr(firstNotSpace, lastNotSpace - firstNotSpace + 1);
+            }
+
+            // Convert header name to uppercase
+            std::string key;
+            key.resize(keyView.size());
+            for (size_t i = 0; i < keyView.size(); ++i)
+                key[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(keyView[i])));
+
+            auto it = headers.find(key);
+            if (it != headers.end()) {
+                if (key == "CONTENT-LENGTH" || key == "HOST" || key == "TRANSFER-ENCODING")
+                    throw http::Exception(); // Reject ambiguous framing and routing
+
+                if (key == "ACCEPT" || key == "ACCEPT-ENCODING" || key == "CONNECTION") {
+                    it->second.push_back(',');
+                    it->second.append(valueView.data(), valueView.size());
+                } else if (key == "RANGE") {
+                    const size_t bytesEnd = valueView.find('=');
+                    if (bytesEnd != std::string_view::npos) {
+                        it->second.push_back(',');
+                        const auto rangeSub = valueView.substr(bytesEnd + 1);
+                        it->second.append(rangeSub.data(), rangeSub.size());
+                    }
+                }
+            } else {
+                headers.emplace(std::move(key), std::string(valueView));
             }
         }
-        throw http::Exception(); // Missing header terminator.
+        throw http::Exception(); // Missing header terminator
     }
 
     void parseAcceptHeader(std::unordered_set<std::string>& splitVec, std::string& string) {

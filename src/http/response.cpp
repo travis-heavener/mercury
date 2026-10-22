@@ -420,16 +420,38 @@ namespace http {
             setHeader("Content-Length", "0");
 
         // Load config headers last to overwrite any dupes that have been previously set
-        setHeader("Server", "Mercury/" + conf::VERSION.substr(9)); // Skip "Mercury v"
+        static const std::string serverHeader = "Mercury/" + (conf::VERSION.size() > 9 ? conf::VERSION.substr(9) : conf::VERSION);
+        setHeader("Server", serverHeader);
         setHeader("Date", getCurrentGMTString());
 
-        // Stringify headers
-        std::string headers;
-        for (auto& [name, value] : this->headers)
-            headers += name + ": " + value + CRLF;
+        // Pre-allocate header block to eliminate reallocations
+        const std::string_view reason = getReasonFromStatus(statusCode);
+        const std::string statusCodeStr = tostr(statusCode);
+        size_t estimatedSize = httpVersion.size() + 1 + statusCodeStr.size() + 1 + reason.size() + 2 + 2;
+        for (const auto& [name, value] : this->headers)
+            estimatedSize += name.size() + 2 + value.size() + 2;
+
+        std::string headersBlock;
+        headersBlock.reserve(estimatedSize);
+
+        // Format status line
+        headersBlock.append(httpVersion);
+        headersBlock.push_back(' ');
+        headersBlock.append(statusCodeStr);
+        headersBlock.push_back(' ');
+        headersBlock.append(reason);
+        headersBlock.append(CRLF);
+
+        // Append response headers
+        for (const auto& [name, value] : this->headers) {
+            headersBlock.append(name);
+            headersBlock.append(": ");
+            headersBlock.append(value);
+            headersBlock.append(CRLF);
+        }
+        headersBlock.append(CRLF);
 
         // Write to buffer
-        std::string headersBlock = httpVersion + ' ' + tostr(statusCode) + ' '  + getReasonFromStatus(statusCode) + CRLF + headers + CRLF;
         ssize_t status = sendFunc(headersBlock.data(), headersBlock.size());
         if (status < 0) return status;
 

@@ -154,7 +154,8 @@ namespace http::version::handler_1_1 {
                     // Compare timestamps
                     try {
                         // serverTime <= clientTime
-                        if (getFileModTimeT(file.absoluteResourcePath) <= getTimeTFromGMT(*pLastModTS)) {
+                        const std::time_t fileTime = file.hasLastModTime() ? file.getLastModTime() : getFileModTimeT(file.absoluteResourcePath);
+                        if (fileTime <= getTimeTFromGMT(*pLastModTS)) {
                             pResponse->setStatus(304);
                             break;
                         }

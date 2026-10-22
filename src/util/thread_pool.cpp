@@ -36,22 +36,29 @@ void ThreadPool::addWorker(const bool isTemporary) {
 }
 
 bool ThreadPool::enqueue(std::function<void()> task) {
+    std::vector<std::unique_ptr<ThreadWrapper>> toJoin;
     {
         std::lock_guard<std::mutex> lock(queueMutex);
         if (isStopping) return false;
-        pruneTempThreads();
+        pruneTempThreads(toJoin);
 
         size_t idleWorkers = 0;
         for (const auto& worker : workers)
             if (!worker->isInUse) ++idleWorkers;
 
         // Grow before accepting the task, so a thread creation failure cannot
-        // leave a queued task whose caller believes it was rejected.
+        // leave a queued task whose caller believes it was rejected
         if (tasks.size() + 1 > idleWorkers && workers.size() < conf::MAX_THREADS_PER_CHILD)
             addWorker(true);
         tasks.push(std::move(task));
     }
     condition.notify_one();
+
+    // Join finished temporary threads outside queueMutex
+    for (const auto& worker : toJoin) {
+        if (worker->getThread().joinable())
+            worker->getThread().join();
+    }
     return true;
 }
 
@@ -87,15 +94,14 @@ void ThreadPool::workerLoop(ThreadWrapper& thisThread) {
     }
 }
 
-// Only enqueue prunes workers, under queueMutex. Finished workers do not
-// acquire this mutex again, so joining them here cannot deadlock.
-void ThreadPool::pruneTempThreads() {
+// Prune finished temporary workers under queueMutex without joining inline
+void ThreadPool::pruneTempThreads(std::vector<std::unique_ptr<ThreadWrapper>>& pruned) {
     for (auto it = workers.begin(); it != workers.end();) {
         if (!(*it)->isDone) {
             ++it;
             continue;
         }
-        if ((*it)->getThread().joinable()) (*it)->getThread().join();
+        pruned.push_back(std::move(*it));
         it = workers.erase(it);
     }
 }

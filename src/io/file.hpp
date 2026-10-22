@@ -1,6 +1,7 @@
 #ifndef __FILE_HPP
 #define __FILE_HPP
 
+#include <ctime>
 #include <memory>
 
 #include "../http/tools.hpp"
@@ -14,6 +15,9 @@ class File {
 
         int loadToBuffer(std::unique_ptr<http::IBodyStream>&);
         std::string getLastModifiedGMT() const;
+        std::time_t getLastModTime() const { return lastModTime; }
+        bool hasLastModTime() const { return hasModTime; }
+
         bool exists = false;
         bool isLinked = false; // True if symlink or hardlink
         bool isDirectory = false;
@@ -32,6 +36,11 @@ class File {
 
         // The PHP path info string, for PHP files only
         std::string phpPathInfo;
+
+    private:
+        bool hasModTime = false;
+        std::time_t lastModTime = 0;
+        mutable std::string lastModGMT;
 };
 
 #endif
