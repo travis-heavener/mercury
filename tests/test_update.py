@@ -258,6 +258,31 @@ class TestUpdateUtility(unittest.TestCase):
             self.assertFalse(is_ok)
             self.assertTrue(len(msg) > 0)
 
+    def test_validate_config_accepts_minimal_and_optional_nodes(self):
+        if not self.binary_path.exists():
+            self.skipTest("Mercury binary not present in bin/")
+
+        with tempfile.TemporaryDirectory() as tmp_dir_str:
+            tmp_dir = Path(tmp_dir_str)
+
+            # Test completely empty root node (all default values)
+            empty_conf = tmp_dir / "empty.conf"
+            empty_conf.write_text("<Mercury>\n</Mercury>\n")
+            is_ok, msg = update.validate_config(self.binary_path, empty_conf, self.repo_root)
+            self.assertTrue(is_ok, f"Empty config validation failed: {msg}")
+
+            # Test minimal config with only Port specified
+            port_conf = tmp_dir / "port.conf"
+            port_conf.write_text("<Mercury>\n    <Port>8080</Port>\n</Mercury>\n")
+            is_ok, msg = update.validate_config(self.binary_path, port_conf, self.repo_root)
+            self.assertTrue(is_ok, f"Port-only config validation failed: {msg}")
+
+            # Test custom DocumentRoot and KeepAlive toggle
+            partial_conf = tmp_dir / "partial.conf"
+            partial_conf.write_text("<Mercury>\n    <DocumentRoot>./public/</DocumentRoot>\n    <KeepAlive>off</KeepAlive>\n</Mercury>\n")
+            is_ok, msg = update.validate_config(self.binary_path, partial_conf, self.repo_root)
+            self.assertTrue(is_ok, f"Partial config validation failed: {msg}")
+
     # ==================== Full Update & Rollback Tests ====================
 
     def test_apply_update_and_automatic_rollback(self):
