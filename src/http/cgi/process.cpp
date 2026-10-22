@@ -503,7 +503,7 @@ namespace http::cgi {
 
                 // Execve failed, send EOF
                 char c = 1;
-                write(STDERR_FILENO, &c, 1);
+                if (write(STDERR_FILENO, &c, 1) < 0) { /* Ignore write failure on child exit */ }
 
                 // Exit if execve fails
                 closePipes(); // Close pipes since this function doesn't return as the child
@@ -532,7 +532,7 @@ namespace http::cgi {
                     if (pfd.revents & POLLIN) { // Data available, execve failed
                         // Empty pipe
                         char c;
-                        read(stderrRead, &c, 1);
+                        if (read(stderrRead, &c, 1) < 0) { /* Ignore read error */ }
 
                         close(stderrRead);
                         stderrRead = -1;

@@ -3,6 +3,7 @@
 #include <iostream>
 
 #ifndef _WIN32
+    #include <cerrno>
     #include <grp.h>
     #include <pwd.h>
     #include <sys/stat.h>
@@ -71,11 +72,12 @@ namespace util::privilege {
             if (pathStr.empty()) return;
 
             // Change ownership to invoking user
-            chown(pathStr.c_str(), static_cast<uid_t>(optUser->uid), static_cast<gid_t>(optUser->gid));
+            if (chown(pathStr.c_str(), static_cast<uid_t>(optUser->uid), static_cast<gid_t>(optUser->gid)) < 0)
+                ERROR_LOG << "Failed to change ownership of " << pathStr << ", errno: " << errno << std::endl;
 
             // Apply mode if specified
-            if (mode != 0)
-                chmod(pathStr.c_str(), static_cast<mode_t>(mode));
+            if (mode != 0 && chmod(pathStr.c_str(), static_cast<mode_t>(mode)) < 0)
+                ERROR_LOG << "Failed to set permissions of " << pathStr << ", errno: " << errno << std::endl;
         #else
             (void)path;
             (void)mode;

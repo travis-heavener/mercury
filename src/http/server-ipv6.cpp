@@ -1,6 +1,8 @@
 #include "server-ipv6.hpp"
 
+#include <chrono>
 #include <iostream>
+#include <thread>
 
 #include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
@@ -66,6 +68,10 @@ namespace http {
             // Otherwise, close the socket
             this->closeSocket(this->sock);
             this->sock = SOCKET_UNSET;
+
+            // Wait briefly before retrying to allow loopback sockets in TIME_WAIT to clear
+            if (bindAttempts < MAX_IPV6_BIND_ATTEMPTS)
+                std::this_thread::sleep_for(std::chrono::milliseconds(50 * bindAttempts));
         }
 
         // Only reaches here if bind failure

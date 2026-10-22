@@ -39,6 +39,8 @@ TARGET_WIN_ICON := bin/icon.o
 DEBUG ?= 0
 ifeq ($(DEBUG),1)
     CXX_FLAGS += -g -O0
+else
+    CXX_FLAGS += -O3 -fno-strict-aliasing
 endif
 
 # Recipes
