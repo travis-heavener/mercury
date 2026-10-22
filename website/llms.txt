@@ -1,0 +1,70 @@
+# Mercury HTTP Server
+
+> Lightweight, high-performance, configurable HTTP/1.1 server implemented in C++20 for Linux and Windows.
+
+- **Website**: https://mercury.wowtravis.com/
+- **Repository**: https://github.com/travis-heavener/mercury
+- **Releases**: https://github.com/travis-heavener/mercury/releases
+- **Release Metadata**: https://mercury.wowtravis.com/releases.json
+
+## Quick Overview
+Mercury is a standalone C++20 web server engineered for low memory utilization (~9MB idle on Linux) with sub-millisecond static response times.
+Features: HTTP/1.1 (w/ HTTP/1.0 & 0.9 compatibility), TLS 1.3 (OpenSSL), streaming compression (Brotli, Zstandard, Gzip, Deflate), RFC 3875 Fast CGI (PHP), IP access control, regex URL rewriting, and HTTP redirects.
+
+## Downloading Pre-compiled Releases
+Pre-compiled 64-bit binaries are available on GitHub Releases:
+- **Windows (x64)**: `Windows_<VERSION>.zip` (e.g. `Windows_v0_35_0.zip`)
+  - Standalone `bin/mercury.exe` with zero external runtime DLL dependencies.
+- **Linux (x64)**: `Linux_<VERSION>.tar.gz` (e.g. `Linux_v0_35_0.tar.gz`)
+  - Standalone `bin/mercury` built on Ubuntu 22.04 (glibc 2.35+; supports APT, Pacman, DNF).
+  - *Note*: Releases v0.28.4–v0.29.2 use prefix `Debian_` instead of `Linux_`.
+- **Integrity**: Compare download digests against SHA-256 hashes listed in `releases.json`.
+
+Download URL format:
+`https://github.com/travis-heavener/mercury/releases/download/<VERSION>/<FILENAME>`
+
+## Running Mercury
+```bash
+# Linux
+./bin/mercury [options]
+
+# Windows
+bin\mercury.exe [options]
+```
+
+Common CLI options:
+- `-c, --config <file>`: Configuration path (default: `conf/mercury.conf`)
+- `-p, --port <port>`: Override HTTP port (default: `80`)
+- `-r, --root <path>`: Override document root directory (default: `public/`)
+- `-t, --test`: Test configuration file syntax and exit
+- `-v, --version`: Display version information
+- `-h, --help`: Display usage and options
+
+Interactive console commands (available while running):
+`help`, `status`, `info`, `pwd`, `ping`, `phpinit`, `clear`, `exit`.
+
+## Building from Source
+Prerequisites: GCC (C++20), Make, NASM, UPX, and OpenSSL. Windows builds cross-compile from Linux using MinGW-w64 (`x86_64-w64-mingw32-g++`).
+
+```bash
+git clone https://github.com/travis-heavener/mercury.git && cd mercury
+make clean                 # Clean prior artifacts
+make lib_deps              # Install system build dependencies (APT, Pacman, DNF)
+
+# Linux build:
+make libs -j LINUX_ONLY=1  # Build static dependencies (omit Windows libs)
+make linux                 # Produces bin/mercury
+
+# Windows build (cross-compiled via MinGW-w64):
+make libs -j               # Build all static dependencies (includes Windows libs)
+make windows               # Produces bin/mercury.exe
+
+# Build both:
+make libs -j && make all   # Produces bin/mercury and bin/mercury.exe
+```
+
+## Configuration
+Mercury uses XML configuration files. A default template is provided in `conf/default/mercury.conf`.
+- At runtime, Mercury defaults to loading `conf/mercury.conf` (or a custom path via `-c, --config`).
+- Comprehensive documentation for all configuration directives and accepted values is maintained in `CONFIG.md`.
+

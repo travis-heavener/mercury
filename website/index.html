@@ -1,125 +1,250 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        <title>Mercury - Travis Heavener</title>
+        <title>Mercury - Fast, Lightweight HTTP/1.1 Server</title>
 
         <meta name="author" content="Travis Heavener">
-        <meta name="description" content="A lightweight, configurable HTTP server made in C++ for Windows and Linux.">
+        <meta name="description" content="A lightweight, high-performance, configurable HTTP/1.1 server engineered in C++20 for Windows and Linux.">
         <meta name="robots" content="all">
         <link rel="canonical" href="https://mercury.wowtravis.com/">
 
-        <meta property="og:title" content="Mercury - Lightweight HTTP Server  ">
-        <meta property="og:description" content="A lightweight, configurable HTTP server made in C++ for Windows and Linux.">
+        <!-- OpenGraph social metadata -->
+        <meta property="og:title" content="Mercury - Lightweight HTTP Server">
+        <meta property="og:description" content="A lightweight, high-performance, configurable HTTP/1.1 server engineered in C++20 for Windows and Linux.">
         <meta property="og:site_name" content="Mercury - Lightweight HTTP Server">
         <meta property="og:type" content="website">
         <meta property="og:url" content="https://mercury.wowtravis.com/">
         <meta property="og:image" content="https://mercury.wowtravis.com/og-image.jpg">
         <meta property="og:image:secure_url" content="https://mercury.wowtravis.com/og-image.jpg">
-        <meta property="og:image:alt" content="Letter 'M' for Mercury's logo.">
+        <meta property="og:image:alt" content="Mercury HTTP Server Banner">
         <meta property="og:image:type" content="image/jpeg">
         <meta property="og:image:width" content="1200">
         <meta property="og:image:height" content="630">
 
+        <!-- Favicon and styles -->
         <link rel="icon" href="favicon.jpg">
         <link rel="stylesheet" href="index.css">
 
+        <!-- Typography -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-
-        <script src="https://code.jquery.com/jquery-3.7.1.min.js"
-            integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
-            crossorigin="anonymous"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
     </head>
     <body>
+        <!-- ========================================================================== -->
+        <!-- Site Navigation Bar                                                        -->
+        <!-- ========================================================================== -->
+        <header class="site-header">
+            <div class="nav-container">
+                <a class="nav-brand" href="#">
+                    <img class="brand-logo" src="favicon.jpg" alt="Mercury logo" width="32" height="32">
+                    <span class="brand-title">Mercury</span>
+                </a>
+                <nav class="nav-links">
+                    <a href="#latest-release-div">Latest</a>
+                    <a href="#windows-download-table">Windows</a>
+                    <a href="#linux-download-table">Linux</a>
+                    <a href="#build-instructions">Build</a>
+                    <button id="copy-agent-btn" class="nav-agent-btn" type="button" title="Copy Markdown summary for AI agents">
+                        <svg class="agent-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                        <span>Copy for Agents</span>
+                    </button>
+                    <a class="nav-gh-link" href="https://github.com/travis-heavener/mercury" target="_blank" rel="noopener">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- ========================================================================== -->
+        <!-- Main Content Area                                                          -->
+        <!-- ========================================================================== -->
         <main>
-            <h1>Mercury</h1>
+            <!-- Hero banner section -->
+            <section class="hero-section">
+                <div class="hero-badge">
+                    <span class="badge-dot"></span>
+                    <span class="badge-text">C++20 HTTP Server</span>
+                </div>
+                <h1 class="hero-title">Mercury</h1>
+                <h2 id="mercury-desc" class="hero-subtitle">
+                    A lightweight, high-performance, configurable HTTP/1.1 server designed in C++, available for Windows and Linux.
+                </h2>
 
-            <h2 id="mercury-desc">
-                Mercury is a lightweight, configurable HTTP server designed in C++, available for Windows and Linux.
-                <br>
-                <a href="https://github.com/travis-heavener/mercury">GitHub Repository</a>
-            </h2>
+                <div class="hero-actions">
+                    <a class="repo-sublink" href="https://github.com/travis-heavener/mercury" target="_blank" rel="noopener">Explore on GitHub &rarr;</a>
+                    <span class="hero-action-sep">&bull;</span>
+                    <button id="hero-copy-agent-btn" class="hero-agent-btn" type="button" title="Copy Markdown summary for AI agents">
+                        <svg class="agent-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                        <span>Copy Markdown for Agents</span>
+                    </button>
+                </div>
 
+                <!-- Feature tags -->
+                <div class="feature-chips">
+                    <span class="chip">HTTP/1.1 &amp; 1.0</span>
+                    <span class="chip">TLS 1.3</span>
+                    <span class="chip">Brotli &amp; Zstandard</span>
+                    <span class="chip">RFC 3875 Fast CGI</span>
+                    <span class="chip">Access Control</span>
+                    <span class="chip">URL Rewriting</span>
+                </div>
+            </section>
+
+            <!-- Latest release download card -->
             <div id="latest-release-div">
-                <h2>Latest Release</h2>
-                <h3>...</h3>
-                <a class="windows" href="#">Download for Windows</a>
-                <a class="linux" href="#">Download for Linux</a>
-                <br>
-                <a class="github" href="https://github.com/travis-heavener/mercury">Visit GitHub</a>
+                <div class="release-header-group">
+                    <div class="release-title-row">
+                        <h2>Latest Release</h2>
+                        <span class="status-pill">Active</span>
+                    </div>
+                    <h3 class="release-tag">v0.35.0</h3>
+                </div>
+                <p class="release-subtext">Official pre-compiled release binaries and source distributions</p>
+
+                <div class="download-button-row">
+                    <a class="windows" href="https://github.com/travis-heavener/mercury/releases/latest">
+                        <span class="btn-primary-text">Download for Windows</span>
+                        <span class="btn-sub-text">x64 (.zip)</span>
+                    </a>
+                    <a class="linux" href="https://github.com/travis-heavener/mercury/releases/latest">
+                        <span class="btn-primary-text">Download for Linux</span>
+                        <span class="btn-sub-text">x64 (.tar.gz)</span>
+                    </a>
+                    <a class="github" href="https://github.com/travis-heavener/mercury" target="_blank" rel="noopener">
+                        <span class="btn-primary-text">Visit GitHub</span>
+                        <span class="btn-sub-text">Source &amp; Docs</span>
+                    </a>
+                </div>
             </div>
 
+            <!-- Windows downloads table wrapper -->
             <div id="windows-download-table" class="download-table-wrapper">
-                <h2>Windows Downloads</h2>
-                <h3><a href="https://github.com/travis-heavener/mercury/releases">View All Releases</a></h3>
-                <table id="downloads-windows-table">
-                    <thead>
-                        <tr>
-                            <th>Version</th>
-                            <th>Released</th>
-                            <th>Download (via GitHub)</th>
-                            <th>SHA-256</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+                <div class="table-headline">
+                    <div class="headline-text">
+                        <h2>Windows Downloads</h2>
+                        <p class="section-tagline">Pre-compiled 64-bit binaries for Windows 10, 11, and Server</p>
+                    </div>
+                    <h3><a href="https://github.com/travis-heavener/mercury/releases" target="_blank" rel="noopener">View All Releases</a></h3>
+                </div>
+                <div class="table-scroll-container">
+                    <table id="downloads-windows-table">
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Released</th>
+                                <th>Download (via GitHub)</th>
+                                <th>SHA-256</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
 
+            <!-- Linux downloads table wrapper -->
             <div id="linux-download-table" class="download-table-wrapper">
-                <h2>Linux Downloads <sup class="dagger">&dagger;</sup></h2>
-                <h3><a href="https://github.com/travis-heavener/mercury/releases">View All Releases</a></h3>
+                <div class="table-headline">
+                    <div class="headline-text">
+                        <h2>Linux Downloads <sup class="dagger">&dagger;</sup></h2>
+                        <p class="section-tagline">Pre-compiled binaries and source build instructions</p>
+                    </div>
+                    <h3><a href="https://github.com/travis-heavener/mercury/releases" target="_blank" rel="noopener">View All Releases</a></h3>
+                </div>
+
+                <!-- Linux delivery selector -->
                 <div id="distro-selector">
                     <label for="distro-select">Select download method:</label>
-                    <select id="distro-select" name="distro" aria-label="Select download method">
-                        <option value="download">Download from GitHub</option>
-                        <option value="diy">Build from Source</option>
-                    </select>
+                    <div class="custom-select-wrapper">
+                        <select id="distro-select" name="distro" aria-label="Select download method">
+                            <option value="download">Download from GitHub</option>
+                            <option value="diy">Build from Source</option>
+                        </select>
+                    </div>
                 </div>
-                <table id="downloads-linux-table">
-                    <thead>
-                        <tr>
-                            <th>Version</th>
-                            <th>Released</th>
-                            <th>Download (via GitHub)</th>
-                            <th>SHA-256</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+
+                <div class="table-scroll-container">
+                    <table id="downloads-linux-table">
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Released</th>
+                                <th>Download (via GitHub)</th>
+                                <th>SHA-256</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <!-- Source compilation instructions -->
                 <div id="build-instructions">
-                    <h3>Build From Source</h3>
-                    <p>
-                        README.md has full instructions on how to build Mercury (see <a href="https://github.com/travis-heavener/mercury#for-developers">For Developers</a>).
-                        <br>
-                        To build Mercury:
-                    </p>
-                    <ol>
-                        <li>Clone the <a href="https://github.com/travis-heavener/mercury">official Mercury repository</a>.</li>
-                        <li>Install required packages via <code>make lib_deps</code>.</li>
-                        <li>Run <code>make clean</code>.</li>
-                        <li>Build dependencies via <code>make libs -j</code> or <code>make libs -j LINUX_ONLY=1</code> (to omit Windows libraries).</li>
-                        <li>Run <code>make linux</code>.</li>
-                        <li>Mercury can now be run from <code>bin/mercury</code>.</li>
-                        <li>(Optional) Run <code>python3 tests/run.py</code> to verify your build is passing.</li>
-                    </ol>
+                    <div class="terminal-header">
+                        <div class="terminal-buttons">
+                            <span class="btn-dot dot-red"></span>
+                            <span class="btn-dot dot-yellow"></span>
+                            <span class="btn-dot dot-green"></span>
+                        </div>
+                        <span class="terminal-title">bash &mdash; Build from Source</span>
+                    </div>
+                    <div class="terminal-body">
+                        <h3>Build From Source</h3>
+                        <p>
+                            README.md has full instructions on how to build Mercury (see <a href="https://github.com/travis-heavener/mercury#for-developers" target="_blank" rel="noopener">For Developers</a>).
+                            <br>
+                            To build Mercury on Linux:
+                        </p>
+                        <ol class="build-step-list">
+                            <li>Clone the <a href="https://github.com/travis-heavener/mercury" target="_blank" rel="noopener">official Mercury repository</a>.</li>
+                            <li>Install required packages via <code>make lib_deps</code>.</li>
+                            <li>Run <code>make clean</code>.</li>
+                            <li>Build dependencies via <code>make libs -j</code> or <code>make libs -j LINUX_ONLY=1</code> (to omit Windows libraries).</li>
+                            <li>Run <code>make linux</code>.</li>
+                            <li>Mercury can now be run from <code>bin/mercury</code>.</li>
+                            <li>(Optional) Run <code>python3 tests/run.py</code> to verify your build is passing.</li>
+                        </ol>
+                    </div>
                 </div>
-                <p>
+
+                <!-- Compatibility footnote -->
+                <p class="compat-footnote">
                     <sup class="dagger">&dagger;</sup> Mercury for Linux is built using Ubuntu 22.04 (glibc v2.35) and supports distros with APT, Pacman, or DNF.
                     <br>
-                    If you encounter any compatibility issues, please open an <a href="https://github.com/travis-heavener/mercury/issues/new/choose">Issue</a>.
+                    If you encounter any compatibility issues, please open an <a href="https://github.com/travis-heavener/mercury/issues/new/choose" target="_blank" rel="noopener">Issue</a>.
                 </p>
             </div>
         </main>
 
+        <!-- ========================================================================== -->
+        <!-- Site Footer                                                                -->
+        <!-- ========================================================================== -->
         <footer>
-            <p>Travis Heavener &copy; 2025-<span id="current-year">2026</span></p>
-            <p><a href="https://github.com/travis-heavener/mercury">GitHub Repository</a></p>
+            <div class="footer-inner">
+                <p>Travis Heavener &copy; 2025&ndash;<span id="current-year">2026</span></p>
+                <div class="footer-nav">
+                    <a href="https://github.com/travis-heavener/mercury" target="_blank" rel="noopener">GitHub Repository</a>
+                    <span class="footer-sep">&bull;</span>
+                    <a href="https://github.com/travis-heavener/mercury/releases" target="_blank" rel="noopener">Releases</a>
+                    <span class="footer-sep">&bull;</span>
+                    <a href="https://github.com/travis-heavener/mercury/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+                    <span class="footer-sep">&bull;</span>
+                    <a href="llms.txt" target="_blank">llms.txt</a>
+                </div>
+            </div>
         </footer>
 
+        <!-- Scripts -->
         <script src="index.js"></script>
     </body>
 </html>
