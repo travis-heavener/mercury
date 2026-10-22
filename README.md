@@ -40,6 +40,7 @@ Mercury is a lightweight, configurable HTTP web server implemented in modern C++
     - [Setting Up PHP](#setting-up-php)
     - [TLS Certificates](#tls-certs)
     - [Interactive CLI](#cli)
+    - [Updating Mercury](#updating-mercury)
     - [Troubleshooting](#troubleshooting)
 - [For Developers](#for-developers)
 - [Privacy Commitment](#privacy-commitment)
@@ -137,6 +138,20 @@ Mercury provides an interactive terminal command interface:
 | `clear` | Clear terminal output |
 | `donate` | Display optional donation link |
 | `exit` | Gracefully shut down the server |
+
+### Updating Mercury
+
+While Python is not required to run Mercury, users with Python 3 installed can use the included update script for automated, rollback-safe upgrades:
+
+```bash
+# Linux
+python3 conf/update.py
+
+# Windows
+python conf\update.py
+```
+
+The updater safely stages the latest release in an isolated temporary directory, creates a timestamped backup of your configuration (`conf/mercury.conf.bak.<timestamp>`), reconciles any newly introduced XML settings without overwriting your custom ports, rules, or security salts, validates the updated binary syntax w/ `-t`, and automatically rolls back if syntax verification fails.
 
 ### Troubleshooting
 

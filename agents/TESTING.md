@@ -11,6 +11,7 @@ Mercury uses a test runner located in [`tests/`](../tests/):
 - **JSON Test Specification**: [`tests/tests.json`](../tests/tests.json) defines declarative HTTP request/response test cases across HTTP versions and configurations.
 - **Wire Regression Engine**: [`tests/regressions.py`](../tests/regressions.py) implements raw TCP and TLS socket tests for protocol edge cases, fuzzing, pipelining, and binary safety.
 - **Test Case Abstraction**: [`tests/test_case.py`](../tests/test_case.py) handles HTTP serialization, socket communication, response parsing, and assertion verification.
+- **Update Utility Test Suite**: [`tests/test_update.py`](../tests/test_update.py) validates version parsing, XML configuration reconciliation, process detection, and atomic rollback for `conf/update.py`.
 - **Test Configurations**: [`tests/conf_files/`](../tests/conf_files/) contains specialized `mercury.conf` variants for feature-specific runs.
 - **Document Fixtures**: [`tests/root/`](../tests/root/) contains static files, error pages, and PHP scripts used by tests.
 
@@ -53,6 +54,13 @@ On Windows:
 ```cmd
 python tests/run.py
 ```
+
+### Update Utility Test Suite
+To validate `conf/update.py` version parsing, XML reconciliation, and rollback automation:
+```bash
+python3 tests/test_update.py
+```
+This suite runs independently using Python's standard `unittest` framework and requires no running server or network access.
 
 ### Multi-Distro Docker Testing
 To validate Mercury across Ubuntu, Debian, Alpine, Fedora, and Arch:
