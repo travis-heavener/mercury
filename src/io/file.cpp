@@ -9,38 +9,59 @@ File::File(const http::RequestPath& paths) {
     this->decodedURIWithoutPathInfo = paths.decodedURI;
     this->queryString = paths.rawQueryString.empty() ? "" : paths.rawQueryString.substr(1);
 
-    // Extract PHP path info
-    std::filesystem::path rawPathNoPathInfo;
-    std::filesystem::path rawPathCopy = std::filesystem::path(decodedURIWithoutPathInfo);
-    bool hasPathInfo = false;
-    for (const auto& part : rawPathCopy) {
-        if (!hasPathInfo) {
-            rawPathNoPathInfo /= part;
-            if (part.string().ends_with(".php") &&
-                std::filesystem::is_regular_file(conf::DOCUMENT_ROOT / rawPathNoPathInfo.string().substr(1)))
-                hasPathInfo = true;
+    FileMetadata meta;
+    bool metaQueried = false;
+
+    // Extract PHP path info only when PHP enabled and path contains .php
+    if (conf::IS_PHP_ENABLED && decodedURIWithoutPathInfo.find(".php") != std::string::npos) {
+        std::filesystem::path rawPathNoPathInfo;
+        std::filesystem::path rawPathCopy = std::filesystem::path(decodedURIWithoutPathInfo);
+        bool hasPathInfo = false;
+        for (const auto& part : rawPathCopy) {
+            if (!hasPathInfo) {
+                rawPathNoPathInfo /= part;
+                if (part.string().ends_with(".php")) {
+                    FileMetadata phpMeta;
+                    const std::string candidatePath = (conf::DOCUMENT_ROOT / rawPathNoPathInfo.relative_path()).string();
+                    if (queryFileMetadata(candidatePath, phpMeta) && phpMeta.isRegularFile) {
+                        hasPathInfo = true;
+                        meta = phpMeta;
+                        metaQueried = true;
+                    }
+                }
+            } else {
+                // Add path info parts
+                this->phpPathInfo += '/' + part.string();
+            }
+        }
+
+        // Remove path info from decodedURI
+        if (hasPathInfo) {
+            this->decodedURIWithoutPathInfo = rawPathNoPathInfo.generic_string();
         } else {
-            // Add path info parts
-            this->phpPathInfo += '/' + part.string();
+            metaQueried = false;
         }
     }
-
-    // Remove path info from decodedURI
-    if (hasPathInfo)
-        this->decodedURIWithoutPathInfo = rawPathNoPathInfo.string();
 
     // Update the actual path
     if (this->decodedURIWithoutPathInfo == "/") {
         this->absoluteResourcePath = conf::DOCUMENT_ROOT.string();
         normalizeBackslashes(absoluteResourcePath); // Replace any backslashes w/ fwd slashes
         stringReplaceAll(absoluteResourcePath, "//", "/"); // Replace all '//' with '/'
+        if (!metaQueried && !queryFileMetadata(this->absoluteResourcePath, meta)) {
+            this->exists = false;
+            return;
+        }
+        metaQueried = true;
+        if (meta.isDirectory && this->absoluteResourcePath.back() != '/')
+            this->absoluteResourcePath += '/';
     } else {
         // Replace all '//' with '/'
         normalizeBackslashes(decodedURIWithoutPathInfo);
         stringReplaceAll(decodedURIWithoutPathInfo, "//", "/");
 
         try {
-            this->absoluteResourcePath = resolveCanonicalPath( conf::DOCUMENT_ROOT / this->decodedURIWithoutPathInfo.substr(1) ).string();
+            this->absoluteResourcePath = resolveCanonicalPath( conf::DOCUMENT_ROOT / std::filesystem::path(this->decodedURIWithoutPathInfo).relative_path() ).string();
         } catch (std::filesystem::filesystem_error&) {
             this->exists = false;
             return;
@@ -55,23 +76,42 @@ File::File(const http::RequestPath& paths) {
             normalizeBackslashes(absoluteResourcePath);
         #endif
 
+        if (!metaQueried && !queryFileMetadata(this->absoluteResourcePath, meta)) {
+            this->exists = false;
+            return;
+        }
+        metaQueried = true;
+
         // Re-append slash if directory
-        if (doesDirectoryExist(this->absoluteResourcePath, true)) this->absoluteResourcePath += '/';
+        if (meta.isDirectory && this->absoluteResourcePath.back() != '/')
+            this->absoluteResourcePath += '/';
+    }
+
+    // Verify resource resides within document root
+    std::string docRootStr = conf::DOCUMENT_ROOT.string();
+    normalizeBackslashes(docRootStr);
+    std::string normResourcePath = this->absoluteResourcePath;
+    normalizeBackslashes(normResourcePath);
+    if (normResourcePath.find(docRootStr) != 0) {
+        this->exists = false;
+        return;
     }
 
     // Check for index file
     if (this->absoluteResourcePath.back() == '/') {
         for (const std::string& indexFile : conf::INDEX_FILES) {
-            if (std::filesystem::exists(absoluteResourcePath + indexFile) &&
-                !std::filesystem::is_directory(absoluteResourcePath + indexFile)) {
-                this->absoluteResourcePath += indexFile;
+            const std::string candidatePath = this->absoluteResourcePath + indexFile;
+            FileMetadata indexMeta;
+            if (queryFileMetadata(candidatePath, indexMeta) && indexMeta.isRegularFile) {
+                this->absoluteResourcePath = candidatePath;
+                meta = indexMeta; // Reuse queried metadata
                 break;
             }
         }
     }
 
-    // Handle the MIME type if this is a directory
-    if (doesDirectoryExist(this->absoluteResourcePath, true)) {
+    // Handle directory index or static file
+    if (meta.isDirectory) {
         // Prepare directory index listing
         this->MIME = "text/html; charset=UTF-8";
         this->exists = true;
@@ -81,11 +121,14 @@ File::File(const http::RequestPath& paths) {
         std::string ext = std::filesystem::path(this->absoluteResourcePath).extension().string();
         if (ext.size()) ext = ext.substr(1); // Remove leading period
         this->MIME = conf::MIMES.find(ext) != conf::MIMES.end() ? conf::MIMES[ext] : MIME_UNSET;
-        this->exists = doesFileExist(this->absoluteResourcePath, true);
+        this->exists = meta.isRegularFile;
     }
 
+    this->hasModTime = true;
+    this->lastModTime = meta.lastModTime;
+
     // Reject symlinks or hardlinks
-    const int linkStatus = isSymlinked( this->absoluteResourcePath );
+    const int linkStatus = isSymlinked( this->absoluteResourcePath, true );
     if (linkStatus == INTERNAL_ERROR) {
         this->ioFailure = true;
         return;
@@ -116,5 +159,20 @@ int File::loadToBuffer(std::unique_ptr<http::IBodyStream>& pStream) {
 }
 
 std::string File::getLastModifiedGMT() const {
-    return getFileModGMTString(this->absoluteResourcePath);
+    if (!lastModGMT.empty()) return lastModGMT;
+    if (!hasModTime) return lastModGMT = getFileModGMTString(this->absoluteResourcePath);
+
+    // Format GMT string
+    std::tm gmtTime{};
+    #ifdef _WIN32
+        if (gmtime_s(&gmtTime, &lastModTime) != 0)
+            return lastModGMT = getFileModGMTString(this->absoluteResourcePath);
+    #else
+        if (gmtime_r(&lastModTime, &gmtTime) == nullptr)
+            return lastModGMT = getFileModGMTString(this->absoluteResourcePath);
+    #endif
+
+    char gmtBuf[32];
+    const size_t n = std::strftime(gmtBuf, sizeof(gmtBuf), "%a, %d %b %Y %H:%M:%S GMT", &gmtTime);
+    return lastModGMT = std::string(gmtBuf, n);
 }

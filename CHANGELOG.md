@@ -5,6 +5,9 @@
 - Perf: cache formatted HTTP `Date` header string at 1-second granularity per thread, eliminating redundant `gmtime`/`strftime` formatting on every response
 - Perf: pre-calculate capacity and assemble response headers directly into single reserved buffer, eliminating intermediate string copies and reallocations in `Response::streamBody`
 - Perf: cache static `Server` header string to avoid repeated version substring allocations
+- Perf: consolidate file existence, type, size, and timestamp queries into single-pass `stat`/`_stat64` in `File` and `file_tools`
+- Perf: skip PHP path-info scanning in `File` constructor when PHP is disabled or URI does not contain `.php`
+- Perf: cache file modification timestamps directly in `File`, eliminating redundant `stat` calls during `If-Modified-Since` header evaluation
 - Fix: handle and log `warn_unused_result` functions (`chown`, `read`, `write`) across privilege demotion, CLI escape parsing, and CGI execution
 - Fix: add backoff delay to IPv6 socket binding retries to mitigate loopback TCP `TIME_WAIT` conflicts
 
