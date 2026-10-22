@@ -1,8 +1,9 @@
 <div align="center">
     <img src="website/og-image.jpg" width="300" height="158" alt="Mercury Banner">
     <br>
-    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-orange.svg" alt="License"></a>
-    <img src="https://img.shields.io/badge/Language-C%2B%2B20-orange" alt="C++20">
+    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
+    <img src="https://img.shields.io/badge/Language-C%2B%2B20-blue" alt="C++20">
+    <img src="https://img.shields.io/github/downloads/travis-heavener/mercury/total?style=flat&color=orange&label=Downloads" alt="Downloads">
     <img src="https://img.shields.io/github/stars/travis-heavener/mercury?style=flat&label=Stars&color=orange" alt="Stars">
     <br>
     <h1>Mercury</h1>
