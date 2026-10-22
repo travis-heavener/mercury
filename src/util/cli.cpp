@@ -294,7 +294,7 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
                   << std::endl;
     } else if (cmd == "DONATE" || cmd == "FUND") {
         std::cout << "> Love Mercury? Consider supporting this project:\n"
-            "     https://buymeacoffee.com/travis.heavener" << std::endl;
+            "     https://wowtravis.com/support" << std::endl;
     } else if (cmd == "EXIT" || cmd == "QUIT" || cmd == "Q") {
         isExiting.store(true);
     } else if (cmd == "STATS" || cmd == "METRICS" || cmd == "STATUS" || cmd == "INFO" || cmd == "UPTIME") {

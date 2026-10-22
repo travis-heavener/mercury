@@ -222,4 +222,4 @@ If you find Mercury helpful, consider giving it a star on [GitHub](https://githu
 
 Contributions help cover hosting costs and support ongoing open-source development:
 
-[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/travis.heavener)
+[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://wowtravis.com/support)
