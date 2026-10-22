@@ -34,7 +34,7 @@ class ThreadPool {
         void getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections);
     private:
         void workerLoop(ThreadWrapper& thisThread);
-        void pruneTempThreads();
+        void pruneTempThreads(std::vector<std::unique_ptr<ThreadWrapper>>& pruned);
         void addWorker(const bool isTemporary);
 
         std::vector<std::unique_ptr<ThreadWrapper>> workers;

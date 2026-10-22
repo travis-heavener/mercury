@@ -8,6 +8,9 @@
 - Perf: consolidate file existence, type, size, and timestamp queries into single-pass `stat`/`_stat64` in `File` and `file_tools`
 - Perf: skip PHP path-info scanning in `File` constructor when PHP is disabled or URI does not contain `.php`
 - Perf: cache file modification timestamps directly in `File`, eliminating redundant `stat` calls during `If-Modified-Since` header evaluation
+- Perf: parse HTTP request headers in-place using `std::string_view`, eliminating intermediate line, substring, and whitespace trimming allocations in `loadEarlyHeaders`
+- Perf: replace temporary string constructions in `isValidHeaderName` with zero-allocation `constexpr std::string_view` lookup
+- Perf: decouple temporary worker thread joining from ThreadPool `queueMutex`, eliminating `enqueue` lock contention and worker thread latency spikes
 - Fix: handle and log `warn_unused_result` functions (`chown`, `read`, `write`) across privilege demotion, CLI escape parsing, and CGI execution
 - Fix: add backoff delay to IPv6 socket binding retries to mitigate loopback TCP `TIME_WAIT` conflicts
 
