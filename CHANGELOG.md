@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.36.0] - 2026-10-22
+-
+
 ## [0.35.0] - 2026-10-21
 - Added: `-t, --test` CLI argument, tests configuration file syntax and validity before exiting
 - Added: `-r, --root <path>` CLI argument, overrides configured `DocumentRoot` directory
