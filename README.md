@@ -1,8 +1,9 @@
 <div align="center">
     <img src="website/og-image.jpg" width="300" height="158" alt="Mercury Banner">
     <br>
-    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-orange.svg" alt="License"></a>
-    <img src="https://img.shields.io/badge/Language-C%2B%2B20-orange" alt="C++20">
+    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
+    <img src="https://img.shields.io/badge/Language-C%2B%2B20-blue" alt="C++20">
+    <img src="https://img.shields.io/github/downloads/travis-heavener/mercury/total?style=flat&color=orange&label=Downloads" alt="Downloads">
     <img src="https://img.shields.io/github/stars/travis-heavener/mercury?style=flat&label=Stars&color=orange" alt="Stars">
     <br>
     <h1>Mercury</h1>
@@ -40,6 +41,7 @@ Mercury is a lightweight, configurable HTTP web server implemented in modern C++
     - [Setting Up PHP](#setting-up-php)
     - [TLS Certificates](#tls-certs)
     - [Interactive CLI](#cli)
+    - [Updating Mercury](#updating-mercury)
     - [Troubleshooting](#troubleshooting)
 - [For Developers](#for-developers)
 - [Privacy Commitment](#privacy-commitment)
@@ -138,6 +140,20 @@ Mercury provides an interactive terminal command interface:
 | `donate` | Display optional donation link |
 | `exit` | Gracefully shut down the server |
 
+### Updating Mercury
+
+While Python is not required to run Mercury, users with Python 3 installed can use the included update script for automated, rollback-safe upgrades:
+
+```bash
+# Linux
+python3 conf/update.py
+
+# Windows
+python conf\update.py
+```
+
+The updater safely stages the latest release in an isolated temporary directory, creates a timestamped backup of your configuration (`conf/mercury.conf.bak.<timestamp>`), reconciles any newly introduced XML settings without overwriting your custom ports, rules, or security salts, validates the updated binary syntax w/ `-t`, and automatically rolls back if syntax verification fails.
+
 ### Troubleshooting
 
 - **Linux (glibc mismatch)**: Prebuilt binaries are compiled against glibc 2.35 (Ubuntu 22.04). If you encounter `SIGFPE` or dynamic loader errors on older distributions, build from source via `make linux`.
@@ -206,4 +222,4 @@ If you find Mercury helpful, consider giving it a star on [GitHub](https://githu
 
 Contributions help cover hosting costs and support ongoing open-source development:
 
-[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/travis.heavener)
+[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://wowtravis.com/support)

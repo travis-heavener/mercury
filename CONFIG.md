@@ -2,7 +2,7 @@
 
 The Mercury HTTP server provides a highly customizable configuration interface in `conf/mercury.conf`.
 
-All configuration nodes must be wrapped within a singular `<Mercury>` node.
+All configuration nodes must be wrapped within a singular `<Mercury>` root node. All child nodes are optional; any omitted setting automatically falls back to its documented default value. Command-line flags (such as `-p, --port` and `-r, --root`) take precedence over both configured and default values.
 
 ## Table of Contents
 
@@ -64,7 +64,7 @@ All configuration nodes must be wrapped within a singular `<Mercury>` node.
 # Config
 
 ### DocumentRoot
-Specifies where files are served from, relative to the Mercury directory.
+Specifies where files are served from, relative to the Mercury directory. Can be overridden on the command line via `-r, --root <path>`.
 
 Default: `./public/`
 
@@ -97,7 +97,7 @@ Example:
 ```
 
 ### Port
-Specifies what port will be used to serve cleartext (non-HTTPS) content
+Specifies what port will be used to serve cleartext (non-HTTPS) content (valid range: 1–65535). Can be overridden on the command line via `-p, --port <port>`.
 
 Default: `80`
 
@@ -108,7 +108,7 @@ Example:
 ```
 
 ### TLSPort
-Specifies which port to serve SSL/TLS traffic over, or "off" if disabled.
+Specifies which port to serve SSL/TLS traffic over (valid range: 1–65535), or "off" if disabled.
 
 See `conf/ssl/cert.pem` and `conf/ssl/key.pem`.
 
@@ -138,7 +138,7 @@ Example:
 ### IndexFiles
 Specifies what name for index files will be served when accessing a directory by name.
 
-The order (left to right) specifies which files will be searched for first, or empty if desired.
+The order (left to right) specifies which files will be searched for first, or empty if desired (e.g. `<IndexFiles></IndexFiles>`). If this node is omitted, the default list is used.
 
 Default: `index.html, index.htm, index.php`
 
@@ -162,7 +162,7 @@ Example:
 ### ErrorLogFile
 Specifies where server error logs are stored.
 
-Default: `./logs/access.log`
+Default: `./logs/error.log`
 
 Example:
 
@@ -188,7 +188,7 @@ Example:
 ```
 
 ### ClientSecurityIPSalt
-The salt for the ClientSecurityMode hashing algorithm for anonymous IP addresses.
+The salt for the ClientSecurityMode hashing algorithm for anonymous IP addresses (must be at least 16 characters / 128 bits).
 
 Default: `fAhGD0OnCe4YhSyx`, although **this value is arbitrary and should be changed for production**
 
@@ -231,7 +231,7 @@ Note that the pattern matches the URI w/o the query string from the HTTP request
 
 The URI is percent-decoded once before matching. Backslashes and repeated slashes are normalized to forward slashes, and single-dot path segments are removed before access checks. Parent-directory segments (`..`), malformed percent escapes, and decoded control characters are rejected. A double-encoded escape remains literal text after the single decoding pass (e.g. `%2520` becomes `%20`, not a space).
 
-Default: `on`
+Default: *None* (no routing or header rules defined)
 
 Example:
 
@@ -253,6 +253,8 @@ Modifies the encasing Match block to restrict access to only Requests which have
 
 Note: header names are case insensitive.
 
+Default: *None* (all matching URIs are processed regardless of header values)
+
 Example:
 
 ```xml
@@ -267,6 +269,8 @@ NOTE: Only valid within a Match block.
 Modifies the encasing Match block to restrict access to only Requests which have a header that does not match the following pattern (Regex match).
 
 Note: header names are case insensitive.
+
+Default: *None* (no negative header match filter applied)
 
 Example:
 
@@ -283,6 +287,8 @@ Modifies the encasing Match block to restrict access to only Requests which have
 
 Note: header names are case insensitive.
 
+Default: *None* (no header existence requirement)
+
 Example:
 
 ```xml
@@ -298,6 +304,8 @@ Modifies the encasing Match block to restrict access to only Requests which do n
 
 Note: header names are case insensitive.
 
+Default: *None* (no header absence requirement)
+
 Example:
 
 ```xml
@@ -310,6 +318,8 @@ Example:
 NOTE: Only valid within a Match block.
 
 Allows HTTP response headers to be set, only valid within a Match.
+
+Default: *None* (no additional custom response headers injected)
 
 Example:
 
@@ -325,6 +335,8 @@ NOTE: Only valid within a Match block.
 Enables or disables directory index listings, only valid within a Match (either "on" or "off").
 
 Only the first ShowDirectoryIndexes node will be recognized.
+
+Default: `on`
 
 Example:
 
@@ -344,6 +356,8 @@ The "mode" attribute controls the default policy, either to deny all except for 
 Note that if the mode is set to "deny all" then any Deny nodes are skipped, and vice versa for "allow all" and Allow nodes.
 
 Valid modes: `"deny all" | "allow all"`
+
+Default: `allow all` (if omitted, unrestricted access is permitted to all clients)
 
 Example:
 
@@ -368,6 +382,8 @@ Note B: the pattern attribute matches the decoded, normalized URI and does NOT c
 
 The example below permanently redirects any HTML files in any directory under /foo/bar to the corresponding HTML file and directory in /baz/qux (see commented-out example below).
 
+Default: *None* (no HTTP redirects configured)
+
 Example:
 
 ```xml
@@ -384,6 +400,8 @@ Note A: the "to" attribute is NOT a regular expression, but does support referen
 Note B: the pattern attribute matches the decoded, normalized URI and does NOT capture query strings. Query strings are preserved in their original encoded form, so `%26` stays `%26` rather than becoming a new parameter separator. Rewrites do not percent-decode the replacement path again.
 
 The example below rewrites traffic to any HTML files in any directory under /foo/bar to the corresponding HTML file and directory in /baz/qux (see commented-out example below).
+
+Default: *None* (no internal URI rewrites configured)
 
 Example:
 
@@ -456,7 +474,7 @@ Example:
 ```
 
 ### MaxRequestBacklog
-Specifies how many queued requests the server can handle simultaneously.
+Specifies how many queued requests the server can handle simultaneously (valid range: 1–65535).
 
 Default: `100`
 
@@ -547,7 +565,7 @@ Example:
 ```
 
 ### MaxThreadsPerChild
-Specifies the maximum number of connection threads exist for each server thread under load.
+Specifies the maximum number of connection threads that exist for each server thread under load. Must be greater than `IdleThreadsPerChild`.
 
 Note that under normal circumstances, only the amount of IdleThreadsPerChild threads will be used--up to MaxThreadsPerChild threads will be utilized to decrease the overall size of the connection backlog on each server thread to improve client performance.
 

@@ -292,9 +292,9 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
                   << "    Access Log File:          " << conf::ACCESS_LOG_FILE.string() << '\n'
                   << "    Error Log File:           " << conf::ERROR_LOG_FILE.string()
                   << std::endl;
-    } else if (cmd == "DONATE") {
+    } else if (cmd == "DONATE" || cmd == "FUND") {
         std::cout << "> Love Mercury? Consider supporting this project:\n"
-            "     https://buymeacoffee.com/travis.heavener" << std::endl;
+            "     https://wowtravis.com/support" << std::endl;
     } else if (cmd == "EXIT" || cmd == "QUIT" || cmd == "Q") {
         isExiting.store(true);
     } else if (cmd == "STATS" || cmd == "METRICS" || cmd == "STATUS" || cmd == "INFO" || cmd == "UPTIME") {
@@ -446,7 +446,7 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
         std::cout << "> Available Console Commands:\n"
             "  clear, cls                  Clear terminal screen\n"
             "  config, conf                View loaded server configuration\n"
-            "  donate                      Show optional donation link\n"
+            "  donate, fund                Show optional donation link\n"
             "  exit, quit, q               Exit Mercury\n"
             "  help, ?                     List available commands\n"
             "  logs, tail [file] [n]       View recent access or error logs\n"
