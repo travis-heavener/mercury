@@ -2,6 +2,9 @@
 
 ## [0.36.0] - 2026-10-22
 - Perf: enable `-O3 -fno-strict-aliasing` optimizations for release builds in `Makefile`
+- Perf: cache formatted HTTP `Date` header string at 1-second granularity per thread, eliminating redundant `gmtime`/`strftime` formatting on every response
+- Perf: pre-calculate capacity and assemble response headers directly into single reserved buffer, eliminating intermediate string copies and reallocations in `Response::streamBody`
+- Perf: cache static `Server` header string to avoid repeated version substring allocations
 - Fix: handle and log `warn_unused_result` functions (`chown`, `read`, `write`) across privilege demotion, CLI escape parsing, and CGI execution
 - Fix: add backoff delay to IPv6 socket binding retries to mitigate loopback TCP `TIME_WAIT` conflicts
 
