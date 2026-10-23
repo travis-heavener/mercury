@@ -451,7 +451,7 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
             "  help, ?                     List available commands\n"
             "  logs, tail [file] [n]       View recent access or error logs\n"
             "  mimes, mime [query]         List or search configured MIME types\n"
-            "  phpinit                     Initialize platform-specific PHP\n"
+            "  php:init, phpinit           Initialize platform-specific PHP\n"
             "  ping                        Test CLI responsiveness (Pong!)\n"
             "  pwd                         Print document root directory\n"
             "  routes, rules               View Match, Redirect, and Rewrite rules\n"
@@ -459,7 +459,7 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
             "  tls, cert                   View TLS configuration and certificate status\n"
             "  version, ver                View Mercury version and capabilities"
             << std::endl;
-    } else if (cmd == "PHPINIT") {
+    } else if (cmd == "PHP:INIT" || cmd == "PHPINIT") {
         #ifdef _WIN32 // Windows specific
             std::cout << "> Running `conf/setup_php.ps1`" << std::endl;
             std::string scriptPath;

@@ -1,7 +1,7 @@
 # Changelog
 
 ## [0.37.0] - 2026-10-23
-- 
+- Added: `php:init` alias to `phpinit` console command
 
 ## [0.36.0] - 2026-10-22
 - Perf: enable `-O3 -fno-strict-aliasing` optimizations for release builds in `Makefile`
