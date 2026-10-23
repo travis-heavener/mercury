@@ -579,7 +579,7 @@
                 "desc": "HTTP/0.9 Tests",
                 "versions": [ "0.9" ],
                 "cases": [
-                    { "method": "GET", "path": "/index.php", "expectedStatus": -1, "expectedBody": "Your Mercury installation is successfully parsing PHP via CGI.", "expectedBodyContainsMode": true },
+                    { "method": "GET", "path": "/index.php", "expectedStatus": -1, "expectedBody": "Your Mercury installation is successfully parsing PHP via CGI or FPM.", "expectedBodyContainsMode": true },
                     { "method": "GET", "path": "/path_info_test.php", "expectedStatus": -1, "expectedBody": "echo $_SERVER[\"PATH_INFO\"];", "expectedBodyContainsMode": true }
                 ]
             }
