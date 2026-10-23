@@ -317,13 +317,13 @@
     - Introduced a number of problems and disk I/O risks
     - Could lock up and crash if the directory was open by another program
 
-## [0.22.1] - 2025-10-02
+## [0.22.1] - 2025-10-02 [YANKED]
 - Minor performance boost for repeated mallocs with server buffers
 - Added performance comparison w/ Apache to README (#220)
 - Added "CLI" section to README Table of Contents (#236)
 - Added Ztandard license
 
-## [0.22.0] - 2025-09-29
+## [0.22.0] - 2025-09-29 [YANKED]
 - Add thread-safe temp file tracker (#211)
 - Fix printing extra "< " after a shutdown is requested
 - Added temporary thread creation when the connection backlog grows (#225)
