@@ -62,6 +62,7 @@ All configuration nodes must be wrapped within a singular `<Mercury>` root node.
 ### Misc.
 - [ShowWelcomeBanner](#showwelcomebanner)
 - [ShowDonationBanner](#showdonationbanner)
+- [ShowPrivilegeDeescalationMessage](#showprivilegedeescalationmessage)
 - [StartupCheckLatestRelease](#startupchecklatestrelease)
 
 # Config
@@ -671,6 +672,17 @@ Example:
 
 ```xml
 <ShowDonationBanner> true </ShowDonationBanner>
+```
+
+### ShowPrivilegeDeescalationMessage
+Whether or not to print the privilege deescalation notice to the console upon dropping root privileges after binding privileged ports (true/false).
+
+Default: `true`
+
+Example:
+
+```xml
+<ShowPrivilegeDeescalationMessage> true </ShowPrivilegeDeescalationMessage>
 ```
 
 ### StartupCheckLatestRelease

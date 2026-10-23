@@ -11,6 +11,7 @@
     #include <unistd.h>
 #endif
 
+#include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
 
 namespace util::privilege {
@@ -130,7 +131,8 @@ namespace util::privilege {
             const std::string displayName = user.name.empty() ? std::to_string(user.uid) : user.name;
             ACCESS_LOG << "Dropped root privileges to user " << displayName
                 << " (UID: " << user.uid << ", GID: " << user.gid << ")." << std::endl;
-            std::cout << "> Dropped root privileges to user '" << displayName << "'." << std::endl;
+            if (conf::SHOW_PRIVILEGE_DEESCALATION_MESSAGE)
+                std::cout << "> Dropped root privileges to user '" << displayName << "'." << std::endl;
         #endif
         return true;
     }

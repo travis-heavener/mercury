@@ -69,6 +69,7 @@ namespace conf {
 
     bool SHOW_WELCOME_BANNER;
     bool SHOW_DONATION_BANNER;
+    bool SHOW_PRIVILEGE_DEESCALATION_MESSAGE;
     bool CHECK_LATEST_RELEASE;
 
     std::ofstream accessLogHandle;
@@ -88,7 +89,7 @@ namespace conf {
         "AccessLogFile", "ErrorLogFile", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "WinPHPCGIPath", "EnableFastCGI", "FastCGIAddress", "FastCGITimeout", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
-        "MinResponseCompressionSize", "IdleThreadsPerChild", "MaxThreadsPerChild", "ShowWelcomeBanner", "ShowDonationBanner", "StartupCheckLatestRelease"
+        "MinResponseCompressionSize", "IdleThreadsPerChild", "MaxThreadsPerChild", "ShowWelcomeBanner", "ShowDonationBanner", "ShowPrivilegeDeescalationMessage", "ShowPrivilegeDropMessage", "HidePrivilegeDeescalationMessage", "StartupCheckLatestRelease"
     };
 
     const std::vector<std::string> matchNodeNames = {
@@ -594,6 +595,20 @@ namespace conf {
         if (loadBool(root, SHOW_DONATION_BANNER, "ShowDonationBanner", true) == CONF_FAILURE)
             return CONF_FAILURE;
 
+        SHOW_PRIVILEGE_DEESCALATION_MESSAGE = true;
+        if (root.child("ShowPrivilegeDeescalationMessage")) {
+            if (loadBool(root, SHOW_PRIVILEGE_DEESCALATION_MESSAGE, "ShowPrivilegeDeescalationMessage", true) == CONF_FAILURE)
+                return CONF_FAILURE;
+        } else if (root.child("ShowPrivilegeDropMessage")) {
+            if (loadBool(root, SHOW_PRIVILEGE_DEESCALATION_MESSAGE, "ShowPrivilegeDropMessage", true) == CONF_FAILURE)
+                return CONF_FAILURE;
+        } else if (root.child("HidePrivilegeDeescalationMessage")) {
+            bool hide = false;
+            if (loadBool(root, hide, "HidePrivilegeDeescalationMessage", false) == CONF_FAILURE)
+                return CONF_FAILURE;
+            SHOW_PRIVILEGE_DEESCALATION_MESSAGE = !hide;
+        }
+
         if (loadBool(root, CHECK_LATEST_RELEASE, "StartupCheckLatestRelease", true) == CONF_FAILURE)
             return CONF_FAILURE;
 
@@ -791,6 +806,9 @@ namespace conf {
         IS_FASTCGI_ENABLED = false;
         FASTCGI_ADDRESS = "auto";
         FASTCGI_TIMEOUT = 10;
+
+        // Reset display settings
+        SHOW_PRIVILEGE_DEESCALATION_MESSAGE = true;
 
         // Remove any stray temp files under lock
         std::unordered_set<std::string> remainingTempFiles;

@@ -9,6 +9,7 @@
 - Added: zero-disk memory streaming for FastCGI request bodies and response payloads via `MemoryStream`
 - Added: OPcache automation and FastCGI launch script generator in `conf/setup_php.ps1`
 - Added: `php:init` alias to `phpinit` console command
+- Added: `ShowPrivilegeDeescalationMessage` configuration setting to suppress console privilege drop notice
 - Test: replay existing CGI assertions against isolated PHP-FPM TCP/Unix fixtures and Windows FastCGI listeners, including ownership, 502/504, PHP metadata, and multi-record binary bodies
 
 ## [0.36.0] - 2026-10-22
