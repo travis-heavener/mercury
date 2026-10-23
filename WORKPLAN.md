@@ -72,33 +72,35 @@ FastCGI encodes key and value lengths compactly:
 
 ### Phase 1: Protocol Encoders & Data Structures
 **Target Directory**: `src/http/fastcgi/`
-- [ ] Create `src/http/fastcgi/protocol.hpp`:
+- [x] Create `src/http/fastcgi/protocol.hpp`:
   - Define FastCGI constants (`FCGI_VERSION_1`, `FCGI_RESPONDER`, record types, protocol statuses).
   - Define `FCGI_Header`, `FCGI_BeginRequestBody`, `FCGI_EndRequestBody`.
-  - Implement helper functions for big-endian serialization (`htons`/`ntohs`).
-- [ ] Create `src/http/fastcgi/params.hpp` and `params.cpp`:
+  - Implement helper functions for big-endian serialization (`toNetwork16`/`fromNetwork16`, `toNetwork32`/`fromNetwork32`).
+- [x] Create `src/http/fastcgi/params.hpp` and `params.cpp`:
   - Implement zero-allocation FastCGI parameter encoder taking key-value pairs (using `std::string_view`).
   - Encode variable-length prefix headers without intermediate string allocations.
-- [ ] Add unit tests verifying byte-exact framing for headers, parameters, and padding.
+- [x] Add unit tests verifying byte-exact framing for headers, parameters, and padding (`tests/test_fastcgi_protocol.cpp`).
 
 ---
 
 ### Phase 2: FastCGI Transport Client
 **Target Files**: `src/http/fastcgi/client.hpp` and `src/http/fastcgi/client.cpp`
-- [ ] Implement socket transport abstraction:
-  - **Linux**: Support UNIX domain sockets (`AF_UNIX`) via `sockaddr_un` (e.g. `unix:/run/php/php8.2-fpm.sock`).
-  - **Linux & Windows**: Support TCP sockets (`AF_INET` / `AF_INET6`) via Winsock / POSIX sockets (e.g. `127.0.0.1:9000`).
-- [ ] Implement `Client::sendRequest`:
+- [x] Implement socket transport abstraction:
+  - **Linux**: Support UNIX domain sockets (`AF_UNIX`) via `sockaddr_un` (e.g. `unix:/run/php/php8.4-fpm.sock` or `/var/run/php-fpm.sock`).
+  - **Linux & Windows**: Support TCP sockets (`AF_INET` / `AF_INET6`) via Winsock / POSIX sockets (e.g. `127.0.0.1:9000` or `[::1]:9000`).
+  - **Auto-Discovery**: Implement `detectDefaultFastCGIAddress()` prioritizing the highest installed PHP version on the system by default for security and performance, falling back to `127.0.0.1:9000`.
+- [x] Implement `Client::sendRequest`:
   - Send `FCGI_BEGIN_REQUEST`.
-  - Send `FCGI_PARAMS` stream assembled from Mercury's existing CGI environment extractor.
+  - Send `FCGI_PARAMS` stream assembled from Mercury's CGI environment extractor.
   - Send empty `FCGI_PARAMS` terminator.
   - Stream `FCGI_STDIN` from HTTP request body (in chunks up to 64 KiB), followed by empty `FCGI_STDIN` terminator.
-- [ ] Implement `Client::receiveResponse`:
+- [x] Implement `Client::receiveResponse`:
   - Read incoming `FCGI_Header` records in a loop.
-  - Demux `FCGI_STDOUT` payload: parse CGI headers (`Status`, `Content-Type`, `Set-Cookie`) into `Response` headers; stream body directly into `Response` body buffer.
+  - Demux `FCGI_STDOUT` payload: parse CGI headers (`Status`, `Content-Type`, response headers) into `Response` headers; stream body directly into `Response` via `MemoryStream`.
   - Route `FCGI_STDERR` packets to `ERROR_LOG`.
   - Terminate upon receiving `FCGI_END_REQUEST`.
-- [ ] Configure non-blocking read/write timeouts (default: 10 seconds) to prevent server hangs on misbehaving scripts.
+- [x] Configure non-blocking read/write timeouts (default: 10 seconds) with `poll()` / `WSAPoll` to prevent server hangs on misbehaving scripts.
+- [x] Add comprehensive unit test suite (`tests/test_fastcgi_client.cpp`) verifying endpoint parsing, content-type inference, parameter extraction, and mock FastCGI roundtrips.
 
 ---
 
@@ -106,11 +108,11 @@ FastCGI encodes key and value lengths compactly:
 **Target Files**: `src/conf/conf.hpp`, `src/conf/conf.cpp`, `conf/mercury.conf`
 - [ ] Add XML configuration directives:
   - `<EnableFastCGI> on|off </EnableFastCGI>` (default: `off`).
-  - `<FastCGIAddress> unix:/run/php/php-fpm.sock </FastCGIAddress>` or `127.0.0.1:9000`.
+  - `<FastCGIAddress> auto </FastCGIAddress>` (optional; defaults to auto-detecting highest PHP version socket or `127.0.0.1:9000`; accepts `unix:/path` or `host:port`).
   - `<FastCGITimeout> 10 </FastCGITimeout>` (timeout in seconds, default: 10).
 - [ ] Update config loader in `src/conf/conf.cpp`:
   - Add node names to `mercuryNodeNames`.
-  - Validate address format (`unix:` prefix for UDS vs `host:port` / `ip:port` for TCP).
+  - Validate address format (`unix:` prefix or path for UDS vs `host:port` / `ip:port` for TCP, or `auto`).
 - [ ] Update HTTP request handlers (`src/http/version/handler_1_1.cpp`, `handler_1_0.cpp`):
   - When target file is a `.php` file:
     1. If `conf::IS_FASTCGI_ENABLED`: route request to `http::fastcgi::handleRequest(...)`.
@@ -121,11 +123,11 @@ FastCGI encodes key and value lengths compactly:
 
 ### Phase 4: Zero-Disk I/O & Memory Optimization
 **Target Files**: `src/http/fastcgi/client.cpp`, `src/http/response.cpp`
-- [ ] Eliminate temporary disk files:
+- [x] Eliminate temporary disk files:
   - Parse `Status: <code [reason]>` directly from the `FCGI_STDOUT` stream buffer.
   - Extract and trim headers in-place using `std::string_view`.
-  - Append body bytes directly into `Response::body` or pipe into streaming chunked output for large payloads exceeding buffer thresholds.
-- [ ] Reuse buffers for request serialization to minimize dynamic allocations per PHP transaction.
+  - Stream body directly into `MemoryStream` attached to `Response`, eliminating disk writes and temp files in `tmp/`.
+- [x] Reuse buffers for request serialization to minimize dynamic allocations per PHP transaction.
 
 ---
 
@@ -184,24 +186,26 @@ FastCGI encodes key and value lengths compactly:
 
 ## 4. File Modification Matrix
 
-| File | Change Scope |
-|---|---|
-| `src/http/fastcgi/protocol.hpp` | New file: FastCGI binary structs, constants, byte-swapping helpers. |
-| `src/http/fastcgi/params.hpp` | New file: FastCGI parameter encoder with length-prefix encoding. |
-| `src/http/fastcgi/params.cpp` | New file: Implementation of environment block serializer. |
-| `src/http/fastcgi/client.hpp` | New file: FastCGI client class definition (UDS and TCP socket client). |
-| `src/http/fastcgi/client.cpp` | New file: Request transmission, STDOUT/STDERR demuxing, response header parsing. |
-| `src/conf/conf.hpp` | Add `IS_FASTCGI_ENABLED`, `FASTCGI_ADDRESS`, `FASTCGI_TIMEOUT` variables. |
-| `src/conf/conf.cpp` | Add parsing logic for `<EnableFastCGI>`, `<FastCGIAddress>`, `<FastCGITimeout>`. |
-| `src/http/version/handler_1_1.cpp` | Route PHP requests to FastCGI handler before falling back to legacy CGI. |
-| `src/http/version/handler_1_0.cpp` | Route PHP requests to FastCGI handler before falling back to legacy CGI. |
-| `conf/mercury.conf` | Document FastCGI directives with default settings. |
-| `conf/setup_php.ps1` | Configure OPcache in `php.ini` and add FastCGI launch option for Windows. |
-| `build_tools/install_deps.sh` | Add `php-fpm` package installation across apt, pacman, and dnf. |
-| `docker/entrypoint.sh` | Install and initialize `php-fpm` daemon inside multi-distro test containers. |
-| `tests/run.py` | Add automated FastCGI backend lifecycle management (start/stop) during test runs. |
-| `tests/regressions.py` | Add FastCGI regression cases (GET, POST, headers, errors). |
-| `Makefile` | Ensure `src/http/fastcgi/*.cpp` files are included in build rules. |
+| File | Change Scope | Status |
+|---|---|---|
+| `src/http/fastcgi/protocol.hpp` | FastCGI binary structs, constants, byte-swapping helpers. | Completed |
+| `src/http/fastcgi/params.hpp` | FastCGI parameter encoder with length-prefix encoding. | Completed |
+| `src/http/fastcgi/params.cpp` | Implementation of environment block serializer. | Completed |
+| `src/http/fastcgi/client.hpp` | FastCGI client class definition (UDS and TCP socket client). | Completed |
+| `src/http/fastcgi/client.cpp` | Request transmission, STDOUT/STDERR demuxing, response header parsing, auto-discovery. | Completed |
+| `tests/test_fastcgi_protocol.cpp` | Unit test suite for wire framing, parameters, and padding. | Completed |
+| `tests/test_fastcgi_client.cpp` | Unit test suite for transport client, endpoint parsing, and mock transactions. | Completed |
+| `src/conf/conf.hpp` | Add `IS_FASTCGI_ENABLED`, `FASTCGI_ADDRESS`, `FASTCGI_TIMEOUT` variables. | Pending |
+| `src/conf/conf.cpp` | Add parsing logic for `<EnableFastCGI>`, `<FastCGIAddress>`, `<FastCGITimeout>`. | Pending |
+| `src/http/version/handler_1_1.cpp` | Route PHP requests to FastCGI handler before falling back to legacy CGI. | Pending |
+| `src/http/version/handler_1_0.cpp` | Route PHP requests to FastCGI handler before falling back to legacy CGI. | Pending |
+| `conf/mercury.conf` | Document FastCGI directives with default settings. | Pending |
+| `conf/setup_php.ps1` | Configure OPcache in `php.ini` and add FastCGI launch option for Windows. | Pending |
+| `build_tools/install_deps.sh` | Add `php-fpm` package installation across apt, pacman, and dnf. | Pending |
+| `docker/entrypoint.sh` | Install and initialize `php-fpm` daemon inside multi-distro test containers. | Pending |
+| `tests/run.py` | Add automated FastCGI backend lifecycle management (start/stop) during test runs. | Pending |
+| `tests/regressions.py` | Add FastCGI regression cases (GET, POST, headers, errors). | Pending |
+| `Makefile` | Ensure `src/http/fastcgi/*.cpp` files are included in build rules. | Completed (automatic discovery) |
 
 ---
 
