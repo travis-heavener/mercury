@@ -90,11 +90,11 @@ touch "$SUMMARY_FILE"
 # Write anchor to full changelog
 echo -e "# Changelog\n### [Read Full Changelog](https://github.com/travis-heavener/mercury/blob/main/CHANGELOG.md)\n" > "$SUMMARY_FILE"
 
-# Copy most recent 3 changelog entries
+# Copy most recent N changelog entries
 
 awk '
   /^## (\[v?[0-9]+\.[0-9]+\.[0-9]+\]|v[0-9]+\.[0-9]+\.[0-9]+)/ {
-    if (count == 3) exit
+    if (count == 1) exit
     if (entry) print entry
     entry = $0
     count++
@@ -103,7 +103,7 @@ awk '
   {
     if (entry) entry = entry "\n" $0
   } END {
-    if (entry && count <= 3) print entry
+    if (entry && count <= 1) print entry
   }
 ' "./$VERSION/CHANGELOG.md" >> "$SUMMARY_FILE"
 
