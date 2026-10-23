@@ -354,6 +354,7 @@
                 "desc": "Test PHP response metadata and request isolation",
                 "versions": [ "1.1" ],
                 "cases": [
+                    { "method": "GET", "path": "/regression_cgi_environment.php", "expectedStatus": 200, "expectedBody": "ok" },
                     {
                         "method": "GET",
                         "path": "/regression_response.php",
@@ -695,6 +696,20 @@
                 "versions": [ "1.1" ],
                 "cases": [
                     { "method": "GET", "path": "/regression_delay.php", "expectedStatus": 504 }
+                ]
+            }
+        ]
+    },
+    {
+        "desc": "CGI malformed backend headers",
+        "confFile": "normal.conf",
+        "cases": [
+            {
+                "desc": "Return framed gateway error without partial CGI headers",
+                "versions": [ "1.1" ],
+                "cases": [
+                    { "method": "GET", "path": "/regression_invalid_cgi_header.php", "expectedStatus": 502, "expectedHeaders": { "X-CGI-Partial": false } },
+                    { "method": "GET", "path": "/regression_invalid_cgi_header.php?status=1", "expectedStatus": 502, "expectedHeaders": { "X-CGI-Partial": false } }
                 ]
             }
         ]

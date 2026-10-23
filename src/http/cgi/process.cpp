@@ -10,9 +10,12 @@
     #include <unistd.h>
 #endif
 
+#include <algorithm>
 #include <cstring>
+#include <cwchar>
 #include <map>
 #include <optional>
+#include <vector>
 
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
@@ -127,24 +130,46 @@ namespace http::cgi {
 
         // Platform dependent, create env block
         #ifdef _WIN32 // Windows
-            // Stitch double-null terminated env block
-            envBlock.clear();
+            // Sort Windows environment names case-insensitively as required by CreateProcessW
+            struct EnvironmentNameLess {
+                bool operator()(const std::wstring& left, const std::wstring& right) const {
+                    return _wcsicmp(left.c_str(), right.c_str()) < 0;
+                }
+            };
+            std::map<std::wstring, std::wstring, EnvironmentNameLess> windowsEnvironment;
 
-            for (auto& [key, val] : envsMap) {
-                const std::wstring wkey(key.begin(), key.end());
-                const std::wstring wval(val.begin(), val.end());
-
-                envBlock.insert(envBlock.end(), wkey.begin(), wkey.end());
-                envBlock.push_back(L'=');
-                envBlock.insert(envBlock.end(), wval.begin(), wval.end());
-                envBlock.push_back('\0');
+            // Preserve OS runtime context omitted by CGI-only environment
+            // Keep TEMP/TMP consistent so OPcache can initialize shared memory on Windows
+            // Read UTF-16 values directly to preserve non-ASCII Windows paths
+            for (const wchar_t* pName : {L"SystemRoot", L"WINDIR", L"TEMP", L"TMP", L"PATH",
+                                        L"COMSPEC", L"USERPROFILE", L"APPDATA", L"LOCALAPPDATA",
+                                        L"PHPRC", L"PHP_INI_SCAN_DIR"}) {
+                DWORD capacity = GetEnvironmentVariableW(pName, nullptr, 0);
+                while (capacity > 0) {
+                    std::wstring value(capacity, L'\0');
+                    const DWORD length = GetEnvironmentVariableW(pName, value.data(), capacity);
+                    if (length == 0) break;
+                    if (length >= capacity) { capacity = length; continue; }
+                    value.resize(length);
+                    windowsEnvironment[pName] = std::move(value);
+                    break;
+                }
             }
 
-            // Final double-null terminator
-            if (envBlock.empty() || envBlock.back() != '\0')
-                envBlock.push_back('\0');
+            // Overlay request-specific variables without inheriting stale CGI fields
+            for (const auto& [key, val] : envsMap)
+                windowsEnvironment[std::wstring(key.begin(), key.end())] = std::wstring(val.begin(), val.end());
 
-            envBlock.push_back('\0');
+            // Stitch sorted, double-null-terminated UTF-16 environment block
+            envBlock.clear();
+            for (const auto& [key, val] : windowsEnvironment) {
+                envBlock.insert(envBlock.end(), key.begin(), key.end());
+                envBlock.push_back(L'=');
+                envBlock.insert(envBlock.end(), val.begin(), val.end());
+                envBlock.push_back(L'\0');
+            }
+            if (envBlock.empty()) envBlock.push_back(L'\0');
+            envBlock.push_back(L'\0');
         #else // Linux
             envBlock.clear();
             for (auto& [key, val] : envsMap)
@@ -215,7 +240,33 @@ namespace http::cgi {
 
         // Separate headers from body
         bool hasWrittenHeaders = false;
+        std::vector<std::pair<std::string, std::string>> parsedHeaders;
+        uint16_t cgiStatus = 200;
         std::string line;
+
+        // Reject malformed CGI output with gateway response instead of closing HTTP connection
+        auto rejectHeader = [&]() {
+            // Bound diagnostic size and escape controls to keep each log entry on one line
+            std::string preview;
+            constexpr char HEX[] = "0123456789ABCDEF";
+            const size_t limit = std::min(line.size(), static_cast<size_t>(256));
+            for (size_t i = 0; i < limit; ++i) {
+                const unsigned char c = static_cast<unsigned char>(line[i]);
+                if (c < 32 || c == 127) {
+                    preview += "\\x";
+                    preview += HEX[c >> 4];
+                    preview += HEX[c & 0x0F];
+                } else {
+                    preview += static_cast<char>(c);
+                }
+            }
+            ERROR_LOG << "Invalid PHP CGI response header: " << preview << (line.size() > limit ? "..." : "") << std::endl;
+            res.setStatus(502);
+            tmpBodyHandle.close();
+            tmpInHandle.close();
+            removeTempFile(tmpPath);
+            removeTempFile(tmpBodyPath);
+        };
         while (std::getline(tmpInHandle, line)) {
             if (!line.empty() && line.back() == '\r')
                 line.pop_back();
@@ -237,11 +288,32 @@ namespace http::cgi {
                 trimString(key); trimString(val);
                 formatHeaderCasing(key);
 
-                if (key == "Status")
-                    res.setStatus(std::stoi(val));
-                else
-                    res.setHeader(key, val);
+                if (!isValidHeaderName(key) || !isValidHeaderValue(val)) {
+                    rejectHeader();
+                    return;
+                }
+
+                if (key == "Status") {
+                    // Accept three-digit status plus optional reason phrase without throwing
+                    if (val.size() < 3 || val[0] < '1' || val[0] > '5' ||
+                        val[1] < '0' || val[1] > '9' || val[2] < '0' || val[2] > '9' ||
+                        (val.size() > 3 && val[3] != ' ' && val[3] != '\t')) {
+                        rejectHeader();
+                        return;
+                    }
+                    cgiStatus = static_cast<uint16_t>((val[0] - '0') * 100 + (val[1] - '0') * 10 + val[2] - '0');
+                } else {
+                    parsedHeaders.emplace_back(std::move(key), std::move(val));
+                }
             }
+        }
+
+        // Publish CGI headers only after validating complete header block
+        // Keep partial backend headers out of gateway error responses
+        if (hasWrittenHeaders) {
+            res.setStatus(cgiStatus);
+            for (const auto& [key, val] : parsedHeaders)
+                res.setHeader(key, val);
         }
 
         // Read remainder of the body to the body temp file
