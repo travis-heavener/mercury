@@ -42,6 +42,10 @@ $content = [System.Text.RegularExpressions.Regex]::Replace($content, ';upload_tm
 $content = [System.Text.RegularExpressions.Regex]::Replace($content, ';zend_extension\s*=\s*opcache', 'zend_extension=opcache')
 $content = [System.Text.RegularExpressions.Regex]::Replace($content, ';opcache\.enable\s*=\s*1', 'opcache.enable=1')
 $content = [System.Text.RegularExpressions.Regex]::Replace($content, ';opcache\.enable_cli\s*=\s*0', 'opcache.enable_cli=1')
+
+# Resolve bundled extensions independently of working directory or system PHP
+$extensionPath = (Resolve-Path (Join-Path $PSScriptRoot "../php/ext")).ProviderPath
+$content += "`r`nextension_dir = `"$extensionPath`"`r`n"
 Set-Content -Path php/php.ini -Value $content
 
 # Generate FastCGI launch script for Windows
