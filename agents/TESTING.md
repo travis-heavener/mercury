@@ -55,6 +55,16 @@ On Windows:
 python tests/run.py
 ```
 
+### FastCGI integration
+
+Install `php-fpm` in addition to `php-cgi` on Linux. `tests/run.py` automatically
+starts isolated foreground PHP-FPM fixtures over TCP and Unix sockets, replays
+shared HTTP assertions and wire regressions with CGI disabled, and cleans up
+each fixture. Windows runs exercise Mercury-owned `php-cgi -b` startup and
+reuse of an external listener. Additional runs assert 502 and 504 handling.
+See [`tests/README.md`](../tests/README.md) for platform requirements and the
+`fastcgiTransport`, `reuseCasesFrom`, and `platforms` run attributes.
+
 ### Update Utility Test Suite
 To validate `conf/update.py` version parsing, XML reconciliation, and rollback automation:
 ```bash

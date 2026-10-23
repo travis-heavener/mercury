@@ -8,6 +8,7 @@ This file uses the test cases in tests.json to test the output of
 """
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager, nullcontext
 import os
 import psutil
 import signal
@@ -15,8 +16,10 @@ import socket
 import ssl
 import subprocess
 import sys
+import tempfile
 import time
 
+from fastcgi_backend import FastCGIBackend
 from test_case import TestCase, load_runs
 from regressions import WIRE_TEST_COUNT, run_wire_regressions
 
@@ -164,138 +167,108 @@ def init_ssl():
     context.verify_mode = ssl.CERT_NONE
     return context
 
+@contextmanager
+def mercury_process(config_path):
+    windows = sys.platform in ("win32", "cygwin")
+    with tempfile.TemporaryFile() as diagnostics:
+        proc = subprocess.Popen(
+            ["../bin/mercury.exe" if windows else "../bin/mercury", "-c", config_path],
+            stdout=subprocess.DEVNULL, stderr=diagnostics, stdin=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0
+        )
+        try:
+            if not wait_until_live() or proc.poll() is not None:
+                diagnostics.seek(0)
+                raise RuntimeError("Mercury failed to start:\n" + diagnostics.read().decode(errors="replace"))
+            # Wait for HTTP workers after backend startup completes
+            with socket.create_connection((host, port), timeout=10) as probe:
+                probe.sendall(b"GET /small.txt HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                if not probe.recv(1024):
+                    raise RuntimeError("Mercury closed startup probe")
+            yield proc
+        finally:
+            if proc.poll() is None:
+                proc.send_signal(signal.CTRL_BREAK_EVENT if windows else signal.SIGINT)
+                try:
+                    proc.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait(timeout=5)
+                    raise RuntimeError("Mercury did not shut down gracefully")
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-
-    # Verify Mercury isn't already running
     if is_mercury_running():
         print("[Error] Mercury is already running somewhere on your system, exiting...")
-        exit(1)
+        sys.exit(1)
 
-    # CD into script directory
-    os.chdir( os.path.dirname( os.path.abspath(__file__) ) )
-
-    # Verify TLS is set up
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     if not is_tls_set_up():
         print("[Error] TLS certs are not configured, run `make cert`, exiting...")
-        exit(1)
-
-    # Verify Windows PHP is set up
-    if sys.platform in ["win32", "cygwin"] and not os.path.exists("../php/php-cgi.exe"):
+        sys.exit(1)
+    if sys.platform in ("win32", "cygwin") and not os.path.exists("../php/php-cgi.exe"):
         print("[Error] PHP for Windows is not configured, run `conf/setup_php.ps1`, exiting...")
-        exit(1)
-
-    # Handle to the process
-    proc = None
+        sys.exit(1)
 
     try:
-        # Load cases
-        runs = load_runs()
+        runs = [run for run in load_runs() if not run["platforms"] or sys.platform in run["platforms"]]
         num_passing = 0
         num_total = sum(len(run["cases"]) * 4 + (WIRE_TEST_COUNT if run["wire_regressions"] else 0) for run in runs)
-
-        # Init SSL
         ssl_ctx = init_ssl()
-
-        # Handle each run
         for run in runs:
             print("=" * 80)
             run_total = len(run["cases"]) * 4 + (WIRE_TEST_COUNT if run["wire_regressions"] else 0)
             print(f"Starting run: {run['desc']} ({run_total} tests)")
-
-            # Start Mercury
-            timed_out = False
-            try:
-                if sys.platform in ["win32", "cygwin"]:
-                    proc = subprocess.Popen(
-                        [ "../bin/mercury.exe", "-c", f"./tests/conf_files/{run['conf_file']}" ],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
-                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
-                    )
-                elif sys.platform == "linux":
-                    proc = subprocess.Popen(
-                        [ "../bin/mercury", "-c", f"./tests/conf_files/{run['conf_file']}" ],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL
-                    )
-                else:
-                    print(f"Unrecognized sys.platform: {sys.platform}")
-                    raise Exception()
-
-                # Log anything piped from STDERR
-                time.sleep(0.1)
-                err_msg = ""
-                if proc.poll() is not None:
-                    _, stderr = proc.communicate()
-                    err_msg = "From Mercury:\n    " + stderr.strip().decode().replace("\n", "\n    ")
-
-                # Wait to let the program start
-                if not wait_until_live():
-                    # Timed out, kill program
-                    print(f"[Error] Server timed out when starting\n{err_msg}")
-                    timed_out = True
-            except KeyboardInterrupt as e:
-                raise e
-            except:
-                print(f"[Error] Failed to start Mercury")
-                continue
-
-            run_start_num_passing = num_passing
-            if not timed_out:
-                # Run tests
-                try:
-                    num_passing += run_tests( run["cases"], max_workers=12 )
-                except KeyboardInterrupt as e:
-                    raise e
-                except:
-                    print(f"[Error] Failed running tests")
-
-                # Run wire checks before reporting this configuration's result
-                wire_passed = None
-                if run["wire_regressions"]:
-                    wire_passed = run_wire_regressions(host, host_v6, port, ssl_port)
-                    num_passing += wire_passed
-
-                # Keep one result line; never print Passing before wire failures
-                if num_passing - run_start_num_passing == run_total:
+            backend = FastCGIBackend(run["fastcgi_transport"]) if run["fastcgi_transport"] else None
+            context = backend if backend is not None else nullcontext(f"./tests/conf_files/{run['conf_file']}")
+            with context as config_path:
+                owned_children = []
+                with mercury_process(config_path) as proc:
+                    if sys.platform in ("win32", "cygwin") and run["fastcgi_transport"] == "tcp":
+                        owned_children = psutil.Process(proc.pid).children(recursive=True)
+                        if not owned_children:
+                            raise RuntimeError("Mercury did not launch owned PHP backend")
+                    run_start = num_passing
+                    num_passing += run_tests(run["cases"], max_workers=12)
+                    wire_passed = None
+                    if run["wire_regressions"]:
+                        wire_passed = run_wire_regressions(host, host_v6, port, ssl_port)
+                        num_passing += wire_passed
+                    # Verify managed Windows PHP survives default 500-request recycle boundary
+                    if owned_children and run["reuse_cases_from"]:
+                        case = TestCase("GET", "/regression_state.php", expectedStatus=200, version="1.1", body_match="unset")
+                        for _ in range(510):
+                            if not run_single_test(case, ipv4=True, tls=False):
+                                raise RuntimeError("Managed PHP failed sustained-listener check")
                     suffix = f" (wire regressions: {wire_passed}/{WIRE_TEST_COUNT})" if wire_passed is not None else ""
-                    print("✅ Passing" + suffix)
-                elif wire_passed is not None:
-                    print(f"❌ Failing (wire regressions: {wire_passed}/{WIRE_TEST_COUNT})")
+                    print(("✅ Passing" if num_passing - run_start == run_total else "❌ Failing") + suffix)
 
-                # Allow buffer time before terminate
-                time.sleep(1)
+                # Verify owned backend exits and external backend survives Mercury shutdown
+                deadline = time.monotonic() + 5
+                while any(child.is_running() for child in owned_children) and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                if any(child.is_running() for child in owned_children):
+                    raise RuntimeError("Owned PHP backend survived Mercury shutdown")
+                if backend is not None and backend.proc is not None and backend.proc.poll() is not None:
+                    raise RuntimeError("Mercury stopped externally managed PHP backend")
 
-            # Kill Mercury
-            try:
-                if proc is not None:
-                    if sys.platform in ["win32", "cygwin"]:
-                        proc.send_signal(signal.CTRL_BREAK_EVENT)
-                    elif sys.platform == "linux":
-                        proc.send_signal(signal.SIGINT)
-                    proc.wait(timeout=15)
-            except:
-                print(f"[Error] Failed to kill Mercury, aborting remaining tests...")
-                break
+        # Run Linux ownership checks only after HTTP fixtures release server ports
+        # Use same interpreter and propagate failures into overall suite result
+        ownership_ok = True
+        if sys.platform == "linux":
+            print("=" * 80, flush=True)
+            ownership_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_fastcgi_backend.py")
+            ownership_ok = subprocess.run([sys.executable, ownership_script, "--mercury-output"]).returncode == 0
 
-        # Print divider
         print("=" * 80)
-
-        # Print result
-        print("✅ Success" if num_passing == num_total else "❌ Failure")
+        success = num_passing == num_total and ownership_ok
+        print("✅ Success" if success else "❌ Failure")
         print(f"Passing: {num_passing}/{num_total}")
+        sys.exit(0 if success else 1)
     except KeyboardInterrupt:
-        # Kill any processes of Mercury
         print("Aborting tests...")
-
-        if proc is not None:
-            if sys.platform in ["win32", "cygwin"]:
-                proc.send_signal(signal.CTRL_BREAK_EVENT)
-            elif sys.platform == "linux":
-                proc.send_signal(signal.SIGINT)
-            proc.wait(timeout=15)
-            print("Killed Mercury")
-
-        exit(1)
-
-    # Exit with status
-    exit(0 if num_passing == num_total else 1)
+        sys.exit(1)
+    except Exception as error:
+        print(f"[Error] {error}")
+        sys.exit(1)

@@ -9,7 +9,7 @@
 
 ## Quick Overview
 Mercury is a standalone C++20 web server engineered for low memory utilization (~9MB idle on Linux) with sub-millisecond static response times.
-Features: HTTP/1.1 (w/ HTTP/1.0 & 0.9 compatibility), TLS 1.3 (OpenSSL), streaming compression (Brotli, Zstandard, Gzip, Deflate), RFC 3875 Fast CGI (PHP), IP access control, regex URL rewriting, and HTTP redirects.
+Features: HTTP/1.1 (w/ HTTP/1.0 & 0.9 compatibility), TLS 1.3 (OpenSSL), streaming compression (Brotli, Zstandard, Gzip, Deflate), FastCGI / PHP-FPM & RFC 3875 CGI (PHP), IP access control, regex URL rewriting, and HTTP redirects.
 
 ## Downloading Pre-compiled Releases
 Pre-compiled 64-bit binaries are available on GitHub Releases:

@@ -179,6 +179,15 @@ Mercury implements a pluggable stream-based compression architecture via [`IComp
 Mercury provides dual execution strategies for dynamic PHP execution: persistent FastCGI (recommended for high throughput) and legacy CGI fork-and-exec.
 
 ### Persistent FastCGI Client (`src/http/fastcgi/`)
+On Linux, `Backend` starts a private PHP-FPM pool for omitted/`auto` addresses
+only, after Mercury drops sudo/doas privileges. It selects a versioned FPM
+executable, spawns a foreground master in an owned process group, and waits for
+its private Unix socket before accepting requests. The pool inherits Mercury's
+runtime identity and uses a mode-0600 socket within a mode-0700 temporary
+directory. Shutdown terminates/reaps the owned master and removes runtime files.
+Explicit endpoints remain externally managed. Failed automatic startup stays
+bound to the private endpoint, so it cannot silently use an unrelated system pool.
+
 When `<EnableFastCGI> on </EnableFastCGI>` is set, requests for `.php` files are dispatched directly over network sockets to a persistent FastCGI daemon (such as PHP-FPM or `php-cgi -b`):
 
 - **Binary Wire Protocol (`protocol.hpp`)**:

@@ -500,11 +500,11 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
         #else // Linux specific
             std::string command;
             if (std::system("command -v apt-get >/dev/null 2>&1") == 0) {
-                command = "sudo apt-get update -y >/dev/null && sudo apt-get install php-cgi -y";
+                command = "sudo apt-get update -y >/dev/null && sudo apt-get install php-cgi php-fpm -y";
             } else if (std::system("command -v pacman >/dev/null 2>&1") == 0) {
-                command = "sudo pacman --noconfirm -Syu >/dev/null && sudo pacman --noconfirm -S php-cgi";
+                command = "sudo pacman --noconfirm -Syu >/dev/null && sudo pacman --noconfirm -S php-cgi php-fpm";
             } else if (std::system("command -v dnf >/dev/null 2>&1") == 0) {
-                command = "sudo dnf makecache -y >/dev/null && sudo dnf install -y php-cgi";
+                command = "sudo dnf makecache -y >/dev/null && sudo dnf install -y php-cgi php-fpm";
             }
 
             int rc = 1;

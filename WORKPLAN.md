@@ -15,7 +15,7 @@ Transition Mercury's dynamic PHP processing from traditional RFC 3875 process-pe
 
 ## 2. Technical Architecture & Protocol Framing
 
-Mercury will act strictly as a **FastCGI Client (Gateway)**. PHP-FPM will operate externally as the service daemon.
+Mercury acts as a **FastCGI Client (Gateway)**. On Linux, omitted/`auto` addresses launch a Mercury-owned PHP-FPM pool under its runtime user. Explicit addresses use external services.
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -154,7 +154,7 @@ FastCGI encodes key and value lengths compactly:
     - `dnf`: `php-fpm`.
 - [x] **Multi-Distro Docker Container Harness (`docker/entrypoint.sh`)**:
   - Install `php-fpm` across Ubuntu, Debian, Arch, and Fedora containers.
-  - Automatically start the `php-fpm` daemon before running `tests/run.py`.
+  - Let `tests/run.py` start and stop isolated foreground PHP-FPM fixtures.
 
 ---
 
@@ -172,7 +172,7 @@ FastCGI encodes key and value lengths compactly:
 - [x] **Windows Verification**:
   - Verified clean cross-compilation with MinGW-w64 (`DEBUG=1 make windows`).
 - [x] **Regression Suite & JSON Cases**:
-  - Added `tests/conf_files/fastcgi-error.conf`.
+  - Added dynamically generated unavailable-backend configuration via `tests/fastcgi_backend.py`.
   - Added FastCGI test run in `tests/tests.json` for 502/404/static handling.
 - [x] **Documentation**:
   - Documented configuration directives in `CONFIG.md`.
@@ -195,16 +195,16 @@ FastCGI encodes key and value lengths compactly:
 | `src/http/fastcgi/client.cpp` | Request transmission, STDOUT/STDERR demuxing, response header parsing, auto-discovery. | Completed |
 | `tests/test_fastcgi_protocol.cpp` | Unit test suite for wire framing, parameters, and padding. | Completed |
 | `tests/test_fastcgi_client.cpp` | Unit test suite for transport client, endpoint parsing, and mock transactions. | Completed |
-| `src/conf/conf.hpp` | Add `IS_FASTCGI_ENABLED`, `FASTCGI_ADDRESS`, `FASTCGI_TIMEOUT` variables. | Pending |
-| `src/conf/conf.cpp` | Add parsing logic for `<EnableFastCGI>`, `<FastCGIAddress>`, `<FastCGITimeout>`. | Pending |
-| `src/http/version/handler_1_1.cpp` | Route PHP requests to FastCGI handler before falling back to legacy CGI. | Pending |
-| `src/http/version/handler_1_0.cpp` | Route PHP requests to FastCGI handler before falling back to legacy CGI. | Pending |
-| `conf/mercury.conf` | Document FastCGI directives with default settings. | Pending |
-| `conf/setup_php.ps1` | Configure OPcache in `php.ini` and add FastCGI launch option for Windows. | Pending |
-| `build_tools/install_deps.sh` | Add `php-fpm` package installation across apt, pacman, and dnf. | Pending |
-| `docker/entrypoint.sh` | Install and initialize `php-fpm` daemon inside multi-distro test containers. | Pending |
-| `tests/run.py` | Add automated FastCGI backend lifecycle management (start/stop) during test runs. | Pending |
-| `tests/regressions.py` | Add FastCGI regression cases (GET, POST, headers, errors). | Pending |
+| `src/conf/conf.hpp` | Add `IS_FASTCGI_ENABLED`, `FASTCGI_ADDRESS`, `FASTCGI_TIMEOUT` variables. | Completed |
+| `src/conf/conf.cpp` | Add parsing logic for `<EnableFastCGI>`, `<FastCGIAddress>`, `<FastCGITimeout>`. | Completed |
+| `src/http/version/handler_1_1.cpp` | Route PHP requests to FastCGI handler before falling back to legacy CGI. | Completed |
+| `src/http/version/handler_1_0.cpp` | Route PHP requests to FastCGI handler before falling back to legacy CGI. | Completed |
+| `conf/mercury.conf` | Document FastCGI directives with default settings. | Completed |
+| `conf/setup_php.ps1` | Configure OPcache in `php.ini` and add FastCGI launch option for Windows. | Completed |
+| `build_tools/install_deps.sh` | Add `php-fpm` package installation across apt, pacman, and dnf. | Completed |
+| `docker/entrypoint.sh` | Install and initialize `php-fpm` daemon inside multi-distro test containers. | Completed |
+| `tests/run.py` | Add automated FastCGI backend lifecycle management (start/stop) during test runs. | Completed |
+| `tests/regressions.py` | Replay shared regressions via real FastCGI backends; expand multi-record binary payload coverage. | Completed |
 | `Makefile` | Ensure `src/http/fastcgi/*.cpp` files are included in build rules. | Completed (automatic discovery) |
 
 ---
@@ -218,3 +218,29 @@ FastCGI encodes key and value lengths compactly:
 | **Platform Incompatibilities** | Windows does not natively support UNIX domain sockets in older environments. | Support TCP loopback (`127.0.0.1:9000`) universally across both Windows and Linux; enable UNIX domain sockets conditionally on POSIX systems. |
 | **Backward Compatibility** | Existing setups rely on `php-cgi` without external FPM daemon. | Retain existing `EnablePHPCGI` implementation as fallback; FastCGI is an opt-in toggle (`EnableFastCGI`). |
 
+
+## 6. Backend Startup & Integration Coverage (2026-10-23)
+
+- Windows automatically reuses a local IPv4 listener or launches the configured
+  `WinPHPCGIPath` with `-b`, waits for readiness, and owns it through a Windows
+  job with kill-on-close. Externally started listeners remain untouched.
+- Linux omitted/`auto` addresses start a private same-user PHP-FPM pool after
+  sudo/doas privilege dropping. Mercury owns its process group, temporary config,
+  and mode-0600 socket in a mode-0700 directory and cleans up on shutdown.
+  Explicit addresses remain externally managed, including system FPM pools.
+- Traditional CGI tests remain enabled. Added isolated FastCGI TCP, Linux Unix
+  socket, and Windows external-listener runs that share normal JSON cases and
+  wire regressions with CGI disabled, plus 502/504 checks.
+- The integration harness generates unavailable-backend configuration dynamically;
+  no fixed `fastcgi-error.conf` is required. Linux CI installs PHP-FPM, and Docker
+  delegates fixture lifecycle to the test runner.
+- HTTP/1.0 and HTTP/0.9 continue to forbid PHP execution, matching legacy CGI.
+
+### Linux Automatic Pool Verification
+
+`python3 tests/run.py` includes Linux ownership checks after shared HTTP runs.
+The ownership suite checks omitted/auto startup, PHP reads
+from an owner-only document root, runtime identity, process/socket cleanup,
+explicit backend reuse, disabled FastCGI, and failed startup without system-pool
+fallback. Ownership tests require a non-root Linux account; direct-root startup
+is separately checked to ensure PHP-FPM is not launched as root.

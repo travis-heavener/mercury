@@ -28,7 +28,7 @@ jobs:
       - name: Install Deps
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: php-cgi python3-zstandard python3-brotli python3-psutil
+          packages: php-cgi php-fpm python3-zstandard python3-brotli python3-psutil
           version: 1.0
 
       # Make TLS cert
@@ -43,7 +43,7 @@ jobs:
             -nodes \
             -subj "/C=XX/ST=New York/L=NYC/O=The Mercury Project/OU=GitHub Action Runner/CN=The Mercury Developers"
 
-      # run.py includes JSON cases and wire regressions.
+      # run.py includes JSON cases, wire regressions, and Linux PHP-FPM ownership checks
       - name: Python Test Runner
         run: python3 tests/run.py
 

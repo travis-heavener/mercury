@@ -349,6 +349,56 @@
                     { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 200, "headers": {"Accept-Encoding": "deflate"}, "expectedHeaders": {"Content-Encoding": false} },
                     { "method": "GET", "path": "/redirect_to/foo.txt", "expectedStatus": 200, "headers": {"Accept-Encoding": "foobar"}, "expectedHeaders": {"Content-Encoding": false} }
                 ]
+            },
+            {
+                "desc": "Test PHP response metadata and request isolation",
+                "versions": [ "1.1" ],
+                "cases": [
+                    {
+                        "method": "GET",
+                        "path": "/regression_response.php",
+                        "expectedStatus": 201,
+                        "expectedHeaders": {
+                            "Content-Type": "text/plain; charset=UTF-8",
+                            "X-PHP-Test": "present"
+                        },
+                        "expectedBody": "created"
+                    },
+                    {
+                        "method": "HEAD",
+                        "path": "/regression_response.php",
+                        "expectedStatus": 201,
+                        "expectedHeaders": {
+                            "X-PHP-Test": "present"
+                        }
+                    },
+                    {
+                        "method": "GET",
+                        "path": "/regression_response.php?redirect=1",
+                        "expectedStatus": 302,
+                        "expectedHeaders": {
+                            "Location": "/small.txt"
+                        }
+                    },
+                    {
+                        "method": "GET",
+                        "path": "/regression_response.php?empty=1",
+                        "expectedStatus": 204,
+                        "expectedBody": ""
+                    },
+                    {
+                        "method": "GET",
+                        "path": "/regression_state.php?set=one",
+                        "expectedStatus": 200,
+                        "expectedBody": "one"
+                    },
+                    {
+                        "method": "GET",
+                        "path": "/regression_state.php",
+                        "expectedStatus": 200,
+                        "expectedBody": "unset"
+                    }
+                ]
             }
         ]
     },
@@ -589,6 +639,62 @@
                     { "comments": "Content-Length counts UTF-8 bytes, not characters.", "method": "POST", "path": "/body_tests/raw.php", "body": "caf\u00e9 \u2603", "expectedStatus": 200, "expectedBody": "caf\u00e9 \u2603" },
                     { "comments": "A request-looking body remains payload rather than another request.", "method": "POST", "path": "/body_tests/raw.php", "body": "prefix\r\n\r\nGET /private/file.txt HTTP/1.1\r\nHost: localhost\r\n\r\n", "expectedStatus": 200, "expectedBody": "prefix\r\n\r\nGET /private/file.txt HTTP/1.1\r\nHost: localhost\r\n\r\n" },
                     { "comments": "Boolean expectations check header presence without selecting a decoder.", "method": "GET", "path": "/index.html", "headers": { "Accept-Encoding": "gzip" }, "expectedStatus": 200, "expectedHeaders": { "Content-Encoding": true } }
+                ]
+            }
+        ]
+    },
+    {
+        "desc": "FastCGI TCP (FPM on Linux, Mercury-owned PHP on Windows)",
+        "confFile": "regressions.conf",
+        "fastcgiTransport": "tcp",
+        "reuseCasesFrom": "normal.conf",
+        "wireRegressions": true,
+        "cases": []
+    },
+    {
+        "desc": "PHP-FPM Unix socket",
+        "confFile": "regressions.conf",
+        "fastcgiTransport": "unix",
+        "reuseCasesFrom": "normal.conf",
+        "wireRegressions": true,
+        "cases": [],
+        "platforms": [ "linux" ]
+    },
+    {
+        "desc": "FastCGI Windows existing listener",
+        "confFile": "regressions.conf",
+        "fastcgiTransport": "external",
+        "reuseCasesFrom": "normal.conf",
+        "wireRegressions": true,
+        "cases": [],
+        "platforms": [ "win32", "cygwin" ]
+    },
+    {
+        "desc": "FastCGI unavailable backend (no CGI fallback)",
+        "confFile": "regressions.conf",
+        "fastcgiTransport": "unavailable",
+        "cases": [
+            {
+                "desc": "Preserve gateway failure and static routing",
+                "versions": [ "1.1" ],
+                "cases": [
+                    { "method": "GET", "path": "/index.php", "expectedStatus": 502 },
+                    { "method": "GET", "path": "/small.txt", "expectedStatus": 200, "expectedBody": "HELLO WORLD" },
+                    { "method": "GET", "path": "/missing.php", "expectedStatus": 404 }
+                ]
+            }
+        ]
+    },
+    {
+        "desc": "FastCGI timeout handling",
+        "confFile": "regressions.conf",
+        "fastcgiTransport": "tcp",
+        "cases": [
+            {
+                "desc": "Return gateway timeout for slow PHP",
+                "versions": [ "1.1" ],
+                "cases": [
+                    { "method": "GET", "path": "/regression_delay.php", "expectedStatus": 504 }
                 ]
             }
         ]

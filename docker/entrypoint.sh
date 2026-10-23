@@ -43,14 +43,6 @@ case "$PKG_MGR" in
         ;;
 esac
 
-# Start PHP-FPM service if available
-for fpm in $(find /usr/sbin /usr/bin -name 'php-fpm*' 2>/dev/null); do
-    if [ -x "$fpm" ]; then
-        "$fpm" -D 2>/dev/null || true
-        break
-    fi
-done
-
 # Run tests
 set +e
 output=$(python3 ../tests/run.py 2>&1)

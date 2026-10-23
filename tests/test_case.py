@@ -325,7 +325,15 @@ def load_runs() -> list[TestCase]:
             "desc": run["desc"],
             "conf_file": run["confFile"],
             "wire_regressions": run.get("wireRegressions", False),
+            "fastcgi_transport": run.get("fastcgiTransport"),
+            "platforms": run.get("platforms"),
+            "reuse_cases_from": run.get("reuseCasesFrom"),
             "cases": cases
         })
+
+    for run in runs:
+        if run["reuse_cases_from"]:
+            source = next(item for item in runs if item["conf_file"] == run["reuse_cases_from"] and not item["fastcgi_transport"])
+            run["cases"] = source["cases"] + run["cases"]
 
     return runs

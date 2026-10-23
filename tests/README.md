@@ -9,7 +9,7 @@ cases in `regressions.py`. On Windows, use `python tests/run.py`. Run without
 Build Mercury using the repository build instructions. The runner expects
 `bin/mercury` on Linux or `bin/mercury.exe` on Windows. Install the Python
 packages `brotli`, `zstandard`, and `psutil` in the interpreter running the suite.
-PHP CGI is required for the full suite: `php-cgi` must be on PATH on Linux;
+PHP CGI and PHP-FPM (Linux) are required for the full suite: `php-cgi` must be on PATH on Linux;
 on Windows, use `conf/setup_php.ps1` as shown in the Windows test workflow.
 
 Copy `conf/default/mimes.conf` to `conf/mimes.conf` if needed, create `logs/`
@@ -24,8 +24,23 @@ for each run configuration. It needs IPv4 and IPv6 loopback and free ports
 command above works from the repository root. A successful run ends with
 `Success` and matching passing/total counts; inspect failures above that summary.
 
-Both platform workflows already invoke `tests/run.py`, so adding JSON cases
-requires no workflow changes or separate CI job.
+The Linux workflow installs `php-fpm` alongside `php-cgi`. The runner starts a
+private foreground FPM pool for each FastCGI run, on an ephemeral TCP port or a
+temporary Unix socket, and stops only those fixture processes. It does not use
+or alter system FPM services. Linux runs require permission to create Unix
+sockets; a missing FPM installation or failed fixture startup fails the suite.
+When run as root (for example, Docker), fixture workers run as `nobody`; ensure
+the checkout is readable and traversable by that user.
+
+Windows runs test both Mercury's automatic PHP launch and reuse of an existing
+fixture listener, and verify ownership on shutdown. Unix-socket runs are Linux
+only. Traditional CGI runs remain enabled.
+
+FastCGI runs reuse the normal JSON cases and wire regressions with CGI disabled,
+covering routing, PATH_INFO, query strings, forms, PHP headers/status, binary
+payloads exceeding two FastCGI records, pipelining, and concurrent requests.
+Separate runs verify unavailable backends (502, with both CGI and FastCGI enabled
+to ensure failure does not fall back to CGI) and slow PHP (504).
 
 ## JSON structure and attributes
 
@@ -41,6 +56,9 @@ Use ordinary JSON: quoted keys, no trailing commas, and no `//` comments.
 | `confFile` | Required string | Filename under `tests/conf_files/`; selects server features and limits for all cases in the run. |
 | `cases` | Required array | Groups to expand and execute. |
 | `wireRegressions` | Optional boolean, `false` | Also runs `regressions.py` after JSON cases. Keep enabled on the existing `regressions.conf` run: wire cases depend on its access rules, CGI, redirects, limits, and fixtures. |
+| `fastcgiTransport` | Optional string | Create isolated backend/config: `tcp` (FPM on Linux, Mercury-owned PHP on Windows), `unix` (Linux FPM), `external` (Windows fixture listener), or `unavailable` (reserved, non-listening loopback endpoint). Config derives from `regressions.conf`, with FastCGI on and CGI off, except `unavailable`, which enables both to check precedence. |
+| `platforms` | Optional string array | Include run only on listed `sys.platform` values; excluded runs are omitted from totals. |
+| `reuseCasesFrom` | Optional config filename | Prepend cases from an existing non-FastCGI run, then append this run's own cases. Use `normal.conf` to share assertions without copying them. |
 
 ### Group attributes
 
@@ -174,3 +192,27 @@ accepting `connect` and register it in `WIRE_TESTS`. Its four-transport count
 is calculated automatically. Preserve bounded timeouts and deterministic
 assertions. Prefer JSON for ordinary request/response cases to keep the suite
 simple.
+
+## Linux automatic PHP-FPM ownership
+
+`python3 tests/run.py` automatically runs these checks on Linux after all shared
+CGI/FastCGI HTTP fixtures have stopped. Windows keeps its existing FastCGI startup
+and ownership checks within the HTTP runs. Use this single command locally and
+in CI; no separate ownership-test command is required.
+
+Run as your normal development user to exercise real Linux automatic pool
+ownership. For focused debugging only, the standalone command remains available:
+`python3 tests/test_fastcgi_backend.py`.
+
+Linux ownership-test failures make the overall runner exit unsuccessfully, even
+when HTTP cases pass. The final passing/total count covers HTTP slots and wire
+groups; ownership checks print their own run label and compact passing/failing
+result, including skipped counts. Failures retain individual test tracebacks.
+The focused standalone command keeps standard unittest output.
+
+These checks cover omitted and `auto` addresses, PHP access to an owner-only
+document root, inherited worker identity, private socket permissions, shutdown
+cleanup, explicit external backend reuse, disabled FastCGI, and failed startup
+without falling back to a system pool. Direct-root runs skip unprivileged
+ownership cases and verify that automatic startup does not create root PHP
+workers. Existing explicit TCP/Unix fixtures continue to test external backends.

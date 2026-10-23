@@ -673,7 +673,7 @@ namespace conf {
             return CONF_FAILURE;
 
         #ifdef _WIN32
-            if (IS_PHP_ENABLED && loadPath(root, PHP_CGI_EXE_PATH, "WinPHPCGIPath", false, "./php/php-cgi.exe") == CONF_FAILURE)
+            if ((IS_PHP_ENABLED || IS_FASTCGI_ENABLED) && loadPath(root, PHP_CGI_EXE_PATH, "WinPHPCGIPath", false, "./php/php-cgi.exe") == CONF_FAILURE)
                 return CONF_FAILURE;
         #endif
 
