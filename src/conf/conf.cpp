@@ -11,6 +11,7 @@
     #include "../winheader.hpp"
 #endif
 
+#include "../http/fastcgi/client.hpp"
 #include "../io/file_tools.hpp"
 #include "../util/privilege.hpp"
 #include "../util/string_tools.hpp"
@@ -62,6 +63,10 @@ namespace conf {
         std::filesystem::path PHP_CGI_EXE_PATH;
     #endif
 
+    bool IS_FASTCGI_ENABLED;
+    std::string FASTCGI_ADDRESS;
+    unsigned int FASTCGI_TIMEOUT;
+
     bool SHOW_WELCOME_BANNER;
     bool SHOW_DONATION_BANNER;
     bool CHECK_LATEST_RELEASE;
@@ -80,7 +85,7 @@ namespace conf {
 
     const std::vector<std::string> mercuryNodeNames = {
         "DocumentRoot", "BindAddressIPv4", "BindAddressIPv6", "Port", "TLSPort", "Redirect", "Rewrite",
-        "AccessLogFile", "ErrorLogFile", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "WinPHPCGIPath", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
+        "AccessLogFile", "ErrorLogFile", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "WinPHPCGIPath", "EnableFastCGI", "FastCGIAddress", "FastCGITimeout", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
         "MinResponseCompressionSize", "IdleThreadsPerChild", "MaxThreadsPerChild", "ShowWelcomeBanner", "ShowDonationBanner", "StartupCheckLatestRelease"
@@ -118,6 +123,7 @@ namespace conf {
     int loadTempFileDirectory();
     int loadClientSecurityMode(const pugi::xml_node& root, int& var, const int defaultMode=CLIENT_SEC_GPC_MASKED);
     int loadClientSecurityIPSalt(const pugi::xml_node& root, std::string& var, const std::string& defaultSalt="fAhGD0OnCe4YhSyx");
+    int loadFastCGIAddress(const pugi::xml_node& root, std::string& var);
 
     // Loads the directory of the running executable to path
     // Returns true if successful or false otherwise
@@ -570,6 +576,15 @@ namespace conf {
         if (loadOnOff(root, IS_PHP_ENABLED, "EnablePHPCGI", false) == CONF_FAILURE)
             return CONF_FAILURE;
 
+        if (loadOnOff(root, IS_FASTCGI_ENABLED, "EnableFastCGI", false) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadFastCGIAddress(root, FASTCGI_ADDRESS) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, FASTCGI_TIMEOUT, "FastCGITimeout", 10, LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
+            return CONF_FAILURE;
+
         if (loadOnOff(root, IS_KEEP_ALIVE_ENABLED, "KeepAlive", true) == CONF_FAILURE)
             return CONF_FAILURE;
 
@@ -771,6 +786,11 @@ namespace conf {
         matchConfigs.clear();
         rewriteRules.clear();
         redirectRules.clear();
+
+        // Reset FastCGI settings
+        IS_FASTCGI_ENABLED = false;
+        FASTCGI_ADDRESS = "auto";
+        FASTCGI_TIMEOUT = 10;
 
         // Remove any stray temp files under lock
         std::unordered_set<std::string> remainingTempFiles;
@@ -1173,6 +1193,32 @@ namespace conf {
         }
 
         // Base case
+        var = valueStr;
+        return CONF_SUCCESS;
+    }
+
+    int loadFastCGIAddress(const pugi::xml_node& root, std::string& var) {
+        pugi::xml_node node = root.child("FastCGIAddress");
+        if (!node) {
+            var = "auto";
+            return CONF_SUCCESS;
+        }
+
+        std::string valueStr = node.text().as_string();
+        trimString(valueStr);
+
+        if (valueStr.empty() || valueStr == "auto") {
+            var = "auto";
+            return CONF_SUCCESS;
+        }
+
+        // Validate address syntax via Endpoint::parse
+        http::fastcgi::Endpoint endpoint;
+        if (!http::fastcgi::Endpoint::parse(valueStr, endpoint)) {
+            std::cerr << "Failed to parse config file, invalid FastCGIAddress: " << valueStr << std::endl;
+            return CONF_FAILURE;
+        }
+
         var = valueStr;
         return CONF_SUCCESS;
     }

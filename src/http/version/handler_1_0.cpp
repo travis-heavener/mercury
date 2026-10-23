@@ -113,7 +113,7 @@ namespace http::version::handler_1_0 {
             return pResponse;
 
         // Prevent returning static PHP files over legacy HTTP protocols
-        if (conf::IS_PHP_ENABLED && file.absoluteResourcePath.ends_with(".php")) {
+        if ((conf::IS_PHP_ENABLED || conf::IS_FASTCGI_ENABLED) && file.absoluteResourcePath.ends_with(".php")) {
             pResponse->setStatus(403);
             return pResponse;
         }

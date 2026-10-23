@@ -305,6 +305,160 @@ void testConnectionFailure() {
 
     std::cout << "[PASS] Error handling on connection failure (502 Bad Gateway)" << std::endl;
 }
+
+// Test POST request with body and STDIN payload streaming
+void testPostRequestWithBody() {
+    int listener = socket(AF_INET, SOCK_STREAM, 0);
+    assert(listener >= 0);
+
+    int opt = 1;
+    setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    struct sockaddr_in sin = {};
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    sin.sin_port = 0;
+    assert(bind(listener, reinterpret_cast<struct sockaddr*>(&sin), sizeof(sin)) == 0);
+    assert(listen(listener, 1) == 0);
+
+    socklen_t sinLen = sizeof(sin);
+    assert(getsockname(listener, reinterpret_cast<struct sockaddr*>(&sin), &sinLen) == 0);
+    uint16_t mockPort = ntohs(sin.sin_port);
+
+    const std::string postBody = "username=mercury_user&action=upload&data=xyz123";
+
+    std::thread serverThread([listener, postBody]() {
+        int client = accept(listener, nullptr, nullptr);
+        assert(client >= 0);
+
+        // Read FCGI_BEGIN_REQUEST
+        FCGI_BeginRequestRecord beginRec;
+        assert(mockRecvExact(client, &beginRec, sizeof(beginRec)));
+
+        // Read records until STDIN terminates
+        bool stdinDone = false;
+        std::string capturedStdin;
+        while (!stdinDone) {
+            FCGI_Header head;
+            assert(mockRecvExact(client, &head, sizeof(head)));
+            uint16_t cl = getContentLength(head);
+            uint8_t pl = head.paddingLength;
+
+            std::vector<uint8_t> payload(cl + pl);
+            if (cl + pl > 0)
+                assert(mockRecvExact(client, payload.data(), cl + pl));
+
+            if (head.type == FCGI_STDIN) {
+                if (cl == 0)
+                    stdinDone = true;
+                else
+                    capturedStdin.append(reinterpret_cast<char*>(payload.data()), cl);
+            }
+        }
+
+        // Verify captured STDIN matches expected post body
+        assert(capturedStdin == postBody);
+
+        // Send response: FCGI_STDOUT
+        std::string cgiOutput = "Status: 200 OK\r\nContent-Type: text/plain\r\n\r\nReceived " + std::to_string(capturedStdin.size()) + " bytes";
+        uint8_t stdoutPadding = calculatePadding(cgiOutput.size());
+        FCGI_Header stdoutHeader = makeHeader(FCGI_STDOUT, 1, static_cast<uint16_t>(cgiOutput.size()), stdoutPadding);
+        assert(mockSendAll(client, &stdoutHeader, sizeof(stdoutHeader)));
+        assert(mockSendAll(client, cgiOutput.data(), cgiOutput.size()));
+        if (stdoutPadding > 0) {
+            uint8_t pad[8] = {0};
+            assert(mockSendAll(client, pad, stdoutPadding));
+        }
+
+        // Send empty FCGI_STDOUT terminator
+        FCGI_Header stdoutTerm = makeHeader(FCGI_STDOUT, 1, 0, 0);
+        assert(mockSendAll(client, &stdoutTerm, sizeof(stdoutTerm)));
+
+        // Send FCGI_END_REQUEST
+        FCGI_EndRequestRecord endRec = makeEndRequestRecord(1, 0, FCGI_REQUEST_COMPLETE);
+        assert(mockSendAll(client, &endRec, sizeof(endRec)));
+
+        close(client);
+        close(listener);
+    });
+
+    Endpoint endpoint;
+    endpoint.type = TransportType::TCP;
+    endpoint.host = "127.0.0.1";
+    endpoint.port = mockPort;
+
+    Client client(5);
+    assert(client.connect(endpoint));
+
+    ParamEncoder params;
+    params.add("REQUEST_METHOD", "POST");
+    params.add("CONTENT_LENGTH", std::to_string(postBody.size()));
+    params.add("CONTENT_TYPE", "application/x-www-form-urlencoded");
+    assert(client.sendRequest(1, params, postBody));
+
+    http::Response res("HTTP/1.1");
+    assert(client.receiveResponse(1, res));
+
+    serverThread.join();
+
+    assert(res.getStatus() == 200);
+    assert(res.getContentType() == "text/plain");
+
+    std::cout << "[PASS] POST request with body and STDIN payload streaming" << std::endl;
+}
+
+// Test timeout handling on stalled backend (504 Gateway Timeout)
+void testTimeout504() {
+    int listener = socket(AF_INET, SOCK_STREAM, 0);
+    assert(listener >= 0);
+
+    int opt = 1;
+    setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    struct sockaddr_in sin = {};
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    sin.sin_port = 0;
+    assert(bind(listener, reinterpret_cast<struct sockaddr*>(&sin), sizeof(sin)) == 0);
+    assert(listen(listener, 1) == 0);
+
+    socklen_t sinLen = sizeof(sin);
+    assert(getsockname(listener, reinterpret_cast<struct sockaddr*>(&sin), &sinLen) == 0);
+    uint16_t mockPort = ntohs(sin.sin_port);
+
+    std::thread serverThread([listener]() {
+        int client = accept(listener, nullptr, nullptr);
+        assert(client >= 0);
+
+        // Sleep without sending response to simulate hanging FastCGI daemon
+        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+
+        close(client);
+        close(listener);
+    });
+
+    Endpoint endpoint;
+    endpoint.type = TransportType::TCP;
+    endpoint.host = "127.0.0.1";
+    endpoint.port = mockPort;
+
+    // Use 1-second timeout
+    Client client(1);
+    assert(client.connect(endpoint));
+
+    ParamEncoder params;
+    params.add("REQUEST_METHOD", "GET");
+    assert(client.sendRequest(1, params, ""));
+
+    http::Response res("HTTP/1.1");
+    bool ok = client.receiveResponse(1, res);
+    assert(!ok);
+    assert(res.getStatus() == 504);
+
+    serverThread.join();
+
+    std::cout << "[PASS] Timeout handling on stalled backend (504 Gateway Timeout)" << std::endl;
+}
 #endif
 
 int main() {
@@ -316,8 +470,10 @@ int main() {
     #ifndef _WIN32
         testMockFastCGITransaction();
         testConnectionFailure();
+        testPostRequestWithBody();
+        testTimeout504();
     #endif
 
-    std::cout << "\nAll FastCGI Phase 2 unit tests PASSED!" << std::endl;
+    std::cout << "\nAll FastCGI Phase 2 & 7 unit tests PASSED!" << std::endl;
     return 0;
 }

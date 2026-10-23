@@ -1,6 +1,11 @@
 # Changelog
 
 ## [0.37.0] - 2026-10-23
+- Added: persistent FastCGI gateway client supporting PHP-FPM UNIX domain sockets and TCP loopback
+- Added: configuration directives `<EnableFastCGI>`, `<FastCGIAddress>`, and `<FastCGITimeout>`
+- Added: zero-configuration auto-detection of newest installed PHP-FPM daemon on Linux
+- Added: zero-disk memory streaming for FastCGI request bodies and response payloads via `MemoryStream`
+- Added: OPcache automation and FastCGI launch script generator in `conf/setup_php.ps1`
 - Added: `php:init` alias to `phpinit` console command
 
 ## [0.36.0] - 2026-10-22

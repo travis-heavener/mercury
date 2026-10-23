@@ -22,19 +22,19 @@ case "$PKG_MGR" in
         DEBIAN_FRONTEND=noninteractive apt-get update 1>/dev/null
         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             python3 python3-brotli python3-zstandard python3-psutil \
-            php-cgi 1>/dev/null
+            php-cgi php-fpm 1>/dev/null
         ;;
     pacman)
         pacman -Syu --noconfirm 1>/dev/null
         pacman -S --noconfirm \
             python python-brotli python-zstandard python-psutil \
-            php-cgi 1>/dev/null
+            php-cgi php-fpm 1>/dev/null
         ;;
     dnf)
         dnf makecache -y &>/dev/null
         dnf install -y \
             python3 python3-pip \
-            php-cgi &>/dev/null
+            php-cgi php-fpm &>/dev/null
         python3 -m pip install brotli zstandard psutil &>/dev/null
         ;;
     *)
@@ -42,6 +42,14 @@ case "$PKG_MGR" in
         exit 1
         ;;
 esac
+
+# Start PHP-FPM service if available
+for fpm in $(find /usr/sbin /usr/bin -name 'php-fpm*' 2>/dev/null); do
+    if [ -x "$fpm" ]; then
+        "$fpm" -D 2>/dev/null || true
+        break
+    fi
+done
 
 # Run tests
 set +e

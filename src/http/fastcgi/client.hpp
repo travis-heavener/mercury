@@ -82,6 +82,9 @@ namespace http::fastcgi {
             // Check if connection is open
             bool isConnected() const;
 
+            // Check if last operation timed out
+            bool didTimeout() const;
+
         private:
             // Low-level socket I/O helpers w/ timeout
             bool sendAll(const void* pData, size_t length);
@@ -90,6 +93,7 @@ namespace http::fastcgi {
 
             socket_t sock = FASTCGI_INVALID_SOCKET;
             int timeoutSeconds;
+            bool hasTimedOut = false;
     };
 
     // Used to detect default PHP FastCGI address, selecting highest PHP version on system

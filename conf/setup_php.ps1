@@ -35,10 +35,20 @@ if (-not (Test-Path -Path "tmp" -PathType Container)) {
     New-Item -Path "tmp" -ItemType Directory
 }
 
-# Update tmp directory
+# Update tmp directory and enable OPcache
 $tmpPath = [IO.Path]::GetFullPath( (Resolve-Path (Join-Path $PSScriptRoot "../tmp")).ProviderPath )
 $content = Get-Content php/php.ini -Raw
 $content = [System.Text.RegularExpressions.Regex]::Replace($content, ';upload_tmp_dir\s*=.*', "upload_tmp_dir = $tmpPath")
+$content = [System.Text.RegularExpressions.Regex]::Replace($content, ';zend_extension\s*=\s*opcache', 'zend_extension=opcache')
+$content = [System.Text.RegularExpressions.Regex]::Replace($content, ';opcache\.enable\s*=\s*1', 'opcache.enable=1')
+$content = [System.Text.RegularExpressions.Regex]::Replace($content, ';opcache\.enable_cli\s*=\s*0', 'opcache.enable_cli=1')
 Set-Content -Path php/php.ini -Value $content
+
+# Generate FastCGI launch script for Windows
+$fastcgiBat = "@echo off`r`necho Starting PHP FastCGI server on 127.0.0.1:9000...`r`n`"%~dp0php-cgi.exe`" -b 127.0.0.1:9000`r`n"
+Set-Content -Path php/start_fastcgi.bat -Value $fastcgiBat
+
+Write-Host "PHP setup complete with OPcache enabled."
+Write-Host "Run php\start_fastcgi.bat or 'php\php-cgi.exe -b 127.0.0.1:9000' to start FastCGI server."
 
 Pop-Location

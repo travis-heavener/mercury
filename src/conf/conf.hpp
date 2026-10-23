@@ -71,6 +71,10 @@ namespace conf {
         extern std::filesystem::path PHP_CGI_EXE_PATH;
     #endif
 
+    extern bool IS_FASTCGI_ENABLED;
+    extern std::string FASTCGI_ADDRESS;
+    extern unsigned int FASTCGI_TIMEOUT;
+
     extern bool SHOW_WELCOME_BANNER;
     extern bool SHOW_DONATION_BANNER;
     extern bool CHECK_LATEST_RELEASE;

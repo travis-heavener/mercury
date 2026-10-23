@@ -24,6 +24,9 @@ All configuration nodes must be wrapped within a singular `<Mercury>` root node.
 ### PHP
 - [EnablePHPCGI](#enablephpcgi)
 - [WinPHPCGIPath](#winphpcgipath)
+- [EnableFastCGI](#enablefastcgi)
+- [FastCGIAddress](#fastcgiaddress)
+- [FastCGITimeout](#fastcgitimeout)
 
 ### Matching & Conditional Access Control
 - [EnableLegacyHTTPVersions](#enablelegacyhttpversions)
@@ -222,6 +225,46 @@ Example:
 
 ```xml
 <WinPHPCGIPath> ./php/php-cgi.exe </WinPHPCGIPath>
+```
+
+### EnableFastCGI
+Whether or not to route PHP requests through a persistent FastCGI gateway daemon (such as PHP-FPM or persistent `php-cgi -b`).
+
+When enabled, FastCGI takes precedence over legacy fork-and-exec PHP-CGI (`EnablePHPCGI`).
+
+Default: `off`
+
+Example:
+
+```xml
+<EnableFastCGI> on </EnableFastCGI>
+```
+
+### FastCGIAddress
+Specifies the network endpoint for the FastCGI gateway daemon.
+
+Supported formats:
+- `auto`: Automatically locates the newest/highest installed PHP-FPM UNIX domain socket on Linux (`/run/php/` or `/run/php-fpm/`, e.g. `php8.4-fpm.sock`), or defaults to `127.0.0.1:9000` on Windows.
+- UNIX domain socket: `unix:/path/to/socket.sock` or an absolute path `/path/to/socket.sock` (Linux only).
+- TCP socket: `ip:port` or `host:port`, e.g., `127.0.0.1:9000`, `localhost:9000`, or `[::1]:9000`.
+
+Default: `auto`
+
+Example:
+
+```xml
+<FastCGIAddress> unix:/run/php/php8.3-fpm.sock </FastCGIAddress>
+```
+
+### FastCGITimeout
+Network timeout in seconds for FastCGI socket connect, request transmission, and response polling. If the FastCGI daemon does not respond within this window, the server returns `504 Gateway Timeout`.
+
+Default: `30`
+
+Example:
+
+```xml
+<FastCGITimeout> 30 </FastCGITimeout>
 ```
 
 ### Match

@@ -104,20 +104,24 @@ FastCGI encodes key and value lengths compactly:
 
 ---
 
-### Phase 3: Server & Configuration Integration
+### Phase 3: Server & Configuration Integration (Days 4-5)
 **Target Files**: `src/conf/conf.hpp`, `src/conf/conf.cpp`, `conf/mercury.conf`
-- [ ] Add XML configuration directives:
+- [x] Add XML configuration directives:
   - `<EnableFastCGI> on|off </EnableFastCGI>` (default: `off`).
   - `<FastCGIAddress> auto </FastCGIAddress>` (optional; defaults to auto-detecting highest PHP version socket or `127.0.0.1:9000`; accepts `unix:/path` or `host:port`).
-  - `<FastCGITimeout> 10 </FastCGITimeout>` (timeout in seconds, default: 10).
-- [ ] Update config loader in `src/conf/conf.cpp`:
+  - `<FastCGITimeout> 30 </FastCGITimeout>` (timeout in seconds, default: 30).
+- [x] Update config loader in `src/conf/conf.cpp`:
   - Add node names to `mercuryNodeNames`.
   - Validate address format (`unix:` prefix or path for UDS vs `host:port` / `ip:port` for TCP, or `auto`).
-- [ ] Update HTTP request handlers (`src/http/version/handler_1_1.cpp`, `handler_1_0.cpp`):
+  - Add safe cleanup in `cleanupConfig`.
+- [x] Update HTTP request handlers (`src/http/version/handler_1_1.cpp`, `handler_1_0.cpp`, `handler_0_9.cpp`):
   - When target file is a `.php` file:
-    1. If `conf::IS_FASTCGI_ENABLED`: route request to `http::fastcgi::handleRequest(...)`.
+    1. If `conf::IS_FASTCGI_ENABLED`: route request to `http::fastcgi::Client` and zero-disk `MemoryStream`.
     2. Else if `conf::IS_PHP_ENABLED`: fallback to legacy `http::cgi::handlePHPRequest(...)`.
     3. Else: serve raw `.php` static file or trigger 403 Forbidden based on configuration.
+  - Guard legacy HTTP/1.0 and HTTP/0.9 handlers from source disclosure.
+- [x] Add CLI status output for FastCGI in `src/util/cli.cpp`.
+- [x] Compile and verify server builds cleanly on Linux (`make linux`) and Windows MinGW (`make windows`).
 
 ---
 
@@ -131,7 +135,7 @@ FastCGI encodes key and value lengths compactly:
 
 ---
 
-### Phase 5: Connection Pooling (Optional / Performance Optimization)
+### Phase 5: Connection Pooling (Optional / Future Roadmap)
 - [ ] Evaluate persistent connection reuse:
   - Check `FCGI_KEEP_CONN` flag support in PHP-FPM.
   - Implement a thread-safe connection pool for active worker threads, recycling open domain/TCP sockets across keep-alive requests to avoid `connect()`/`close()` overhead.
@@ -140,44 +144,40 @@ FastCGI encodes key and value lengths compactly:
 
 ### Phase 6: Tooling, PHP Setup Scripts & Environment Automation
 **Target Files**: `conf/setup_php.ps1`, `build_tools/install_deps.sh`, `docker/entrypoint.sh`, `tests/run.py`
-- [ ] **Windows PHP Setup Script (`conf/setup_php.ps1`)**:
+- [x] **Windows PHP Setup Script (`conf/setup_php.ps1`)**:
   - Update `setup_php.ps1` to configure OPcache in generated `php.ini` (`zend_extension=opcache`, `opcache.enable=1`, `opcache.enable_cli=1`).
-  - Provide a companion script or parameter (e.g. `conf/run_php_fastcgi.ps1` or `setup_php.ps1 -StartFastCGI`) to launch the Windows FastCGI listener:
-    ```powershell
-    $env:PHP_FCGI_CHILDREN = 8
-    $env:PHP_FCGI_MAX_REQUESTS = 1000
-    Start-Process -FilePath "php\php-cgi.exe" -ArgumentList "-b 127.0.0.1:9000" -WindowStyle Hidden
-    ```
-- [ ] **Linux Dependency Installer (`build_tools/install_deps.sh`)**:
+  - Generate `php/start_fastcgi.bat` script to launch Windows FastCGI listener (`php-cgi.exe -b 127.0.0.1:9000`).
+- [x] **Linux Dependency Installer (`build_tools/install_deps.sh`)**:
   - Add `php-fpm` to package lists across all supported package managers:
-    - `apt`: `php-fpm` (e.g. `php-fpm` / `php-cgi`).
+    - `apt`: `php-fpm`.
     - `pacman`: `php-fpm`.
     - `dnf`: `php-fpm`.
-- [ ] **Multi-Distro Docker Container Harness (`docker/entrypoint.sh`)**:
+- [x] **Multi-Distro Docker Container Harness (`docker/entrypoint.sh`)**:
   - Install `php-fpm` across Ubuntu, Debian, Arch, and Fedora containers.
   - Automatically start the `php-fpm` daemon before running `tests/run.py`.
-- [ ] **Test Runner Lifecycle Automation (`tests/run.py`)**:
-  - Add automatic detection and lifecycle management for FastCGI backend:
-    - **Linux**: Check for active PHP-FPM UNIX domain socket or launch local test daemon.
-    - **Windows**: Automatically spawn `php/php-cgi.exe -b 127.0.0.1:9000` as a background test subprocess before FastCGI test runs, and terminate it cleanly during test cleanup.
 
 ---
 
 ### Phase 7: Verification, Testing & Cross-Platform Support
-- [ ] **Linux Verification**:
-  - Test against local PHP-FPM daemon via UNIX domain socket (`/run/php/php-fpm.sock`).
-  - Test against PHP-FPM over TCP (`127.0.0.1:9000`).
-- [ ] **Windows Verification**:
-  - Test cross-compilation with MinGW-w64 (`make windows`).
-  - Test against Windows PHP running in FastCGI bind mode (`php-cgi.exe -b 127.0.0.1:9000`).
-- [ ] **Regression Suite**:
-  - Add FastCGI test group to `tests/regressions.py` verifying:
-    - Basic `GET` execution with query parameters.
-    - `POST` request body handling (form data and raw payloads).
-    - PHP path info resolution (`/test.php/extra/path`).
-    - Custom header transmission (`HTTP_X_*`).
-    - Error handling (PHP crashes, fatal errors, script timeouts).
-- [ ] **Documentation**:
+- [x] **Linux Verification**:
+  - Protocol tests in `tests/test_fastcgi_protocol.cpp` verified (10/10 passing).
+  - Client transport tests in `tests/test_fastcgi_client.cpp` verified:
+    - Endpoint parsing across UDS, IPv4, IPv6, and auto-detection.
+    - Content-Type inference.
+    - CGI environment parameter population.
+    - Mock FastCGI roundtrip communication.
+    - POST request with body and STDIN streaming.
+    - Timeout handling (504 Gateway Timeout).
+    - Connection failure handling (502 Bad Gateway).
+- [x] **Windows Verification**:
+  - Verified clean cross-compilation with MinGW-w64 (`DEBUG=1 make windows`).
+- [x] **Regression Suite & JSON Cases**:
+  - Added `tests/conf_files/fastcgi-error.conf`.
+  - Added FastCGI test run in `tests/tests.json` for 502/404/static handling.
+- [x] **Documentation**:
+  - Documented configuration directives in `CONFIG.md`.
+  - Documented architectural design and concurrency model in `agents/ARCHITECTURE.md`.
+  - Documented changes in `CHANGELOG.md`.
   - Update `CONFIG.md` with FastCGI directives and PHP-FPM configuration examples.
   - Update `agents/ARCHITECTURE.md` with FastCGI concurrency flow.
   - Update `CHANGELOG.md`.

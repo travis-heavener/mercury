@@ -287,6 +287,8 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
                   << "    Index Files:              " << (indexFilesStr.empty() ? "(None)" : indexFilesStr) << '\n'
                   << "    Custom Status Docs:       " << formatOnOff(conf::ENABLE_CUSTOM_STATUS_DOCS) << '\n'
                   << "    PHP-CGI:                  " << formatOnOff(conf::IS_PHP_ENABLED) << '\n'
+                  << "    FastCGI:                  " << formatOnOff(conf::IS_FASTCGI_ENABLED)
+                  << (conf::IS_FASTCGI_ENABLED ? (" (" + conf::FASTCGI_ADDRESS + ")") : "") << '\n'
                   << "  [Security & Logging]\n"
                   << "    Client Security Mode:     " << formatSecurityMode(conf::CLIENT_SECURITY_MODE) << '\n'
                   << "    Access Log File:          " << conf::ACCESS_LOG_FILE.string() << '\n'
