@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.37.0] - 2026-10-23
+- 
+
 ## [0.36.0] - 2026-10-22
 - Perf: enable `-O3 -fno-strict-aliasing` optimizations for release builds in `Makefile`
 - Perf: cache formatted HTTP `Date` header string at 1-second granularity per thread, eliminating redundant `gmtime`/`strftime` formatting on every response
