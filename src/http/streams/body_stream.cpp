@@ -3,10 +3,10 @@
 #include <cstring>
 
 #include "compressor_stream.hpp"
-#include "../conf/conf.hpp"
-#include "../logs/logger.hpp"
-#include "../util/string_tools.hpp"
-#include "../io/file_tools.hpp"
+#include "../../conf/conf.hpp"
+#include "../../logs/logger.hpp"
+#include "../../util/string_tools.hpp"
+#include "../../io/file_tools.hpp"
 
 namespace http {
 

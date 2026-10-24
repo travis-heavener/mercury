@@ -9,8 +9,8 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 
-#include "../conf/conf.hpp"
-#include "../logs/logger.hpp"
+#include "../../conf/conf.hpp"
+#include "../../logs/logger.hpp"
 
 #define CERT_PATH "conf/ssl/cert.pem"
 #define KEY_PATH "conf/ssl/key.pem"

@@ -6,9 +6,9 @@
 #include <optional>
 #include <string>
 
-#include "match.hpp"
-#include "redirect.hpp"
-#include "rewrite.hpp"
+#include "rules/match.hpp"
+#include "rules/redirect.hpp"
+#include "rules/rewrite.hpp"
 
 #define CONF_SUCCESS 0
 #define CONF_FAILURE 1

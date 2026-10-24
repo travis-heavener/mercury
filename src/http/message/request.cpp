@@ -1,9 +1,9 @@
 #include "request.hpp"
 
-#include "../conf/conf.hpp"
-#include "../logs/logger.hpp"
-#include "../util/string_tools.hpp"
-#include "../util/toolbox.hpp"
+#include "../../conf/conf.hpp"
+#include "../../logs/logger.hpp"
+#include "../../util/string_tools.hpp"
+#include "../../util/toolbox.hpp"
 
 namespace http {
 

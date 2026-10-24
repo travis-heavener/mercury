@@ -85,11 +85,12 @@ Download the latest release archive from [mercury.wowtravis.com](https://mercury
 - **Windows**: `bin\mercury.exe [options]`
 
 Common options:
+
 - `-c, --config <file>`: Specify path to configuration file (defaults to `conf/mercury.conf`)
 - `-h, --help`: Display usage and command-line options
 - `-p, --port <port>`: Override HTTP port
 - `-r, --root <path>`: Override document root directory
-- `-t, --test`: Test configuration file syntax and exit
+- `-t, --test` (also `--test-config`): Test configuration file syntax and exit
 - `-v, --version`: Display version information
 
 > [!NOTE]
@@ -134,18 +135,41 @@ Self-signed TLS 1.3 certificates can be generated with a single command:
 
 ### CLI
 
-Mercury provides an interactive terminal command interface:
+Once Mercury is running in a terminal, enter commands at the `< ` prompt (case-insensitive, brackets indicate optional arguments):
 
-| Command | Action |
+| Command / syntax | Aliases | Action |
+|---|---|---|
+| `help` | `?` | List available console commands |
+| `clear` | `cls` | Clear terminal output |
+| `config` | `conf` | Show active server configuration |
+| `stats` | `status`, `metrics`, `info`, `uptime` | Show uptime, connection, worker, and traffic metrics |
+| `routes` | `rules` | Show configured Match, Redirect, and Rewrite rules |
+| `tls` | `cert` | Show TLS settings and certificate metadata |
+| `logs [access\|error] [n]` | `tail` | Show last `n` log lines (default: `access`, 10 lines) |
+| `mimes [query]` | `mime` | List or filter configured MIME mappings |
+| `php:init` | `phpinit` | Initialize PHP environment |
+| `ping` | — | Print `Pong!` |
+| `pwd` | — | Print configured document root directory |
+| `version` | `ver` | Show Mercury version and capabilities |
+| `donate` | `fund` | Display project support link |
+| `exit` | `quit`, `q` | Gracefully shut down Mercury |
+
+#### Linux: Console Controls
+
+On Linux, the interactive console supports these editing shortcuts:
+
+| Shortcut | Action |
 |---|---|
-| `help` | List available commands |
-| `info` / `status` | View active thread pool usage and connection queue |
-| `pwd` | Print document root directory |
-| `ping` | Healthcheck response (`Pong!`) |
-| `phpinit` | Download and configure PHP-CGI |
-| `clear` | Clear terminal output |
-| `donate` | Display optional donation link |
-| `exit` | Gracefully shut down the server |
+| Ctrl+Left / Ctrl+Right | Move cursor backward / forward by word |
+| Ctrl+Backspace | Delete previous word |
+| Ctrl+Delete | Delete next word |
+| Tab / Tab twice | Auto-complete command or target / list matches |
+| Up / Down | Navigate command history |
+| Left / Right, Backspace, Del | Standard character movement and deletion |
+| Ctrl+L | Clear screen and redraw input |
+| Ctrl+C | Shut down Mercury |
+
+Tab completion matches command names and `logs` targets (`access`/`error`). If your terminal does not send distinct codes for Ctrl+Backspace, use Ctrl+W instead.
 
 ### Updating Mercury
 

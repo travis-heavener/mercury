@@ -16,9 +16,9 @@
 #include <memory>
 #include <shared_mutex>
 
-#include "request.hpp"
-#include "response.hpp"
-#include "tls.hpp"
+#include "message/request.hpp"
+#include "message/response.hpp"
+#include "tls/tls.hpp"
 #include "../util/thread_pool.hpp"
 
 #define SOCKET_UNSET -1

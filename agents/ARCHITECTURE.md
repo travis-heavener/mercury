@@ -29,21 +29,27 @@ src/
 ├── winheader.hpp             # Windows platform abstraction & Winsock2 wrappers
 ├── conf/                     # Configuration and rule engine
 │   ├── conf.hpp / conf.cpp   # Global settings, XML loader (pugixml), IP parsers
-│   ├── match.hpp / match.cpp # Pattern matcher, access rules, custom response headers
-│   ├── access.hpp / access.cpp # CIDR & IP allow/deny access control lists
-│   ├── redirect.hpp / redirect.cpp # 301/302 URL redirection rules
-│   ├── rewrite.hpp / rewrite.cpp   # URL rewriting engine
-│   └── mod_headers.hpp / mod_headers.cpp # Request and response header manipulations
+│   └── rules/                # Routing, access, and header rewrite rules
+│       ├── match.hpp / match.cpp       # Pattern matcher, access rules, custom response headers
+│       ├── access.hpp / access.cpp     # CIDR & IP allow/deny access control lists
+│       ├── redirect.hpp / redirect.cpp # 301/302 URL redirection rules
+│       ├── rewrite.hpp / rewrite.cpp   # URL rewriting engine
+│       └── mod_headers.hpp / mod_headers.cpp # Request and response header manipulations
 ├── http/                     # Network protocol, connection engine, and codecs
 │   ├── server.hpp / server.cpp     # IPv4 server socket, epoll/poll/select listener, worker dispatcher
 │   ├── server-ipv6.hpp / server-ipv6.cpp # IPv6 server specialization
-│   ├── request.hpp / request.cpp   # Request parser, method/URI/header decoding, validation
-│   ├── response.hpp / response.cpp # Response serializer, chunked framing, status mapping
-│   ├── tls.hpp / tls.cpp           # OpenSSL TLS context initialization and configuration
 │   ├── tools.hpp / tools.cpp       # HTTP date formatters (RFC 7231), status phrases, MIME lookups
-│   ├── body_stream.hpp / body_stream.cpp # Chunked transfer encoding and body streaming
-│   ├── compressor_stream.hpp / compressor_stream.cpp # Compression streams (Brotli, Zstd, Gzip, Deflate)
-│   ├── version_checker.hpp / version_checker.cpp   # Background startup check for updates
+│   ├── message/              # HTTP request and response representations
+│   │   ├── request.hpp / request.cpp   # Request parser, method/URI/header decoding, validation
+│   │   └── response.hpp / response.cpp # Response serializer, chunked framing, status mapping
+│   ├── tls/                  # TLS context management
+│   │   └── tls.hpp / tls.cpp           # OpenSSL TLS context initialization and configuration
+│   ├── telemetry/            # Server metrics and update checks
+│   │   ├── stats.hpp / stats.cpp       # Traffic counters, status breakdown, active worker stats
+│   │   └── version_checker.hpp / version_checker.cpp # Background startup check for updates
+│   ├── streams/              # Transfer encoding and compression streams
+│   │   ├── body_stream.hpp / body_stream.cpp # Chunked transfer encoding and body streaming
+│   │   └── compressor_stream.hpp / compressor_stream.cpp # Compression streams (Brotli, Zstd, Gzip, Deflate)
 │   ├── version/              # Protocol version handlers
 │   │   ├── handler_0_9.hpp / handler_0_9.cpp # Simple HTTP/0.9 requests
 │   │   ├── handler_1_0.hpp / handler_1_0.cpp # HTTP/1.0 legacy handler
@@ -160,7 +166,7 @@ flowchart TD
 
 ## 5. Compression Subsystem
 
-Mercury implements a pluggable stream-based compression architecture via [`ICompressor`](../src/http/compressor_stream.hpp):
+Mercury implements a pluggable stream-based compression architecture via [`ICompressor`](../src/http/streams/compressor_stream.hpp):
 
 - **Supported Encodings**:
   - `br`: Brotli encoder (`BrotliEncoderState`).

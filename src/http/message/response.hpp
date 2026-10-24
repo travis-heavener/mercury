@@ -5,13 +5,13 @@
 #include <memory>
 
 #ifdef _WIN32
-    #include "../winheader.hpp"
+    #include "../../winheader.hpp"
 #endif
 
-#include "../io/file.hpp"
-#include "../util/string_tools.hpp"
-#include "body_stream.hpp"
-#include "tools.hpp"
+#include "../../io/file.hpp"
+#include "../../util/string_tools.hpp"
+#include "../streams/body_stream.hpp"
+#include "../tools.hpp"
 
 // The default status code for HTTP/0.9 response bodies
 // If this changes, an error has occured

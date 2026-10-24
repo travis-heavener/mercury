@@ -9,7 +9,7 @@
 #include "../util/toolbox.hpp"
 
 #include "tools.hpp"
-#include "stats.hpp"
+#include "telemetry/stats.hpp"
 #include "version/handler_1_1.hpp"
 #include "version/handler_1_0.hpp"
 #include "version/handler_0_9.hpp"

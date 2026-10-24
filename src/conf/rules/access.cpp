@@ -1,7 +1,7 @@
 #include "access.hpp"
 
 #ifdef _WIN32
-    #include "../winheader.hpp"
+    #include "../../winheader.hpp"
 #else
     #include <arpa/inet.h>
 #endif
@@ -9,7 +9,7 @@
 #include <cstring>
 #include <stdexcept>
 
-#include "../util/string_tools.hpp"
+#include "../../util/string_tools.hpp"
 
 namespace conf {
 

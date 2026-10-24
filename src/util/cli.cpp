@@ -1,15 +1,23 @@
 #include "cli.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <cerrno>
+#include <charconv>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <string_view>
 #include <vector>
 
 #include "../conf/conf.hpp"
-#include "../http/stats.hpp"
-#include "../http/tls.hpp"
+#include "../http/telemetry/stats.hpp"
+#include "../http/tls/tls.hpp"
+
+#ifdef __linux__
+    #include <poll.h>
+#endif
 
 #ifdef _WIN32
     // Only used in Windows builds for canonicalizing the path to the PHP init script
@@ -24,39 +32,138 @@
 #define KEY_LEFT  924
 #define KEY_RIGHT 925
 #define KEY_DELETE 926
+#define KEY_WORD_LEFT 927
+#define KEY_WORD_RIGHT 928
+#define KEY_WORD_BACKSPACE 929
+#define KEY_WORD_DELETE 930
 
 // Enables raw terminal input mode
 #ifdef __linux__
     int getKey() {
         unsigned char c;
-        if (read(STDIN_FILENO, &c, 1) != 1) return -1; // No input
+        if (read(STDIN_FILENO, &c, 1) != 1) return -1;
+        if (c == 8 || c == 23) return KEY_WORD_BACKSPACE; // Ctrl+Backspace / Ctrl+W
+        if (c != '\x1b') return c;
 
-        if (c == '\x1b') { // escape sequence
-            unsigned char seq[3];
-            if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\x1b';
-            if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1b';
-            if (seq[0] == '[') {
-                if (seq[1] >= 'A' && seq[1] <= 'D') {
-                    switch (seq[1]) {
-                        case 'A': return KEY_UP;
-                        case 'B': return KEY_DOWN;
-                        case 'C': return KEY_RIGHT;
-                        case 'D': return KEY_LEFT;
-                    }
-                } else if (seq[1] == '3') {
-                    if (read(STDIN_FILENO, &seq[2], 1) != 1) return '\x1b'; // Should be '~'
-                    return KEY_DELETE;
-                }
+        // Bound escape parsing so lone Escape or incomplete sequences cannot block input
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(150);
+        auto readMore = [&](unsigned char& byte) {
+            pollfd input{STDIN_FILENO, POLLIN, 0};
+            while (true) {
+                const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    deadline - std::chrono::steady_clock::now()).count();
+                if (remaining <= 0) return false;
+                const int ready = poll(&input, 1, static_cast<int>(remaining));
+                if (ready < 0 && errno == EINTR) continue;
+                return ready > 0 && (input.revents & POLLIN) && read(STDIN_FILENO, &byte, 1) == 1;
             }
-            return '\x1b';
+        };
+
+        if (!readMore(c)) return '\x1b';
+        if (c == 127 || c == 8) return KEY_WORD_BACKSPACE;
+        if (c == 'd') return KEY_WORD_DELETE; // Escape+d word deletion
+        if (c != '[' && c != 'O') return '\x1b';
+
+        // Consume complete CSI/SS3 sequence, including unsupported modifier keys
+        std::string seq;
+        while (readMore(c)) {
+            seq += static_cast<char>(c);
+            if (c >= 0x40 && c <= 0x7e) break;
+            if (c < 0x20 || c > 0x3f || seq.size() >= 64) return '\x1b';
         }
 
-        return c;
+        if (seq == "A") return KEY_UP;
+        if (seq == "B") return KEY_DOWN;
+        if (seq == "C") return KEY_RIGHT;
+        if (seq == "D") return KEY_LEFT;
+        if (seq == "3~") return KEY_DELETE;
+        if (seq == "1;5D" || seq == "5D") return KEY_WORD_LEFT;
+        if (seq == "1;5C" || seq == "5C") return KEY_WORD_RIGHT;
+        if (seq == "3;5~" || seq == "3^") return KEY_WORD_DELETE;
+        if (seq == "8;5u" || seq == "127;5u" || seq == "27;5;8~" || seq == "27;5;127~")
+            return KEY_WORD_BACKSPACE;
+        return '\x1b';
+    }
+
+    // Used to find previous whitespace-delimited word boundary
+    static int previousWord(const std::string& line, int cursor) {
+        while (cursor > 0 && std::isspace(static_cast<unsigned char>(line[cursor - 1]))) --cursor;
+        while (cursor > 0 && !std::isspace(static_cast<unsigned char>(line[cursor - 1]))) --cursor;
+        return cursor;
+    }
+
+    // Used to find next whitespace-delimited word boundary
+    static int nextWord(const std::string& line, int cursor) {
+        const int end = static_cast<int>(line.size());
+        while (cursor < end && std::isspace(static_cast<unsigned char>(line[cursor]))) ++cursor;
+        while (cursor < end && !std::isspace(static_cast<unsigned char>(line[cursor]))) ++cursor;
+        return cursor;
     }
 
     // Updates the current line
     void showLine(const std::string& line) {
         std::cout << "\33[2K\r< " << line << std::flush;
+    }
+
+    // Used to complete command or supported argument at cursor
+    static void completeLine(std::string& line, int& cursor, bool repeatedTab) {
+        static const std::vector<std::string> commands{
+            "?", "cert", "clear", "cls", "conf", "config", "donate", "exit", "fund",
+            "help", "info", "logs", "metrics", "mime", "mimes", "php:init", "phpinit",
+            "ping", "pwd", "q", "quit", "routes", "rules", "stats", "status", "tail",
+            "tls", "uptime", "ver", "version"
+        };
+        static const std::vector<std::string> logTargets{"access", "error"};
+
+        // Locate whole token while matching only prefix before cursor
+        auto isSpace = [](char c) { return std::isspace(static_cast<unsigned char>(c)); };
+        int start = cursor, end = cursor;
+        while (start > 0 && !isSpace(line[start - 1])) --start;
+        while (end < static_cast<int>(line.size()) && !isSpace(line[end])) ++end;
+
+        std::istringstream before(line.substr(0, start));
+        std::string command, argument;
+        const std::vector<std::string>* pCandidates = &commands;
+        if (before >> command) {
+            strToLower(command);
+            if ((command != "logs" && command != "tail") || (before >> argument)) return;
+            pCandidates = &logTargets;
+        }
+
+        std::string prefix = line.substr(start, cursor - start);
+        strToLower(prefix);
+        std::vector<std::string> matches;
+        for (const auto& candidate : *pCandidates) {
+            if (candidate.starts_with(prefix)) matches.push_back(candidate);
+        }
+        if (matches.empty()) return;
+
+        // Extend shared prefix or finish unique match without disturbing following arguments
+        std::string completion = matches.front();
+        for (const auto& match : matches) {
+            size_t shared = 0;
+            while (shared < completion.size() && shared < match.size() && completion[shared] == match[shared])
+                ++shared;
+            completion.resize(shared);
+        }
+        if (matches.size() == 1 || completion.size() > prefix.size()) {
+            line.replace(start, end - start, completion);
+            cursor = start + static_cast<int>(completion.size());
+            if (matches.size() == 1 && cursor == static_cast<int>(line.size())) {
+                line += ' ';
+                ++cursor;
+            }
+        } else if (repeatedTab) {
+            std::cout << '\n';
+            for (size_t i = 0; i < matches.size(); ++i) {
+                if (i > 0) std::cout << "  ";
+                std::cout << matches[i];
+            }
+            std::cout << '\n';
+        }
+
+        showLine(line);
+        std::cout << "\033[" << (cursor + 3) << 'G' << std::flush;
     }
 
     // Gets the next line from the terminal
@@ -68,10 +175,16 @@
         historyIndex = static_cast<int>(history.size()) - 1;
 
         int c, cursor = 0;
+        bool previousTab = false;
         while (!isExiting) {
             if ((c = getKey()) == -1) continue;
+            const bool repeatedTab = c == '\t' && previousTab;
+            previousTab = c == '\t';
 
             switch (c) {
+                case '\t':
+                    completeLine(history[historyIndex], cursor, repeatedTab);
+                    break;
                 case 3: // Ctrl+C (SIGINT)
                     std::cout << '\n' << std::flush;
                     isExiting = true;
@@ -106,6 +219,29 @@
                     --cursor;
                     std::cout << "\033[1D" << std::flush;
                     break;
+                case KEY_WORD_LEFT:
+                    cursor = previousWord(history[historyIndex], cursor);
+                    std::cout << "\033[" << (cursor + 3) << 'G' << std::flush;
+                    break;
+                case KEY_WORD_RIGHT:
+                    cursor = nextWord(history[historyIndex], cursor);
+                    std::cout << "\033[" << (cursor + 3) << 'G' << std::flush;
+                    break;
+                case KEY_WORD_BACKSPACE: {
+                    const int start = previousWord(history[historyIndex], cursor);
+                    history[historyIndex].erase(start, cursor - start);
+                    cursor = start;
+                    showLine(history[historyIndex]);
+                    std::cout << "\033[" << (cursor + 3) << 'G' << std::flush;
+                    break;
+                }
+                case KEY_WORD_DELETE: {
+                    const int end = nextWord(history[historyIndex], cursor);
+                    history[historyIndex].erase(cursor, end - cursor);
+                    showLine(history[historyIndex]);
+                    std::cout << "\033[" << (cursor + 3) << 'G' << std::flush;
+                    break;
+                }
                 case KEY_DELETE:
                     if (history[historyIndex].empty() || cursor >= static_cast<int>(history[historyIndex].size())) break;
                     history[historyIndex].erase(history[historyIndex].cbegin() + cursor);
@@ -113,7 +249,7 @@
                     std::cout << "\033[" << (cursor + 3) << 'G' << std::flush;
                     break;
                 case 127: // Backspace
-                    if (history[historyIndex].empty()) break;
+                    if (cursor == 0) break;
                     history[historyIndex].erase(history[historyIndex].cbegin() + cursor - 1);
                     --cursor;
                     showLine(history[historyIndex]);
@@ -160,6 +296,39 @@ static const char* formatSecurityMode(const int mode) {
         case CLIENT_SEC_HASHED:     return "Hashed";
         default:                    return "Unknown";
     }
+}
+
+struct LogTailOptions {
+    bool errorLog = false;
+    size_t lineCount = 10;
+};
+
+// Used to validate complete log selector and signed decimal count
+static LogTailOptions parseLogTailOptions(std::string args) {
+    LogTailOptions options;
+    trimString(args);
+
+    // Recognize complete selector token before parsing remaining count
+    std::string selector = args.substr(0, args.find_first_of(" \t"));
+    strToUpper(selector);
+    if (selector == "ACCESS" || selector == "ERROR") {
+        options.errorLog = selector == "ERROR";
+        args.erase(0, selector.size());
+        trimString(args);
+    }
+
+    std::string_view count(args);
+    if (count.empty()) return options;
+    if (count.front() == '+') count.remove_prefix(1);
+    if (count.empty() || count.front() == '+') return options;
+
+    // Reject overflow, nonpositive values, and trailing characters before unsigned conversion
+    long long parsed = 0;
+    const auto result = std::from_chars(count.data(), count.data() + count.size(), parsed);
+    if (result.ec != std::errc{} || result.ptr != count.data() + count.size() || parsed <= 0)
+        return options;
+    options.lineCount = static_cast<size_t>(std::min(parsed, 1000LL));
+    return options;
 }
 
 // Used to read and print last N lines of log file safely
@@ -369,31 +538,8 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
         // Print TLS status and X.509 certificate metadata
         http::printTLSInfo();
     } else if (cmd == "LOGS" || cmd == "TAIL") {
-        // Parse target log file and line count arguments
-        std::filesystem::path targetFile = conf::ACCESS_LOG_FILE;
-        size_t lineCount = 10;
-        if (!args.empty()) {
-            std::string sub = args;
-            strToUpper(sub);
-            if (sub.starts_with("ERROR")) {
-                targetFile = conf::ERROR_LOG_FILE;
-                std::string rest = args.substr(5);
-                trimString(rest);
-                if (!rest.empty()) {
-                    try { lineCount = std::stoul(rest); } catch (...) {}
-                }
-            } else if (sub.starts_with("ACCESS")) {
-                targetFile = conf::ACCESS_LOG_FILE;
-                std::string rest = args.substr(6);
-                trimString(rest);
-                if (!rest.empty()) {
-                    try { lineCount = std::stoul(rest); } catch (...) {}
-                }
-            } else {
-                try { lineCount = std::stoul(args); } catch (...) {}
-            }
-        }
-        readLogTail(targetFile, lineCount);
+        const auto options = parseLogTailOptions(args);
+        readLogTail(options.errorLog ? conf::ERROR_LOG_FILE : conf::ACCESS_LOG_FILE, options.lineCount);
     } else if (cmd == "MIMES" || cmd == "MIME") {
         // Collect and sort MIME mappings alphabetically by extension
         std::vector<std::pair<std::string, std::string>> sortedMimes(conf::MIMES.begin(), conf::MIMES.end());

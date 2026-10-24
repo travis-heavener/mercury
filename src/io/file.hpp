@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "../http/tools.hpp"
-#include "../http/body_stream.hpp"
+#include "../http/streams/body_stream.hpp"
 
 #define MIME_UNSET ""
 

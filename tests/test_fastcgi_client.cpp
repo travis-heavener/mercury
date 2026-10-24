@@ -19,8 +19,8 @@
 #include "../src/http/fastcgi/client.hpp"
 #include "../src/http/fastcgi/params.hpp"
 #include "../src/http/fastcgi/protocol.hpp"
-#include "../src/http/request.hpp"
-#include "../src/http/response.hpp"
+#include "../src/http/message/request.hpp"
+#include "../src/http/message/response.hpp"
 
 using namespace http::fastcgi;
 
