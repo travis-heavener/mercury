@@ -30,7 +30,7 @@ jobs:
         run: python -m pip install brotli zstandard psutil
 
       - name: Setup PHP
-        run: ./conf/setup_php.ps1 8.5.12
+        run: ./conf/setup_php.ps1
 
       # Make TLS cert
       - name: Make TLS Cert

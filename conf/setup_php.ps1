@@ -58,6 +58,7 @@ Set-Content -Path php/mercury-cgi.ini -Value $legacyContent
 $fastcgiBat = "@echo off`r`necho Starting PHP FastCGI server on 127.0.0.1:9000...`r`n`"%~dp0php-cgi.exe`" -b 127.0.0.1:9000`r`n"
 Set-Content -Path php/start_fastcgi.bat -Value $fastcgiBat
 
+Write-Host "Successfully downloaded PHP $PHPVersion."
 Write-Host "PHP setup complete with OPcache enabled."
 Write-Host "Mercury legacy CGI uses php\mercury-cgi.ini with OPcache unloaded."
 Write-Host "Run php\start_fastcgi.bat or 'php\php-cgi.exe -b 127.0.0.1:9000' to start FastCGI server."
