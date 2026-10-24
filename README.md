@@ -179,16 +179,18 @@ Use positive whole-number counts from 1 to 1,000. Current count handling is:
 
 | Count argument | Effective line limit |
 |---|---|
-| Omitted or `0` | 10 |
+| Omitted, `0`, or a negative value | 10 |
 | `1` through `1000` | Requested count |
 | Above `1000`, within the parser's numeric range | 1,000 |
 | Unparseable text or numeric overflow | 10 |
 
-The current parser also accepts a leading numeric portion (`20abc` becomes
-`20`) and converts signed values to unsigned before applying the limit.
-Consequently, ordinary negative values such as `-1` and `-20` become a limit of
-1,000; `-0` becomes 10. Negative counts should be avoided. Counts and output
-are bounded even with these permissive parsing rules.
+Mercury validates the entire count as a signed decimal integer before applying
+the limit. An optional leading `+` and leading zeroes are accepted (`+20` and
+`00020` both request 20 lines). Surrounding spaces or tabs are ignored; trailing
+text, fractional counts, and extra arguments are invalid. For example,
+`logs access 20abc`, `logs error 2.5`, and `logs 20 30` each use the default of
+10 lines. `access` and `error` must be complete selector tokens, separated from
+the count by whitespace.
 
 **MIME lookup**
 

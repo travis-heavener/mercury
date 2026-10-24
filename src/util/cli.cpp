@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
+#include <charconv>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <string_view>
 #include <vector>
 
 #include "../conf/conf.hpp"
@@ -296,6 +298,39 @@ static const char* formatSecurityMode(const int mode) {
     }
 }
 
+struct LogTailOptions {
+    bool errorLog = false;
+    size_t lineCount = 10;
+};
+
+// Used to validate complete log selector and signed decimal count
+static LogTailOptions parseLogTailOptions(std::string args) {
+    LogTailOptions options;
+    trimString(args);
+
+    // Recognize complete selector token before parsing remaining count
+    std::string selector = args.substr(0, args.find_first_of(" \t"));
+    strToUpper(selector);
+    if (selector == "ACCESS" || selector == "ERROR") {
+        options.errorLog = selector == "ERROR";
+        args.erase(0, selector.size());
+        trimString(args);
+    }
+
+    std::string_view count(args);
+    if (count.empty()) return options;
+    if (count.front() == '+') count.remove_prefix(1);
+    if (count.empty() || count.front() == '+') return options;
+
+    // Reject overflow, nonpositive values, and trailing characters before unsigned conversion
+    long long parsed = 0;
+    const auto result = std::from_chars(count.data(), count.data() + count.size(), parsed);
+    if (result.ec != std::errc{} || result.ptr != count.data() + count.size() || parsed <= 0)
+        return options;
+    options.lineCount = static_cast<size_t>(std::min(parsed, 1000LL));
+    return options;
+}
+
 // Used to read and print last N lines of log file safely
 static void readLogTail(const std::filesystem::path& path, size_t lineCount) {
     if (path.empty()) {
@@ -503,31 +538,8 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
         // Print TLS status and X.509 certificate metadata
         http::printTLSInfo();
     } else if (cmd == "LOGS" || cmd == "TAIL") {
-        // Parse target log file and line count arguments
-        std::filesystem::path targetFile = conf::ACCESS_LOG_FILE;
-        size_t lineCount = 10;
-        if (!args.empty()) {
-            std::string sub = args;
-            strToUpper(sub);
-            if (sub.starts_with("ERROR")) {
-                targetFile = conf::ERROR_LOG_FILE;
-                std::string rest = args.substr(5);
-                trimString(rest);
-                if (!rest.empty()) {
-                    try { lineCount = std::stoul(rest); } catch (...) {}
-                }
-            } else if (sub.starts_with("ACCESS")) {
-                targetFile = conf::ACCESS_LOG_FILE;
-                std::string rest = args.substr(6);
-                trimString(rest);
-                if (!rest.empty()) {
-                    try { lineCount = std::stoul(rest); } catch (...) {}
-                }
-            } else {
-                try { lineCount = std::stoul(args); } catch (...) {}
-            }
-        }
-        readLogTail(targetFile, lineCount);
+        const auto options = parseLogTailOptions(args);
+        readLogTail(options.errorLog ? conf::ERROR_LOG_FILE : conf::ACCESS_LOG_FILE, options.lineCount);
     } else if (cmd == "MIMES" || cmd == "MIME") {
         // Collect and sort MIME mappings alphabetically by extension
         std::vector<std::pair<std::string, std::string>> sortedMimes(conf::MIMES.begin(), conf::MIMES.end());
