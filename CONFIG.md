@@ -24,6 +24,9 @@ All configuration nodes must be wrapped within a singular `<Mercury>` root node.
 ### PHP
 - [EnablePHPCGI](#enablephpcgi)
 - [WinPHPCGIPath](#winphpcgipath)
+- [EnableFastCGI](#enablefastcgi)
+- [FastCGIAddress](#fastcgiaddress)
+- [FastCGITimeout](#fastcgitimeout)
 
 ### Matching & Conditional Access Control
 - [EnableLegacyHTTPVersions](#enablelegacyhttpversions)
@@ -59,6 +62,7 @@ All configuration nodes must be wrapped within a singular `<Mercury>` root node.
 ### Misc.
 - [ShowWelcomeBanner](#showwelcomebanner)
 - [ShowDonationBanner](#showdonationbanner)
+- [ShowPrivilegeDeescalationMessage](#showprivilegedeescalationmessage)
 - [StartupCheckLatestRelease](#startupchecklatestrelease)
 
 # Config
@@ -201,7 +205,7 @@ Example:
 ### EnablePHPCGI
 Whether or not to pass through requests for PHP files to a PHP-CGI process.
 
-If disabled, the value of the WinPHPCGIPath node is ignored.
+`WinPHPCGIPath` is used when either `EnablePHPCGI` or `EnableFastCGI` is enabled.
 
 Default: `off`
 
@@ -212,7 +216,14 @@ Example:
 ```
 
 ### WinPHPCGIPath
-Points to the php-cgi.exe executable to handle PHP requests on.
+Points to the `php-cgi.exe` executable used for CGI requests and automatic Windows FastCGI startup.
+
+`conf/setup_php.ps1` generates two PHP configurations beside this executable:
+
+- `php.ini`: Used by FastCGI, with OPcache enabled
+- `mercury-cgi.ini`: Used by legacy CGI, with OPcache unloaded to avoid Windows worker crashes
+
+Edit the corresponding INI file to customize each mode. Legacy CGI ignores additional INI scan directories when `mercury-cgi.ini` exists; otherwise, it uses PHP's normal configuration lookup.
 
 NOTE: This node applies to Windows only.
 
@@ -222,6 +233,75 @@ Example:
 
 ```xml
 <WinPHPCGIPath> ./php/php-cgi.exe </WinPHPCGIPath>
+```
+
+### EnableFastCGI
+Whether or not to send PHP requests to a FastCGI backend instead of starting a CGI process for each request.
+
+When enabled:
+
+- FastCGI takes precedence over `EnablePHPCGI`. Backend failures do not fall back to CGI.
+- PHP execution remains limited to HTTP/1.1. HTTP/1.0 and HTTP/0.9 PHP requests return `403`.
+- **Windows:** Mercury reuses an existing listener at `127.0.0.1` or `localhost`, or starts `WinPHPCGIPath` with `-b` on the configured port. Mercury stops only the PHP process it started when Mercury exits.
+- **Linux:** With `FastCGIAddress` omitted or set to `auto`, Mercury starts a private PHP-FPM pool as its runtime user and stops it on shutdown. Explicit addresses use separately managed backends.
+
+NOTE: Linux automatic startup requires `php-fpm` to be installed and a non-root runtime user. Mercury drops sudo/doas privileges to the invoking account before starting PHP-FPM. No system service, file ownership, or socket ACL changes are required.
+
+NOTE: Windows endpoints other than `127.0.0.1` or `localhost` require a separately started backend. UNIX domain sockets are supported on Linux only.
+
+Default: `off`
+
+Example:
+
+```xml
+<EnableFastCGI> on </EnableFastCGI>
+```
+
+### FastCGIAddress
+Specifies where Mercury connects to the FastCGI backend. Used when `EnableFastCGI` is enabled.
+
+Supported formats:
+
+- `auto`: On Linux, starts a private PHP-FPM pool using the highest-version executable found in PATH and standard install directories. Mercury creates a private temporary socket and configuration. On Windows, uses `127.0.0.1:9000`.
+- UNIX domain socket: `unix:/path/to/socket.sock` or `/path/to/socket.sock` (Linux only).
+- TCP socket: `host:port`, `ip:port`, or `[IPv6]:port`, e.g. `localhost:9000`, `127.0.0.1:9000`, or `[::1]:9000`.
+
+For an explicitly configured Linux backend, match its pool's `listen` setting. Mercury must be able to access the socket, and the pool's worker user must be able to read your PHP files. Explicit addresses are never automatically started or stopped.
+
+If automatic startup fails, Mercury prints diagnostics and PHP requests return `502`; it does not switch to a system pool. Static files remain available.
+
+Default: `auto`
+
+Example (automatic Linux development pool):
+
+```xml
+<EnableFastCGI> on </EnableFastCGI>
+<FastCGIAddress> auto </FastCGIAddress>
+```
+
+Example (externally managed Linux pool):
+
+```xml
+<FastCGIAddress> unix:/run/php/php8.3-fpm.sock </FastCGIAddress>
+```
+
+Example (Windows or Linux):
+
+```xml
+<FastCGIAddress> 127.0.0.1:9000 </FastCGIAddress>
+```
+
+### FastCGITimeout
+Timeout in seconds for FastCGI socket reads and writes. A timed-out PHP request returns `504 Gateway Timeout`.
+
+Must be a positive whole number. Used when `EnableFastCGI` is enabled.
+
+Default: `10`
+
+Example:
+
+```xml
+<FastCGITimeout> 10 </FastCGITimeout>
 ```
 
 ### Match
@@ -599,6 +679,17 @@ Example:
 
 ```xml
 <ShowDonationBanner> true </ShowDonationBanner>
+```
+
+### ShowPrivilegeDeescalationMessage
+Whether or not to print the privilege deescalation notice to the console upon dropping root privileges after binding privileged ports (true/false).
+
+Default: `true`
+
+Example:
+
+```xml
+<ShowPrivilegeDeescalationMessage> true </ShowPrivilegeDeescalationMessage>
 ```
 
 ### StartupCheckLatestRelease

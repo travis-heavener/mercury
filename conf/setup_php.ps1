@@ -35,10 +35,32 @@ if (-not (Test-Path -Path "tmp" -PathType Container)) {
     New-Item -Path "tmp" -ItemType Directory
 }
 
-# Update tmp directory
+# Update tmp directory and enable OPcache
 $tmpPath = [IO.Path]::GetFullPath( (Resolve-Path (Join-Path $PSScriptRoot "../tmp")).ProviderPath )
 $content = Get-Content php/php.ini -Raw
 $content = [System.Text.RegularExpressions.Regex]::Replace($content, ';upload_tmp_dir\s*=.*', "upload_tmp_dir = $tmpPath")
+$content = [System.Text.RegularExpressions.Regex]::Replace($content, ';zend_extension\s*=\s*opcache', 'zend_extension=opcache')
+$content = [System.Text.RegularExpressions.Regex]::Replace($content, ';opcache\.enable\s*=\s*1', 'opcache.enable=1')
+$content = [System.Text.RegularExpressions.Regex]::Replace($content, ';opcache\.enable_cli\s*=\s*0', 'opcache.enable_cli=1')
+
+# Resolve bundled extensions independently of working directory or system PHP
+$extensionPath = (Resolve-Path (Join-Path $PSScriptRoot "../php/ext")).ProviderPath
+$content += "`r`nextension_dir = `"$extensionPath`"`r`n"
 Set-Content -Path php/php.ini -Value $content
+
+# Keep OPcache DLL out of short-lived CGI workers, including startup and shutdown
+# Preserve other generated settings and retain OPcache in normal FastCGI config
+$legacyContent = $content.Replace('zend_extension=opcache', ';zend_extension=opcache')
+$legacyContent = $legacyContent.Replace('opcache.enable=1', 'opcache.enable=0')
+Set-Content -Path php/mercury-cgi.ini -Value $legacyContent
+
+# Generate FastCGI launch script for Windows
+$fastcgiBat = "@echo off`r`necho Starting PHP FastCGI server on 127.0.0.1:9000...`r`n`"%~dp0php-cgi.exe`" -b 127.0.0.1:9000`r`n"
+Set-Content -Path php/start_fastcgi.bat -Value $fastcgiBat
+
+Write-Host "Successfully downloaded PHP $PHPVersion."
+Write-Host "PHP setup complete with OPcache enabled."
+Write-Host "Mercury legacy CGI uses php\mercury-cgi.ini with OPcache unloaded."
+Write-Host "Run php\start_fastcgi.bat or 'php\php-cgi.exe -b 127.0.0.1:9000' to start FastCGI server."
 
 Pop-Location

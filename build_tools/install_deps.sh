@@ -17,7 +17,7 @@ case "$PKG_MGR" in
             zip \
             openssl \
             python3 python3-brotli python3-zstandard python3-psutil \
-            php-cgi
+            php-cgi php-fpm
         ;;
     pacman)
         sudo pacman -Syu --noconfirm
@@ -29,7 +29,7 @@ case "$PKG_MGR" in
             zip \
             openssl \
             python python-brotli python-zstandard python-psutil \
-            php-cgi
+            php-cgi php-fpm
         ;;
     dnf)
         sudo dnf makecache -y
@@ -41,7 +41,7 @@ case "$PKG_MGR" in
             zip \
             openssl \
             python3 python3-brotli python3-zstandard python3-psutil \
-            php-cgi
+            php-cgi php-fpm
         ;;
     *)
         echo "Unsupported package manager: $PKG_MGR" >&2

@@ -287,6 +287,8 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
                   << "    Index Files:              " << (indexFilesStr.empty() ? "(None)" : indexFilesStr) << '\n'
                   << "    Custom Status Docs:       " << formatOnOff(conf::ENABLE_CUSTOM_STATUS_DOCS) << '\n'
                   << "    PHP-CGI:                  " << formatOnOff(conf::IS_PHP_ENABLED) << '\n'
+                  << "    FastCGI:                  " << formatOnOff(conf::IS_FASTCGI_ENABLED)
+                  << (conf::IS_FASTCGI_ENABLED ? (" (" + conf::FASTCGI_ADDRESS + ")") : "") << '\n'
                   << "  [Security & Logging]\n"
                   << "    Client Security Mode:     " << formatSecurityMode(conf::CLIENT_SECURITY_MODE) << '\n'
                   << "    Access Log File:          " << conf::ACCESS_LOG_FILE.string() << '\n'
@@ -451,7 +453,7 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
             "  help, ?                     List available commands\n"
             "  logs, tail [file] [n]       View recent access or error logs\n"
             "  mimes, mime [query]         List or search configured MIME types\n"
-            "  phpinit                     Initialize platform-specific PHP\n"
+            "  php:init, phpinit           Initialize platform-specific PHP\n"
             "  ping                        Test CLI responsiveness (Pong!)\n"
             "  pwd                         Print document root directory\n"
             "  routes, rules               View Match, Redirect, and Rewrite rules\n"
@@ -459,7 +461,7 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
             "  tls, cert                   View TLS configuration and certificate status\n"
             "  version, ver                View Mercury version and capabilities"
             << std::endl;
-    } else if (cmd == "PHPINIT") {
+    } else if (cmd == "PHP:INIT" || cmd == "PHPINIT") {
         #ifdef _WIN32 // Windows specific
             std::cout << "> Running `conf/setup_php.ps1`" << std::endl;
             std::string scriptPath;
@@ -498,11 +500,11 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
         #else // Linux specific
             std::string command;
             if (std::system("command -v apt-get >/dev/null 2>&1") == 0) {
-                command = "sudo apt-get update -y >/dev/null && sudo apt-get install php-cgi -y";
+                command = "sudo apt-get update -y >/dev/null && sudo apt-get install php-cgi php-fpm -y";
             } else if (std::system("command -v pacman >/dev/null 2>&1") == 0) {
-                command = "sudo pacman --noconfirm -Syu >/dev/null && sudo pacman --noconfirm -S php-cgi";
+                command = "sudo pacman --noconfirm -Syu >/dev/null && sudo pacman --noconfirm -S php-cgi php-fpm";
             } else if (std::system("command -v dnf >/dev/null 2>&1") == 0) {
-                command = "sudo dnf makecache -y >/dev/null && sudo dnf install -y php-cgi";
+                command = "sudo dnf makecache -y >/dev/null && sudo dnf install -y php-cgi php-fpm";
             }
 
             int rc = 1;

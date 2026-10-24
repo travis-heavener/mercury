@@ -12,8 +12,8 @@ File::File(const http::RequestPath& paths) {
     FileMetadata meta;
     bool metaQueried = false;
 
-    // Extract PHP path info only when PHP enabled and path contains .php
-    if (conf::IS_PHP_ENABLED && decodedURIWithoutPathInfo.find(".php") != std::string::npos) {
+    // Extract PHP path info only when PHP or FastCGI enabled and path contains .php
+    if ((conf::IS_PHP_ENABLED || conf::IS_FASTCGI_ENABLED) && decodedURIWithoutPathInfo.find(".php") != std::string::npos) {
         std::filesystem::path rawPathNoPathInfo;
         std::filesystem::path rawPathCopy = std::filesystem::path(decodedURIWithoutPathInfo);
         bool hasPathInfo = false;

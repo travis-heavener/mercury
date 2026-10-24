@@ -48,6 +48,10 @@ src/
 │   │   ├── handler_0_9.hpp / handler_0_9.cpp # Simple HTTP/0.9 requests
 │   │   ├── handler_1_0.hpp / handler_1_0.cpp # HTTP/1.0 legacy handler
 │   │   └── handler_1_1.hpp / handler_1_1.cpp # Full HTTP/1.1 pipeline handler
+│   ├── fastcgi/              # Persistent FastCGI gateway client
+│   │   ├── protocol.hpp      # FastCGI record headers, constants, padding, byte-swapping
+│   │   ├── params.hpp / params.cpp # Zero-allocation FCGI_PARAMS encoder/decoder
+│   │   └── client.hpp / client.cpp # Cross-platform socket transport (UDS/TCP) & streaming
 │   └── cgi/                  # CGI processing engine
 │       └── process.hpp / process.cpp # Pipe creation, fork/exec or CreateProcess for php-cgi
 ├── io/                       # File system abstraction
@@ -170,9 +174,43 @@ Mercury implements a pluggable stream-based compression architecture via [`IComp
 
 ---
 
-## 6. CGI Architecture & PHP Integration
+## 6. CGI Architecture & FastCGI Gateway
 
-Mercury provides native CGI support via [`src/http/cgi/process.cpp`](../src/http/cgi/process.cpp):
+Mercury provides dual execution strategies for dynamic PHP execution: persistent FastCGI (recommended for high throughput) and legacy CGI fork-and-exec.
+
+### Persistent FastCGI Client (`src/http/fastcgi/`)
+On Linux, `Backend` starts a private PHP-FPM pool for omitted/`auto` addresses
+only, after Mercury drops sudo/doas privileges. It selects a versioned FPM
+executable, spawns a foreground master in an owned process group, and waits for
+its private Unix socket before accepting requests. The pool inherits Mercury's
+runtime identity and uses a mode-0600 socket within a mode-0700 temporary
+directory. Shutdown terminates/reaps the owned master and removes runtime files.
+Explicit endpoints remain externally managed. Failed automatic startup stays
+bound to the private endpoint, so it cannot silently use an unrelated system pool.
+
+When `<EnableFastCGI> on </EnableFastCGI>` is set, requests for `.php` files are dispatched directly over network sockets to a persistent FastCGI daemon (such as PHP-FPM or `php-cgi -b`):
+
+- **Binary Wire Protocol (`protocol.hpp`)**:
+  - Implements the FastCGI specification v1.0, managing 8-byte aligned `FCGI_Header` records (`FCGI_BEGIN_REQUEST`, `FCGI_PARAMS`, `FCGI_STDIN`, `FCGI_STDOUT`, `FCGI_STDERR`, and `FCGI_END_REQUEST`).
+  - Strict network byte order (`htons`/`ntohs`) and integer conversions for 16-bit and 32-bit fields.
+- **Zero-Allocation Parameter Encoder (`params.hpp`)**:
+  - Encodes RFC 3875 environment variables into standard FastCGI variable-length key-value tuples.
+  - Automatically splits oversized parameter blocks across multiple 64 KiB records and pads payloads to 8-byte boundaries.
+- **Cross-Platform Socket Transport (`client.hpp`)**:
+  - **Linux**: Supports high-performance UNIX domain sockets (`AF_UNIX`) and TCP loopback sockets (`AF_INET`/`AF_INET6`).
+  - **Windows**: Supports TCP loopback sockets with `TCP_NODELAY`.
+- **Zero-Configuration Detection**:
+  - When configured as `"auto"`, automatically scans `/run/php/` and `/run/php-fpm/` on Linux, sorting candidates by PHP semantic version tuple descending to connect to the latest installed PHP version (e.g. `php8.4-fpm.sock` > `php8.3-fpm.sock`).
+- **Zero-Disk Streaming (`MemoryStream`)**:
+  - Eliminates all temporary disk files in `tmp/`.
+  - HTTP request bodies are streamed directly from client socket buffers into `FCGI_STDIN` records.
+  - Demuxes FastCGI `FCGI_STDOUT` records directly into memory, parses CGI status/headers, and returns a `Response` backed by an in-memory stream.
+- **Resilience & Timeouts**:
+  - FastCGI socket connect, write, and response reading are bounded by `conf::FASTCGI_TIMEOUT` via `poll()` / `WSAPoll()`.
+  - Stalls return **504 Gateway Timeout**; backend connection failures return **502 Bad Gateway**.
+
+### Legacy Fork-and-Exec CGI (`src/http/cgi/process.cpp`)
+If FastCGI is disabled but `<EnablePHPCGI> on </EnablePHPCGI>` is enabled:
 
 - **Execution Model**:
   - On Linux: pipes are established for standard input and output (`pipe()`), followed by `fork()` and `execve()`.

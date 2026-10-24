@@ -7,6 +7,7 @@
 #endif
 
 #include "conf/conf.hpp"
+#include "http/fastcgi/backend.hpp"
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
 #include "http/version_checker.hpp"
@@ -214,6 +215,10 @@ int main(int argc, char* argv[]) {
         cleanExit();
         return 1;
     }
+
+    // Keep owned PHP backend alive until HTTP workers finish
+    http::fastcgi::Backend phpBackend;
+    phpBackend.start();
 
     // Print welcome banner
     if (conf::SHOW_WELCOME_BANNER)

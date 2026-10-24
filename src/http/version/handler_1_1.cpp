@@ -2,10 +2,11 @@
 
 #include <optional>
 
-#include "../cgi/process.hpp"
 #include "../../conf/conf.hpp"
-#include "../../util/toolbox.hpp"
 #include "../../logs/logger.hpp"
+#include "../../util/toolbox.hpp"
+#include "../cgi/process.hpp"
+#include "../fastcgi/client.hpp"
 
 #define ALLOWED_STATIC_METHODS "GET, HEAD, OPTIONS"
 #define ALLOWED_METHODS "GET, HEAD, OPTIONS, POST, PUT, PATCH, DELETE"
@@ -118,23 +119,42 @@ namespace http::version::handler_1_1 {
                 return pResponse;
 
             // Check for PHP files
-            if (conf::IS_PHP_ENABLED && file.absoluteResourcePath.ends_with(".php")) {
-                cgi::handlePHPRequest(file, request, *pResponse);
+            if (file.absoluteResourcePath.ends_with(".php")) {
+                if (conf::IS_FASTCGI_ENABLED) {
+                    fastcgi::handleRequest(conf::FASTCGI_ADDRESS, file, request, *pResponse, static_cast<int>(conf::FASTCGI_TIMEOUT));
 
-                // Load additional headers
-                const std::string& reqDecodedURI = request.getDecodedURI();
-                const headers_map_t& reqHeaders = request.getHeaders();
-                for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
-                    if (pMatch->doesRequestMatch(reqDecodedURI, reqHeaders))
-                        for (const auto& [name, value] : pMatch->getHeaders())
-                            pResponse->setHeader(name, value);
+                    // Load additional headers
+                    const std::string& reqDecodedURI = request.getDecodedURI();
+                    const headers_map_t& reqHeaders = request.getHeaders();
+                    for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
+                        if (pMatch->doesRequestMatch(reqDecodedURI, reqHeaders))
+                            for (const auto& [name, value] : pMatch->getHeaders())
+                                pResponse->setHeader(name, value);
 
-                // Update the byte ranges
-                if (pResponse->getContentLength() > 0)
-                    if (!pResponse->extendByteRanges(request.getByteRanges()))
-                        setStatusMaybeErrorDoc(request, *pResponse, 416); // Range Not Satisfiable            
+                    // Update the byte ranges
+                    if (pResponse->getContentLength() > 0)
+                        if (!pResponse->extendByteRanges(request.getByteRanges()))
+                            setStatusMaybeErrorDoc(request, *pResponse, 416); // Range Not Satisfiable            
 
-                return pResponse;
+                    return pResponse;
+                } else if (conf::IS_PHP_ENABLED) {
+                    cgi::handlePHPRequest(file, request, *pResponse);
+
+                    // Load additional headers
+                    const std::string& reqDecodedURI = request.getDecodedURI();
+                    const headers_map_t& reqHeaders = request.getHeaders();
+                    for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
+                        if (pMatch->doesRequestMatch(reqDecodedURI, reqHeaders))
+                            for (const auto& [name, value] : pMatch->getHeaders())
+                                pResponse->setHeader(name, value);
+
+                    // Update the byte ranges
+                    if (pResponse->getContentLength() > 0)
+                        if (!pResponse->extendByteRanges(request.getByteRanges()))
+                            setStatusMaybeErrorDoc(request, *pResponse, 416); // Range Not Satisfiable            
+
+                    return pResponse;
+                }
             }
         }
 

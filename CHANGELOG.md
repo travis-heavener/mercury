@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.37.0] - 2026-10-23
+- Added: automatic Windows FastCGI listener startup using `WinPHPCGIPath`, with owned-process cleanup and reuse of existing listeners
+- Added: automatic Linux PHP-FPM startup for omitted/auto addresses, with private same-user pool, socket, startup diagnostics, and owned-process cleanup; explicit backends remain externally managed
+- Added: persistent FastCGI gateway client supporting PHP-FPM UNIX domain sockets and TCP loopback
+- Added: configuration directives `<EnableFastCGI>`, `<FastCGIAddress>`, and `<FastCGITimeout>`
+- Added: zero-configuration auto-detection of newest installed PHP-FPM daemon on Linux
+- Added: zero-disk memory streaming for FastCGI request bodies and response payloads via `MemoryStream`
+- Added: OPcache automation and FastCGI launch script generator in `conf/setup_php.ps1`
+- Added: `php:init` alias to `phpinit` console command
+- Added: `ShowPrivilegeDeescalationMessage` configuration setting to suppress console privilege drop notice
+- Test: replay existing CGI assertions against isolated PHP-FPM TCP/Unix fixtures and Windows FastCGI listeners, including ownership, 502/504, PHP metadata, and multi-record binary bodies
+
 ## [0.36.0] - 2026-10-22
 - Perf: enable `-O3 -fno-strict-aliasing` optimizations for release builds in `Makefile`
 - Perf: cache formatted HTTP `Date` header string at 1-second granularity per thread, eliminating redundant `gmtime`/`strftime` formatting on every response

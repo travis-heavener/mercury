@@ -23,7 +23,7 @@ Mercury is a lightweight, configurable HTTP web server implemented in modern C++
 - **Protocol Support**: Full HTTP/1.1 (keep-alive, pipelining, chunked transfer encoding) with backward-compatible HTTP/1.0 and HTTP/0.9 handlers.
 - **Modern TLS**: TLS 1.3 encryption powered by OpenSSL with self-signed certificate automation.
 - **Streaming Compression**: Dynamic, on-the-fly compression supporting **Brotli**, **Zstandard**, **Gzip**, and **Deflate**.
-- **Fast PHP-CGI**: Native RFC 3875 CGI execution engine for PHP scripts.
+- **PHP FastCGI & CGI**: Persistent FastCGI gateway communicating directly with PHP-FPM (Linux) or persistent `php-cgi` (Windows), with zero disk I/O and legacy RFC 3875 CGI fallback.
 - **Flexible XML Configuration**: Declarative virtual host rules, regex URL rewrites, HTTP redirects (301/302/308), CIDR/IP access control lists, and custom status pages.
 - **Privacy First**: Zero telemetry, no external calls, and built-in DNT/Sec-GPC client IP bit-masking and hashing.
 - **Privilege Separation**: Safely drops root privileges when started via `sudo` or `doas` after binding privileged ports, preserving invoking user ownership on logs and temp files.
@@ -112,10 +112,17 @@ Mercury automatically creates a `logs/` directory upon startup:
 
 ### Setting Up PHP
 
-PHP is supported via CGI:
-1. Start Mercury and type `phpinit` in the interactive console to automatically install and configure `php-cgi`.
-2. In `conf/mercury.conf`, enable PHP by setting `<EnablePHPCGI> on </EnablePHPCGI>`.
-3. Windows users can customize the path via the `<WinPHPCGIPath>` node in `mercury.conf`.
+Mercury supports PHP via persistent **FastCGI** (recommended) and traditional **CGI**:
+
+- **FastCGI / PHP-FPM (Recommended)**:
+  1. In `conf/mercury.conf`, set `<EnableFastCGI> on </EnableFastCGI>`.
+  2. Mercury automatically auto-detects the newest installed PHP-FPM UNIX domain socket on Linux (`/run/php/*.sock`) or connects to `127.0.0.1:9000` on Windows.
+  3. Custom sockets or addresses can be configured via `<FastCGIAddress>` (e.g. `unix:/run/php/php8.3-fpm.sock` or `127.0.0.1:9000`).
+  4. On Windows, run `php\start_fastcgi.bat` or `php\php-cgi.exe -b 127.0.0.1:9000`.
+
+- **Legacy PHP-CGI**:
+  1. Start Mercury and type `php:init` in the interactive console to automatically download and configure `php-cgi`.
+  2. In `conf/mercury.conf`, set `<EnablePHPCGI> on </EnablePHPCGI>`.
 
 ### TLS Certs
 

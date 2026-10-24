@@ -121,7 +121,7 @@ def pipelines(connect):
 
 def fragmented_body(connect):
     """Preserve all byte values across fragmented sends, CGI, and the next request."""
-    payload = bytes(range(256)) * 130
+    payload = bytes(range(256)) * 513
     with connect() as conn:
         data = request(b"/body_tests/raw.php", b"POST", b"Content-Length: " + str(len(payload)).encode() + b"\r\n", payload)
         for start in range(0, len(data), 997):
