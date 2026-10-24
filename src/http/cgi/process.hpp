@@ -3,8 +3,8 @@
 
 #include <fstream>
 
-#include "../request.hpp"
-#include "../response.hpp"
+#include "../message/request.hpp"
+#include "../message/response.hpp"
 
 // Platform specifics
 

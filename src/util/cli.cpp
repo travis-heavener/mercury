@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "../conf/conf.hpp"
-#include "../http/stats.hpp"
-#include "../http/tls.hpp"
+#include "../http/telemetry/stats.hpp"
+#include "../http/tls/tls.hpp"
 
 #ifdef __linux__
     #include <poll.h>

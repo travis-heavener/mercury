@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include "../request.hpp"
-#include "../response.hpp"
+#include "../message/request.hpp"
+#include "../message/response.hpp"
 
 namespace http::version::handler_1_0 {
     std::unique_ptr<Response> genResponse(Request&);

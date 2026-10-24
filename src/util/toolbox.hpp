@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-#include "../http/body_stream.hpp"
+#include "../http/streams/body_stream.hpp"
 
 #define IO_SUCCESS 0
 #define IO_FAILURE 1

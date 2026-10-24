@@ -10,7 +10,7 @@
 #include "http/fastcgi/backend.hpp"
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
-#include "http/version_checker.hpp"
+#include "http/telemetry/version_checker.hpp"
 #include "logs/logger.hpp"
 #include "util/cli.hpp"
 #include "util/privilege.hpp"

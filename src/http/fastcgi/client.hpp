@@ -18,9 +18,9 @@
 #include <string_view>
 
 #include "../../io/file.hpp"
-#include "../body_stream.hpp"
-#include "../request.hpp"
-#include "../response.hpp"
+#include "../streams/body_stream.hpp"
+#include "../message/request.hpp"
+#include "../message/response.hpp"
 #include "params.hpp"
 #include "protocol.hpp"
 
