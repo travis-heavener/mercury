@@ -189,39 +189,11 @@ jobs:
             --notes-file "$SUMMARY_FILE" \
             $PRERELEASE
 
-      # Commit updated docs
-      - name: Create Release Update Branch
+      # Commit and push release metadata directly to main
+      - name: Push Release Metadata Update
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          # Create branch & commit
-          git checkout -b release-update-${{ steps.version.outputs.version }}
           git add website/releases.json website/latest
           git commit -m "Update release metadata for ${{ steps.version.outputs.version }}" || echo "No changes to commit"
-          git restore .
-          git push origin HEAD
-
-      - name: Create PR
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          gh pr create \
-            --title "[Website] Bump Release ${{ steps.version.outputs.version }}" \
-            --body "Automated release bump for ${{ steps.version.outputs.version }}." \
-            --base main \
-            --head release-update-${{ steps.version.outputs.version }} \
-            --label "website,repo,top-priority"
-
-      - name: Approve and Merge PR
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          PR_NUMBER=$(gh pr list --head release-update-${{ steps.version.outputs.version }} --json number -q '.[0].number')
-          gh pr merge $PR_NUMBER --merge --admin
-
-      - name: Delete Release Update Branch
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          BRANCH="release-update-${{ steps.version.outputs.version }}"
-          git push origin --delete "$BRANCH" || echo "Branch already deleted"
+          git push origin HEAD:main
