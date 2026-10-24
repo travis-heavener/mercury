@@ -156,60 +156,7 @@ optional arguments; omit the brackets when typing a command.
 | `donate` | `fund` | Display the project support link |
 | `exit` | `quit`, `q` | Gracefully shut down Mercury |
 
-**Log commands**
-
-`logs` and `tail` accept `access` or `error` as a log selector, or a count by
-itself to use the access log. These selectors use the configured `AccessLogFile`
-and `ErrorLogFile` paths (normally `logs/access.log` and `logs/error.log`).
-
-```text
-logs                 # Last 10 access-log lines
-logs 25              # Last 25 access-log lines
-logs access 50       # Last 50 access-log lines
-logs error           # Last 10 error-log lines
-tail error 20        # Last 20 error-log lines
-```
-
-The comments in these examples are explanatory; enter only the command before
-`#`. Output is a snapshot, ordered from oldest to newest within the selected
-tail. If fewer lines exist, Mercury prints the available lines. Empty,
-unconfigured, or unreadable logs produce a diagnostic message.
-
-Use positive whole-number counts from 1 to 1,000. Current count handling is:
-
-| Count argument | Effective line limit |
-|---|---|
-| Omitted, `0`, or a negative value | 10 |
-| `1` through `1000` | Requested count |
-| Above `1000`, within the parser's numeric range | 1,000 |
-| Unparseable text or numeric overflow | 10 |
-
-Mercury validates the entire count as a signed decimal integer before applying
-the limit. An optional leading `+` and leading zeroes are accepted (`+20` and
-`00020` both request 20 lines). Surrounding spaces or tabs are ignored; trailing
-text, fractional counts, and extra arguments are invalid. For example,
-`logs access 20abc`, `logs error 2.5`, and `logs 20 30` each use the default of
-10 lines. `access` and `error` must be complete selector tokens, separated from
-the count by whitespace.
-
-**MIME lookup**
-
-`mimes` lists all configured mappings, sorted by extension. A query performs a
-case-insensitive substring search against both the extension and media type;
-a leading dot in the query is optional.
-
-```text
-mimes
-mimes .php
-mime text/
-```
-
-**PHP initialization**
-
-On Linux, `php:init` installs PHP-CGI and PHP-FPM using a detected `apt-get`,
-`pacman`, or `dnf` package manager through `sudo`. On Windows, it runs
-`conf/setup_php.ps1` to install and configure PHP. See [Setting Up PHP](#setting-up-php)
-for enabling CGI or FastCGI in configuration and restarting Mercury.
+#### Linux: Console Controls
 
 On Linux, the interactive console supports these editing shortcuts:
 
