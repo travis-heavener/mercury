@@ -154,10 +154,19 @@ On Linux, the interactive console supports these editing shortcuts:
 | Ctrl+Left / Ctrl+Right | Move to previous word start / next word end |
 | Ctrl+Backspace | Delete previous word (including intervening whitespace) |
 | Ctrl+Delete | Delete next word (including intervening whitespace) |
+| Tab | Complete command names/aliases or `logs`/`tail` targets |
+| Tab twice | List ambiguous matches |
 | Up / Down | Browse command history |
 | Left / Right, Backspace, Delete | Move or delete one character |
 | Ctrl+L | Clear screen and redraw current input |
 | Ctrl+C | Shut down Mercury |
+
+Completion ignores letter case and inserts lowercase matches. A unique match
+adds a trailing space at the end of the line; ambiguous matches expand to their
+shared prefix. Press Tab again to list remaining choices. Completion works at
+the cursor and preserves following arguments. `logs` and `tail` complete their
+first argument to `access` or `error`; numeric counts and free-form queries are
+left as typed.
 
 Words are separated by whitespace; punctuation within paths and commands stays
 part of the word. Ctrl+W also deletes the previous word. Ctrl+Backspace requires

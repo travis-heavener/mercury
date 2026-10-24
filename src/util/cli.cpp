@@ -103,6 +103,67 @@
         std::cout << "\33[2K\r< " << line << std::flush;
     }
 
+    // Used to complete command or supported argument at cursor
+    static void completeLine(std::string& line, int& cursor, bool repeatedTab) {
+        static const std::vector<std::string> commands{
+            "?", "cert", "clear", "cls", "conf", "config", "donate", "exit", "fund",
+            "help", "info", "logs", "metrics", "mime", "mimes", "php:init", "phpinit",
+            "ping", "pwd", "q", "quit", "routes", "rules", "stats", "status", "tail",
+            "tls", "uptime", "ver", "version"
+        };
+        static const std::vector<std::string> logTargets{"access", "error"};
+
+        // Locate whole token while matching only prefix before cursor
+        auto isSpace = [](char c) { return std::isspace(static_cast<unsigned char>(c)); };
+        int start = cursor, end = cursor;
+        while (start > 0 && !isSpace(line[start - 1])) --start;
+        while (end < static_cast<int>(line.size()) && !isSpace(line[end])) ++end;
+
+        std::istringstream before(line.substr(0, start));
+        std::string command, argument;
+        const std::vector<std::string>* pCandidates = &commands;
+        if (before >> command) {
+            strToLower(command);
+            if ((command != "logs" && command != "tail") || (before >> argument)) return;
+            pCandidates = &logTargets;
+        }
+
+        std::string prefix = line.substr(start, cursor - start);
+        strToLower(prefix);
+        std::vector<std::string> matches;
+        for (const auto& candidate : *pCandidates) {
+            if (candidate.starts_with(prefix)) matches.push_back(candidate);
+        }
+        if (matches.empty()) return;
+
+        // Extend shared prefix or finish unique match without disturbing following arguments
+        std::string completion = matches.front();
+        for (const auto& match : matches) {
+            size_t shared = 0;
+            while (shared < completion.size() && shared < match.size() && completion[shared] == match[shared])
+                ++shared;
+            completion.resize(shared);
+        }
+        if (matches.size() == 1 || completion.size() > prefix.size()) {
+            line.replace(start, end - start, completion);
+            cursor = start + static_cast<int>(completion.size());
+            if (matches.size() == 1 && cursor == static_cast<int>(line.size())) {
+                line += ' ';
+                ++cursor;
+            }
+        } else if (repeatedTab) {
+            std::cout << '\n';
+            for (size_t i = 0; i < matches.size(); ++i) {
+                if (i > 0) std::cout << "  ";
+                std::cout << matches[i];
+            }
+            std::cout << '\n';
+        }
+
+        showLine(line);
+        std::cout << "\033[" << (cursor + 3) << 'G' << std::flush;
+    }
+
     // Gets the next line from the terminal
     void readNextLine(std::atomic<bool>& isExiting, std::vector<std::string>& history, int& historyIndex) {
         if (history.size() > MAX_HISTORY_LEN) history.erase(history.begin());
@@ -112,10 +173,16 @@
         historyIndex = static_cast<int>(history.size()) - 1;
 
         int c, cursor = 0;
+        bool previousTab = false;
         while (!isExiting) {
             if ((c = getKey()) == -1) continue;
+            const bool repeatedTab = c == '\t' && previousTab;
+            previousTab = c == '\t';
 
             switch (c) {
+                case '\t':
+                    completeLine(history[historyIndex], cursor, repeatedTab);
+                    break;
                 case 3: // Ctrl+C (SIGINT)
                     std::cout << '\n' << std::flush;
                     isExiting = true;
