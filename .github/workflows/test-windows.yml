@@ -32,6 +32,22 @@ jobs:
       - name: Setup PHP
         run: ./conf/setup_php.ps1 8.4.11
 
+      # Install postmortem capture before short-lived PHP workers start
+      - name: Enable Windows Crash Dumps
+        shell: pwsh
+        run: |
+          $dumpFolder = Join-Path $env:GITHUB_WORKSPACE 'crash-dumps'
+          New-Item -Path $dumpFolder -ItemType Directory -Force | Out-Null
+          $toolFolder = Join-Path $env:RUNNER_TEMP 'mercury-procdump'
+          $archive = Join-Path $env:RUNNER_TEMP 'mercury-procdump.zip'
+          Invoke-WebRequest -Uri 'https://download.sysinternals.com/files/Procdump.zip' -OutFile $archive
+          Expand-Archive -Path $archive -DestinationPath $toolFolder -Force
+          $procDump = Join-Path $toolFolder 'procdump64.exe'
+          & $procDump -accepteula -ma -i $dumpFolder
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to install ProcDump postmortem capture.'
+          }
+
       # Make TLS cert
       - name: Make TLS Cert
         run: |
@@ -40,14 +56,73 @@ jobs:
       # Run Python test cases
       - name: Python Test Runner
         run: |
-          python tests/run.py
+          # Clear inherited crash-dialog suppression so postmortem debugger can run
+          python -c "import ctypes, pathlib, runpy, sys; ctypes.windll.kernel32.SetErrorMode(1); sys.path.insert(0, str(pathlib.Path('tests').resolve())); runpy.run_path('tests/run.py', run_name='__main__')"
           $status=$LastExitCode
 
           # Print logs
           Write-Host "====================================================="
           Write-Host "                     Error Log"
           Write-Host "====================================================="
-          Get-Content -Path "logs/error.log"
+          if (Test-Path 'logs/error.log') {
+            Get-Content -Path 'logs/error.log'
+          }
 
           # Exit with status code
           exit $status
+
+      # Collect Windows crash reports without masking original test result
+      - name: Windows Crash Diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          $events = Get-WinEvent -FilterHashtable @{
+            LogName = 'Application'
+            Id = 1000, 1001
+            StartTime = (Get-Date).AddHours(-1)
+          } -ErrorAction SilentlyContinue | Where-Object {
+            $_.Message -match 'mercury\.exe|php-cgi\.exe|php_opcache\.dll'
+          }
+          if ($events) {
+            $events | Format-List TimeCreated, Id, ProviderName, Message |
+              Out-String -Width 300 | Tee-Object -FilePath 'crash-dumps/application-events.txt'
+          } else {
+            'No matching Windows application crash events found.' |
+              Tee-Object -FilePath 'crash-dumps/application-events.txt'
+          }
+          $dumps = @(Get-ChildItem -Path 'crash-dumps' -Filter '*.dmp')
+          $dumps | Select-Object Name, Length, LastWriteTime | Format-Table -AutoSize
+          if ($dumps.Count -eq 0) {
+            'No crash dumps were captured.' | Tee-Object -FilePath 'crash-dumps/capture-status.txt'
+          }
+          exit 0
+
+      # Restore postmortem debugger settings even when tests fail
+      - name: Remove Windows Crash Capture
+        if: always()
+        shell: pwsh
+        run: |
+          $procDump = Join-Path $env:RUNNER_TEMP 'mercury-procdump/procdump64.exe'
+          if (Test-Path $procDump) {
+            & $procDump -accepteula -u
+            if ($LASTEXITCODE -ne 0) {
+              Write-Warning 'ProcDump cleanup failed on disposable CI runner.'
+            }
+          }
+          exit 0
+
+      # Preserve dumps alongside exact binaries needed for native crash analysis
+      - name: Upload Windows Crash Diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-crash-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          path: |
+            crash-dumps/
+            logs/
+            bin/mercury.exe
+            php/php-cgi.exe
+            php/php8*.dll
+            php/ext/php_opcache.dll
+            php/php.ini

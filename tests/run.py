@@ -176,6 +176,7 @@ def mercury_process(config_path):
             stdout=subprocess.DEVNULL, stderr=diagnostics, stdin=subprocess.DEVNULL,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0
         )
+        failed = False
         try:
             if not wait_until_live() or proc.poll() is not None:
                 diagnostics.seek(0)
@@ -186,7 +187,14 @@ def mercury_process(config_path):
                 if not probe.recv(1024):
                     raise RuntimeError("Mercury closed startup probe")
             yield proc
+            if proc.poll() is not None:
+                raise RuntimeError("Mercury exited unexpectedly during test run")
+        except BaseException:
+            failed = True
+            raise
         finally:
+            # Capture unexpected exit before sending normal shutdown signal
+            unexpected_exit = proc.poll()
             if proc.poll() is None:
                 proc.send_signal(signal.CTRL_BREAK_EVENT if windows else signal.SIGINT)
                 try:
@@ -195,6 +203,16 @@ def mercury_process(config_path):
                     proc.kill()
                     proc.wait(timeout=5)
                     raise RuntimeError("Mercury did not shut down gracefully")
+
+            # Preserve runtime crash diagnostics normally hidden by redirected stderr
+            if failed or unexpected_exit is not None:
+                code = proc.returncode
+                formatted_code = f"{code} (0x{code & 0xFFFFFFFF:08X})" if windows and code is not None else str(code)
+                state = "unexpected exit" if unexpected_exit is not None else "after test failure and shutdown"
+                print(f"[Diagnostics] Mercury PID {proc.pid}: {state}; exit code {formatted_code}", flush=True)
+                diagnostics.seek(0)
+                captured = diagnostics.read().decode(errors="replace")
+                print("[Diagnostics] Mercury stderr:\n" + (captured or "(empty)"), flush=True)
 
 
 if __name__ == "__main__":

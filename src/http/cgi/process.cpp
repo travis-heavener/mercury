@@ -202,12 +202,21 @@ namespace http::cgi {
         Process process(envBlock);
         if (!process.hasSucceeded()) {
             res.setStatus(502); // Bad Gateway
+            tmpOutHandle.close();
             removeTempFile(tmpPath);
             return;
         }
 
         // Send data to Process
         process.send(req.getBody(), tmpOutHandle);
+
+        // Reject failed worker capture instead of treating crash as empty success
+        if (!tmpOutHandle) {
+            res.setStatus(502);
+            tmpOutHandle.close();
+            removeTempFile(tmpPath);
+            return;
+        }
 
         // Read from temp file
         tmpOutHandle.close();
@@ -223,8 +232,8 @@ namespace http::cgi {
         std::string tmpBodyPath;
         if (!createTempFile(tmpBodyPath)) {
             res.setStatus(500);
+            tmpInHandle.close();
             removeTempFile(tmpPath);
-            tmpOutHandle.close();
             return;
         }
 
@@ -232,9 +241,9 @@ namespace http::cgi {
         if (!tmpBodyHandle.is_open()) {
             ERROR_LOG << "Failed to open temp file: " << tmpBodyPath << std::endl;
             res.setStatus(500);
+            tmpInHandle.close();
             removeTempFile(tmpPath);
             removeTempFile(tmpBodyPath);
-            tmpOutHandle.close();
             return;
         }
 
@@ -434,28 +443,84 @@ namespace http::cgi {
 
         // Spawns a new CGI process
         bool Process::spawnCGIProcess(env_block_t& envBlock) {
+            // Release startup resources on every return path, including allocation failures
+            struct StartupResources {
+                HANDLE stderrHandle = INVALID_HANDLE_VALUE;
+                std::vector<BYTE> storage;
+                LPPROC_THREAD_ATTRIBUTE_LIST attributes = nullptr;
+
+                ~StartupResources() {
+                    if (attributes) DeleteProcThreadAttributeList(attributes);
+                    if (stderrHandle != INVALID_HANDLE_VALUE) CloseHandle(stderrHandle);
+                }
+            } resources;
+
+            // Give child valid inheritable stderr without modifying shared parent handle
+            HANDLE parentStderr = GetStdHandle(STD_ERROR_HANDLE);
+            if (parentStderr && parentStderr != INVALID_HANDLE_VALUE) {
+                if (!DuplicateHandle(GetCurrentProcess(), parentStderr, GetCurrentProcess(),
+                                     &resources.stderrHandle, 0, TRUE, DUPLICATE_SAME_ACCESS)) {
+                    ERROR_LOG << "Failed to duplicate PHP CGI stderr handle: " << GetLastError() << std::endl;
+                    return false;
+                }
+            } else {
+                SECURITY_ATTRIBUTES security = {sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
+                resources.stderrHandle = CreateFileW(L"NUL", GENERIC_WRITE,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE, &security, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+                if (resources.stderrHandle == INVALID_HANDLE_VALUE) {
+                    ERROR_LOG << "Failed to open PHP CGI stderr fallback: " << GetLastError() << std::endl;
+                    return false;
+                }
+            }
+
+            // Restrict inheritance to this worker's streams during concurrent CGI launches
+            // Keep unrelated request pipes and temporary files out of child processes
+            SIZE_T attributeBytes = 0;
+            InitializeProcThreadAttributeList(nullptr, 1, 0, &attributeBytes);
+            if (attributeBytes == 0) {
+                ERROR_LOG << "Failed to size PHP CGI handle list: " << GetLastError() << std::endl;
+                return false;
+            }
+            resources.storage.resize(attributeBytes);
+            auto attributes = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(resources.storage.data());
+            if (!InitializeProcThreadAttributeList(attributes, 1, 0, &attributeBytes)) {
+                ERROR_LOG << "Failed to initialize PHP CGI handle list: " << GetLastError() << std::endl;
+                return false;
+            }
+            resources.attributes = attributes;
+            HANDLE inheritedHandles[] = {stdinRead, stdoutWrite, resources.stderrHandle};
+            if (!UpdateProcThreadAttribute(attributes, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                          inheritedHandles, sizeof(inheritedHandles), nullptr, nullptr)) {
+                ERROR_LOG << "Failed to configure PHP CGI handle list: " << GetLastError() << std::endl;
+                return false;
+            }
+
             // Configure STARTUPINFO to redirect stdin/stdout
-            STARTUPINFOW si;
+            STARTUPINFOEXW si;
             ZeroMemory(&si, sizeof(si));
-            si.cb = sizeof(STARTUPINFOW);
-            si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
-            si.hStdOutput = stdoutWrite;
-            si.hStdInput = stdinRead;
-            si.dwFlags |= STARTF_USESTDHANDLES;
+            si.StartupInfo.cb = sizeof(si);
+            si.StartupInfo.hStdError = resources.stderrHandle;
+            si.StartupInfo.hStdOutput = stdoutWrite;
+            si.StartupInfo.hStdInput = stdinRead;
+            si.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
+            si.lpAttributeList = attributes;
 
             // Init process information
             ZeroMemory(&procInfo, sizeof(procInfo));
 
             // Start CGI process
             std::wstring phpCgiPathStr = conf::PHP_CGI_EXE_PATH.wstring();
+            // Avoid OPcache shared-memory lifecycle in short-lived Windows CGI workers
+            // Preserve configured OPcache settings for persistent FastCGI backend
+            std::wstring command = L"\"" + phpCgiPathStr + L"\" -d opcache.enable=0";
             if (!CreateProcessW(
-                    phpCgiPathStr.data(), NULL, NULL, NULL,
-                    TRUE, // Inherit handles
-                    CREATE_UNICODE_ENVIRONMENT,
+                    phpCgiPathStr.c_str(), command.data(), NULL, NULL,
+                    TRUE, // Inherit only handles from explicit list
+                    CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT,
                     envBlock.data(), // Env
                     NULL,
-                    &si, &procInfo)) {
-                ERROR_LOG << "Failed to spawn PHP CGI worker process" << std::endl;
+                    &si.StartupInfo, &procInfo)) {
+                ERROR_LOG << "Failed to spawn PHP CGI worker process: " << GetLastError() << std::endl;
                 return false;
             }
 
@@ -485,6 +550,18 @@ namespace http::cgi {
 
             // Read response from CGI
             readFromPipe(stdoutRead, tmpHandle, procInfo);
+
+            // Report crashed or silent Windows workers before handles close
+            DWORD exitCode = 0;
+            if (!GetExitCodeProcess(procInfo.hProcess, &exitCode)) {
+                ERROR_LOG << "Failed to query PHP CGI worker exit code: " << GetLastError() << std::endl;
+                tmpHandle.setstate(std::ios::badbit);
+            } else if (exitCode != 0 || tmpHandle.tellp() == std::streampos(0)) {
+                ERROR_LOG << "PHP CGI worker PID " << procInfo.dwProcessId
+                          << " exited with code " << exitCode
+                          << ", captured stdout bytes: " << tmpHandle.tellp() << std::endl;
+                if (exitCode != 0) tmpHandle.setstate(std::ios::badbit);
+            }
 
             // After reading, also close the read end
             CloseHandle(stdoutRead);
