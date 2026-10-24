@@ -156,6 +156,15 @@ namespace http::cgi {
                 }
             }
 
+            // Select CGI config through environment even when Windows CGI ignores -c
+            // Keep external scan directories from reloading OPcache into private config
+            const auto legacyConfig = conf::PHP_CGI_EXE_PATH.parent_path() / "mercury-cgi.ini";
+            std::error_code configError;
+            if (std::filesystem::is_regular_file(legacyConfig, configError)) {
+                windowsEnvironment[L"PHPRC"] = legacyConfig.wstring();
+                windowsEnvironment[L"PHP_INI_SCAN_DIR"] = L"";
+            }
+
             // Overlay request-specific variables without inheriting stale CGI fields
             for (const auto& [key, val] : envsMap)
                 windowsEnvironment[std::wstring(key.begin(), key.end())] = std::wstring(val.begin(), val.end());
@@ -510,9 +519,8 @@ namespace http::cgi {
 
             // Start CGI process
             std::wstring phpCgiPathStr = conf::PHP_CGI_EXE_PATH.wstring();
-            // Avoid OPcache shared-memory lifecycle in short-lived Windows CGI workers
-            // Preserve configured OPcache settings for persistent FastCGI backend
-            std::wstring command = L"\"" + phpCgiPathStr + L"\" -d opcache.enable=0";
+            // Keep config selection in PHPRC rather than CGI command-line parsing
+            std::wstring command = L"\"" + phpCgiPathStr + L"\"";
             if (!CreateProcessW(
                     phpCgiPathStr.c_str(), command.data(), NULL, NULL,
                     TRUE, // Inherit only handles from explicit list

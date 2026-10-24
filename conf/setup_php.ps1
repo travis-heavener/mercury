@@ -48,11 +48,18 @@ $extensionPath = (Resolve-Path (Join-Path $PSScriptRoot "../php/ext")).ProviderP
 $content += "`r`nextension_dir = `"$extensionPath`"`r`n"
 Set-Content -Path php/php.ini -Value $content
 
+# Keep OPcache DLL out of short-lived CGI workers, including startup and shutdown
+# Preserve other generated settings and retain OPcache in normal FastCGI config
+$legacyContent = $content.Replace('zend_extension=opcache', ';zend_extension=opcache')
+$legacyContent = $legacyContent.Replace('opcache.enable=1', 'opcache.enable=0')
+Set-Content -Path php/mercury-cgi.ini -Value $legacyContent
+
 # Generate FastCGI launch script for Windows
 $fastcgiBat = "@echo off`r`necho Starting PHP FastCGI server on 127.0.0.1:9000...`r`n`"%~dp0php-cgi.exe`" -b 127.0.0.1:9000`r`n"
 Set-Content -Path php/start_fastcgi.bat -Value $fastcgiBat
 
 Write-Host "PHP setup complete with OPcache enabled."
+Write-Host "Mercury legacy CGI uses php\mercury-cgi.ini with OPcache unloaded."
 Write-Host "Run php\start_fastcgi.bat or 'php\php-cgi.exe -b 127.0.0.1:9000' to start FastCGI server."
 
 Pop-Location

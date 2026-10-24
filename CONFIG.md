@@ -218,6 +218,13 @@ Example:
 ### WinPHPCGIPath
 Points to the `php-cgi.exe` executable used for CGI requests and automatic Windows FastCGI startup.
 
+`conf/setup_php.ps1` generates two PHP configurations beside this executable:
+
+- `php.ini`: Used by FastCGI, with OPcache enabled
+- `mercury-cgi.ini`: Used by legacy CGI, with OPcache unloaded to avoid Windows worker crashes
+
+Edit the corresponding INI file to customize each mode. Legacy CGI ignores additional INI scan directories when `mercury-cgi.ini` exists; otherwise, it uses PHP's normal configuration lookup.
+
 NOTE: This node applies to Windows only.
 
 Default: `./php/php-cgi.exe`
