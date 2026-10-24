@@ -36,6 +36,7 @@ touch "./$VERSION/logs/error.log"
 # Copy default config
 cp -r ../conf "./$VERSION/"
 cp -f ../conf/default/* "./$VERSION/conf"
+rm -rf "./$VERSION/conf/__pycache__"
 find "./$VERSION/conf/ssl/" -name "*" -type f -delete
 
 # Copy license, public files, & extras
