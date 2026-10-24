@@ -135,25 +135,23 @@ Self-signed TLS 1.3 certificates can be generated with a single command:
 
 ### CLI
 
-Once Mercury is running in a terminal, enter commands at the `< ` prompt.
-Commands and aliases are case-insensitive. Square brackets below indicate
-optional arguments; omit the brackets when typing a command.
+Once Mercury is running in a terminal, enter commands at the `< ` prompt (case-insensitive, brackets indicate optional arguments):
 
 | Command / syntax | Aliases | Action |
 |---|---|---|
 | `help` | `?` | List available console commands |
 | `clear` | `cls` | Clear terminal output |
-| `config` | `conf` | Show active network, connection, content, CGI/FastCGI, security, and logging settings |
-| `stats` | `status`, `metrics`, `info`, `uptime` | Show uptime, active connections, worker utilization, queued connections, request totals, status distribution, and traffic totals |
-| `routes` | `rules` | Show configured Match, Redirect, and Rewrite rules, including access rules, headers, and directory-index settings |
-| `tls` | `cert` | Show TLS configuration and certificate metadata |
-| `logs [access\|error] [n]` | `tail` (same arguments) | Show the last `n` lines of the selected configured log; defaults to access log and 10 lines |
-| `mimes [query]` | `mime` (same arguments) | List configured MIME mappings or filter by extension or media type |
-| `php:init` | `phpinit` | Initialize PHP using the platform-specific setup described below |
+| `config` | `conf` | Show active server configuration |
+| `stats` | `status`, `metrics`, `info`, `uptime` | Show uptime, connection, worker, and traffic metrics |
+| `routes` | `rules` | Show configured Match, Redirect, and Rewrite rules |
+| `tls` | `cert` | Show TLS settings and certificate metadata |
+| `logs [access\|error] [n]` | `tail` | Show last `n` log lines (default: `access`, 10 lines) |
+| `mimes [query]` | `mime` | List or filter configured MIME mappings |
+| `php:init` | `phpinit` | Initialize PHP environment |
 | `ping` | — | Print `Pong!` |
-| `pwd` | — | Print the configured document root directory |
-| `version` | `ver` | Show Mercury version and protocol/encryption capabilities |
-| `donate` | `fund` | Display the project support link |
+| `pwd` | — | Print configured document root directory |
+| `version` | `ver` | Show Mercury version and capabilities |
+| `donate` | `fund` | Display project support link |
 | `exit` | `quit`, `q` | Gracefully shut down Mercury |
 
 #### Linux: Console Controls
@@ -162,28 +160,16 @@ On Linux, the interactive console supports these editing shortcuts:
 
 | Shortcut | Action |
 |---|---|
-| Ctrl+Left / Ctrl+Right | Move to previous word start / next word end |
-| Ctrl+Backspace | Delete previous word (including intervening whitespace) |
-| Ctrl+Delete | Delete next word (including intervening whitespace) |
-| Tab | Complete command names/aliases or `logs`/`tail` targets |
-| Tab twice | List ambiguous matches |
-| Up / Down | Browse command history |
-| Left / Right, Backspace, Delete | Move or delete one character |
-| Ctrl+L | Clear screen and redraw current input |
+| Ctrl+Left / Ctrl+Right | Move cursor backward / forward by word |
+| Ctrl+Backspace | Delete previous word |
+| Ctrl+Delete | Delete next word |
+| Tab / Tab twice | Auto-complete command or target / list matches |
+| Up / Down | Navigate command history |
+| Left / Right, Backspace, Del | Standard character movement and deletion |
+| Ctrl+L | Clear screen and redraw input |
 | Ctrl+C | Shut down Mercury |
 
-Completion ignores letter case and inserts lowercase matches. A unique match
-adds a trailing space at the end of the line; ambiguous matches expand to their
-shared prefix. Press Tab again to list remaining choices. Completion works at
-the cursor and preserves following arguments. `logs` and `tail` complete their
-first argument to `access` or `error`; numeric counts and free-form queries are
-left as typed.
-
-Words are separated by whitespace; punctuation within paths and commands stays
-part of the word. Ctrl+W also deletes the previous word. Ctrl+Backspace requires
-a terminal that sends a distinct key sequence (commonly Ctrl+H or Escape+DEL).
-If the terminal sends plain DEL for both Backspace and Ctrl+Backspace, Mercury
-cannot distinguish them; use Ctrl+W or configure the terminal shortcut.
+Tab completion matches command names and `logs` targets (`access`/`error`). If your terminal does not send distinct codes for Ctrl+Backspace, use Ctrl+W instead.
 
 ### Updating Mercury
 
