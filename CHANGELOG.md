@@ -3,6 +3,7 @@
 ## [0.38.0] - 2026-10-24
 - Added: Linux console Tab completion for command names, aliases, and log targets, with shared-prefix expansion and repeated-Tab match listing
 - Added: Linux console word navigation using Ctrl+Left/Right and word deletion using Ctrl+Backspace/Delete
+- Docs: update CLI command table for new & recently undocumented commands (e.g. `uptime`, `rules`, `mimes`, `logs`)
 - Fix: recognize alternate Ctrl+Delete encodings (`Escape+d` and `CSI 3^`)
 - Fix: consume modified terminal key sequences and bound escape reads to avoid blocking on lone Escape
 - Fix: prevent Backspace from erasing before start of nonempty console input

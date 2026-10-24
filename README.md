@@ -85,11 +85,12 @@ Download the latest release archive from [mercury.wowtravis.com](https://mercury
 - **Windows**: `bin\mercury.exe [options]`
 
 Common options:
+
 - `-c, --config <file>`: Specify path to configuration file (defaults to `conf/mercury.conf`)
 - `-h, --help`: Display usage and command-line options
 - `-p, --port <port>`: Override HTTP port
 - `-r, --root <path>`: Override document root directory
-- `-t, --test`: Test configuration file syntax and exit
+- `-t, --test` (also `--test-config`): Test configuration file syntax and exit
 - `-v, --version`: Display version information
 
 > [!NOTE]
@@ -134,18 +135,79 @@ Self-signed TLS 1.3 certificates can be generated with a single command:
 
 ### CLI
 
-Mercury provides an interactive terminal command interface:
+Once Mercury is running in a terminal, enter commands at the `< ` prompt.
+Commands and aliases are case-insensitive. Square brackets below indicate
+optional arguments; omit the brackets when typing a command.
 
-| Command | Action |
+| Command / syntax | Aliases | Action |
+|---|---|---|
+| `help` | `?` | List available console commands |
+| `clear` | `cls` | Clear terminal output |
+| `config` | `conf` | Show active network, connection, content, CGI/FastCGI, security, and logging settings |
+| `stats` | `status`, `metrics`, `info`, `uptime` | Show uptime, active connections, worker utilization, queued connections, request totals, status distribution, and traffic totals |
+| `routes` | `rules` | Show configured Match, Redirect, and Rewrite rules, including access rules, headers, and directory-index settings |
+| `tls` | `cert` | Show TLS configuration and certificate metadata |
+| `logs [access\|error] [n]` | `tail` (same arguments) | Show the last `n` lines of the selected configured log; defaults to access log and 10 lines |
+| `mimes [query]` | `mime` (same arguments) | List configured MIME mappings or filter by extension or media type |
+| `php:init` | `phpinit` | Initialize PHP using the platform-specific setup described below |
+| `ping` | — | Print `Pong!` |
+| `pwd` | — | Print the configured document root directory |
+| `version` | `ver` | Show Mercury version and protocol/encryption capabilities |
+| `donate` | `fund` | Display the project support link |
+| `exit` | `quit`, `q` | Gracefully shut down Mercury |
+
+**Log commands**
+
+`logs` and `tail` accept `access` or `error` as a log selector, or a count by
+itself to use the access log. These selectors use the configured `AccessLogFile`
+and `ErrorLogFile` paths (normally `logs/access.log` and `logs/error.log`).
+
+```text
+logs                 # Last 10 access-log lines
+logs 25              # Last 25 access-log lines
+logs access 50       # Last 50 access-log lines
+logs error           # Last 10 error-log lines
+tail error 20        # Last 20 error-log lines
+```
+
+The comments in these examples are explanatory; enter only the command before
+`#`. Output is a snapshot, ordered from oldest to newest within the selected
+tail. If fewer lines exist, Mercury prints the available lines. Empty,
+unconfigured, or unreadable logs produce a diagnostic message.
+
+Use positive whole-number counts from 1 to 1,000. Current count handling is:
+
+| Count argument | Effective line limit |
 |---|---|
-| `help` | List available commands |
-| `info` / `status` | View active thread pool usage and connection queue |
-| `pwd` | Print document root directory |
-| `ping` | Healthcheck response (`Pong!`) |
-| `phpinit` | Download and configure PHP-CGI |
-| `clear` | Clear terminal output |
-| `donate` | Display optional donation link |
-| `exit` | Gracefully shut down the server |
+| Omitted or `0` | 10 |
+| `1` through `1000` | Requested count |
+| Above `1000`, within the parser's numeric range | 1,000 |
+| Unparseable text or numeric overflow | 10 |
+
+The current parser also accepts a leading numeric portion (`20abc` becomes
+`20`) and converts signed values to unsigned before applying the limit.
+Consequently, ordinary negative values such as `-1` and `-20` become a limit of
+1,000; `-0` becomes 10. Negative counts should be avoided. Counts and output
+are bounded even with these permissive parsing rules.
+
+**MIME lookup**
+
+`mimes` lists all configured mappings, sorted by extension. A query performs a
+case-insensitive substring search against both the extension and media type;
+a leading dot in the query is optional.
+
+```text
+mimes
+mimes .php
+mime text/
+```
+
+**PHP initialization**
+
+On Linux, `php:init` installs PHP-CGI and PHP-FPM using a detected `apt-get`,
+`pacman`, or `dnf` package manager through `sudo`. On Windows, it runs
+`conf/setup_php.ps1` to install and configure PHP. See [Setting Up PHP](#setting-up-php)
+for enabling CGI or FastCGI in configuration and restarting Mercury.
 
 On Linux, the interactive console supports these editing shortcuts:
 
