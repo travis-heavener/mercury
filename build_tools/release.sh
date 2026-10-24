@@ -6,7 +6,7 @@ cd "$(dirname "$0")/../"
 TOOLS_PATH=$(pwd)/build_tools/tools
 
 # Rebuild binaries
-make -j
+make -j --no-print-directory -s
 
 $TOOLS_PATH/safe_rm "temp_release"
 $TOOLS_PATH/safe_rm "releases"
