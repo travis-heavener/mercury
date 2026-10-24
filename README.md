@@ -147,6 +147,24 @@ Mercury provides an interactive terminal command interface:
 | `donate` | Display optional donation link |
 | `exit` | Gracefully shut down the server |
 
+On Linux, the interactive console supports these editing shortcuts:
+
+| Shortcut | Action |
+|---|---|
+| Ctrl+Left / Ctrl+Right | Move to previous word start / next word end |
+| Ctrl+Backspace | Delete previous word (including intervening whitespace) |
+| Ctrl+Delete | Delete next word (including intervening whitespace) |
+| Up / Down | Browse command history |
+| Left / Right, Backspace, Delete | Move or delete one character |
+| Ctrl+L | Clear screen and redraw current input |
+| Ctrl+C | Shut down Mercury |
+
+Words are separated by whitespace; punctuation within paths and commands stays
+part of the word. Ctrl+W also deletes the previous word. Ctrl+Backspace requires
+a terminal that sends a distinct key sequence (commonly Ctrl+H or Escape+DEL).
+If the terminal sends plain DEL for both Backspace and Ctrl+Backspace, Mercury
+cannot distinguish them; use Ctrl+W or configure the terminal shortcut.
+
 ### Updating Mercury
 
 While Python is not required to run Mercury, users with Python 3 installed can use the included update script for automated, rollback-safe upgrades:

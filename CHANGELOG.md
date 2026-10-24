@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.38.0] - 2026-10-24
+- Added: Linux console word navigation using Ctrl+Left/Right and word deletion using Ctrl+Backspace/Delete
+- Fix: consume modified terminal key sequences and bound escape reads to avoid blocking on lone Escape
+- Fix: prevent Backspace from erasing before start of nonempty console input
+- Test: add Linux pseudo-terminal regressions for console editing, key sequences, history, and incomplete escapes
+
 ## [0.37.0] - 2026-10-23
 - Added: automatic Windows FastCGI listener startup using `WinPHPCGIPath`, with owned-process cleanup and reuse of existing listeners
 - Added: automatic Linux PHP-FPM startup for omitted/auto addresses, with private same-user pool, socket, startup diagnostics, and owned-process cleanup; explicit backends remain externally managed
