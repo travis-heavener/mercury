@@ -1,14 +1,8 @@
 # Changelog
 
-## [0.38.0] - 2026-10-24
-- Added: Linux console Tab completion for command names, aliases, and log targets, with shared-prefix expansion and repeated-Tab match listing
-- Added: Linux console word navigation using Ctrl+Left/Right and word deletion using Ctrl+Backspace/Delete
-- Fix: recognize alternate Ctrl+Delete encodings (`Escape+d` and `CSI 3^`)
-- Fix: consume modified terminal key sequences and bound escape reads to avoid blocking on lone Escape
-- Fix: prevent Backspace from erasing before start of nonempty console input
-- Fix: validate complete signed log count and selector tokens; default nonpositive, malformed, and overflowing counts to 10 while capping valid positive counts at 1,000
-- Test: add Linux pseudo-terminal regressions for console editing, key sequences, history, and incomplete escapes
-- Test: cover log selector/count parsing and rendered tail output for default, invalid, negative, and capped counts
+## [0.38.1] - 2026-10-25
+- Fix: missing `<cstdint>` header in src/http/message/response.hpp on newer versions of gcc (failing on Fedora 44)
+- Fix: missing `<unistd.h>` header in src/http/fastcgi/client.cpp on newer versions of gcc (failing on Fedora 44)
 
 ## [0.37.0] - 2026-10-23
 - Added: automatic Windows FastCGI listener startup using `WinPHPCGIPath`, with owned-process cleanup and reuse of existing listeners

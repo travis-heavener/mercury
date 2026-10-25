@@ -2,6 +2,7 @@
 
 #ifndef _WIN32
     #include <netdb.h>
+    #include <unistd.h>
 #endif
 
 #include <algorithm>
