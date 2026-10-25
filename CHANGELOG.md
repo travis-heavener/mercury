@@ -1,6 +1,7 @@
 # Changelog
 
 ## [0.38.1] - 2026-10-25
+- Chore: remove unnecessary settings from default `mercury.conf`
 - Fix: missing `<cstdint>` header in src/http/message/response.hpp on newer versions of gcc (failing on Fedora 44)
 - Fix: missing `<unistd.h>` header in src/http/fastcgi/client.cpp on newer versions of gcc (failing on Fedora 44)
 
