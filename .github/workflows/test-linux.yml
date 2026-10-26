@@ -25,11 +25,15 @@ jobs:
           cp conf/default/mimes.conf conf/mimes.conf
           cp conf/default/mercury.conf conf/mercury.conf
 
+      # Install & cache APT deps
+      - name: Refresh APT Package Lists
+        run: sudo apt-get update
+
       - name: Install Deps
-        uses: awalsh128/cache-apt-pkgs-action@latest
+        uses: awalsh128/cache-apt-pkgs-action@v1
         with:
           packages: php-cgi php-fpm python3-zstandard python3-brotli libbrotli1 python3-psutil
-          version: 1.1
+          version: 1.2
 
       # Make TLS cert
       - name: Make TLS Cert
