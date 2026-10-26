@@ -165,9 +165,9 @@ bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem:
         );
 
         if (handle == INVALID_HANDLE_VALUE) {
-            // Handle removal between existence check and opening file
+            // Treat missing paths and files used as directories as expected misses
             const DWORD error = GetLastError();
-            if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) return false;
+            if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_DIRECTORY) return false;
             throw std::runtime_error("Failed to open file handle");
         }
 
