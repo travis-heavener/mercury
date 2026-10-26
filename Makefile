@@ -28,7 +28,7 @@ DEPS := $(shell find src -type f -name "*.hpp") $(wildcard $(PUGIXML_DIR)/*.hpp)
 CXX_FLAGS := -Wall -Wextra -Werror
 STATIC_FLAGS := -std=c++20
 LIB_FLAGS := -static-libstdc++ -static-libgcc -lbrotlienc -lbrotlicommon -lz -lpthread -lssl -lcrypto -lzstd
-WIN_FLAGS := -static -lcrypt32 -lws2_32 -mconsole
+WIN_FLAGS := -static -lcrypt32 -lws2_32 -lbcrypt -mconsole
 
 # Targets
 TARGET_LINUX := bin/mercury

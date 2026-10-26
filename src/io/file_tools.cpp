@@ -87,7 +87,7 @@ int isSymlinked(const std::filesystem::path& path, const bool isAlreadyCanonical
         absolutePath = path;
     } else {
         try {
-            absolutePath = resolveCanonicalPath(path);
+            if (!tryResolveCanonicalPath(path, absolutePath)) return FILE_NOT_EXIST;
         } catch (std::filesystem::filesystem_error&) {
             return FILE_NOT_EXIST; // Invalid path, handles as 404
         } catch (std::runtime_error&) {
@@ -126,13 +126,25 @@ int isSymlinked(const std::filesystem::path& path, const bool isAlreadyCanonical
 }
 
 std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path) {
+    std::filesystem::path resolved;
+    if (!tryResolveCanonicalPath(path, resolved))
+        throw std::filesystem::filesystem_error("File does not exist", path,
+            std::make_error_code(std::errc::no_such_file_or_directory));
+    return resolved;
+}
+
+bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem::path& resolved) {
     // Note: ChatGPT helped me a bit with this part because WinAPI sucks :p
     // and I'm doing this to learn socket programming, NOT the Windows API
 
     #ifdef _WIN32
-        // Check if file exists
-        if (!std::filesystem::exists(path))
-            throw std::filesystem::filesystem_error("File does not exist", path, std::error_code());
+        // Return expected misses without raising debugger-visible exceptions
+        std::error_code ec;
+        if (!std::filesystem::exists(path, ec)) {
+            if (ec && ec != std::errc::no_such_file_or_directory && ec != std::errc::not_a_directory)
+                throw std::filesystem::filesystem_error("Failed to inspect path", path, ec);
+            return false;
+        }
 
         // Get fully-qualified path
         std::wstring pathStr = path.wstring();
@@ -152,8 +164,12 @@ std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path) {
             nullptr
         );
 
-        if (handle == INVALID_HANDLE_VALUE)
+        if (handle == INVALID_HANDLE_VALUE) {
+            // Treat missing paths and files used as directories as expected misses
+            const DWORD error = GetLastError();
+            if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_DIRECTORY) return false;
             throw std::runtime_error("Failed to open file handle");
+        }
 
         // Get final path name from file handle
         wchar_t finalPathStr[MAX_PATH];
@@ -174,10 +190,17 @@ std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path) {
         if (resolvedPathStr.compare(0, prefix.length(), prefix) == 0)
             resolvedPathStr = L"\\" + resolvedPathStr.substr(prefix.length());
 
-        return std::filesystem::path(resolvedPathStr);
+        resolved = std::filesystem::path(resolvedPathStr);
+        return true;
     #else
-        // Linux passthru
-        return std::filesystem::canonical(path);
+        // Distinguish routine misses from unexpected filesystem failures
+        std::error_code ec;
+        std::filesystem::path canonical = std::filesystem::canonical(path, ec);
+        if (ec == std::errc::no_such_file_or_directory || ec == std::errc::not_a_directory)
+            return false;
+        if (ec) throw std::filesystem::filesystem_error("Failed to resolve path", path, ec);
+        resolved = std::move(canonical);
+        return true;
     #endif
 }
 

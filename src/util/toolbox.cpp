@@ -326,13 +326,18 @@ std::string getFileModGMTString(const std::string& filePath) {
     return std::string(gmtBuf, n);
 }
 
-const std::string& getCurrentGMTString() {
-    thread_local std::time_t tlsLastSec = 0;
-    thread_local std::string tlsCachedDate;
+std::string getCurrentGMTString() {
+    // Keep TLS cache trivially destructible to avoid MinGW thread-exit ordering bugs
+    struct DateCache {
+        std::time_t lastSec;
+        size_t length;
+        char value[32];
+    };
+    thread_local DateCache cache{};
 
     const std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    if (now != tlsLastSec) {
-        tlsLastSec = now;
+    if (cache.length == 0 || now != cache.lastSec) {
+        cache.lastSec = now;
 
         // Format as GMT string
         std::tm gmtTime{};
@@ -342,11 +347,11 @@ const std::string& getCurrentGMTString() {
             gmtime_r(&now, &gmtTime);
         #endif
 
-        char gmtBuf[32];
-        const size_t n = std::strftime(gmtBuf, sizeof(gmtBuf), "%a, %d %b %Y %H:%M:%S GMT", &gmtTime);
-        tlsCachedDate.assign(gmtBuf, n);
+        cache.length = std::strftime(cache.value, sizeof(cache.value), "%a, %d %b %Y %H:%M:%S GMT", &gmtTime);
     }
-    return tlsCachedDate;
+
+    // Return owned value that remains valid after worker exits or cache refreshes
+    return std::string(cache.value, cache.length);
 }
 
 const char* getReasonFromStatus(uint16_t code) {

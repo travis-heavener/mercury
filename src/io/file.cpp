@@ -61,7 +61,13 @@ File::File(const http::RequestPath& paths) {
         stringReplaceAll(decodedURIWithoutPathInfo, "//", "/");
 
         try {
-            this->absoluteResourcePath = resolveCanonicalPath( conf::DOCUMENT_ROOT / std::filesystem::path(this->decodedURIWithoutPathInfo).relative_path() ).string();
+            std::filesystem::path resolved;
+            if (!tryResolveCanonicalPath(
+                    conf::DOCUMENT_ROOT / std::filesystem::path(this->decodedURIWithoutPathInfo).relative_path(), resolved)) {
+                this->exists = false;
+                return;
+            }
+            this->absoluteResourcePath = resolved.string();
         } catch (std::filesystem::filesystem_error&) {
             this->exists = false;
             return;

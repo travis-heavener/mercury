@@ -1,6 +1,7 @@
 #ifndef __HTTP_RESPONSE_HPP
 #define __HTTP_RESPONSE_HPP
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 
