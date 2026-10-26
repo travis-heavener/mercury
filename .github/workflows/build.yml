@@ -72,11 +72,14 @@ jobs:
             }}
 
       # Install & cache APT deps
-      - name: Install APT Deps
-        uses: awalsh128/cache-apt-pkgs-action@latest
+      - name: Refresh APT Package Lists
+        run: sudo apt-get update
+
+      - name: Install Deps
+        uses: awalsh128/cache-apt-pkgs-action@v1
         with:
-          packages: build-essential nasm php-cgi
-          version: 1.0
+          packages: php-cgi php-fpm python3-zstandard python3-brotli libbrotli1 python3-psutil
+          version: 1.2
 
       # Install deps & build static binaries
       - name: Build Libs
