@@ -2,6 +2,7 @@
 
 ## [0.38.1] - 2026-10-25
 - Chore: remove unnecessary settings from default `mercury.conf`
+- Fix: intermittent Windows heap-corruption crashes during worker-thread cleanup and shutdown caused by the thread-local HTTP date cache
 - Fix: missing `<cstdint>` header in src/http/message/response.hpp on newer versions of gcc (failing on Fedora 44)
 - Fix: missing `<unistd.h>` header in src/http/fastcgi/client.cpp on newer versions of gcc (failing on Fedora 44)
 
