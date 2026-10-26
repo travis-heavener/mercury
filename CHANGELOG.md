@@ -1,6 +1,7 @@
 # Changelog
 
 ## [0.38.1] - 2026-10-25
+- Change: avoided exceptions for routine missing-file lookups while preserving path canonicalization and error handling
 - Chore: remove unnecessary settings from default `mercury.conf`
 - Fix: intermittent Windows heap-corruption crashes during worker-thread cleanup and shutdown caused by the thread-local HTTP date cache
 - Fix: missing `<cstdint>` header in src/http/message/response.hpp on newer versions of gcc (failing on Fedora 44)
