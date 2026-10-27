@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag to benchmark (e.g., 'latest' or 'v0.38.1')"
+        description: "Release tag: latest published (includes prereleases), v0.38.1, or build"
         required: false
         default: "latest"
         type: string
@@ -30,174 +30,241 @@ on:
         type: string
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  benchmark-linux:
+  resolve-target:
     runs-on: ubuntu-24.04
+    outputs:
+      release_tag: ${{ steps.target.outputs.release_tag }}
+    steps:
+      - name: Validate Inputs and Resolve Release Once
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          TRIALS: ${{ inputs.trials }}
+          DURATION: ${{ inputs.duration }}
+          SERVERS: ${{ inputs.servers }}
+          CREATE_PR: ${{ inputs.create_pr }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          python3 - <<'PYTHON'
+          import os
+          if os.environ["CREATE_PR"] == "true" and os.environ["REF_TYPE"] != "branch":
+              raise SystemExit("create_pr requires dispatching from a branch")
+          for name in ("TRIALS", "DURATION"):
+              value = os.environ[name]
+              if not value.isascii() or not value.isdecimal() or int(value) < 1:
+                  raise SystemExit(f"{name} must be a positive integer")
+          servers = [part.strip().lower() for part in os.environ["SERVERS"].split(",") if part.strip()]
+          if not servers or len(set(servers)) != len(servers) or set(servers) - {"mercury", "apache", "nginx"}:
+              raise SystemExit("SERVERS must select mercury,apache,nginx without duplicates")
+          PYTHON
+          target_tag="${RELEASE_TAG:-latest}"
+          if [ "$target_tag" = "latest" ]; then
+            target_tag=$(gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // empty')
+          fi
+          if [ "$target_tag" != "build" ]; then
+            if [[ ! "$target_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Expected published vX.Y.Z release tag or build; got: $target_tag" >&2
+              exit 1
+            fi
+            gh release view "$target_tag" --json tagName,isDraft --jq 'select(.isDraft == false).tagName' | grep -Fx "$target_tag"
+          fi
+          echo "release_tag=$target_tag" >> "$GITHUB_OUTPUT"
+          echo "Benchmark target: $target_tag" >> "$GITHUB_STEP_SUMMARY"
+
+  # Build both platform binaries on Linux using existing MinGW toolchain
+  build-source:
+    needs: resolve-target
+    if: needs.resolve-target.outputs.release_tag == 'build'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential nasm cmake perl wget zip upx-ucl
+          chmod +x build_tools/*.sh build_tools/tools/*
+          sudo ./build_tools/install_workflow_deps.sh --verbose
+      - name: Build Release Binaries
+        run: |
+          mkdir -p bin
+          make -j2 libs_no_deps
+          make -j2 -B all
+      - uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-source-binaries
+          path: |
+            bin/mercury
+            bin/mercury.exe
+          if-no-files-found: error
 
-      # Install server packages and load testing tools
+  benchmark-linux:
+    needs: [resolve-target, build-source]
+    if: ${{ !cancelled() && needs.resolve-target.result == 'success' && (needs.build-source.result == 'success' || needs.build-source.result == 'skipped') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      RELEASE_TAG: ${{ needs.resolve-target.outputs.release_tag }}
+      BENCH_SERVERS: ${{ inputs.servers }}
+      BENCH_TRIALS: ${{ inputs.trials }}
+      BENCH_DURATION: ${{ inputs.duration }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y apache2 nginx wrk python3-psutil python3-brotli python3-zstandard
-
-      # Acquire release binary or compile from branch
+          sudo apt-get install -y apache2 nginx wrk
+          python -m pip install psutil
+      - name: Download Source Build
+        if: env.RELEASE_TAG == 'build'
+        uses: actions/download-artifact@v7
+        with:
+          name: benchmark-source-binaries
+          path: bin
       - name: Acquire Mercury Linux Binary
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          mkdir -p ./bin ./temp_release
-          if [ "$RELEASE_TAG" = "build" ]; then
-            echo "Compiling Mercury binary from source..."
-            sudo apt-get install -y build-essential nasm
-            sudo ./build_tools/install_workflow_deps.sh --verbose
-            make -j libs_no_deps
-            make -j linux
-          else
-            TARGET_TAG="$RELEASE_TAG"
-            if [ -z "$TARGET_TAG" ] || [ "$TARGET_TAG" = "latest" ]; then
-              # Query latest release tag (including pre-releases) via GitHub CLI
-              TARGET_TAG=$(gh release list --repo "${{ github.repository }}" --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || true)
-              if [ -z "$TARGET_TAG" ]; then
-                TARGET_TAG=$(sed 's/^Mercury //' version.txt | tr -d '\n')
-              fi
-            fi
-            echo "Downloading release archive for tag: $TARGET_TAG"
-            gh release download "$TARGET_TAG" --repo "${{ github.repository }}" --pattern "Linux_*.tar.gz" --dir ./temp_release
-            TAR_FILE=$(find ./temp_release -type f -name "Linux_*.tar.gz" | head -n 1)
-            if [ -z "$TAR_FILE" ]; then
-              echo "Error: Linux release archive not found for tag $TARGET_TAG"
-              exit 1
-            fi
-            tar -xzf "$TAR_FILE" -C ./temp_release
-            MERCURY_BIN=$(find ./temp_release -type f -name "mercury" | head -n 1)
-            if [ -z "$MERCURY_BIN" ]; then
-              echo "Error: mercury binary not found in release archive"
-              exit 1
-            fi
-            cp "$MERCURY_BIN" ./bin/mercury
-            chmod +x ./bin/mercury
-            rm -rf ./temp_release
+          mkdir -p bin temp_release
+          if [ "$RELEASE_TAG" != "build" ]; then
+            gh release download "$RELEASE_TAG" --pattern "Linux_*.tar.gz" --dir temp_release
+            mapfile -t archives < <(find temp_release -maxdepth 1 -type f -name 'Linux_*.tar.gz')
+            if [ "${#archives[@]}" -ne 1 ]; then echo "Expected one Linux archive" >&2; exit 1; fi
+            tar -xzf "${archives[0]}" -C temp_release
+            mapfile -t binaries < <(find temp_release -type f -path '*/bin/mercury')
+            if [ "${#binaries[@]}" -ne 1 ]; then echo "Expected one Mercury binary" >&2; exit 1; fi
+            cp "${binaries[0]}" bin/mercury
           fi
+          chmod +x bin/mercury
+          cp conf/default/mimes.conf conf/mimes.conf
           ./bin/mercury -v
-
-      # Execute benchmark suite
+      - name: Verify Benchmark Runner
+        run: python -m unittest discover -s tests -p test_benchmark.py -v
       - name: Run Linux Benchmarks
-        run: python3 build_tools/benchmark.py --servers "${{ inputs.servers }}" --trials "${{ inputs.trials }}" --duration "${{ inputs.duration }}" --output-format markdown,json --output linux-results.md
-
-      # Publish Markdown table directly to Actions summary
+        run: |
+          version="$RELEASE_TAG"
+          if [ "$version" = "build" ]; then version=$(sed 's/^Mercury //' version.txt | tr -d '\r\n'); fi
+          python -u build_tools/benchmark.py --servers "$BENCH_SERVERS" --trials "$BENCH_TRIALS" --duration "$BENCH_DURATION" --mercury-version "$version" --output-format markdown,json --output linux-results.md
       - name: Publish Step Summary
         if: always()
         run: |
-          if [ -f "linux-results.md" ]; then
-            echo "### Linux Performance Benchmark Results" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            cat linux-results.md >> $GITHUB_STEP_SUMMARY
+          if [ -f linux-results.md ]; then cat linux-results.md >> "$GITHUB_STEP_SUMMARY"; fi
+          if [ ! -f linux-results.md ]; then
+            echo "Benchmark failed; see uploaded startup logs and generated configs." >> "$GITHUB_STEP_SUMMARY"
+            find logs/benchmark -maxdepth 1 -name '*startup.log' -exec tail -n 60 {} + || true
           fi
-
-      # Upload raw benchmark artifacts
-      - name: Upload Linux Benchmark Results
+      - name: Upload Linux Benchmark Results and Diagnostics
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: linux-benchmark-results
           path: |
             linux-results.md
             linux-results.json
+            logs/benchmark/
+          if-no-files-found: warn
 
   benchmark-windows:
+    needs: [resolve-target, build-source]
+    if: ${{ !cancelled() && needs.resolve-target.result == 'success' && (needs.build-source.result == 'success' || needs.build-source.result == 'skipped') }}
     runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      RELEASE_TAG: ${{ needs.resolve-target.outputs.release_tag }}
+      BENCH_SERVERS: ${{ inputs.servers }}
+      BENCH_TRIALS: ${{ inputs.trials }}
+      BENCH_DURATION: ${{ inputs.duration }}
+    defaults:
+      run:
+        shell: pwsh
     steps:
       - uses: actions/checkout@v7
-
-      # Install Python benchmark dependencies
-      - name: Install Python Dependencies
-        run: python -m pip install --upgrade psutil brotli zstandard
-
-      # Install Apache Lounge and Nginx via Chocolatey
-      - name: Install Apache and Nginx
-        run: choco install apache-httpd nginx -y
-
-      # Acquire release binary or compile from branch
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install Dependencies
+        run: |
+          python -m pip install psutil
+          if ($LASTEXITCODE -ne 0) { throw 'Python dependency installation failed' }
+          choco install apache-httpd nginx -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Server installation failed' }
+      - name: Download Source Build
+        if: env.RELEASE_TAG == 'build'
+        uses: actions/download-artifact@v7
+        with:
+          name: benchmark-source-binaries
+          path: bin
       - name: Acquire Mercury Windows Binary
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        shell: pwsh
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          New-Item -ItemType Directory -Force -Path ./bin, ./temp_release | Out-Null
-          if ($env:RELEASE_TAG -eq 'build') {
-            Write-Host "Compiling Mercury binary from source for Windows..."
-            make windows
-          } else {
-            $targetTag = $env:RELEASE_TAG
-            if (-not $targetTag -or $targetTag -eq 'latest') {
-              try {
-                $jsonTag = gh release list --repo "${{ github.repository }}" --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName'
-                if ($LASTEXITCODE -eq 0 -and $jsonTag) {
-                  $targetTag = $jsonTag.Trim()
-                }
-              } catch {
-                $targetTag = $null
-              }
-              if (-not $targetTag) {
-                $versionContent = Get-Content version.txt -Raw
-                if ($versionContent -match "Mercury\s+(v?\d+\.\d+\.\d+)") {
-                  $targetTag = $matches[1].Trim()
-                  if (-not $targetTag.StartsWith("v")) {
-                    $targetTag = "v$targetTag"
-                  }
-                }
-              }
-            }
-            Write-Host "Downloading release archive for tag: $targetTag"
-            gh release download $targetTag --repo "${{ github.repository }}" --pattern "Windows_*.zip" --dir ./temp_release
-            $zip = Get-ChildItem -Path ./temp_release -Filter "Windows_*.zip" | Select-Object -First 1
-            if (-not $zip) {
-              throw "No Windows release zip file found for tag: $targetTag"
-            }
-            Expand-Archive -Path $zip.FullName -DestinationPath ./temp_release/extracted -Force
-            $bin = Get-ChildItem -Path ./temp_release/extracted -Filter "mercury.exe" -Recurse | Select-Object -First 1
-            if (-not $bin) {
-              throw "mercury.exe not found in extracted archive"
-            }
-            Copy-Item $bin.FullName ./bin/mercury.exe
-            Remove-Item -Recurse -Force ./temp_release
+          New-Item -ItemType Directory -Force -Path bin, temp_release | Out-Null
+          if ($env:RELEASE_TAG -ne 'build') {
+            gh release download $env:RELEASE_TAG --pattern 'Windows_*.zip' --dir temp_release
+            if ($LASTEXITCODE -ne 0) { throw 'Release download failed' }
+            $archives = @(Get-ChildItem temp_release -Filter 'Windows_*.zip')
+            if ($archives.Count -ne 1) { throw 'Expected one Windows archive' }
+            Expand-Archive -Path $archives[0].FullName -DestinationPath temp_release/extracted -Force
+            $binaries = @(Get-ChildItem temp_release/extracted -Filter mercury.exe -Recurse | Where-Object { $_.Directory.Name -eq 'bin' })
+            if ($binaries.Count -ne 1) { throw 'Expected one Mercury binary' }
+            Copy-Item $binaries[0].FullName bin/mercury.exe
           }
+          Copy-Item conf/default/mimes.conf conf/mimes.conf
           & ./bin/mercury.exe -v
-
-      # Execute benchmark suite
+          if ($LASTEXITCODE -ne 0) { throw 'Mercury executable check failed' }
+      - name: Verify Benchmark Runner
+        run: |
+          python -m unittest discover -s tests -p test_benchmark.py -v
+          if ($LASTEXITCODE -ne 0) { throw 'Benchmark regression checks failed' }
       - name: Run Windows Benchmarks
-        shell: pwsh
-        run: python build_tools/benchmark.py --servers "${{ inputs.servers }}" --trials "${{ inputs.trials }}" --duration "${{ inputs.duration }}" --output-format markdown,json --output windows-results.md
-
-      # Publish Markdown table directly to Actions summary
+        run: |
+          $version = $env:RELEASE_TAG
+          if ($version -eq 'build') { $version = (Get-Content version.txt -Raw).Trim() -replace '^Mercury ', '' }
+          python -u build_tools/benchmark.py --servers $env:BENCH_SERVERS --trials $env:BENCH_TRIALS --duration $env:BENCH_DURATION --mercury-version $version --output-format markdown,json --output windows-results.md
+          if ($LASTEXITCODE -ne 0) { throw 'Windows benchmark failed; see uploaded diagnostics' }
       - name: Publish Step Summary
         if: always()
-        shell: pwsh
         run: |
-          if (Test-Path 'windows-results.md') {
-            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Windows Performance Benchmark Results`n"
-            Get-Content -Path windows-results.md | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          if (Test-Path windows-results.md) {
+            Get-Content windows-results.md | Add-Content $env:GITHUB_STEP_SUMMARY
+          } else {
+            Add-Content $env:GITHUB_STEP_SUMMARY 'Benchmark failed; see uploaded startup logs and generated configs.'
+            Get-ChildItem logs/benchmark -Filter '*startup.log' -ErrorAction SilentlyContinue | ForEach-Object { Get-Content $_.FullName -Tail 60 }
           }
-
-      # Upload raw benchmark artifacts
-      - name: Upload Windows Benchmark Results
+      - name: Upload Windows Benchmark Results and Diagnostics
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: windows-benchmark-results
           path: |
             windows-results.md
             windows-results.json
+            logs/benchmark/
+          if-no-files-found: warn
 
   update-readme-pr:
     needs: [benchmark-linux, benchmark-windows]
     if: ${{ inputs.create_pr }}
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       # Generate GitHub App bot token if configured, else fall back to default token
       - name: Generate Bot Token
@@ -212,6 +279,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           token: ${{ steps.app-token.outputs.token || github.token }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       # Download result artifacts from both benchmark jobs
@@ -250,18 +318,18 @@ jobs:
       - name: Commit and Push Changes
         id: commit
         env:
-          BRANCH_NAME: perf/benchmark-results-${{ github.sha }}
+          BRANCH_NAME: perf/benchmark-results-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           git config user.name "Mercury Actions Bot"
           git config user.email "mercury-actions-bot[bot]@users.noreply.github.com"
-          git checkout -B "$BRANCH_NAME"
+          git checkout -b "$BRANCH_NAME"
           git add README.md
           if git diff --staged --quiet; then
             echo "No changes in README.md to commit"
             echo "has_changes=false" >> $GITHUB_OUTPUT
           else
             git commit -m "perf: update performance benchmarks in README.md"
-            git push origin "$BRANCH_NAME" --force
+            git push origin "$BRANCH_NAME"
             echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
 
@@ -270,7 +338,8 @@ jobs:
         if: steps.commit.outputs.has_changes == 'true'
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
-          BRANCH_NAME: perf/benchmark-results-${{ github.sha }}
+          BRANCH_NAME: perf/benchmark-results-${{ github.run_id }}-${{ github.run_attempt }}
+          BASE_BRANCH: ${{ github.ref_name }}
         run: |
           PR_TITLE="perf: update performance benchmarks in README.md"
 
@@ -300,7 +369,7 @@ jobs:
             gh pr create \
               --title "$PR_TITLE" \
               --body-file pr_body.txt \
-              --base "${{ github.event.repository.default_branch || 'main' }}" \
+              --base "$BASE_BRANCH" \
               --head "$BRANCH_NAME"
           fi
 

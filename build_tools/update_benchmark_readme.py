@@ -76,6 +76,9 @@ def update_readme(
 
     linux_file = resolve_md_file(linux_md_path)
     windows_file = resolve_md_file(windows_md_path)
+    if (linux_md_path and not linux_file) or (windows_md_path and not windows_file):
+        print("Error: Requested benchmark Markdown input is missing", file=sys.stderr)
+        return False
 
     if linux_file:
         with open(linux_file, "r", encoding="utf-8") as f:
@@ -107,7 +110,7 @@ def update_readme(
     final_windows = (windows_table or (existing_windows_match.group(1) if existing_windows_match else "")).strip()
 
     # Reassemble performance block
-    section_intro = "### Performance\n\nMercury is significantly lighter on system resources compared to traditional web servers:"
+    section_intro = "### Performance\n\nThe following measurements compare Mercury, Apache, and Nginx under the benchmark conditions listed below:"
     blocks = [section_intro]
     if final_linux:
         blocks.append(final_linux)

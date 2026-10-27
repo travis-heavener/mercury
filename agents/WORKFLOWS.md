@@ -133,25 +133,23 @@ See [`agents/TESTING.md`](TESTING.md) for complete details on authoring test cas
 
 ## 6. Performance Benchmarking Workflow
 
-Mercury features a standalone, automated benchmark runner (`build_tools/benchmark.py`) that evaluates throughput (RPS), p50/p99 latency, and idle/load memory usage (RSS) against Apache and Nginx under standardized parity constraints:
+Run `.github/workflows/benchmark.yml` manually through Actions → Performance Benchmark. `release_tag` accepts a published `vX.Y.Z` tag, `latest` (newest published release including prereleases), or `build`. The workflow resolves the release once so Linux and Windows use the same target. Both jobs use Python 3.12 and `psutil`, acquire native server binaries, initialize the ignored MIME runtime config, and run benchmark regression checks before measurements.
+
+For `build`, a separate Ubuntu 22.04 job builds both Linux and Windows executables using the repository's existing MinGW cross-compilation toolchain and shares them with both benchmark jobs. Native Windows does not run the Linux-oriented Makefile. Release runs skip compilation.
+
+`trials`, `duration`, and `servers` are validated before provisioning benchmark hosts. Inputs reach shell commands through environment variables. Linux prefers `wrk`; Windows falls back to Python unless an external tool is available. Throughput from different generators should not be compared across platforms.
+
+Each platform publishes its Markdown table to the step summary and uploads JSON, startup/error logs, and generated configs. Diagnostic uploads run after failures too. If a startup check fails, inspect `<server>_startup.log` in the platform result artifact. Missing `conf/mimes.conf` is repaired from tracked defaults without replacing an existing file.
+
+With `create_pr=true`, both benchmark jobs must succeed before the README update runs. Dispatch from a branch for PR creation; that selected branch is the PR base. The aggregation job downloads both reports, replaces only README's Performance section, checks tracked-file scope, and pushes a unique run-specific branch without force-pushing. It uses the configured Mercury App token when available, otherwise the workflow token. Repository settings must permit Actions to create pull requests when using the workflow token. `version.txt` and `CHANGELOG.md` are not updated.
+
+For local runs and measurement caveats, see [TESTING.md](TESTING.md#7-performance-benchmark-suite-build_toolsbenchmarkpy).
 
 ```bash
-# Execute standard multi-trial benchmark across all detected servers
-python3 build_tools/benchmark.py
-
-# Benchmark Mercury with custom trial count and duration
 python3 build_tools/benchmark.py --servers mercury --trials 3 --duration 5
-
-# Benchmark with high concurrency using wrk
-python3 build_tools/benchmark.py --tool wrk --concurrency 100 --duration 10
-
-# Generate Markdown and JSON output
 python3 build_tools/benchmark.py --output-format markdown,json --output results.md
+python3 -m unittest discover -s tests -p test_benchmark.py -v
 ```
-
-Detailed configuration specifications, payload descriptions, and CLI arguments are documented in [`agents/TESTING.md`](TESTING.md#7-performance-benchmark-suite-build_toolsbenchmarkpy).
-
----
 
 ## 7. Release & Version Management
 
