@@ -5,6 +5,7 @@ Measures Idle RSS, Load RSS, Peak RSS, Throughput (RPS), and Latency.
 """
 
 import argparse
+from collections import Counter
 from contextlib import closing
 from dataclasses import asdict, dataclass, field
 import glob
@@ -25,10 +26,10 @@ import xml.etree.ElementTree as ET
 
 import psutil
 
-
 # ============================================================================
 # Data Models
 # ============================================================================
+
 
 @dataclass
 class TrialMetrics:
@@ -71,6 +72,7 @@ class BenchmarkResults:
     payload_size_bytes: int
     tool_used: str
     trials: int = 5
+    worker_thread_limit: int = 0
     skipped_servers: List[str] = field(default_factory=list)
     summaries: Dict[str, ServerSummary] = field(default_factory=dict)
     raw_trials: List[TrialMetrics] = field(default_factory=list)
@@ -79,6 +81,7 @@ class BenchmarkResults:
 # ============================================================================
 # Memory Sampler
 # ============================================================================
+
 
 class MemorySampler:
     """Samples total RSS memory in MB for a parent process and all its children"""
@@ -127,6 +130,7 @@ class MemorySampler:
 # Load Generation Engines
 # ============================================================================
 
+
 class LoadGenerator:
     """Dispatches load testing to wrk, hey, or pure Python fallback"""
 
@@ -173,7 +177,11 @@ class LoadGenerator:
         if count <= 0:
             return
 
-        headers = {"Accept-Encoding": "identity", "Connection": "keep-alive", "User-Agent": "MercuryBenchmark/1.0"}
+        headers = {
+            "Accept-Encoding": "identity",
+            "Connection": "keep-alive",
+            "User-Agent": "MercuryBenchmark/1.0",
+        }
         with closing(http.client.HTTPConnection(host, port, timeout=5)) as conn:
             for _ in range(count):
                 conn.request("GET", path, headers=headers)
@@ -189,11 +197,19 @@ class LoadGenerator:
             conn.request("GET", path, headers={"Accept-Encoding": "identity"})
             resp = conn.getresponse()
             body = resp.read()
-            if resp.status != 200 or body != expected or resp.getheader("Content-Encoding") not in (None, "identity"):
-                raise RuntimeError(f"Payload validation failed for {path}: HTTP {resp.status}, {len(body)} bytes")
+            if (
+                resp.status != 200
+                or body != expected
+                or resp.getheader("Content-Encoding") not in (None, "identity")
+            ):
+                raise RuntimeError(
+                    f"Payload validation failed for {path}: HTTP {resp.status}, {len(body)} bytes"
+                )
 
     @staticmethod
-    def _run_wrk(host: str, port: int, path: str, concurrency: int, duration: int) -> Tuple[float, float, float, float]:
+    def _run_wrk(
+        host: str, port: int, path: str, concurrency: int, duration: int
+    ) -> Tuple[float, float, float, float]:
         # Returns (rps, mean_ms, p50_ms, p99_ms) via wrk load generator
         url = f"http://{host}:{port}{path}"
 
@@ -201,14 +217,35 @@ class LoadGenerator:
         threads = min(concurrency, max(1, os.cpu_count() or 2))
 
         # Construct execution command
-        cmd = ["wrk", "-t", str(threads), "-c", str(concurrency), "-d", f"{duration}s", "--latency", "-H", "Accept-Encoding: identity", url]
+        cmd = [
+            "wrk",
+            "-t",
+            str(threads),
+            "-c",
+            str(concurrency),
+            "-d",
+            f"{duration}s",
+            "--latency",
+            "-H",
+            "Accept-Encoding: identity",
+            url,
+        ]
 
         # Execute wrk load generator via subprocess
         try:
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True, timeout=duration + 30)
+            res = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+                timeout=duration + 30,
+            )
             out = res.stdout
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as exc:
-            raise RuntimeError(f"Load generator failed: {exc}; {getattr(exc, 'stderr', '')}") from exc
+            raise RuntimeError(
+                f"Load generator failed: {exc}; {getattr(exc, 'stderr', '')}"
+            ) from exc
 
         if re.search(r"Non-2xx or 3xx responses:\s*[1-9]", out) or "Socket errors:" in out:
             raise RuntimeError(f"wrk reported failed requests:\n{out}")
@@ -278,22 +315,46 @@ class LoadGenerator:
         return (rps, mean_ms, p50_ms, p99_ms)
 
     @staticmethod
-    def _run_hey(host: str, port: int, path: str, concurrency: int, duration: int) -> Tuple[float, float, float, float]:
+    def _run_hey(
+        host: str, port: int, path: str, concurrency: int, duration: int
+    ) -> Tuple[float, float, float, float]:
         # Returns (rps, mean_ms, p50_ms, p99_ms) via hey load generator
         url = f"http://{host}:{port}{path}"
 
         # Construct execution command
-        cmd = ["hey", "-c", str(concurrency), "-z", f"{duration}s", "-disable-compression", "-disable-redirects", url]
+        cmd = [
+            "hey",
+            "-c",
+            str(concurrency),
+            "-z",
+            f"{duration}s",
+            "-disable-compression",
+            "-disable-redirects",
+            url,
+        ]
 
         # Execute hey load generator via subprocess
         try:
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True, timeout=duration + 30)
+            res = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+                timeout=duration + 30,
+            )
             out = res.stdout
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as exc:
-            raise RuntimeError(f"Load generator failed: {exc}; {getattr(exc, 'stderr', '')}") from exc
+            raise RuntimeError(
+                f"Load generator failed: {exc}; {getattr(exc, 'stderr', '')}"
+            ) from exc
 
         statuses = re.findall(r"\[([0-9]{3})\]\s+(\d+) responses", out)
-        if not statuses or any(code != "200" and int(count) > 0 for code, count in statuses) or "Error distribution:" in out:
+        if (
+            not statuses
+            or any(code != "200" and int(count) > 0 for code, count in statuses)
+            or "Error distribution:" in out
+        ):
             raise RuntimeError(f"hey reported failed requests or missing status counts:\n{out}")
 
         # Initialize metric accumulators
@@ -326,14 +387,21 @@ class LoadGenerator:
         return (rps, mean_ms, p50_ms, p99_ms)
 
     @staticmethod
-    def _run_python(host: str, port: int, path: str, concurrency: int, duration: int) -> Tuple[float, float, float, float]:
+    def _run_python(
+        host: str, port: int, path: str, concurrency: int, duration: int
+    ) -> Tuple[float, float, float, float]:
         # Returns (rps, mean_ms, p50_ms, p99_ms) via multithreaded keep-alive client
         stop_time = time.perf_counter() + duration
 
         # Thread-safe container collecting per-thread request counts and latency samples
         stats_list: List[Tuple[int, List[float], int]] = []
         stats_lock = threading.Lock()
-        headers = {"Accept-Encoding": "identity", "Connection": "keep-alive", "User-Agent": "MercuryBenchmark/1.0"}
+        error_counts = Counter()
+        headers = {
+            "Accept-Encoding": "identity",
+            "Connection": "keep-alive",
+            "User-Agent": "MercuryBenchmark/1.0",
+        }
 
         # Worker routine executing persistent HTTP keep-alive loop
         def worker():
@@ -342,6 +410,7 @@ class LoadGenerator:
             conn: Optional[http.client.HTTPConnection] = None
             consecutive_errors = 0
             failed_reqs = 0
+            local_errors = Counter()
 
             # Instantiate persistent HTTP connection
             def get_conn():
@@ -376,7 +445,7 @@ class LoadGenerator:
 
                     # Reset consecutive error counter on successful exchange
                     consecutive_errors = 0
-                except Exception:
+                except (OSError, http.client.HTTPException, RuntimeError) as exc:
                     # Close corrupted socket connection on error
                     if conn:
                         try:
@@ -386,6 +455,7 @@ class LoadGenerator:
                         conn = None
 
                     failed_reqs += 1
+                    local_errors[f"{type(exc).__name__}: {exc}"] += 1
                     consecutive_errors += 1
                     # Throttle briefly when encountering consecutive connection failures
                     if consecutive_errors >= 5:
@@ -401,6 +471,7 @@ class LoadGenerator:
             # Store thread performance metrics in thread-safe container
             with stats_lock:
                 stats_list.append((local_reqs, local_latencies, failed_reqs))
+                error_counts.update(local_errors)
 
         # Record start timestamp across worker pool
         start_actual = time.perf_counter()
@@ -427,7 +498,10 @@ class LoadGenerator:
 
         failures = sum(errors for _, _, errors in stats_list)
         if failures:
-            raise RuntimeError(f"Python load generator recorded {failures} failed requests; discard trial")
+            details = "; ".join(f"{error}: {count}" for error, count in error_counts.most_common())
+            raise RuntimeError(
+                f"Python load generator recorded {failures} failed requests; discard trial. {details}"
+            )
         rps = total_reqs / elapsed
 
         # Extract and sort aggregated latencies for percentile calculations
@@ -451,15 +525,26 @@ class LoadGenerator:
 # Server Process Supervisor
 # ============================================================================
 
+
 class ServerSupervisor:
     """Manages server startup, socket readiness, diagnostics, and process cleanup"""
 
-    def __init__(self, name: str, binary_path: str, port: int, conf_file: str, repo_root: str):
+    def __init__(
+        self,
+        name: str,
+        binary_path: str,
+        port: int,
+        conf_file: str,
+        repo_root: str,
+        concurrency: int = 50,
+    ):
         self.name = name
         self.binary_path = os.path.abspath(binary_path)
         self.port = port
         self.conf_file = conf_file
         self.repo_root = os.path.abspath(repo_root)
+        self.concurrency = concurrency
+        self.worker_threads = self.worker_threads_for(concurrency)
         self.process: Optional[subprocess.Popen] = None
         self.log_handle = None
         self.command: List[str] = []
@@ -468,74 +553,126 @@ class ServerSupervisor:
         self.startup_log = os.path.join(self.bench_dir, f"{name}_startup.log")
 
     @staticmethod
+    def worker_threads_for(concurrency: int) -> int:
+        # Reserve worker per persistent client plus room for connection turnover
+        if concurrency <= 0:
+            raise ValueError("Concurrency must be positive")
+
+        return max(20, concurrency + 10)
+
+    @staticmethod
     def _config_path(path: str) -> str:
         # Use forward slashes for Apache and Nginx on Windows
         return os.path.abspath(path).replace("\\", "/")
 
+    def _prepare_mercury_config(self, source: str, destination: str):
+        # Initialize ignored MIME file without replacing local customizations
+        runtime_root = os.path.dirname(os.path.dirname(self.binary_path))
+        mime_file = os.path.join(runtime_root, "conf", "mimes.conf")
+
+        if not os.path.exists(mime_file):
+            default_mimes = os.path.join(runtime_root, "conf", "default", "mimes.conf")
+            if not os.path.isfile(default_mimes):
+                raise FileNotFoundError(
+                    f"Mercury requires {mime_file}; default MIME config missing: {default_mimes}"
+                )
+
+            shutil.copyfile(default_mimes, mime_file)
+
+        # Retain template comments and readable indentation in runtime XML
+        parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
+        tree = ET.parse(source, parser=parser)
+        root = tree.getroot()
+        values = {
+            "DocumentRoot": os.path.join(self.repo_root, "tests", "root"),
+            "AccessLogFile": os.devnull,
+            "ErrorLogFile": os.path.join(self.bench_dir, "mercury_error.log"),
+            "MaxThreadsPerChild": str(self.worker_threads),
+        }
+
+        # Assign worker ceiling for requested persistent-client concurrency
+        for key, value in values.items():
+            root.find(key).text = value
+
+        ET.indent(tree, space="    ")
+        tree.write(destination, encoding="utf-8")
+
+    def _apache_config_values(self) -> Dict[str, str]:
+        # Resolve platform MPM and authorization modules from installed Apache
+        modules, builtins = self._apache_modules()
+        required = [
+            "mpm_winnt" if sys.platform == "win32" else "mpm_event",
+            "authz_core",
+            "dir",
+            "mime",
+        ]
+        loads = []
+
+        for module in required:
+            if f"{module}.c" in builtins or f"mod_{module}.c" in builtins:
+                continue
+
+            path = os.path.join(modules, f"mod_{module}.so")
+            if not os.path.isfile(path):
+                raise FileNotFoundError(f"Required Apache module missing: {path}")
+
+            loads.append(f'LoadModule {module}_module "{self._config_path(path)}"')
+
+        # Match invoking Unix identity while leaving Windows MPM identity unchanged
+        run_as_user = ""
+        if sys.platform != "win32":
+            import grp
+            import pwd
+
+            if os.geteuid() == 0:
+                raise RuntimeError("Run Apache benchmarks as an unprivileged user, without sudo")
+
+            user = pwd.getpwuid(os.geteuid()).pw_name
+            group = grp.getgrgid(os.getegid()).gr_name
+            run_as_user = f'User "{user}"\nGroup "{group}"'
+
+        return {"LOAD_MODULES": "\n".join(loads), "RUN_AS_USER": run_as_user}
+
     def _prepare_config(self) -> str:
         source = os.path.join(self.repo_root, self.conf_file)
         destination = os.path.join(self.bench_dir, f"{self.name}-runtime.conf")
+
         if self.name == "mercury":
-            # Initialize ignored MIME runtime file required even with custom benchmark config
-            runtime_root = os.path.dirname(os.path.dirname(self.binary_path))
-            mime_file = os.path.join(runtime_root, "conf", "mimes.conf")
-            if not os.path.exists(mime_file):
-                default_mimes = os.path.join(runtime_root, "conf", "default", "mimes.conf")
-                if not os.path.isfile(default_mimes):
-                    raise FileNotFoundError(f"Mercury requires {mime_file}; default MIME config missing: {default_mimes}")
-                shutil.copyfile(default_mimes, mime_file)
+            self._prepare_mercury_config(source, destination)
+            return self._config_path(destination)
 
-            # Load config
-            tree = ET.parse(source)
-            root = tree.getroot()
-            for key, value in {
-                "DocumentRoot": os.path.join(self.repo_root, "tests", "root"),
-                "AccessLogFile": os.devnull,
-                "ErrorLogFile": os.path.join(self.bench_dir, "mercury_error.log"),
-            }.items():
-                root.find(key).text = value
-            tree.write(destination, encoding="utf-8")
-        else:
-            with open(source, encoding="utf-8") as handle:
-                content = handle.read()
+        with open(source, encoding="utf-8") as handle:
+            content = handle.read()
 
-            # Apache config
-            values = {"REPO_ROOT": self._config_path(self.repo_root)}
-            if self.name == "apache":
-                modules, builtins = self._apache_modules()
-                required = ["mpm_winnt" if sys.platform == "win32" else "mpm_event", "authz_core", "dir", "mime"]
-                loads = []
+        # Match threaded ceilings and preserve Nginx event-driven connection handling
+        values = {
+            "REPO_ROOT": self._config_path(self.repo_root),
+            "WORKER_THREADS": str(self.worker_threads),
+            "WORKER_CONNECTIONS": str(max(1024, self.concurrency * 2)),
+        }
+        if self.name == "apache":
+            values.update(self._apache_config_values())
 
-                for module in required:
-                    if f"{module}.c" in builtins or f"mod_{module}.c" in builtins:
-                        continue
-                    path = os.path.join(modules, f"mod_{module}.so")
-                    if not os.path.isfile(path):
-                        raise FileNotFoundError(f"Required Apache module missing: {path}")
-                    loads.append(f'LoadModule {module}_module "{self._config_path(path)}"')
+        for key, value in values.items():
+            content = content.replace(f"@{key}@", value)
 
-                # Windows-sepcific
-                values["LOAD_MODULES"] = "\n".join(loads)
-                values["RUN_AS_USER"] = ""
-                if sys.platform != "win32":
-                    import grp
-                    import pwd
-                    if os.geteuid() == 0:
-                        raise RuntimeError("Run Apache benchmarks as an unprivileged user, without sudo")
-                    user = pwd.getpwuid(os.geteuid()).pw_name
-                    group = grp.getgrgid(os.getegid()).gr_name
-                    values["RUN_AS_USER"] = f'User "{user}"\nGroup "{group}"'
-            for key, value in values.items():
-                content = content.replace(f"@{key}@", value)
-            with open(destination, "w", encoding="utf-8") as handle:
-                handle.write(content)
+        with open(destination, "w", encoding="utf-8") as handle:
+            handle.write(content)
+
         return self._config_path(destination)
 
     def _apache_modules(self) -> Tuple[str, str]:
-        probe = subprocess.run([self.binary_path, "-l"], capture_output=True, text=True, timeout=15, check=True)
+        probe = subprocess.run(
+            [self.binary_path, "-l"], capture_output=True, text=True, timeout=15, check=True
+        )
         binary_dir = os.path.dirname(os.path.realpath(self.binary_path))
-        candidates = [os.path.join(binary_dir, "..", "modules"), "/usr/lib/apache2/modules", "/usr/lib64/httpd/modules", "/usr/lib/httpd/modules", "/usr/local/apache2/modules"]
-
+        candidates = [
+            os.path.join(binary_dir, "..", "modules"),
+            "/usr/lib/apache2/modules",
+            "/usr/lib64/httpd/modules",
+            "/usr/lib/httpd/modules",
+            "/usr/local/apache2/modules",
+        ]
         for directory in candidates:
             if os.path.isdir(directory):
                 return os.path.abspath(directory), probe.stdout
@@ -554,33 +691,42 @@ class ServerSupervisor:
             except OSError:
                 pass
         code = self.process.poll() if self.process else None
-        return f"Exit code: {code}; command: {self.command!r}\n" + ("\n".join(details) or "No server output; inspect runner crash diagnostics")
+        return f"Exit code: {code}; command: {self.command!r}\n" + (
+            "\n".join(details) or "No server output; inspect runner crash diagnostics"
+        )
 
     def start(self):
         if not os.path.isfile(self.binary_path):
             raise FileNotFoundError(f"{self.name} binary not found: {self.binary_path}")
         if not self._wait_port_free(self.port, timeout=3):
-            raise RuntimeError(f"Port {self.port} is already in use; stop existing listener before benchmarking")
+            raise RuntimeError(
+                f"Port {self.port} is already in use; stop existing listener before benchmarking"
+            )
 
-        # Make necessary directories
         os.makedirs(self.bench_dir, exist_ok=True)
-        for sub_dir in ["nginx_client_body", "nginx_proxy", "nginx_fastcgi", "nginx_uwsgi", "nginx_scgi"]:
+        for sub_dir in [
+            "nginx_client_body",
+            "nginx_proxy",
+            "nginx_fastcgi",
+            "nginx_uwsgi",
+            "nginx_scgi",
+        ]:
             os.makedirs(os.path.join(self.bench_dir, sub_dir), exist_ok=True)
         error_log = os.path.join(self.bench_dir, f"{self.name}_error.log")
         with open(error_log, "w", encoding="utf-8"):
             pass
-
-        # Determine conf
         self.runtime_conf = self._prepare_config()
         prefix = self._config_path(self.repo_root) + "/"
-
-        # Start the program
         if self.name == "mercury":
             base = [self.binary_path, "-c", self.runtime_conf]
             self.command = base
         elif self.name == "apache":
             # Preserve installed ServerRoot for Windows child process initialization
-            server_root = os.path.dirname(os.path.dirname(self.binary_path)) if sys.platform == "win32" else self.repo_root
+            server_root = (
+                os.path.dirname(os.path.dirname(self.binary_path))
+                if sys.platform == "win32"
+                else self.repo_root
+            )
             base = [self.binary_path, "-d", self._config_path(server_root), "-f", self.runtime_conf]
             self.command = base + ["-DFOREGROUND"]
         elif self.name == "nginx":
@@ -592,18 +738,31 @@ class ServerSupervisor:
         # Retain stdout and stderr without bounded pipe buffers or inherited stdin EOF
         self.log_handle = open(self.startup_log, "wb")
         try:
-            check = subprocess.run(base + ["-t"], stdin=subprocess.DEVNULL, stdout=self.log_handle,
-                                   stderr=subprocess.STDOUT, cwd=self.repo_root, timeout=15)
+            check = subprocess.run(
+                base + ["-t"],
+                stdin=subprocess.DEVNULL,
+                stdout=self.log_handle,
+                stderr=subprocess.STDOUT,
+                cwd=self.repo_root,
+                timeout=15,
+            )
             if check.returncode != 0:
-                raise RuntimeError(f"{self.name} config check failed (exit {check.returncode})\n{self._diagnostics()}")
+                raise RuntimeError(
+                    f"{self.name} config check failed (exit {check.returncode})\n{self._diagnostics()}"
+                )
             self.process = subprocess.Popen(
-                self.command, stdin=subprocess.PIPE, stdout=self.log_handle, stderr=subprocess.STDOUT,
+                self.command,
+                stdin=subprocess.PIPE,
+                stdout=self.log_handle,
+                stderr=subprocess.STDOUT,
                 cwd=self.repo_root,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0,
                 start_new_session=sys.platform != "win32",
             )
             if not self._wait_port_ready(self.port, timeout=10):
-                raise RuntimeError(f"{self.name} failed to listen on port {self.port}\n{self._diagnostics()}")
+                raise RuntimeError(
+                    f"{self.name} failed to listen on port {self.port}\n{self._diagnostics()}"
+                )
         except BaseException:
             self.stop()
             raise
@@ -618,30 +777,27 @@ class ServerSupervisor:
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
 
-            # Attempt to kill
             if self.process.poll() is None:
                 try:
-                    self.process.send_signal(signal.CTRL_BREAK_EVENT if sys.platform == "win32" else signal.SIGINT)
+                    self.process.send_signal(
+                        signal.CTRL_BREAK_EVENT if sys.platform == "win32" else signal.SIGINT
+                    )
                     self.process.wait(timeout=5)
                 except (OSError, ValueError, subprocess.TimeoutExpired):
                     self.process.kill()
                     self.process.wait(timeout=5)
 
-            # Terminate child processes
             for child in children:
                 try:
                     child.terminate()
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass
-
-            # Force kill child processes
             _, alive = psutil.wait_procs(children, timeout=2)
             for child in alive:
                 try:
                     child.kill()
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass
-
             psutil.wait_procs(alive, timeout=2)
             if self.process.stdin:
                 self.process.stdin.close()
@@ -695,6 +851,7 @@ class ServerSupervisor:
 # Environment & Binary Discovery
 # ============================================================================
 
+
 class Discovery:
     """Detects server binaries, versions, and paths across platforms"""
 
@@ -733,9 +890,16 @@ class Discovery:
             return os.path.abspath(resolved)
 
         if sys.platform == "win32":
-            roots = [os.environ.get("ChocolateyToolsLocation", "C:/tools"), os.environ.get("ChocolateyInstall", "C:/ProgramData/chocolatey") + "/lib", "C:/Apache24", "C:/nginx"]
+            roots = [
+                os.environ.get("ChocolateyToolsLocation", "C:/tools"),
+                os.environ.get("ChocolateyInstall", "C:/ProgramData/chocolatey") + "/lib",
+                "C:/Apache24",
+                "C:/nginx",
+            ]
             for root in roots:
-                for match in sorted(glob.glob(os.path.join(root, "**", "httpd.exe"), recursive=True)):
+                for match in sorted(
+                    glob.glob(os.path.join(root, "**", "httpd.exe"), recursive=True)
+                ):
                     if os.path.isfile(match):
                         return os.path.abspath(match)
 
@@ -771,9 +935,16 @@ class Discovery:
             return os.path.abspath(resolved)
 
         if sys.platform == "win32":
-            roots = [os.environ.get("ChocolateyToolsLocation", "C:/tools"), os.environ.get("ChocolateyInstall", "C:/ProgramData/chocolatey") + "/lib", "C:/Apache24", "C:/nginx"]
+            roots = [
+                os.environ.get("ChocolateyToolsLocation", "C:/tools"),
+                os.environ.get("ChocolateyInstall", "C:/ProgramData/chocolatey") + "/lib",
+                "C:/Apache24",
+                "C:/nginx",
+            ]
             for root in roots:
-                for match in sorted(glob.glob(os.path.join(root, "**", "nginx.exe"), recursive=True)):
+                for match in sorted(
+                    glob.glob(os.path.join(root, "**", "nginx.exe"), recursive=True)
+                ):
                     if os.path.isfile(match):
                         return os.path.abspath(match)
 
@@ -802,7 +973,9 @@ class Discovery:
     def get_version(cls, server: str, binary_path: str) -> str:
         if server == "mercury":
             try:
-                result = subprocess.run([binary_path, "-v"], capture_output=True, text=True, timeout=10, check=True)
+                result = subprocess.run(
+                    [binary_path, "-v"], capture_output=True, text=True, timeout=10, check=True
+                )
                 match = re.search(r"Mercury\s+(v?\d+\.\d+\.\d+)", result.stdout + result.stderr)
                 if match:
                     return "v" + match.group(1).lstrip("v")
@@ -812,12 +985,26 @@ class Discovery:
 
         try:
             if server == "apache":
-                res = subprocess.run([binary_path, "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10, check=True)
+                res = subprocess.run(
+                    [binary_path, "-v"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=10,
+                    check=True,
+                )
                 match = re.search(r"Apache/(\d+\.\d+\.\d+)", res.stdout)
                 if match:
                     return match.group(1)
             elif server == "nginx":
-                res = subprocess.run([binary_path, "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10, check=True)
+                res = subprocess.run(
+                    [binary_path, "-v"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=10,
+                    check=True,
+                )
                 match = re.search(r"nginx/(\d+\.\d+\.\d+)", res.stderr or res.stdout)
                 if match:
                     return match.group(1)
@@ -830,6 +1017,7 @@ class Discovery:
 # ============================================================================
 # Statistics & Multi-Trial Aggregator
 # ============================================================================
+
 
 class Statistics:
     """Computes averages and relative comparison metrics across trials"""
@@ -896,6 +1084,7 @@ class Statistics:
 # Output Formatters
 # ============================================================================
 
+
 class OutputFormatter:
     """Renders results into Markdown tables matching README specifications and JSON"""
 
@@ -905,9 +1094,15 @@ class OutputFormatter:
         mercury = summaries.get("mercury")
 
         # Determine OS header string
-        is_windows = "windows" in results.platform_name.lower() or "win32" in results.platform_name.lower()
+        is_windows = (
+            "windows" in results.platform_name.lower() or "win32" in results.platform_name.lower()
+        )
         if is_windows:
-            arch = "x64" if results.cpu_architecture.lower() in ("amd64", "x86_64", "x64") else results.cpu_architecture
+            arch = (
+                "x64"
+                if results.cpu_architecture.lower() in ("amd64", "x86_64", "x64")
+                else results.cpu_architecture
+            )
             platform_header = f"Windows ({arch})"
         else:
             distro_desc = ""
@@ -972,16 +1167,32 @@ class OutputFormatter:
         lines.append(format_row("Avg. Idle Memory", "idle_rss_mb", "MB", metric_type="memory"))
         lines.append(format_row("Avg. Load Memory", "load_rss_mb", "MB", metric_type="memory"))
         lines.append(format_row("Avg. Peak Memory", "peak_rss_mb", "MB", metric_type="memory"))
-        lines.append(format_row(f"Req / Second ({results.payload_name})", "rps", "rps", metric_type="rps"))
-        lines.append(format_row("Avg. Latency (mean)", "latency_mean_ms", "ms", metric_type="latency"))
-        lines.append(format_row("Avg. Latency (p50)", "latency_p50_ms", "ms", metric_type="latency"))
-        lines.append(format_row("Avg. Latency (p99)", "latency_p99_ms", "ms", metric_type="latency"))
+        lines.append(
+            format_row(f"Req / Second ({results.payload_name})", "rps", "rps", metric_type="rps")
+        )
+        lines.append(
+            format_row("Avg. Latency (mean)", "latency_mean_ms", "ms", metric_type="latency")
+        )
+        lines.append(
+            format_row("Avg. Latency (p50)", "latency_p50_ms", "ms", metric_type="latency")
+        )
+        lines.append(
+            format_row("Avg. Latency (p99)", "latency_p99_ms", "ms", metric_type="latency")
+        )
 
         if mercury and len(servers_present) > 1:
             lines.append("\nComparison uses Apache as baseline when present, otherwise Nginx.")
         if results.skipped_servers:
             lines.append("\nSkipped missing servers: " + ", ".join(results.skipped_servers) + ".")
-        lines.append(f"\n*Baseline averages across {results.trials} trials over loopback using tests/conf_files/benchmark; tool={results.tool_used}, concurrency={results.concurrency}, duration={results.duration_seconds}s, payload={results.payload_size_bytes} bytes. RSS sums parent and child resident memory (shared pages may be counted repeatedly); CI results are host-dependent.*")
+        lines.append(
+            f"\n*Baseline averages across {results.trials} trials over loopback "
+            f"using tests/conf_files/benchmark; tool={results.tool_used}, "
+            f"concurrency={results.concurrency}, duration={results.duration_seconds}s, "
+            f"payload={results.payload_size_bytes} bytes, "
+            f"threaded worker limit={results.worker_thread_limit}. "
+            "RSS sums parent and child resident memory "
+            "(shared pages may be counted repeatedly); CI results are host-dependent.*"
+        )
         return "\n".join(lines)
 
     @classmethod
@@ -993,6 +1204,7 @@ class OutputFormatter:
 # ============================================================================
 # Main Benchmark Runner
 # ============================================================================
+
 
 class BenchmarkSuite:
     """Executes benchmark trials across selected web servers"""
@@ -1021,12 +1233,15 @@ class BenchmarkSuite:
         self.tool_preference = tool_preference
 
         if min(trials, duration, concurrency) <= 0 or warmup_requests < 0:
-            raise ValueError("Trials, duration, and concurrency must be positive; warmup must be nonnegative")
+            raise ValueError(
+                "Trials, duration, and concurrency must be positive; warmup must be nonnegative"
+            )
         if not servers or set(servers) - {"mercury", "apache", "nginx"}:
             raise ValueError("Select at least one known server: mercury,apache,nginx")
         if payload_key == "php":
-            raise ValueError("PHP benchmarking requires backend configuration for all servers; use static payloads")
-
+            raise ValueError(
+                "PHP benchmarking requires backend configuration for all servers; use static payloads"
+            )
         self.repo_root = Discovery.repo_root()
         self.mercury_bin = Discovery.find_mercury(mercury_path)
         self.apache_bin = Discovery.find_apache(apache_path)
@@ -1057,7 +1272,10 @@ class BenchmarkSuite:
         print("================================================================================")
         print(" Mercury HTTP Performance Benchmark Suite")
         print(f" Platform: {platform.system()} {platform.release()} ({platform.machine()})")
-        print(f" CPU Cores: {os.cpu_count()} | Concurrency: {self.concurrency} | Duration: {self.duration}s")
+        print(
+            f" CPU Cores: {os.cpu_count()} | Concurrency: {self.concurrency} | Duration: {self.duration}s"
+        )
+        print(f" Threaded Worker Limit: {ServerSupervisor.worker_threads_for(self.concurrency)}")
         print(f" Payload: {display_name} ({size_bytes} bytes) | Load Generator Tool: {self.tool}")
         print("================================================================================")
 
@@ -1087,43 +1305,54 @@ class BenchmarkSuite:
             cfg = server_configs.get(server)
             if not cfg or not cfg["bin"]:
                 if server == "mercury":
-                    raise FileNotFoundError("Mercury binary not found; build it or pass --mercury-path")
+                    raise FileNotFoundError(
+                        "Mercury binary not found; build it or pass --mercury-path"
+                    )
                 skipped_servers.append(server)
                 print(f"\n[INFO] {server.capitalize()} binary not found; skipping {server} trials")
                 continue
 
-            # Extract data from config
             binary = cfg["bin"]
             port = cfg["port"]
             conf = cfg["conf"]
-            version = self.mercury_version if server == "mercury" and self.mercury_version else Discovery.get_version(server, binary)
+            version = (
+                self.mercury_version
+                if server == "mercury" and self.mercury_version
+                else Discovery.get_version(server, binary)
+            )
 
             print(f"\n--- Benchmarking {server.capitalize()} ({version}) on port {port} ---")
             for trial in range(1, self.trials + 1):
-                supervisor = ServerSupervisor(server, binary, port, conf, self.repo_root)
+                supervisor = ServerSupervisor(
+                    server,
+                    binary,
+                    port,
+                    conf,
+                    self.repo_root,
+                    concurrency=self.concurrency,
+                )
                 print(f"Starting {server}...")
                 try:
                     supervisor.start()
-
                     # Settle fresh process before measuring idle RSS
                     time.sleep(2.0)
                     idle_sampler = MemorySampler(supervisor.process.pid, interval_seconds=0.1)
                     idle_rss = idle_sampler.sample_now()
-                    fixture = os.path.join(self.repo_root, "tests", "root", "benchmark", url_path.rsplit("/", 1)[1])
-
+                    fixture = os.path.join(
+                        self.repo_root, "tests", "root", "benchmark", url_path.rsplit("/", 1)[1]
+                    )
                     with open(fixture, "rb") as handle:
                         expected = handle.read()
-
-                    # Validate payload
                     LoadGenerator.validate_payload("127.0.0.1", port, url_path, expected)
                     if idle_rss <= 0:
-                        raise RuntimeError("Cannot read server RSS via psutil; verify process permissions and /proc PID visibility")
+                        raise RuntimeError(
+                            "Cannot read server RSS via psutil; verify process permissions and /proc PID visibility"
+                        )
                     print(f"Baseline Idle RSS: {idle_rss:.1f} MB")
 
                     LoadGenerator._run_warmup("127.0.0.1", port, url_path, self.warmup_requests)
                     if supervisor.process.poll() is not None:
                         raise RuntimeError(supervisor._diagnostics())
-
                     # Start active memory sampler for active load window
                     load_sampler = MemorySampler(supervisor.process.pid, interval_seconds=0.05)
                     load_sampler.start()
@@ -1132,8 +1361,13 @@ class BenchmarkSuite:
                     print(f"  [Trial {trial}/{self.trials}] Generating load ({self.duration}s)...")
                     try:
                         rps, mean_ms, p50_ms, p99_ms = LoadGenerator.run(
-                            tool=self.tool, host="127.0.0.1", port=port, path=url_path,
-                            concurrency=self.concurrency, duration=self.duration, warmup_requests=0,
+                            tool=self.tool,
+                            host="127.0.0.1",
+                            port=port,
+                            path=url_path,
+                            concurrency=self.concurrency,
+                            duration=self.duration,
+                            warmup_requests=0,
                         )
                     finally:
                         load_samples = load_sampler.stop()
@@ -1144,18 +1378,20 @@ class BenchmarkSuite:
                     load_rss = sum(load_samples) / len(load_samples)
                     peak_rss = max(load_samples)
 
-                    raw_trials.append(TrialMetrics(
-                        server=server,
-                        trial_index=trial,
-                        payload=self.payload_key,
-                        idle_rss_mb=idle_rss,
-                        load_rss_mb=load_rss,
-                        peak_rss_mb=peak_rss,
-                        rps=rps,
-                        latency_mean_ms=mean_ms,
-                        latency_p50_ms=p50_ms,
-                        latency_p99_ms=p99_ms,
-                    ))
+                    raw_trials.append(
+                        TrialMetrics(
+                            server=server,
+                            trial_index=trial,
+                            payload=self.payload_key,
+                            idle_rss_mb=idle_rss,
+                            load_rss_mb=load_rss,
+                            peak_rss_mb=peak_rss,
+                            rps=rps,
+                            latency_mean_ms=mean_ms,
+                            latency_p50_ms=p50_ms,
+                            latency_p99_ms=p99_ms,
+                        )
+                    )
                     print(
                         f"  [Trial {trial}/{self.trials}] Result: {rps:,.0f} rps | "
                         f"Idle: {idle_rss:.1f} MB | Load: {load_rss:.1f} MB | Peak: {peak_rss:.1f} MB | "
@@ -1184,6 +1420,7 @@ class BenchmarkSuite:
             payload_size_bytes=size_bytes,
             tool_used=self.tool,
             trials=self.trials,
+            worker_thread_limit=ServerSupervisor.worker_threads_for(self.concurrency),
             skipped_servers=skipped_servers,
             summaries=summaries,
             raw_trials=raw_trials,
@@ -1196,37 +1433,95 @@ class BenchmarkSuite:
 # CLI Entry Point
 # ============================================================================
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Mercury Performance Benchmark Suite")
-    parser.add_argument( "--servers", type=str, default="mercury,apache,nginx", help="Comma-separated list of servers to benchmark (default: mercury,apache,nginx)" )
-    parser.add_argument( "--trials", type=int, default=5, help="Number of trials per server (default: 5)" )
-    parser.add_argument( "--duration", type=int, default=10, help="Duration of load test in seconds per trial (default: 10)" )
-    parser.add_argument( "--concurrency", type=int, default=50, help="Number of concurrent client connections (default: 50)" )
-    parser.add_argument( "--warmup", type=int, default=200, help="Number of warmup requests before measurement (default: 200)" )
-    parser.add_argument( "--payload", type=str, default="1k", choices=["1k", "64k", "1m"], help="Standardized payload fixture to test (default: 1k)" )
-    parser.add_argument( "--tool", type=str, default="auto", choices=["auto", "wrk", "hey", "python"], help="Load generator tool (default: auto)" )
-    parser.add_argument( "--output-format", type=str, default="markdown", help="Output format: markdown, json, or markdown,json (default: markdown)" )
-    parser.add_argument( "--output", type=str, default=None, help="Path to file to write output results" )
-    parser.add_argument( "--mercury-path", type=str, default=None, help="Custom path to Mercury executable" )
-    parser.add_argument( "--apache-path", type=str, default=None, help="Custom path to Apache executable" )
-    parser.add_argument( "--nginx-path", type=str, default=None, help="Custom path to Nginx executable" )
-    parser.add_argument("--mercury-version", help="Verified release version label (Mercury -v may read checkout version.txt)")
+
+    # Select servers and trial parameters
+    parser.add_argument(
+        "--servers",
+        type=str,
+        default="mercury,apache,nginx",
+        help="Comma-separated list of servers to benchmark (default: mercury,apache,nginx)",
+    )
+    parser.add_argument(
+        "--trials", type=int, default=5, help="Number of trials per server (default: 5)"
+    )
+    parser.add_argument(
+        "--duration",
+        type=int,
+        default=10,
+        help="Duration of load test in seconds per trial (default: 10)",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=50,
+        help="Number of concurrent client connections (default: 50)",
+    )
+    parser.add_argument(
+        "--warmup",
+        type=int,
+        default=200,
+        help="Number of warmup requests before measurement (default: 200)",
+    )
+
+    # Select static workload and load generator
+    parser.add_argument(
+        "--payload",
+        type=str,
+        default="1k",
+        choices=["1k", "64k", "1m"],
+        help="Standardized payload fixture to test (default: 1k)",
+    )
+    parser.add_argument(
+        "--tool",
+        type=str,
+        default="auto",
+        choices=["auto", "wrk", "hey", "python"],
+        help="Load generator tool (default: auto)",
+    )
+
+    # Choose report formats and destination
+    parser.add_argument(
+        "--output-format",
+        type=str,
+        default="markdown",
+        help="Output format: markdown, json, or markdown,json (default: markdown)",
+    )
+    parser.add_argument(
+        "--output", type=str, default=None, help="Path to file to write output results"
+    )
+
+    # Resolve executable overrides and release label
+    parser.add_argument(
+        "--mercury-path", type=str, default=None, help="Custom path to Mercury executable"
+    )
+    parser.add_argument(
+        "--apache-path", type=str, default=None, help="Custom path to Apache executable"
+    )
+    parser.add_argument(
+        "--nginx-path", type=str, default=None, help="Custom path to Nginx executable"
+    )
+    parser.add_argument(
+        "--mercury-version",
+        help="Verified release version label (Mercury -v may read checkout version.txt)",
+    )
+
+    # Validate numeric limits and selections before starting servers
     args = parser.parse_args()
-
     if min(args.trials, args.duration, args.concurrency) <= 0 or args.warmup < 0:
-        parser.error("trials, duration, and concurrency must be positive; warmup must be nonnegative")
-
+        parser.error(
+            "trials, duration, and concurrency must be positive; warmup must be nonnegative"
+        )
     servers = [item.strip().lower() for item in args.servers.split(",") if item.strip()]
     if not servers or set(servers) - {"mercury", "apache", "nginx"}:
         parser.error("servers must select mercury,apache,nginx")
-
     if len(set(servers)) != len(servers):
         parser.error("servers must not contain duplicates")
-
     formats = [item.strip().lower() for item in args.output_format.split(",") if item.strip()]
     if not formats or set(formats) - {"markdown", "json"}:
         parser.error("output-format must select markdown,json")
-
     return args
 
 
@@ -1299,4 +1594,3 @@ if __name__ == "__main__":
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
-

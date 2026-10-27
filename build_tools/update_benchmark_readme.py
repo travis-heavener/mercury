@@ -19,7 +19,7 @@ def extract_table_and_footnote(content: str) -> Tuple[str, Optional[str]]:
     footnote_match = re.search(r"(\*[Bb]aseline averages[^\n]+\*)\s*$", text)
     if footnote_match:
         footnote = footnote_match.group(1).strip()
-        table_text = text[:footnote_match.start()].strip()
+        table_text = text[: footnote_match.start()].strip()
     else:
         table_text = text
 
@@ -64,7 +64,10 @@ def update_readme(
     end_idx = readme_content.find(end_marker, start_idx)
 
     if end_idx == -1:
-        print(f"Error: Could not locate section end delimiter '{end_marker}' after {perf_header}", file=sys.stderr)
+        print(
+            f"Error: Could not locate section end delimiter '{end_marker}' after {perf_header}",
+            file=sys.stderr,
+        )
         return False
 
     perf_section = readme_content[start_idx:end_idx]
@@ -103,11 +106,19 @@ def update_readme(
         footnote = "*Baseline averages across 5 separate trials over loopback using tests/conf_files/benchmark.*"
 
     # Extract existing Linux and Windows blocks if updating only one platform
-    existing_linux_match = re.search(r"(#### Linux[^\n]*\n\n\|.*?)(?=\n\n####|\n\n\*[Bb]aseline|\Z)", perf_section, re.DOTALL)
-    existing_windows_match = re.search(r"(#### Windows[^\n]*\n\n\|.*?)(?=\n\n####|\n\n\*[Bb]aseline|\Z)", perf_section, re.DOTALL)
+    existing_linux_match = re.search(
+        r"(#### Linux[^\n]*\n\n\|.*?)(?=\n\n####|\n\n\*[Bb]aseline|\Z)", perf_section, re.DOTALL
+    )
+    existing_windows_match = re.search(
+        r"(#### Windows[^\n]*\n\n\|.*?)(?=\n\n####|\n\n\*[Bb]aseline|\Z)", perf_section, re.DOTALL
+    )
 
-    final_linux = (linux_table or (existing_linux_match.group(1) if existing_linux_match else "")).strip()
-    final_windows = (windows_table or (existing_windows_match.group(1) if existing_windows_match else "")).strip()
+    final_linux = (
+        linux_table or (existing_linux_match.group(1) if existing_linux_match else "")
+    ).strip()
+    final_windows = (
+        windows_table or (existing_windows_match.group(1) if existing_windows_match else "")
+    ).strip()
 
     # Reassemble performance block
     section_intro = "### Performance\n\nThe following measurements compare Mercury, Apache, and Nginx under the benchmark conditions listed below:"
@@ -140,7 +151,9 @@ def main():
     parser.add_argument("--readme", default="README.md", help="Path to README.md file")
     parser.add_argument("--linux", help="Path to Linux benchmark markdown output")
     parser.add_argument("--windows", help="Path to Windows benchmark markdown output")
-    parser.add_argument("--dry-run", action="store_true", help="Print updated section without writing to file")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print updated section without writing to file"
+    )
 
     args = parser.parse_args()
 

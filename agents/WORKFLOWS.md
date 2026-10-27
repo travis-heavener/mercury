@@ -139,6 +139,8 @@ For `build`, a separate Ubuntu 22.04 job builds both Linux and Windows executabl
 
 `trials`, `duration`, and `servers` are validated before provisioning benchmark hosts. Inputs reach shell commands through environment variables. Linux prefers `wrk`; Windows falls back to Python unless an external tool is available. Throughput from different generators should not be compared across platforms.
 
+The runner derives threaded worker limits from client concurrency (60 workers for the default 50 clients), and records the limit in JSON and Markdown. Native regression checks exercise 50 persistent clients before benchmark trials. Benchmark HTML uses LF line endings on both platforms.
+
 Each platform publishes its Markdown table to the step summary and uploads JSON, startup/error logs, and generated configs. Diagnostic uploads run after failures too. If a startup check fails, inspect `<server>_startup.log` in the platform result artifact. Missing `conf/mimes.conf` is repaired from tracked defaults without replacing an existing file.
 
 With `create_pr=true`, both benchmark jobs must succeed before the README update runs. Dispatch from a branch for PR creation; that selected branch is the PR base. The aggregation job downloads both reports, replaces only README's Performance section, checks tracked-file scope, and pushes a unique run-specific branch without force-pushing. It uses the configured Mercury App token when available, otherwise the workflow token. Repository settings must permit Actions to create pull requests when using the workflow token. `version.txt` and `CHANGELOG.md` are not updated.

@@ -182,11 +182,11 @@ Before each trial, the runner checks config syntax, starts a fresh server with s
 
 ### Workloads and measurement
 
-Static fixtures under `tests/root/benchmark/` support `1k` (1 KiB), `64k` (64 KiB), and `1m` (1 MiB). The runner checks HTTP status and exact fixture bytes before timing, then performs warmup outside the measured memory/load window. All load tools request uncompressed responses; `hey` also disables automatic compression and redirects. HTTP errors, socket errors, tool failures, and zero successful requests reject the trial.
+Static fixtures under `tests/root/benchmark/` support `1k` (1 KiB), `64k` (64 KiB), and `1m` (1 MiB). The runner checks HTTP status and exact fixture bytes before timing, then performs warmup outside the measured memory/load window. The benchmark HTML fixture is checked out with LF line endings and binary fixtures bypass text conversion, preserving identical payload bytes across platforms. All load tools request uncompressed responses; `hey` also disables automatic compression and redirects. HTTP errors, socket errors, tool failures, and zero successful requests reject the trial.
 
 The PHP fixture remains reserved for future backend benchmarks. `--payload php` is intentionally unavailable: the current configs do not configure PHP-FPM/FastCGI across all three servers, and benchmarking a served PHP source file would produce misleading results. Compression trials are also deferred.
 
-Mercury keeps 10 idle threads and may grow to 20; Apache uses 20 worker threads, and Nginx uses one event-driven worker process. These architectures differ; equal worker counts do not imply equal concurrency capacity. Keep-alive uses a 5-second timeout and a 10,000-request limit. Mercury writes access logs to the platform null device; Apache/Nginx disable access logging. Mercury still incurs log formatting/queue overhead.
+Mercury keeps 10 idle threads. Its runtime worker ceiling is `max(20, concurrency + 10)`; Apache uses that same ceiling for both event and winnt MPMs, with an explicit `ThreadLimit` for event MPM. At the default 50 clients, both threaded servers permit 60 workers. Ten spare slots allow connection turnover without queueing clients behind long-lived keep-alive sockets. Nginx uses one event-driven worker process and `max(1024, concurrency * 2)` connection slots. These architectures differ; equal worker counts do not imply equal concurrency capacity. Keep-alive uses a 5-second timeout and a 10,000-request limit. Mercury writes access logs to the platform null device; Apache/Nginx disable access logging. Mercury still incurs log formatting/queue overhead.
 
 RSS is sampled every 50 ms during load and sums parent plus recursive children. Shared resident pages can be counted more than once across processes, so this is not proportional/private memory. The report includes average idle/load RSS, the average of each trial's sampled peak RSS, throughput, and mean/p50/p99 latency. Percentiles are averaged across trials rather than pooled. All valid trials contribute to arithmetic means; no automatic outlier filtering is applied. Host load, the Python client/GIL, OS differences, and Windows Nginx's implementation affect results. Compare servers within the same host/tool run; CI measurements are not a universal performance claim.
 
@@ -209,7 +209,7 @@ python3 build_tools/benchmark.py --output-format markdown,json --output benchmar
 python3 -m unittest discover -s tests -p test_benchmark.py -v
 ```
 
-The native clean-checkout regression runs when a Mercury executable exists in `bin/`; otherwise that case is skipped. Synthetic executable checks are POSIX-only; the workflow runs the native regression on both platforms.
+The native clean-checkout and 50-client keep-alive regressions run when a Mercury executable exists in `bin/`; otherwise those cases are skipped. Config regressions check worker ceilings at 1, 50, and 100 clients, including Apache event/winnt settings. Synthetic executable checks are POSIX-only; the workflow runs the native regression on both platforms.
 
 ### Command-line options
 

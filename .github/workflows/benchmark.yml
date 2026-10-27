@@ -52,26 +52,38 @@ jobs:
         run: |
           python3 - <<'PYTHON'
           import os
+
+          # Require branch target before creating README pull request
           if os.environ["CREATE_PR"] == "true" and os.environ["REF_TYPE"] != "branch":
               raise SystemExit("create_pr requires dispatching from a branch")
+
+          # Reject invalid trial settings before provisioning benchmark hosts
           for name in ("TRIALS", "DURATION"):
               value = os.environ[name]
               if not value.isascii() or not value.isdecimal() or int(value) < 1:
                   raise SystemExit(f"{name} must be a positive integer")
-          servers = [part.strip().lower() for part in os.environ["SERVERS"].split(",") if part.strip()]
+
+          # Normalize server selection and reject duplicates
+          servers = [
+              part.strip().lower()
+              for part in os.environ["SERVERS"].split(",")
+              if part.strip()
+          ]
           if not servers or len(set(servers)) != len(servers) or set(servers) - {"mercury", "apache", "nginx"}:
               raise SystemExit("SERVERS must select mercury,apache,nginx without duplicates")
           PYTHON
+
+          # Pin single release target for both platform jobs
           target_tag="${RELEASE_TAG:-latest}"
           if [ "$target_tag" = "latest" ]; then
-            target_tag=$(gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // empty')
+              target_tag=$(gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // empty')
           fi
           if [ "$target_tag" != "build" ]; then
-            if [[ ! "$target_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "Expected published vX.Y.Z release tag or build; got: $target_tag" >&2
-              exit 1
-            fi
-            gh release view "$target_tag" --json tagName,isDraft --jq 'select(.isDraft == false).tagName' | grep -Fx "$target_tag"
+              if [[ ! "$target_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                  echo "Expected published vX.Y.Z release tag or build; got: $target_tag" >&2
+                  exit 1
+              fi
+              gh release view "$target_tag" --json tagName,isDraft --jq 'select(.isDraft == false).tagName' | grep -Fx "$target_tag"
           fi
           echo "release_tag=$target_tag" >> "$GITHUB_OUTPUT"
           echo "Benchmark target: $target_tag" >> "$GITHUB_STEP_SUMMARY"
@@ -86,17 +98,20 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
+
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential nasm cmake perl wget zip upx-ucl
           chmod +x build_tools/*.sh build_tools/tools/*
           sudo ./build_tools/install_workflow_deps.sh --verbose
+
       - name: Build Release Binaries
         run: |
           mkdir -p bin
           make -j2 libs_no_deps
           make -j2 -B all
+
       - uses: actions/upload-artifact@v7
         with:
           name: benchmark-source-binaries
@@ -119,20 +134,24 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
+
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y apache2 nginx wrk
           python -m pip install psutil
+
       - name: Download Source Build
         if: env.RELEASE_TAG == 'build'
         uses: actions/download-artifact@v7
         with:
           name: benchmark-source-binaries
           path: bin
+
       - name: Acquire Mercury Linux Binary
         env:
           GH_TOKEN: ${{ github.token }}
@@ -140,32 +159,54 @@ jobs:
         run: |
           mkdir -p bin temp_release
           if [ "$RELEASE_TAG" != "build" ]; then
-            gh release download "$RELEASE_TAG" --pattern "Linux_*.tar.gz" --dir temp_release
-            mapfile -t archives < <(find temp_release -maxdepth 1 -type f -name 'Linux_*.tar.gz')
-            if [ "${#archives[@]}" -ne 1 ]; then echo "Expected one Linux archive" >&2; exit 1; fi
-            tar -xzf "${archives[0]}" -C temp_release
-            mapfile -t binaries < <(find temp_release -type f -path '*/bin/mercury')
-            if [ "${#binaries[@]}" -ne 1 ]; then echo "Expected one Mercury binary" >&2; exit 1; fi
-            cp "${binaries[0]}" bin/mercury
+              gh release download "$RELEASE_TAG" --pattern "Linux_*.tar.gz" --dir temp_release
+              mapfile -t archives < <(find temp_release -maxdepth 1 -type f -name 'Linux_*.tar.gz')
+              if [ "${#archives[@]}" -ne 1 ]; then
+                  echo "Expected one Linux archive" >&2
+                  exit 1
+              fi
+              tar -xzf "${archives[0]}" -C temp_release
+              mapfile -t binaries < <(find temp_release -type f -path '*/bin/mercury')
+              if [ "${#binaries[@]}" -ne 1 ]; then
+                  echo "Expected one Mercury binary" >&2
+                  exit 1
+              fi
+              cp "${binaries[0]}" bin/mercury
           fi
           chmod +x bin/mercury
           cp conf/default/mimes.conf conf/mimes.conf
           ./bin/mercury -v
+
       - name: Verify Benchmark Runner
         run: python -m unittest discover -s tests -p test_benchmark.py -v
+
       - name: Run Linux Benchmarks
         run: |
           version="$RELEASE_TAG"
-          if [ "$version" = "build" ]; then version=$(sed 's/^Mercury //' version.txt | tr -d '\r\n'); fi
-          python -u build_tools/benchmark.py --servers "$BENCH_SERVERS" --trials "$BENCH_TRIALS" --duration "$BENCH_DURATION" --mercury-version "$version" --output-format markdown,json --output linux-results.md
+          if [ "$version" = "build" ]; then
+              version=$(sed 's/^Mercury //' version.txt | tr -d '\r\n')
+          fi
+
+          # Generate worker limits from client concurrency inside runner
+          python -u build_tools/benchmark.py \
+              --servers "$BENCH_SERVERS" \
+              --trials "$BENCH_TRIALS" \
+              --duration "$BENCH_DURATION" \
+              --mercury-version "$version" \
+              --output-format markdown,json \
+              --output linux-results.md
+
       - name: Publish Step Summary
         if: always()
         run: |
-          if [ -f linux-results.md ]; then cat linux-results.md >> "$GITHUB_STEP_SUMMARY"; fi
-          if [ ! -f linux-results.md ]; then
-            echo "Benchmark failed; see uploaded startup logs and generated configs." >> "$GITHUB_STEP_SUMMARY"
-            find logs/benchmark -maxdepth 1 -name '*startup.log' -exec tail -n 60 {} + || true
+          if [ -f linux-results.md ]; then
+              cat linux-results.md >> "$GITHUB_STEP_SUMMARY"
           fi
+          if [ ! -f linux-results.md ]; then
+              echo "Benchmark failed; see uploaded startup logs and generated configs." >> "$GITHUB_STEP_SUMMARY"
+              find logs/benchmark -maxdepth 1 -name '*startup.log' -exec tail -n 60 {} + || true
+          fi
+
       - name: Upload Linux Benchmark Results and Diagnostics
         if: always()
         uses: actions/upload-artifact@v7
@@ -194,21 +235,25 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
+
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+
       - name: Install Dependencies
         run: |
           python -m pip install psutil
           if ($LASTEXITCODE -ne 0) { throw 'Python dependency installation failed' }
           choco install apache-httpd nginx -y --no-progress
           if ($LASTEXITCODE -ne 0) { throw 'Server installation failed' }
+
       - name: Download Source Build
         if: env.RELEASE_TAG == 'build'
         uses: actions/download-artifact@v7
         with:
           name: benchmark-source-binaries
           path: bin
+
       - name: Acquire Mercury Windows Binary
         env:
           GH_TOKEN: ${{ github.token }}
@@ -216,37 +261,57 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path bin, temp_release | Out-Null
           if ($env:RELEASE_TAG -ne 'build') {
-            gh release download $env:RELEASE_TAG --pattern 'Windows_*.zip' --dir temp_release
-            if ($LASTEXITCODE -ne 0) { throw 'Release download failed' }
-            $archives = @(Get-ChildItem temp_release -Filter 'Windows_*.zip')
-            if ($archives.Count -ne 1) { throw 'Expected one Windows archive' }
-            Expand-Archive -Path $archives[0].FullName -DestinationPath temp_release/extracted -Force
-            $binaries = @(Get-ChildItem temp_release/extracted -Filter mercury.exe -Recurse | Where-Object { $_.Directory.Name -eq 'bin' })
-            if ($binaries.Count -ne 1) { throw 'Expected one Mercury binary' }
-            Copy-Item $binaries[0].FullName bin/mercury.exe
+              gh release download $env:RELEASE_TAG --pattern 'Windows_*.zip' --dir temp_release
+              if ($LASTEXITCODE -ne 0) { throw 'Release download failed' }
+              $archives = @(Get-ChildItem temp_release -Filter 'Windows_*.zip')
+              if ($archives.Count -ne 1) { throw 'Expected one Windows archive' }
+              Expand-Archive -Path $archives[0].FullName -DestinationPath temp_release/extracted -Force
+              $binaries = @(Get-ChildItem temp_release/extracted -Filter mercury.exe -Recurse | Where-Object { $_.Directory.Name -eq 'bin' })
+              if ($binaries.Count -ne 1) { throw 'Expected one Mercury binary' }
+              Copy-Item $binaries[0].FullName bin/mercury.exe
           }
           Copy-Item conf/default/mimes.conf conf/mimes.conf
           & ./bin/mercury.exe -v
           if ($LASTEXITCODE -ne 0) { throw 'Mercury executable check failed' }
+
       - name: Verify Benchmark Runner
         run: |
           python -m unittest discover -s tests -p test_benchmark.py -v
           if ($LASTEXITCODE -ne 0) { throw 'Benchmark regression checks failed' }
+
       - name: Run Windows Benchmarks
         run: |
           $version = $env:RELEASE_TAG
-          if ($version -eq 'build') { $version = (Get-Content version.txt -Raw).Trim() -replace '^Mercury ', '' }
-          python -u build_tools/benchmark.py --servers $env:BENCH_SERVERS --trials $env:BENCH_TRIALS --duration $env:BENCH_DURATION --mercury-version $version --output-format markdown,json --output windows-results.md
+          if ($version -eq 'build') {
+              $version = (Get-Content version.txt -Raw).Trim() -replace '^Mercury ', ''
+          }
+
+          # Preserve argument boundaries without long PowerShell command chains
+          $benchmarkArgs = @(
+              '--servers', $env:BENCH_SERVERS,
+              '--trials', $env:BENCH_TRIALS,
+              '--duration', $env:BENCH_DURATION,
+              '--mercury-version', $version,
+              '--output-format', 'markdown,json',
+              '--output', 'windows-results.md'
+          )
+
+          python -u build_tools/benchmark.py @benchmarkArgs
           if ($LASTEXITCODE -ne 0) { throw 'Windows benchmark failed; see uploaded diagnostics' }
+
       - name: Publish Step Summary
         if: always()
         run: |
           if (Test-Path windows-results.md) {
-            Get-Content windows-results.md | Add-Content $env:GITHUB_STEP_SUMMARY
+              Get-Content windows-results.md | Add-Content $env:GITHUB_STEP_SUMMARY
           } else {
-            Add-Content $env:GITHUB_STEP_SUMMARY 'Benchmark failed; see uploaded startup logs and generated configs.'
-            Get-ChildItem logs/benchmark -Filter '*startup.log' -ErrorAction SilentlyContinue | ForEach-Object { Get-Content $_.FullName -Tail 60 }
+              Add-Content $env:GITHUB_STEP_SUMMARY 'Benchmark failed; see uploaded startup logs and generated configs.'
+              Get-ChildItem logs/benchmark -Filter '*startup.log' -ErrorAction SilentlyContinue |
+                  ForEach-Object {
+                      Get-Content $_.FullName -Tail 60
+                  }
           }
+
       - name: Upload Windows Benchmark Results and Diagnostics
         if: always()
         uses: actions/upload-artifact@v7
@@ -267,6 +332,7 @@ jobs:
       pull-requests: write
     steps:
       # Generate GitHub App bot token if configured, else fall back to default token
+
       - name: Generate Bot Token
         uses: actions/create-github-app-token@v3
         if: vars.MERCURY_BOT_APP_ID != ''
@@ -283,6 +349,7 @@ jobs:
           fetch-depth: 0
 
       # Download result artifacts from both benchmark jobs
+
       - name: Download Linux Results
         uses: actions/download-artifact@v7
         with:
@@ -296,25 +363,28 @@ jobs:
           path: ./results/windows
 
       # Inject tables into README.md
+
       - name: Update README.md
         run: |
           python3 build_tools/update_benchmark_readme.py \
-            --linux ./results/linux \
-            --windows ./results/windows \
-            --readme README.md
+              --linux ./results/linux \
+              --windows ./results/windows \
+              --readme README.md
 
       # Enforce strict scope: verify only README.md was modified
+
       - name: Verify Strict Scope
         run: |
           MODIFIED_FILES=$(git diff --name-only)
           echo "Modified files:"
           echo "$MODIFIED_FILES"
           if [ -n "$MODIFIED_FILES" ] && echo "$MODIFIED_FILES" | grep -v "^README\.md$"; then
-            echo "Error: Unexpected files modified besides README.md"
-            exit 1
+              echo "Error: Unexpected files modified besides README.md"
+              exit 1
           fi
 
       # Commit and push branch
+
       - name: Commit and Push Changes
         id: commit
         env:
@@ -325,15 +395,16 @@ jobs:
           git checkout -b "$BRANCH_NAME"
           git add README.md
           if git diff --staged --quiet; then
-            echo "No changes in README.md to commit"
-            echo "has_changes=false" >> $GITHUB_OUTPUT
+              echo "No changes in README.md to commit"
+              echo "has_changes=false" >> $GITHUB_OUTPUT
           else
-            git commit -m "perf: update performance benchmarks in README.md"
-            git push origin "$BRANCH_NAME"
-            echo "has_changes=true" >> $GITHUB_OUTPUT
+              git commit -m "perf: update performance benchmarks in README.md"
+              git push origin "$BRANCH_NAME"
+              echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
 
       # Open or update Pull Request via GitHub CLI
+
       - name: Create Pull Request
         if: steps.commit.outputs.has_changes == 'true'
         env:
@@ -349,13 +420,13 @@ jobs:
           echo "" >> pr_body.txt
 
           if [ -f "./results/linux/linux-results.md" ]; then
-            cat ./results/linux/linux-results.md >> pr_body.txt
-            echo "" >> pr_body.txt
+              cat ./results/linux/linux-results.md >> pr_body.txt
+              echo "" >> pr_body.txt
           fi
 
           if [ -f "./results/windows/windows-results.md" ]; then
-            cat ./results/windows/windows-results.md >> pr_body.txt
-            echo "" >> pr_body.txt
+              cat ./results/windows/windows-results.md >> pr_body.txt
+              echo "" >> pr_body.txt
           fi
 
           echo "---" >> pr_body.txt
@@ -363,27 +434,28 @@ jobs:
 
           EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING_PR" ]; then
-            echo "Updating existing PR #$EXISTING_PR"
-            gh pr edit "$EXISTING_PR" --title "$PR_TITLE" --body-file pr_body.txt
+              echo "Updating existing PR #$EXISTING_PR"
+              gh pr edit "$EXISTING_PR" --title "$PR_TITLE" --body-file pr_body.txt
           else
-            gh pr create \
-              --title "$PR_TITLE" \
-              --body-file pr_body.txt \
-              --base "$BASE_BRANCH" \
-              --head "$BRANCH_NAME"
+              gh pr create \
+                  --title "$PR_TITLE" \
+                  --body-file pr_body.txt \
+                  --base "$BASE_BRANCH" \
+                  --head "$BRANCH_NAME"
           fi
 
       # Publish aggregated summary
+
       - name: Publish Aggregated Step Summary
         if: always()
         run: |
           echo "## Benchmark PR Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f "./results/linux/linux-results.md" ]; then
-            cat ./results/linux/linux-results.md >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
+              cat ./results/linux/linux-results.md >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
           fi
           if [ -f "./results/windows/windows-results.md" ]; then
-            cat ./results/windows/windows-results.md >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
+              cat ./results/windows/windows-results.md >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
           fi
