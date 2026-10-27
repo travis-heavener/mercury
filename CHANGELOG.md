@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.38.2] - 2026-10-27
+-
+
 ## [0.38.1] - 2026-10-25
 - Change: avoided exceptions for routine missing-file lookups while preserving path canonicalization and error handling
 - Chore: remove unnecessary settings from default `mercury.conf`
