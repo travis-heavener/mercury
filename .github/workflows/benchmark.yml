@@ -217,7 +217,7 @@ jobs:
           MODIFIED_FILES=$(git diff --name-only)
           echo "Modified files:"
           echo "$MODIFIED_FILES"
-          if echo "$MODIFIED_FILES" | grep -v "^README\.md$"; then
+          if [ -n "$MODIFIED_FILES" ] && echo "$MODIFIED_FILES" | grep -v "^README\.md$"; then
             echo "Error: Unexpected files modified besides README.md"
             exit 1
           fi

@@ -478,6 +478,8 @@ class ServerSupervisor:
         self._wait_port_free(self.port, timeout=3.0)
 
         # Launch server process with DEVNULL for stdin/stdout to prevent pipe stalls
+        is_windows = sys.platform in ["win32", "cygwin"]
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if is_windows else 0
         self.process = subprocess.Popen(
             cmd,
             stdin=subprocess.DEVNULL,
@@ -485,6 +487,7 @@ class ServerSupervisor:
             stderr=subprocess.PIPE,
             cwd=self.repo_root,
             text=True,
+            creationflags=creationflags,
         )
 
         # Wait until port accepts connections
@@ -525,7 +528,7 @@ class ServerSupervisor:
             else:
                 self.process.send_signal(signal.SIGINT)
             self.process.wait(timeout=10.0)
-        except (subprocess.TimeoutExpired, ProcessLookupError):
+        except (subprocess.TimeoutExpired, ProcessLookupError, ValueError):
             try:
                 self.process.kill()
                 self.process.wait(timeout=5.0)
@@ -805,7 +808,12 @@ class OutputFormatter:
             arch = "x64" if results.cpu_architecture.lower() in ("amd64", "x86_64", "x64") else results.cpu_architecture
             platform_header = f"Windows ({arch})"
         else:
-            distro_desc = platform.freedesktop_os_release().get("PRETTY_NAME", "") if hasattr(platform, "freedesktop_os_release") else ""
+            distro_desc = ""
+            if hasattr(platform, "freedesktop_os_release"):
+                try:
+                    distro_desc = platform.freedesktop_os_release().get("PRETTY_NAME", "")
+                except Exception:
+                    distro_desc = ""
             if not distro_desc:
                 distro_desc = f"{platform.system()} {platform.release()}"
             platform_header = f"Linux ({distro_desc} {results.cpu_architecture})"

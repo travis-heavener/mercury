@@ -16,7 +16,7 @@ def extract_table_and_footnote(content: str) -> Tuple[str, Optional[str]]:
     footnote = None
 
     # Search for trailing baseline footnote
-    footnote_match = re.search(r"(\*[B|b]aseline averages[^\n]+\*)\s*$", text)
+    footnote_match = re.search(r"(\*[Bb]aseline averages[^\n]+\*)\s*$", text)
     if footnote_match:
         footnote = footnote_match.group(1).strip()
         table_text = text[:footnote_match.start()].strip()
@@ -100,8 +100,8 @@ def update_readme(
         footnote = "*Baseline averages across 5 separate trials over loopback using tests/conf_files/benchmark.*"
 
     # Extract existing Linux and Windows blocks if updating only one platform
-    existing_linux_match = re.search(r"(#### Linux[^\n]*\n\n\|.*?)(?=\n\n####|\n\n\*[B|b]aseline|\Z)", perf_section, re.DOTALL)
-    existing_windows_match = re.search(r"(#### Windows[^\n]*\n\n\|.*?)(?=\n\n####|\n\n\*[B|b]aseline|\Z)", perf_section, re.DOTALL)
+    existing_linux_match = re.search(r"(#### Linux[^\n]*\n\n\|.*?)(?=\n\n####|\n\n\*[Bb]aseline|\Z)", perf_section, re.DOTALL)
+    existing_windows_match = re.search(r"(#### Windows[^\n]*\n\n\|.*?)(?=\n\n####|\n\n\*[Bb]aseline|\Z)", perf_section, re.DOTALL)
 
     final_linux = (linux_table or (existing_linux_match.group(1) if existing_linux_match else "")).strip()
     final_windows = (windows_table or (existing_windows_match.group(1) if existing_windows_match else "")).strip()
