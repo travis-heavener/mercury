@@ -55,24 +55,37 @@ Mercury is a lightweight, configurable HTTP web server implemented in modern C++
 
 ### Performance
 
-Mercury is significantly lighter on system resources compared to traditional web servers:
+The following measurements compare Mercury, Apache, and Nginx under the benchmark conditions listed below:
 
-#### Linux (Ubuntu 22.04)
+#### Linux (Ubuntu 24.04.5 LTS x86_64)
 
-| Metric | Mercury | Apache | Comparison |
-|---|---|---|:---:|
-| **Avg. Idle Memory** | **9.2 MB** | 21.9 MB | **Mercury is 58% lighter** |
-| **Avg. Load Memory** | **27.9 MB** | 31.2 MB | **Mercury is 11% lighter** |
+| Metric | Mercury (v0.38.1) | Apache (2.4.58) | Nginx (1.24.0) | Comparison |
+|---|---|---|---|:---:|
+| **Avg. Idle Memory** | **11.1 MB** | 8.6 MB | 9.2 MB | Mercury is 30% heavier |
+| **Avg. Load Memory** | **14.7 MB** | 10.8 MB | 9.7 MB | Mercury is 36% heavier |
+| **Avg. Peak Memory** | **15.3 MB** | 11.2 MB | 9.7 MB | Mercury is 36% heavier |
+| **Req / Second (1 KB)** | **56,506 rps** | 43,733 rps | 60,346 rps | **Mercury is 29% faster** |
+| **Avg. Latency (mean)** | **0.8 ms** | 1.2 ms | 0.8 ms | **Mercury is 37% lower** |
+| **Avg. Latency (p50)** | **0.7 ms** | 1.1 ms | 0.8 ms | **Mercury is 37% lower** |
+| **Avg. Latency (p99)** | **2.8 ms** | 4.7 ms | 1.4 ms | **Mercury is 41% lower** |
+
+Comparison uses Apache as baseline when present, otherwise Nginx.
 
 #### Windows (x64)
 
-| Metric | Mercury | Apache | Comparison |
-|---|---|---|:---:|
-| **Avg. Idle Memory** | **16.3 MB** | 30.0 MB | **Mercury is 46% lighter** |
-| **Avg. Load Memory** | **20.3 MB** | 32.7 MB | **Mercury is 38% lighter** |
+| Metric | Mercury (v0.38.1) | Apache (2.4.55) | Nginx (1.31.8) | Comparison |
+|---|---|---|---|:---:|
+| **Avg. Idle Memory** | **16.1 MB** | 20.0 MB | 25.8 MB | **Mercury is 20% lighter** |
+| **Avg. Load Memory** | **18.8 MB** | 23.7 MB | 26.0 MB | **Mercury is 20% lighter** |
+| **Avg. Peak Memory** | **19.0 MB** | 23.7 MB | 26.0 MB | **Mercury is 20% lighter** |
+| **Req / Second (1 KB)** | **4,011 rps** | 4,426 rps | 5,167 rps | Mercury is 9% slower |
+| **Avg. Latency (mean)** | **12.3 ms** | 11.2 ms | 9.6 ms | Mercury is 10% higher |
+| **Avg. Latency (p50)** | **8.9 ms** | 8.8 ms | 8.5 ms | Mercury is 1% higher |
+| **Avg. Latency (p99)** | **56.1 ms** | 39.7 ms | 18.3 ms | Mercury is 41% higher |
 
-*Baseline averages across 5 trials over IPv4 and IPv6 connections using the test suite.*
+Comparison uses Apache as baseline when present, otherwise Nginx.
 
+*Baseline averages across 2 trials over loopback using tests/conf_files/benchmark; tool=python, concurrency=50, duration=10s, payload=1024 bytes, threaded worker limit=60. RSS sums parent and child resident memory (shared pages may be counted repeatedly); CI results are host-dependent.*
 ---
 
 ## Getting Started
