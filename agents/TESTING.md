@@ -170,63 +170,63 @@ When fixing a bug or adding a feature:
 
 ## 7. Performance Benchmark Suite (`build_tools/benchmark.py`)
 
-Mercury includes an automated, cross-platform performance benchmark suite comparing Mercury against Apache (`apache2`/`httpd`) and Nginx under standardized, unprivileged conditions.
+Run the suite as an unprivileged user. It requires Python 3.9+ and `psutil` (`python -m pip install psutil`); `wrk` and `hey` are optional. Defaults are five fresh-process trials per discovered server, ten seconds of measured load, fifty clients, and two hundred warmup requests per trial.
 
-### Architecture & Lifecycle
-The suite operates with zero external Python dependencies beyond standard test packages (`psutil`):
-1. **Isolated Configurations**: Executes servers under unprivileged ports (`8080` for Mercury, `8082` for Apache, `8084` for Nginx) using templates in [`tests/conf_files/benchmark/`](../tests/conf_files/benchmark/).
-2. **Standardized Payloads**: Serves fixed static fixtures from [`tests/root/benchmark/`](../tests/root/benchmark/):
-   - `1k.html` (1 KiB micro-payload for request routing and parsing overhead)
-   - `64k.bin` (64 KiB asset for socket write buffering)
-   - `1m.bin` (1 MiB payload for streaming and chunking efficiency)
-   - `hello.php` (FastCGI payload for dynamic backend execution)
-3. **High-Precision Memory Accounting**: Runs background `psutil` sampling polling RSS every 50ms, recursively summing memory across the parent server process and all spawned child worker processes (`mpm_event` workers, Nginx workers).
-4. **Apples-to-Apples Parity**:
-   - 10 worker threads / concurrency baseline across all servers
-   - Access logging disabled to isolate disk I/O from networking efficiency
-   - Keep-Alive synchronized to 5s timeout and 10,000 maximum requests
-   - Plain HTTP over IPv4 loopback to eliminate cipher and dual-stack kernel `TIME_WAIT` variance
+### Runtime setup and diagnostics
 
-### Running Benchmarks Locally
-Run with defaults (benchmarks all discovered servers, 5 trials, 10s per trial):
+The runner generates absolute-path configs in `logs/benchmark/` from templates in `tests/conf_files/benchmark/`, and binds IPv4 loopback ports 8080 (Mercury), 8082 (Apache), and 8084 (Nginx). Paths containing spaces are supported. Apache uses its installed modules, selecting event MPM on Linux and winnt MPM on Windows. On Windows, discovery searches real Chocolatey installations before PATH shims; executable overrides are available.
+
+**Mercury needs `conf/mimes.conf` even when `-c` selects a benchmark config.** This runtime file is ignored by Git. The runner copies `conf/default/mimes.conf` only when the runtime copy is missing, and preserves existing customizations. An external Mercury executable must retain its normal `bin/` and `conf/default/` installation layout. The workflow also initializes the MIME file before running checks.
+
+Before each trial, the runner checks config syntax, starts a fresh server with stdin held open, and retains stdout/stderr in `logs/benchmark/<server>_startup.log`. A startup error reports the command, exit code, and log tails. Port conflicts fail before launching another process. The server and active memory sampler are stopped on failure; successful reports are written only after the requested trials complete. Missing optional Apache/Nginx binaries are listed as skipped; missing requested Mercury or an entirely empty run fails.
+
+### Workloads and measurement
+
+Static fixtures under `tests/root/benchmark/` support `1k` (1 KiB), `64k` (64 KiB), and `1m` (1 MiB). The runner checks HTTP status and exact fixture bytes before timing, then performs warmup outside the measured memory/load window. The benchmark HTML fixture is checked out with LF line endings and binary fixtures bypass text conversion, preserving identical payload bytes across platforms. All load tools request uncompressed responses; `hey` also disables automatic compression and redirects. HTTP errors, socket errors, tool failures, and zero successful requests reject the trial.
+
+The PHP fixture remains reserved for future backend benchmarks. `--payload php` is intentionally unavailable: the current configs do not configure PHP-FPM/FastCGI across all three servers, and benchmarking a served PHP source file would produce misleading results. Compression trials are also deferred.
+
+Mercury keeps 10 idle threads. Its runtime worker ceiling is `max(20, concurrency + 10)`; Apache uses that same ceiling for both event and winnt MPMs, with an explicit `ThreadLimit` for event MPM. At the default 50 clients, both threaded servers permit 60 workers. Ten spare slots allow connection turnover without queueing clients behind long-lived keep-alive sockets. Nginx uses one event-driven worker process and `max(1024, concurrency * 2)` connection slots. These architectures differ; equal worker counts do not imply equal concurrency capacity. Keep-alive uses a 5-second timeout and a 10,000-request limit. Mercury writes access logs to the platform null device; Apache/Nginx disable access logging. Mercury still incurs log formatting/queue overhead.
+
+RSS is sampled every 50 ms during load and sums parent plus recursive children. Shared resident pages can be counted more than once across processes, so this is not proportional/private memory. The report includes average idle/load RSS, the average of each trial's sampled peak RSS, throughput, and mean/p50/p99 latency. Percentiles are averaged across trials rather than pooled. All valid trials contribute to arithmetic means; no automatic outlier filtering is applied. Host load, the Python client/GIL, OS differences, and Windows Nginx's implementation affect results. Compare servers within the same host/tool run; CI measurements are not a universal performance claim.
+
+### Running locally
+
 ```bash
+# Run detected servers using available load generator
 python3 build_tools/benchmark.py
-```
 
-Benchmark only Mercury with quick trials:
-```bash
+# Run quick Mercury trials
 python3 build_tools/benchmark.py --servers mercury --trials 3 --duration 2
-```
 
-Benchmark with high concurrency and a specific load tool:
-```bash
-python3 build_tools/benchmark.py --tool wrk --concurrency 100 --duration 10
-```
+# Use external load generator and larger fixture
+python3 build_tools/benchmark.py --tool wrk --payload 64k --concurrency 50 --duration 10
 
-Benchmark larger payload sizes:
-```bash
-python3 build_tools/benchmark.py --payload 64k --duration 5
-```
-
-Export structured JSON results and Markdown summary:
-```bash
+# Export both report formats
 python3 build_tools/benchmark.py --output-format markdown,json --output benchmark_results.md
+
+# Run lifecycle, parsing, clean-checkout startup, and report regression checks
+python3 -m unittest discover -s tests -p test_benchmark.py -v
 ```
 
-### Command-Line Options
+The native clean-checkout and 50-client keep-alive regressions run when a Mercury executable exists in `bin/`; otherwise those cases are skipped. Config regressions check worker ceilings at 1, 50, and 100 clients, including Apache event/winnt settings. Synthetic executable checks are POSIX-only; the workflow runs the native regression on both platforms.
+
+### Command-line options
+
 | Flag | Default | Description |
 |---|---|---|
-| `--servers` | `mercury,apache,nginx` | Comma-separated list of servers to benchmark |
-| `--trials` | `5` | Number of timed trial runs per server |
-| `--duration` | `10` | Duration in seconds of each active load window |
-| `--concurrency` | `50` | Simultaneous client connections |
-| `--warmup` | `200` | Number of warmup requests fired before trial measurement |
-| `--payload` | `1k` | Standardized fixture (`1k`, `64k`, `1m`, `php`) |
-| `--tool` | `auto` | Load generator engine (`auto`, `wrk`, `hey`, `python`) |
-| `--output-format` | `markdown` | Output format (`markdown`, `json`, or `markdown,json`) |
-| `--output` | `None` | Path to file to save formatted benchmark output |
-| `--mercury-path` | `None` | Custom path to Mercury binary |
-| `--apache-path` | `None` | Custom path to Apache executable |
-| `--nginx-path` | `None` | Custom path to Nginx executable |
+| `--servers` | `mercury,apache,nginx` | Unique comma-separated selection of known servers |
+| `--trials` | `5` | Positive number of fresh-process trials per server |
+| `--duration` | `10` | Positive duration in seconds per active load window |
+| `--concurrency` | `50` | Positive concurrent client count |
+| `--warmup` | `200` | Nonnegative warmup request count per trial |
+| `--payload` | `1k` | Static fixture: `1k`, `64k`, or `1m` |
+| `--tool` | `auto` | Prefer `wrk`, then `hey`, then `python`; explicit unavailable tools fail |
+| `--output-format` | `markdown` | `markdown`, `json`, or `markdown,json` |
+| `--output` | None | Report path; both formats produce matching `.md`/`.json` siblings |
+| `--mercury-path` | None | Explicit Mercury executable; invalid overrides fail |
+| `--apache-path` | None | Explicit Apache executable; invalid overrides fail |
+| `--nginx-path` | None | Explicit Nginx executable; invalid overrides fail |
+| `--mercury-version` | Executable `-v` | Verified release label; required when checkout and release versions differ |
 
-
+Mercury's `-v` may read the installation's `version.txt`; querying a copied binary alone does not verify its compiled release. The workflow uses the resolved release tag as the report label, or the checkout version for a source build. The Markdown comparison column uses Apache when present, otherwise Nginx.

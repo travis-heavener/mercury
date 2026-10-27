@@ -1,2 +1,6 @@
 *           text=auto
 *.sh		text eol=lf
+
+# Preserve identical benchmark fixture bytes across Linux and Windows checkouts
+tests/root/benchmark/*.html text eol=lf
+tests/root/benchmark/*.bin -text
