@@ -1,0 +1,296 @@
+name: Performance Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to benchmark (e.g., 'latest' or 'v0.38.1')"
+        required: false
+        default: "latest"
+        type: string
+      trials:
+        description: "Number of trials to average per server"
+        required: false
+        default: "5"
+        type: string
+      duration:
+        description: "Duration of each load test in seconds"
+        required: false
+        default: "10"
+        type: string
+      create_pr:
+        description: "Open a PR updating README.md with benchmark results"
+        required: false
+        default: false
+        type: boolean
+      servers:
+        description: "Comma-separated servers to benchmark (mercury,apache,nginx)"
+        required: false
+        default: "mercury,apache,nginx"
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  benchmark-linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # Install server packages and load testing tools
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apache2 nginx wrk python3-psutil python3-brotli python3-zstandard
+
+      # Acquire release binary or compile from branch
+      - name: Acquire Mercury Linux Binary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          mkdir -p ./bin ./temp_release
+          if [ "$RELEASE_TAG" = "build" ]; then
+            echo "Compiling Mercury binary from source..."
+            sudo apt-get install -y build-essential nasm
+            sudo ./build_tools/install_workflow_deps.sh --verbose
+            make -j libs_no_deps
+            make -j linux
+          else
+            echo "Downloading release archive for tag: $RELEASE_TAG"
+            TAG_ARG=""
+            if [ -n "$RELEASE_TAG" ] && [ "$RELEASE_TAG" != "latest" ]; then
+              TAG_ARG="$RELEASE_TAG"
+            fi
+            gh release download $TAG_ARG --pattern "Linux_*.tar.gz" --dir ./temp_release
+            TAR_FILE=$(find ./temp_release -type f -name "Linux_*.tar.gz" | head -n 1)
+            tar -xzf "$TAR_FILE" -C ./temp_release
+            MERCURY_BIN=$(find ./temp_release -type f -name "mercury" | head -n 1)
+            if [ -z "$MERCURY_BIN" ]; then
+              echo "Error: mercury binary not found in release archive"
+              exit 1
+            fi
+            cp "$MERCURY_BIN" ./bin/mercury
+            chmod +x ./bin/mercury
+            rm -rf ./temp_release
+          fi
+          ./bin/mercury -v
+
+      # Execute benchmark suite
+      - name: Run Linux Benchmarks
+        run: python3 build_tools/benchmark.py --servers "${{ inputs.servers }}" --trials "${{ inputs.trials }}" --duration "${{ inputs.duration }}" --output-format markdown,json --output linux-results.md
+
+      # Publish Markdown table directly to Actions summary
+      - name: Publish Step Summary
+        if: always()
+        run: |
+          if [ -f "linux-results.md" ]; then
+            echo "### Linux Performance Benchmark Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat linux-results.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # Upload raw benchmark artifacts
+      - name: Upload Linux Benchmark Results
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-benchmark-results
+          path: |
+            linux-results.md
+            linux-results.json
+
+  benchmark-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Install Python benchmark dependencies
+      - name: Install Python Dependencies
+        run: python -m pip install --upgrade psutil brotli zstandard
+
+      # Install Apache Lounge and Nginx via Chocolatey
+      - name: Install Apache and Nginx
+        run: choco install apache-httpd nginx -y
+
+      # Acquire release binary or compile from branch
+      - name: Acquire Mercury Windows Binary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ./bin, ./temp_release | Out-Null
+          if ($env:RELEASE_TAG -eq 'build') {
+            Write-Host "Compiling Mercury binary from source for Windows..."
+            make windows
+          } else {
+            Write-Host "Downloading release archive for tag: $env:RELEASE_TAG"
+            if ($env:RELEASE_TAG -and $env:RELEASE_TAG -ne 'latest') {
+              gh release download $env:RELEASE_TAG --pattern "Windows_*.zip" --dir ./temp_release
+            } else {
+              gh release download --pattern "Windows_*.zip" --dir ./temp_release
+            }
+            $zip = Get-ChildItem -Path ./temp_release -Filter "Windows_*.zip" | Select-Object -First 1
+            if (-not $zip) {
+              throw "No Windows release zip file found"
+            }
+            Expand-Archive -Path $zip.FullName -DestinationPath ./temp_release/extracted -Force
+            $bin = Get-ChildItem -Path ./temp_release/extracted -Filter "mercury.exe" -Recurse | Select-Object -First 1
+            if (-not $bin) {
+              throw "mercury.exe not found in extracted archive"
+            }
+            Copy-Item $bin.FullName ./bin/mercury.exe
+            Remove-Item -Recurse -Force ./temp_release
+          }
+          & ./bin/mercury.exe -v
+
+      # Execute benchmark suite
+      - name: Run Windows Benchmarks
+        shell: pwsh
+        run: python build_tools/benchmark.py --servers "${{ inputs.servers }}" --trials "${{ inputs.trials }}" --duration "${{ inputs.duration }}" --output-format markdown,json --output windows-results.md
+
+      # Publish Markdown table directly to Actions summary
+      - name: Publish Step Summary
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path 'windows-results.md') {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Windows Performance Benchmark Results`n"
+            Get-Content -Path windows-results.md | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          }
+
+      # Upload raw benchmark artifacts
+      - name: Upload Windows Benchmark Results
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-benchmark-results
+          path: |
+            windows-results.md
+            windows-results.json
+
+  update-readme-pr:
+    needs: [benchmark-linux, benchmark-windows]
+    if: ${{ inputs.create_pr && !cancelled() }}
+    runs-on: ubuntu-24.04
+    steps:
+      # Generate GitHub App bot token if configured, else fall back to default token
+      - name: Generate Bot Token
+        uses: actions/create-github-app-token@v3
+        if: vars.MERCURY_BOT_APP_ID != ''
+        id: app-token
+        continue-on-error: true
+        with:
+          client-id: ${{ vars.MERCURY_BOT_APP_ID }}
+          private-key: ${{ secrets.MERCURY_BOT_KEY }}
+
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ steps.app-token.outputs.token || github.token }}
+          fetch-depth: 0
+
+      # Download result artifacts from both benchmark jobs
+      - name: Download Linux Results
+        uses: actions/download-artifact@v7
+        with:
+          name: linux-benchmark-results
+          path: ./results/linux
+
+      - name: Download Windows Results
+        uses: actions/download-artifact@v7
+        with:
+          name: windows-benchmark-results
+          path: ./results/windows
+
+      # Inject tables into README.md
+      - name: Update README.md
+        run: |
+          python3 build_tools/update_benchmark_readme.py \
+            --linux ./results/linux \
+            --windows ./results/windows \
+            --readme README.md
+
+      # Enforce strict scope: verify only README.md was modified
+      - name: Verify Strict Scope
+        run: |
+          MODIFIED_FILES=$(git diff --name-only)
+          echo "Modified files:"
+          echo "$MODIFIED_FILES"
+          if echo "$MODIFIED_FILES" | grep -v "^README\.md$"; then
+            echo "Error: Unexpected files modified besides README.md"
+            exit 1
+          fi
+
+      # Commit and push branch
+      - name: Commit and Push Changes
+        id: commit
+        env:
+          BRANCH_NAME: perf/benchmark-results-${{ github.sha }}
+        run: |
+          git config user.name "Mercury Actions Bot"
+          git config user.email "mercury-actions-bot[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH_NAME"
+          git add README.md
+          if git diff --staged --quiet; then
+            echo "No changes in README.md to commit"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "perf: update performance benchmarks in README.md"
+            git push origin "$BRANCH_NAME" --force
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      # Open or update Pull Request via GitHub CLI
+      - name: Create Pull Request
+        if: steps.commit.outputs.has_changes == 'true'
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          BRANCH_NAME: perf/benchmark-results-${{ github.sha }}
+        run: |
+          PR_TITLE="perf: update performance benchmarks in README.md"
+
+          echo "## Automated Performance Benchmark Results" > pr_body.txt
+          echo "" >> pr_body.txt
+          echo "This pull request updates the performance benchmark tables in \`README.md\` following automated benchmarking on GitHub Actions." >> pr_body.txt
+          echo "" >> pr_body.txt
+
+          if [ -f "./results/linux/linux-results.md" ]; then
+            cat ./results/linux/linux-results.md >> pr_body.txt
+            echo "" >> pr_body.txt
+          fi
+
+          if [ -f "./results/windows/windows-results.md" ]; then
+            cat ./results/windows/windows-results.md >> pr_body.txt
+            echo "" >> pr_body.txt
+          fi
+
+          echo "---" >> pr_body.txt
+          echo "*Note: Deliberately leaves \`version.txt\` and \`CHANGELOG.md\` untouched to preserve version check CI integrity.*" >> pr_body.txt
+
+          EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "Updating existing PR #$EXISTING_PR"
+            gh pr edit "$EXISTING_PR" --title "$PR_TITLE" --body-file pr_body.txt
+          else
+            gh pr create \
+              --title "$PR_TITLE" \
+              --body-file pr_body.txt \
+              --base "${{ github.event.repository.default_branch || 'main' }}" \
+              --head "$BRANCH_NAME"
+          fi
+
+      # Publish aggregated summary
+      - name: Publish Aggregated Step Summary
+        if: always()
+        run: |
+          echo "## Benchmark PR Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "./results/linux/linux-results.md" ]; then
+            cat ./results/linux/linux-results.md >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f "./results/windows/windows-results.md" ]; then
+            cat ./results/windows/windows-results.md >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi

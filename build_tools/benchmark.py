@@ -7,6 +7,7 @@ Measures Idle RSS, Load RSS, Peak RSS, Throughput (RPS), and Latency.
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
+import glob
 import http.client
 import json
 import os
@@ -67,6 +68,7 @@ class BenchmarkResults:
     payload_name: str
     payload_size_bytes: int
     tool_used: str
+    trials: int = 5
     summaries: Dict[str, ServerSummary] = field(default_factory=dict)
     raw_trials: List[TrialMetrics] = field(default_factory=list)
 
@@ -99,10 +101,10 @@ class MemorySampler:
             for child in parent.children(recursive=True):
                 try:
                     total_bytes += child.memory_info().rss
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     pass
             return total_bytes / (1024.0 * 1024.0)
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             return 0.0
 
     def start(self):
@@ -327,6 +329,7 @@ class LoadGenerator:
 
         # Thread-safe container collecting per-thread request counts and latency samples
         stats_list: List[Tuple[int, List[float]]] = []
+        stats_lock = threading.Lock()
         headers = {"Connection": "keep-alive", "User-Agent": "MercuryBenchmark/1.0"}
 
         # Worker routine executing persistent HTTP keep-alive loop
@@ -389,7 +392,8 @@ class LoadGenerator:
                     pass
 
             # Store thread performance metrics in thread-safe container
-            stats_list.append((local_reqs, local_latencies))
+            with stats_lock:
+                stats_list.append((local_reqs, local_latencies))
 
         # Record start timestamp across worker pool
         start_actual = time.perf_counter()
@@ -498,7 +502,7 @@ class ServerSupervisor:
         try:
             parent_proc = psutil.Process(pid)
             child_pids = [c.pid for c in parent_proc.children(recursive=True)]
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
 
         # Windows-specific Nginx stop command
@@ -534,10 +538,10 @@ class ServerSupervisor:
                 cproc = psutil.Process(cpid)
                 cproc.terminate()
                 cproc.wait(timeout=2.0)
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, psutil.TimeoutExpired):
                 try:
                     cproc.kill()
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     pass
 
         self.process = None
@@ -653,6 +657,13 @@ class Discovery:
         for cand in candidates:
             if cand and os.path.exists(cand):
                 return os.path.abspath(cand)
+
+        # Search Chocolatey and tools directories on Windows
+        if sys.platform in ["win32", "cygwin"]:
+            for match in glob.glob("C:\\tools\\**\\httpd.exe", recursive=True):
+                if os.path.exists(match):
+                    return os.path.abspath(match)
+
         return None
 
     @classmethod
@@ -672,6 +683,13 @@ class Discovery:
         for cand in candidates:
             if cand and os.path.exists(cand):
                 return os.path.abspath(cand)
+
+        # Search Chocolatey and tools directories on Windows
+        if sys.platform in ["win32", "cygwin"]:
+            for match in glob.glob("C:\\tools\\**\\nginx.exe", recursive=True):
+                if os.path.exists(match):
+                    return os.path.abspath(match)
+
         return None
 
     @classmethod
@@ -784,7 +802,8 @@ class OutputFormatter:
         # Determine OS header string
         is_windows = "windows" in results.platform_name.lower() or "win32" in results.platform_name.lower()
         if is_windows:
-            platform_header = f"Windows ({results.cpu_architecture})"
+            arch = "x64" if results.cpu_architecture.lower() in ("amd64", "x86_64", "x64") else results.cpu_architecture
+            platform_header = f"Windows ({arch})"
         else:
             distro_desc = platform.freedesktop_os_release().get("PRETTY_NAME", "") if hasattr(platform, "freedesktop_os_release") else ""
             if not distro_desc:
@@ -846,7 +865,7 @@ class OutputFormatter:
         lines.append(format_row("Avg. Latency (p99)", "latency_p99_ms", "ms", metric_type="latency"))
 
         lines.append("")
-        lines.append(f"*Baseline averages across {results.duration_seconds}s trials over loopback using tests/conf_files/benchmark.*")
+        lines.append(f"*Baseline averages across {results.trials} separate trials over loopback using tests/conf_files/benchmark.*")
         return "\n".join(lines)
 
     @classmethod
@@ -1025,6 +1044,7 @@ class BenchmarkSuite:
             payload_name=display_name,
             payload_size_bytes=size_bytes,
             tool_used=self.tool,
+            trials=self.trials,
             summaries=summaries,
             raw_trials=raw_trials,
         )
@@ -1090,14 +1110,24 @@ def main():
 
     # Save to file if requested
     if args.output:
-        with open(args.output, "w") as f:
-            if "markdown" in formats and "json" in formats:
-                f.write(f"# Benchmark Results\n\n{markdown_output}\n\n```json\n{json_output}\n```\n")
-            elif "json" in formats:
-                f.write(json_output + "\n")
-            else:
+        base, ext = os.path.splitext(args.output)
+        if "markdown" in formats and "json" in formats:
+            md_path = args.output if ext.lower() == ".md" else f"{base}.md"
+            json_path = f"{base}.json"
+            with open(md_path, "w", encoding="utf-8") as f:
                 f.write(markdown_output + "\n")
-        print(f"[INFO] Results saved to {args.output}")
+            with open(json_path, "w", encoding="utf-8") as f:
+                f.write(json_output + "\n")
+            print(f"[INFO] Markdown results saved to {md_path}")
+            print(f"[INFO] JSON results saved to {json_path}")
+        elif "json" in formats:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(json_output + "\n")
+            print(f"[INFO] Results saved to {args.output}")
+        else:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(markdown_output + "\n")
+            print(f"[INFO] Results saved to {args.output}")
 
 
 if __name__ == "__main__":
