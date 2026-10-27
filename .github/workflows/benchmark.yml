@@ -90,6 +90,7 @@ jobs:
 
   # Build both platform binaries on Linux using existing MinGW toolchain
   build-source:
+    name: Build Source Binaries (build target only)
     needs: resolve-target
     if: needs.resolve-target.outputs.release_tag == 'build'
     runs-on: ubuntu-22.04
@@ -122,7 +123,12 @@ jobs:
 
   benchmark-linux:
     needs: [resolve-target, build-source]
-    if: ${{ !cancelled() && needs.resolve-target.result == 'success' && (needs.build-source.result == 'success' || needs.build-source.result == 'skipped') }}
+    # Allow expected source-build skip when benchmarking release binaries
+    if: >-
+      ${{ !cancelled()
+          && needs.resolve-target.result == 'success'
+          && (needs.build-source.result == 'success'
+              || needs.build-source.result == 'skipped') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -220,7 +226,12 @@ jobs:
 
   benchmark-windows:
     needs: [resolve-target, build-source]
-    if: ${{ !cancelled() && needs.resolve-target.result == 'success' && (needs.build-source.result == 'success' || needs.build-source.result == 'skipped') }}
+    # Apply same release/build prerequisites independently of PR selection
+    if: >-
+      ${{ !cancelled()
+          && needs.resolve-target.result == 'success'
+          && (needs.build-source.result == 'success'
+              || needs.build-source.result == 'skipped') }}
     runs-on: windows-latest
     timeout-minutes: 45
     env:
@@ -324,8 +335,14 @@ jobs:
           if-no-files-found: warn
 
   update-readme-pr:
-    needs: [benchmark-linux, benchmark-windows]
-    if: ${{ inputs.create_pr }}
+    needs: [resolve-target, benchmark-linux, benchmark-windows]
+    # Ignore optional build skip while requiring both completed benchmark jobs
+    if: >-
+      ${{ !cancelled()
+          && inputs.create_pr == true
+          && needs.resolve-target.result == 'success'
+          && needs.benchmark-linux.result == 'success'
+          && needs.benchmark-windows.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
