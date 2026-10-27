@@ -17,6 +17,7 @@ Mercury is a lightweight, high-performance, configurable HTTP server implemented
 | **Run Server** | `./bin/mercury [-c conf-file]` | Defaults to `conf/mercury.conf` (`--help` for options) |
 | **Create TLS Certs** | `make cert` | Generates self-signed test keypair in `conf/ssl/` |
 | **Run Test Suite** | `python3 tests/run.py` | Runs JSON cases and socket wire regressions |
+| **Run Benchmarks** | `python3 build_tools/benchmark.py` | Evaluates Mercury vs. Apache & Nginx performance |
 | **Multi-Distro Tests** | `make docker_tests` | Tests across Ubuntu, Debian, Alpine, Fedora, Arch |
 | **Clean Build** | `make clean` | Removes binaries, object files, and logs |
 

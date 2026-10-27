@@ -131,7 +131,29 @@ See [`agents/TESTING.md`](TESTING.md) for complete details on authoring test cas
 
 ---
 
-## 6. Release & Version Management
+## 6. Performance Benchmarking Workflow
+
+Mercury features a standalone, automated benchmark runner (`build_tools/benchmark.py`) that evaluates throughput (RPS), p50/p99 latency, and idle/load memory usage (RSS) against Apache and Nginx under standardized parity constraints:
+
+```bash
+# Execute standard multi-trial benchmark across all detected servers
+python3 build_tools/benchmark.py
+
+# Benchmark Mercury with custom trial count and duration
+python3 build_tools/benchmark.py --servers mercury --trials 3 --duration 5
+
+# Benchmark with high concurrency using wrk
+python3 build_tools/benchmark.py --tool wrk --concurrency 100 --duration 10
+
+# Generate Markdown and JSON output
+python3 build_tools/benchmark.py --output-format markdown,json --output results.md
+```
+
+Detailed configuration specifications, payload descriptions, and CLI arguments are documented in [`agents/TESTING.md`](TESTING.md#7-performance-benchmark-suite-build_toolsbenchmarkpy).
+
+---
+
+## 7. Release & Version Management
 
 Mercury maintains strict version alignment across files.
 
@@ -152,7 +174,7 @@ When cutting a new release or preparing version bumps:
 
 ---
 
-## 7. Crucial Guidelines & Gotchas for AI Agents
+## 8. Crucial Guidelines & Gotchas for AI Agents
 
 1. **Strict Conventions Adherence**:
    - Follow all conventions detailed in [`agents/CONVENTIONS.md`](CONVENTIONS.md).

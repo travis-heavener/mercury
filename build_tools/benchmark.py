@@ -810,7 +810,7 @@ class OutputFormatter:
 
         if len(servers_present) > 1 and mercury:
             header_cols.append("Comparison")
-            align_cols.append("|:---:|")
+            align_cols.append("|:---:")
 
         lines.append("| " + " | ".join(header_cols) + " |")
         lines.append("".join(align_cols) + "|")

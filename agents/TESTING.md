@@ -166,3 +166,67 @@ When fixing a bug or adding a feature:
    - Execute `python3 tests/run.py`.
    - Ensure all runs pass across all 4 transport variants.
 
+---
+
+## 7. Performance Benchmark Suite (`build_tools/benchmark.py`)
+
+Mercury includes an automated, cross-platform performance benchmark suite comparing Mercury against Apache (`apache2`/`httpd`) and Nginx under standardized, unprivileged conditions.
+
+### Architecture & Lifecycle
+The suite operates with zero external Python dependencies beyond standard test packages (`psutil`):
+1. **Isolated Configurations**: Executes servers under unprivileged ports (`8080` for Mercury, `8082` for Apache, `8084` for Nginx) using templates in [`tests/conf_files/benchmark/`](../tests/conf_files/benchmark/).
+2. **Standardized Payloads**: Serves fixed static fixtures from [`tests/root/benchmark/`](../tests/root/benchmark/):
+   - `1k.html` (1 KiB micro-payload for request routing and parsing overhead)
+   - `64k.bin` (64 KiB asset for socket write buffering)
+   - `1m.bin` (1 MiB payload for streaming and chunking efficiency)
+   - `hello.php` (FastCGI payload for dynamic backend execution)
+3. **High-Precision Memory Accounting**: Runs background `psutil` sampling polling RSS every 50ms, recursively summing memory across the parent server process and all spawned child worker processes (`mpm_event` workers, Nginx workers).
+4. **Apples-to-Apples Parity**:
+   - 10 worker threads / concurrency baseline across all servers
+   - Access logging disabled to isolate disk I/O from networking efficiency
+   - Keep-Alive synchronized to 5s timeout and 10,000 maximum requests
+   - Plain HTTP over IPv4 loopback to eliminate cipher and dual-stack kernel `TIME_WAIT` variance
+
+### Running Benchmarks Locally
+Run with defaults (benchmarks all discovered servers, 5 trials, 10s per trial):
+```bash
+python3 build_tools/benchmark.py
+```
+
+Benchmark only Mercury with quick trials:
+```bash
+python3 build_tools/benchmark.py --servers mercury --trials 3 --duration 2
+```
+
+Benchmark with high concurrency and a specific load tool:
+```bash
+python3 build_tools/benchmark.py --tool wrk --concurrency 100 --duration 10
+```
+
+Benchmark larger payload sizes:
+```bash
+python3 build_tools/benchmark.py --payload 64k --duration 5
+```
+
+Export structured JSON results and Markdown summary:
+```bash
+python3 build_tools/benchmark.py --output-format markdown,json --output benchmark_results.md
+```
+
+### Command-Line Options
+| Flag | Default | Description |
+|---|---|---|
+| `--servers` | `mercury,apache,nginx` | Comma-separated list of servers to benchmark |
+| `--trials` | `5` | Number of timed trial runs per server |
+| `--duration` | `10` | Duration in seconds of each active load window |
+| `--concurrency` | `50` | Simultaneous client connections |
+| `--warmup` | `200` | Number of warmup requests fired before trial measurement |
+| `--payload` | `1k` | Standardized fixture (`1k`, `64k`, `1m`, `php`) |
+| `--tool` | `auto` | Load generator engine (`auto`, `wrk`, `hey`, `python`) |
+| `--output-format` | `markdown` | Output format (`markdown`, `json`, or `markdown,json`) |
+| `--output` | `None` | Path to file to save formatted benchmark output |
+| `--mercury-path` | `None` | Custom path to Mercury binary |
+| `--apache-path` | `None` | Custom path to Apache executable |
+| `--nginx-path` | `None` | Custom path to Nginx executable |
+
+
