@@ -59,13 +59,21 @@ jobs:
             make -j libs_no_deps
             make -j linux
           else
-            echo "Downloading release archive for tag: $RELEASE_TAG"
-            TAG_ARG=""
-            if [ -n "$RELEASE_TAG" ] && [ "$RELEASE_TAG" != "latest" ]; then
-              TAG_ARG="$RELEASE_TAG"
+            TARGET_TAG="$RELEASE_TAG"
+            if [ -z "$TARGET_TAG" ] || [ "$TARGET_TAG" = "latest" ]; then
+              # Query latest release tag (including pre-releases) via GitHub CLI
+              TARGET_TAG=$(gh release list --repo "${{ github.repository }}" --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || true)
+              if [ -z "$TARGET_TAG" ]; then
+                TARGET_TAG=$(sed 's/^Mercury //' version.txt | tr -d '\n')
+              fi
             fi
-            gh release download $TAG_ARG --pattern "Linux_*.tar.gz" --dir ./temp_release
+            echo "Downloading release archive for tag: $TARGET_TAG"
+            gh release download "$TARGET_TAG" --repo "${{ github.repository }}" --pattern "Linux_*.tar.gz" --dir ./temp_release
             TAR_FILE=$(find ./temp_release -type f -name "Linux_*.tar.gz" | head -n 1)
+            if [ -z "$TAR_FILE" ]; then
+              echo "Error: Linux release archive not found for tag $TARGET_TAG"
+              exit 1
+            fi
             tar -xzf "$TAR_FILE" -C ./temp_release
             MERCURY_BIN=$(find ./temp_release -type f -name "mercury" | head -n 1)
             if [ -z "$MERCURY_BIN" ]; then
@@ -126,15 +134,31 @@ jobs:
             Write-Host "Compiling Mercury binary from source for Windows..."
             make windows
           } else {
-            Write-Host "Downloading release archive for tag: $env:RELEASE_TAG"
-            if ($env:RELEASE_TAG -and $env:RELEASE_TAG -ne 'latest') {
-              gh release download $env:RELEASE_TAG --pattern "Windows_*.zip" --dir ./temp_release
-            } else {
-              gh release download --pattern "Windows_*.zip" --dir ./temp_release
+            $targetTag = $env:RELEASE_TAG
+            if (-not $targetTag -or $targetTag -eq 'latest') {
+              try {
+                $jsonTag = gh release list --repo "${{ github.repository }}" --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName'
+                if ($LASTEXITCODE -eq 0 -and $jsonTag) {
+                  $targetTag = $jsonTag.Trim()
+                }
+              } catch {
+                $targetTag = $null
+              }
+              if (-not $targetTag) {
+                $versionContent = Get-Content version.txt -Raw
+                if ($versionContent -match "Mercury\s+(v?\d+\.\d+\.\d+)") {
+                  $targetTag = $matches[1].Trim()
+                  if (-not $targetTag.StartsWith("v")) {
+                    $targetTag = "v$targetTag"
+                  }
+                }
+              }
             }
+            Write-Host "Downloading release archive for tag: $targetTag"
+            gh release download $targetTag --repo "${{ github.repository }}" --pattern "Windows_*.zip" --dir ./temp_release
             $zip = Get-ChildItem -Path ./temp_release -Filter "Windows_*.zip" | Select-Object -First 1
             if (-not $zip) {
-              throw "No Windows release zip file found"
+              throw "No Windows release zip file found for tag: $targetTag"
             }
             Expand-Archive -Path $zip.FullName -DestinationPath ./temp_release/extracted -Force
             $bin = Get-ChildItem -Path ./temp_release/extracted -Filter "mercury.exe" -Recurse | Select-Object -First 1
@@ -172,7 +196,7 @@ jobs:
 
   update-readme-pr:
     needs: [benchmark-linux, benchmark-windows]
-    if: ${{ inputs.create_pr && !cancelled() }}
+    if: ${{ inputs.create_pr }}
     runs-on: ubuntu-24.04
     steps:
       # Generate GitHub App bot token if configured, else fall back to default token
