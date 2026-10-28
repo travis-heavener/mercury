@@ -3,14 +3,18 @@
 #ifdef _WIN32
     #include "../../winheader.hpp"
 #else
+    #include <cerrno>
+    #include <csignal>
     #include <fcntl.h>
     #include <poll.h>
+    #include <spawn.h>
     #include <sys/types.h>
     #include <sys/wait.h>
     #include <unistd.h>
 #endif
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <cwchar>
 #include <map>
@@ -22,6 +26,10 @@
 #include "../../io/file_tools.hpp"
 #include "../../util/string_tools.hpp"
 #include "../../util/toolbox.hpp"
+
+#ifndef _WIN32
+    extern std::atomic<bool> isExiting;
+#endif
 
 // Platform specifics
 namespace http::cgi {
@@ -221,7 +229,7 @@ namespace http::cgi {
 
         // Reject failed worker capture instead of treating crash as empty success
         if (!tmpOutHandle) {
-            res.setStatus(502);
+            res.setStatus(process.hasTimedOut() ? 504 : 502);
             tmpOutHandle.close();
             removeTempFile(tmpPath);
             return;
@@ -576,169 +584,276 @@ namespace http::cgi {
             stdoutRead = NULL;
         }
     #else // Linux piping functions
-        // Writes string to fd
-        static bool writeToPipe(int fd, const std::string& data) {
-            ssize_t written = 0, total = 0;
+        // Used to release one descriptor without leaving stale ownership
+        static void closePipe(int& fd) {
+            if (fd >= 0) close(fd);
+            fd = -1;
+        }
 
-            while (total < (ssize_t)data.size()) {
-                written = ::write(fd, data.data() + total, data.size() - total);
-                if (written <= 0) return false;
-                total += written;
+        // Used to create atomically close-on-exec pipes above standard descriptors
+        static bool createWorkerPipe(int fds[2]) {
+            if (pipe2(fds, O_CLOEXEC) < 0) return false;
+
+            // Keep spawn redirection safe when Mercury starts w/ closed stdin/stdout
+            for (int i = 0; i < 2; ++i) {
+                if (fds[i] >= 3) continue;
+                const int replacement = fcntl(fds[i], F_DUPFD_CLOEXEC, 3);
+                if (replacement < 0) {
+                    const int error = errno;
+                    close(fds[0]); close(fds[1]);
+                    errno = error;
+                    return false;
+                }
+                close(fds[i]);
+                fds[i] = replacement;
             }
-
             return true;
         }
 
-        // Reads until EOF from fd
-        static void readFromPipe(int fd, std::ofstream& tmpHandle) {
-            char buffer[4096];
-            ssize_t bytesRead;
+        // Used to destroy only successfully initialized spawn settings
+        struct SpawnSettings {
+            posix_spawn_file_actions_t actions{};
+            posix_spawnattr_t attributes{};
+            bool actionsReady = false, attributesReady = false;
+            int error;
 
-            while ((bytesRead = ::read(fd, buffer, sizeof(buffer))) > 0)
-                tmpHandle.write(buffer, bytesRead);
+            SpawnSettings() {
+                error = posix_spawn_file_actions_init(&actions);
+                if (error != 0) return;
+                actionsReady = true;
+                error = posix_spawnattr_init(&attributes);
+                attributesReady = error == 0;
+            }
+
+            ~SpawnSettings() {
+                if (attributesReady) posix_spawnattr_destroy(&attributes);
+                if (actionsReady) posix_spawn_file_actions_destroy(&actions);
+            }
+        };
+
+        // Used to drain bounded chunks so busy workers cannot bypass timeout checks
+        static bool drainWorkerPipe(int& fd, std::ofstream* pOutput, std::string& diagnostic, bool& truncated) {
+            char buffer[4096];
+            constexpr size_t MAX_DIAGNOSTIC = 4096;
+            for (int i = 0; i < 16; ++i) {
+                const ssize_t count = read(fd, buffer, sizeof(buffer));
+                if (count == 0) { closePipe(fd); return true; }
+                if (count < 0) {
+                    if (errno == EINTR) continue;
+                    return errno == EAGAIN || errno == EWOULDBLOCK;
+                }
+
+                if (pOutput != nullptr) {
+                    pOutput->write(buffer, count);
+                    if (!*pOutput) return false;
+                } else {
+                    const size_t keep = std::min(static_cast<size_t>(count), MAX_DIAGNOSTIC - diagnostic.size());
+                    diagnostic.append(buffer, keep);
+                    truncated |= keep < static_cast<size_t>(count);
+                }
+            }
+            return true;
         }
 
-        // Create pipes for worker
-        bool Process::createPipes() {
-            int inPipe[2]; // Parent writes -> child reads
-            int outPipe[2]; // Child writes -> parent reads
+        // Used to log stderr separately from HTTP output without control-character injection
+        static void logWorkerDiagnostic(const std::string& diagnostic, const bool truncated) {
+            if (diagnostic.empty()) return;
+            std::string escaped;
+            constexpr char HEX[] = "0123456789ABCDEF";
+            for (const unsigned char c : diagnostic) {
+                if (c < 32 || c == 127) {
+                    escaped += "\\x";
+                    escaped += HEX[c >> 4];
+                    escaped += HEX[c & 0x0F];
+                } else {
+                    escaped += static_cast<char>(c);
+                }
+            }
+            ERROR_LOG << "PHP CGI stderr: " << escaped << (truncated ? " [truncated]" : "") << std::endl;
+        }
 
-            if (pipe(inPipe) < 0) return false;
-            if (pipe(outPipe) < 0) {
+        // Create request pipes that other workers cannot retain across exec
+        bool Process::createPipes() {
+            int inPipe[2], outPipe[2];
+            if (!createWorkerPipe(inPipe)) return false;
+            if (!createWorkerPipe(outPipe)) {
                 close(inPipe[0]); close(inPipe[1]);
                 return false;
             }
-
             stdinRead = inPipe[0]; stdinWrite = inPipe[1];
             stdoutRead = outPipe[0]; stdoutWrite = outPipe[1];
             return true;
         }
 
-        // Close pipes
+        // Release every owned pipe, including stderr on failed launches
         void Process::closePipes() {
-            if (stdinRead  >= 0) close(stdinRead);
-            if (stdinWrite >= 0) close(stdinWrite);
-            if (stdoutRead >= 0) close(stdoutRead);
-            if (stdoutWrite>= 0) close(stdoutWrite);
-
-            stdinRead = stdinWrite = stdoutRead = stdoutWrite = -1;
+            closePipe(stdinRead); closePipe(stdinWrite);
+            closePipe(stdoutRead); closePipe(stdoutWrite);
+            closePipe(stderrRead);
         }
 
-        // Spawn CGI process
+        // Spawn without allocating C++ objects in forked multithreaded child
         bool Process::spawnCGIProcess(env_block_t& envBlock) {
-            int stderrPipe[2]; // Separate pipe for STDERR
-            if (pipe(stderrPipe) < 0) return false;
+            // Prepare request environment before owning child or stderr descriptors
+            std::vector<char*> envp;
+            envp.reserve(envBlock.size() + 1);
+            for (auto& entry : envBlock) envp.push_back(entry.data());
+            envp.push_back(nullptr);
 
-            pid_t pid = fork();
-            if (pid < 0) {
-                close(stderrPipe[0]); close(stderrPipe[1]);
+            int stderrPipe[2];
+            if (!createWorkerPipe(stderrPipe)) return false;
+            SpawnSettings settings;
+            int error = settings.error;
+
+            // Redirect only this request's standard streams
+            const int sources[] = {stdinRead, stdoutWrite, stderrPipe[1]};
+            for (int i = 0; i < 3 && error == 0; ++i)
+                error = posix_spawn_file_actions_adddup2(&settings.actions, sources[i], i);
+            for (const int fd : {stdinRead, stdinWrite, stdoutRead, stdoutWrite, stderrPipe[0], stderrPipe[1]})
+                if (error == 0) error = posix_spawn_file_actions_addclose(&settings.actions, fd);
+
+            // Exclude other server descriptors when libc provides closefrom actions
+            #ifdef __GLIBC__
+                #if __GLIBC_PREREQ(2, 34)
+                    if (error == 0) error = posix_spawn_file_actions_addclosefrom_np(&settings.actions, 3);
+                #endif
+            #endif
+
+            // Own worker process group and restore normal pipe signal behavior
+            sigset_t defaults, mask;
+            sigemptyset(&defaults); sigaddset(&defaults, SIGPIPE);
+            sigemptyset(&mask);
+            if (error == 0) error = posix_spawnattr_setsigdefault(&settings.attributes, &defaults);
+            if (error == 0) error = posix_spawnattr_setsigmask(&settings.attributes, &mask);
+            if (error == 0) error = posix_spawnattr_setpgroup(&settings.attributes, 0);
+            if (error == 0)
+                error = posix_spawnattr_setflags(&settings.attributes,
+                    POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETPGROUP);
+
+            // Use spawn result for launch status, keeping stderr available for diagnostics
+            char command[] = "php-cgi";
+            char* argv[] = {command, nullptr};
+            pid_t pid = -1;
+            deadline = std::chrono::steady_clock::now() + std::chrono::seconds(conf::CGI_TIMEOUT);
+            if (error == 0)
+                error = posix_spawnp(&pid, command, &settings.actions, &settings.attributes, argv, envp.data());
+
+            close(stderrPipe[1]);
+            if (error != 0) {
+                close(stderrPipe[0]);
+                ERROR_LOG << "Failed to launch PHP CGI worker: " << std::strerror(error) << std::endl;
                 return false;
             }
 
-            if (pid == 0) { // This is the child
-                // Open pipes
-                dup2(stdinRead, STDIN_FILENO);
-                dup2(stdoutWrite, STDOUT_FILENO);
-                dup2(stderrPipe[1], STDERR_FILENO); // Redirect to pipe
-
-                // Close unused fds in child
-                close(stdinRead); close(stdoutWrite); close(stdinWrite); close(stdoutRead);
-                close(stderrPipe[0]); close(stderrPipe[1]);
-
-                // Prepare argv
-                const char* phpCgiPath = "php-cgi"; // Resolved from PATH
-                char* const argv[] = { (char*)phpCgiPath, nullptr };
-
-                // Build envp from envBlock
-                std::vector<char*> envp;
-                for (auto& entry : envBlock)
-                    envp.push_back(const_cast<char*>(entry.c_str()));
-                envp.push_back(nullptr);
-
-                // execve replaces process
-                execvpe(phpCgiPath, argv, envp.data());
-
-                // Execve failed, send EOF
-                char c = 1;
-                if (write(STDERR_FILENO, &c, 1) < 0) { /* Ignore write failure on child exit */ }
-
-                // Exit if execve fails
-                closePipes(); // Close pipes since this function doesn't return as the child
-                _exit(127);
-            } else { // This is the Parent
-                childPid = pid;
-
-                // Close child-side fds
-                close(stdinRead); stdinRead = -1;
-                close(stdoutWrite); stdoutWrite = -1;
-
-                // Pipe stderr to stdout
-                close(stderrPipe[1]);
-
-                // Make err pipe read non-blocking
-                const int flags = fcntl(stderrPipe[0], F_GETFL, 0);
-                if (flags >= 0) fcntl(stderrPipe[0], F_SETFL, flags | O_NONBLOCK);
-
-                stderrRead = stderrPipe[0];
-
-                struct pollfd pfd = { .fd = stderrRead, .events = POLLIN, .revents = 0 };
-                const int pollRet = poll(&pfd, 1, 100);
-
-                // Check if execve failed
-                if (pollRet > 0) {
-                    if (pfd.revents & POLLIN) { // Data available, execve failed
-                        // Empty pipe
-                        char c;
-                        if (read(stderrRead, &c, 1) < 0) { /* Ignore read error */ }
-
-                        close(stderrRead);
-                        stderrRead = -1;
-
-                        int status;
-                        waitpid(pid, &status, 0);
-                        return false;
-                    } else if (pfd.revents & POLLHUP) { // Pipe closed w/o write, success
-                        return true;
-                    } else { // Poll error
-                        close(stderrRead);
-                        stderrRead = -1;
-                        int status;
-                        waitpid(pid, &status, 0);
-                        return false;
-                    }
-                } else if (pollRet == 0) { // Timeout, execve succeeded
-                    return true;
-                } else { // Poll error
-                    close(stderrRead);
-                    stderrRead = -1;
-                    int status;
-                    waitpid(pid, &status, 0);
+            // Retain only parent endpoints and make duplex transfers nonblocking
+            childPid = pid;
+            stderrRead = stderrPipe[0];
+            closePipe(stdinRead); closePipe(stdoutWrite);
+            for (const int fd : {stdinWrite, stdoutRead, stderrRead}) {
+                const int flags = fcntl(fd, F_GETFL, 0);
+                if (flags < 0 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+                    ERROR_LOG << "Failed to configure PHP CGI worker I/O: " << std::strerror(errno) << std::endl;
+                    closeProcess();
                     return false;
                 }
             }
+            return true;
         }
 
-        // Wait for process cleanup
+        // Terminate unfinished worker group before waiting for process cleanup
         void Process::closeProcess() {
-            if (childPid > 0) {
-                int status;
-                waitpid(childPid, &status, 0);
-                childPid = -1;
-            }
+            if (childPid <= 0) return;
+            kill(-childPid, SIGKILL);
+            // Stop direct worker even if script moved itself to another group
+            kill(childPid, SIGKILL);
+            int status;
+            while (waitpid(childPid, &status, 0) < 0 && errno == EINTR) {}
+            childPid = -1;
         }
 
-        // Send input and read response
+        // Transfer all three streams concurrently under one request deadline
         void Process::send(const std::string& input, std::ofstream& tmpHandle) {
-            writeToPipe(stdinWrite, input);
-            close(stdinWrite); stdinWrite = -1;
+            size_t offset = 0;
+            std::string diagnostic;
+            bool truncated = false, succeeded = true;
+            if (input.empty()) closePipe(stdinWrite);
 
-            // Read to tmp file
-            readFromPipe(stdoutRead, tmpHandle);
-            close(stdoutRead); stdoutRead = -1;
+            while (childPid > 0) {
+                // Cancel promptly during shutdown instead of blocking worker joins
+                if (::isExiting.load()) {
+                    ERROR_LOG << "PHP CGI worker cancelled during shutdown" << std::endl;
+                    succeeded = false;
+                    break;
+                }
+                if (std::chrono::steady_clock::now() >= deadline) {
+                    timedOut = true;
+                    ERROR_LOG << "PHP CGI worker timed out after " << conf::CGI_TIMEOUT << " seconds" << std::endl;
+                    succeeded = false;
+                    break;
+                }
 
-            // Concat stderr to stdout
-            readFromPipe(stderrRead, tmpHandle);
-            close(stderrRead); stderrRead = -1;
+                // Reap only after output drains; keep PID reserved while pipes remain open
+                if (stdinWrite < 0 && stdoutRead < 0 && stderrRead < 0) {
+                    int status;
+                    const pid_t result = waitpid(childPid, &status, WNOHANG);
+                    if (result == childPid) {
+                        childPid = -1;
+                        succeeded = WIFEXITED(status) && WEXITSTATUS(status) == 0;
+                        if (!succeeded)
+                            ERROR_LOG << "PHP CGI worker failed, "
+                                      << (WIFSIGNALED(status) ? "signal: " : "exit code: ")
+                                      << (WIFSIGNALED(status) ? WTERMSIG(status) : WEXITSTATUS(status)) << std::endl;
+                        break;
+                    }
+                    if (result < 0 && errno != EINTR) {
+                        ERROR_LOG << "Failed to reap PHP CGI worker: " << std::strerror(errno) << std::endl;
+                        childPid = -1;
+                        succeeded = false;
+                        break;
+                    }
+                }
+
+                // Poll briefly even when worker closed streams but has not exited
+                pollfd fds[] = {{stdinWrite, POLLOUT, 0}, {stdoutRead, POLLIN, 0}, {stderrRead, POLLIN, 0}};
+                const int ready = poll(fds, 3, 100);
+                if (ready < 0) {
+                    if (errno == EINTR) continue;
+                    ERROR_LOG << "Failed to poll PHP CGI worker: " << std::strerror(errno) << std::endl;
+                    succeeded = false;
+                    break;
+                }
+
+                // Drain stdout and stderr before sending more request data
+                for (int i = 1; i < 3; ++i) {
+                    if (fds[i].fd < 0 || fds[i].revents == 0) continue;
+                    int& fd = i == 1 ? stdoutRead : stderrRead;
+                    if ((fds[i].revents & POLLNVAL) ||
+                        !drainWorkerPipe(fd, i == 1 ? &tmpHandle : nullptr, diagnostic, truncated)) {
+                        ERROR_LOG << "Failed to capture PHP CGI worker output" << std::endl;
+                        succeeded = false;
+                        break;
+                    }
+                }
+                if (!succeeded) break;
+
+                // Retry partial writes and close stdin as soon as full body is delivered
+                if (stdinWrite >= 0 && fds[0].revents != 0) {
+                    const ssize_t count = write(stdinWrite, input.data() + offset, input.size() - offset);
+                    if (count > 0) {
+                        offset += static_cast<size_t>(count);
+                        if (offset == input.size()) closePipe(stdinWrite);
+                    } else if (count == 0 || (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)) {
+                        ERROR_LOG << "Failed to send request body to PHP CGI worker" << std::endl;
+                        succeeded = false;
+                        break;
+                    }
+                }
+            }
+
+            logWorkerDiagnostic(diagnostic, truncated);
+            if (!succeeded) tmpHandle.setstate(std::ios::badbit);
+            closePipes();
+            closeProcess();
         }
     #endif
 

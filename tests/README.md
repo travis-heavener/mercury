@@ -36,6 +36,13 @@ Windows runs test both Mercury's automatic PHP launch and reuse of an existing
 fixture listener, and verify ownership on shutdown. Unix-socket runs are Linux
 only. Traditional CGI runs remain enabled.
 
+Linux also runs `test_cgi_process.py` automatically through the same command.
+Controlled CGI executables verify stderr handling, concurrent pipe ownership,
+large binary transfers, failed worker exits, execution deadlines, and shutdown
+cancellation. These supplement the real PHP cases. Linux CGI uses `CGITimeout`
+(30 seconds by default); stderr diagnostics stay in the error log and timeouts
+return 504. The process tests can also run with `python3 tests/test_cgi_process.py`.
+
 FastCGI runs reuse the normal JSON cases and wire regressions with CGI disabled,
 covering routing, PATH_INFO, query strings, forms, PHP headers/status, binary
 payloads exceeding two FastCGI records, pipelining, and concurrent requests.

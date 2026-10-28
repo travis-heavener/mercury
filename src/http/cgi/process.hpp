@@ -1,6 +1,7 @@
 #ifndef __HTTP_CGI_PROCESS_HPP
 #define __HTTP_CGI_PROCESS_HPP
 
+#include <chrono>
 #include <fstream>
 
 #include "../message/request.hpp"
@@ -24,9 +25,12 @@ namespace http::cgi {
         public:
             Process(env_block_t& envBlock);
             ~Process();
+            Process(const Process&) = delete;
+            Process& operator=(const Process&) = delete;
 
             void send(const std::string& input, std::ofstream& tmpHandle);
             bool hasSucceeded() const { return isSuccess; };
+            bool hasTimedOut() const { return timedOut; }
         private:
             bool createPipes(); // Creates the pipes for the worker
             bool spawnCGIProcess(env_block_t&); // Spawns a new CGI process
@@ -47,11 +51,13 @@ namespace http::cgi {
                 int stdoutRead = -1, stdoutWrite = -1;
                 int stderrRead = -1;
 
-                pid_t childPid;
+                pid_t childPid = -1;
+                std::chrono::steady_clock::time_point deadline;
             #endif
 
             // Whether or not the Worker succeeded to start
             bool isSuccess = false;
+            bool timedOut = false;
     };
 
 }
