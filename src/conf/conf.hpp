@@ -67,6 +67,7 @@ namespace conf {
     extern port_t TLS_PORT;
 
     extern bool IS_PHP_ENABLED;
+    extern unsigned int CGI_TIMEOUT;
     #ifdef _WIN32
         extern std::filesystem::path PHP_CGI_EXE_PATH;
     #endif
