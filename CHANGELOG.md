@@ -1,7 +1,8 @@
 # Changelog
 
 ## [0.38.2] - 2026-10-27
--
+- Added: CGITimeout config, sets total execution timeout (in seconds) for each traditional PHP-CGI request on Linux
+- Fix: improve traditional PHP-CGI handling for Linux builds
 
 ## [0.38.1] - 2026-10-25
 - Change: avoided exceptions for routine missing-file lookups while preserving path canonicalization and error handling
