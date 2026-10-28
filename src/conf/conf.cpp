@@ -59,6 +59,7 @@ namespace conf {
     port_t TLS_PORT;
 
     bool IS_PHP_ENABLED;
+    unsigned int CGI_TIMEOUT = 30;
     #ifdef _WIN32
         std::filesystem::path PHP_CGI_EXE_PATH;
     #endif
@@ -86,7 +87,7 @@ namespace conf {
 
     const std::vector<std::string> mercuryNodeNames = {
         "DocumentRoot", "BindAddressIPv4", "BindAddressIPv6", "Port", "TLSPort", "Redirect", "Rewrite",
-        "AccessLogFile", "ErrorLogFile", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "WinPHPCGIPath", "EnableFastCGI", "FastCGIAddress", "FastCGITimeout", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
+        "AccessLogFile", "ErrorLogFile", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "CGITimeout", "WinPHPCGIPath", "EnableFastCGI", "FastCGIAddress", "FastCGITimeout", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
         "MinResponseCompressionSize", "IdleThreadsPerChild", "MaxThreadsPerChild", "ShowWelcomeBanner", "ShowDonationBanner", "ShowPrivilegeDeescalationMessage", "ShowPrivilegeDropMessage", "HidePrivilegeDeescalationMessage", "StartupCheckLatestRelease"
@@ -577,6 +578,9 @@ namespace conf {
         if (loadOnOff(root, IS_PHP_ENABLED, "EnablePHPCGI", false) == CONF_FAILURE)
             return CONF_FAILURE;
 
+        if (loadUint(root, CGI_TIMEOUT, "CGITimeout", 30, LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
+            return CONF_FAILURE;
+
         if (loadOnOff(root, IS_FASTCGI_ENABLED, "EnableFastCGI", false) == CONF_FAILURE)
             return CONF_FAILURE;
 
@@ -802,7 +806,8 @@ namespace conf {
         rewriteRules.clear();
         redirectRules.clear();
 
-        // Reset FastCGI settings
+        // Reset PHP execution settings
+        CGI_TIMEOUT = 30;
         IS_FASTCGI_ENABLED = false;
         FASTCGI_ADDRESS = "auto";
         FASTCGI_TIMEOUT = 10;

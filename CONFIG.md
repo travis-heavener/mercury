@@ -23,6 +23,7 @@ All configuration nodes must be wrapped within a singular `<Mercury>` root node.
 
 ### PHP
 - [EnablePHPCGI](#enablephpcgi)
+- [CGITimeout](#cgitimeout)
 - [WinPHPCGIPath](#winphpcgipath)
 - [EnableFastCGI](#enablefastcgi)
 - [FastCGIAddress](#fastcgiaddress)
@@ -213,6 +214,23 @@ Example:
 
 ```xml
 <EnablePHPCGI> off </EnablePHPCGI>
+```
+
+### CGITimeout
+Sets total execution timeout in seconds for each traditional PHP-CGI request on Linux.
+
+The timeout covers request-body delivery, stdout/stderr capture, and worker exit.
+Timed-out workers are stopped and the request returns `504 Gateway Timeout`.
+PHP diagnostics are written to the error log, separately from response content.
+
+NOTE: This node applies to Linux CGI only. FastCGI uses `FastCGITimeout`.
+
+Default: `30`
+
+Example:
+
+```xml
+<CGITimeout> 30 </CGITimeout>
 ```
 
 ### WinPHPCGIPath
