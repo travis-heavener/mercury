@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.39.0] - 2026-10-30
+- 
+
 ## [0.38.2] - 2026-10-27
 - Added: CGITimeout config, sets total execution timeout (in seconds) for each traditional PHP-CGI request on Linux
 - Fix: improve traditional PHP-CGI handling for Linux builds
