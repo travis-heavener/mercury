@@ -43,7 +43,7 @@ if [[ -n "$ZLIB_LATEST" && "$ZLIB_CURRENT" != "$ZLIB_LATEST" ]]; then
 fi
 
 # Check Zstandard
-ZSTD_LATEST=$( curl -s https://api.github.com/repos/facebook/zstd/releases/latest | grep -Po "\"tag_name\":\s*\"v\K(\d+\.\d+\.\d+)(?=\")" )
+ZSTD_LATEST=$( curl -s https://api.github.com/repos/meta/zstd/releases/latest | grep -Po "\"tag_name\":\s*\"v\K(\d+\.\d+\.\d+)(?=\")" )
 if [[ -n "$ZSTD_LATEST" && "$ZSTD_CURRENT" != "$ZSTD_LATEST" ]]; then
     sed -i "s|ZSTD=$ZSTD_CURRENT|ZSTD=$ZSTD_LATEST|" ./build_tools/dependencies.txt
     DEPS_CHANGED+=("Zstandard v$ZSTD_LATEST")
