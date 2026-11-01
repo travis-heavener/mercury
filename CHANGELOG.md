@@ -1,7 +1,7 @@
 # Changelog
 
 ## [0.39.0] - 2026-10-30
-- 
+- Chore: update CREDITS.md for Zstandard, now points to `meta/zstd` instead of `facebook/zstd`
 
 ## [0.38.2] - 2026-10-27
 - Added: CGITimeout config, sets total execution timeout (in seconds) for each traditional PHP-CGI request on Linux
