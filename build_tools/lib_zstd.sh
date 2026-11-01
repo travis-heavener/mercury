@@ -42,7 +42,7 @@ $TOOLS_PATH/safe_rm "zstd-$version-windows"
 $TOOLS_PATH/safe_rm "zstd-$version.tar.gz"
 
 # Get Zstandard source
-wget -q --no-check-certificate "https://github.com/facebook/zstd/releases/download/v$version/zstd-$version.tar.gz"
+wget -q --no-check-certificate "https://github.com/meta/zstd/releases/download/v$version/zstd-$version.tar.gz"
 echo "Fetched Zstandard archive."
 
 mkdir zstd
