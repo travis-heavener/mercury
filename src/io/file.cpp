@@ -63,11 +63,12 @@ File::File(const http::RequestPath& paths) {
         try {
             std::filesystem::path resolved;
             if (!tryResolveCanonicalPath(
-                    conf::DOCUMENT_ROOT / std::filesystem::path(this->decodedURIWithoutPathInfo).relative_path(), resolved)) {
+                    conf::DOCUMENT_ROOT / std::filesystem::path(this->decodedURIWithoutPathInfo).relative_path(), resolved, &meta)) {
                 this->exists = false;
                 return;
             }
             this->absoluteResourcePath = resolved.string();
+            metaQueried = meta.exists;
         } catch (std::filesystem::filesystem_error&) {
             this->exists = false;
             return;
@@ -132,6 +133,7 @@ File::File(const http::RequestPath& paths) {
 
     this->hasModTime = true;
     this->lastModTime = meta.lastModTime;
+    this->fileSize = meta.size;
 
     // Reject symlinks or hardlinks
     const int linkStatus = isSymlinked( this->absoluteResourcePath, true );
@@ -160,7 +162,7 @@ int File::loadToBuffer(std::unique_ptr<http::IBodyStream>& pStream) {
     }
 
     // Base case, load to FileStream
-    pStream = std::unique_ptr<http::IBodyStream>( new http::FileStream(absoluteResourcePath) );
+    pStream = std::unique_ptr<http::IBodyStream>( new http::FileStream(absoluteResourcePath, false, this->fileSize) );
     return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
 }
 

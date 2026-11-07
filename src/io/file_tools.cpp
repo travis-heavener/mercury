@@ -37,6 +37,8 @@ bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
 
         struct _stat64 st;
         if (_wstat64(std::filesystem::path(winPath).wstring().c_str(), &st) != 0) return false;
+
+        // Update metadata
         outMeta.exists = true;
         outMeta.isDirectory = (st.st_mode & _S_IFDIR) != 0;
         outMeta.isRegularFile = (st.st_mode & _S_IFREG) != 0;
@@ -46,6 +48,8 @@ bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
     #else
         struct stat st;
         if (stat(path.c_str(), &st) != 0) return false;
+
+        // Update metadata
         outMeta.exists = true;
         outMeta.isDirectory = S_ISDIR(st.st_mode);
         outMeta.isRegularFile = S_ISREG(st.st_mode);
@@ -59,8 +63,12 @@ bool doesFileExist(const std::string& path, const bool forceInDocumentRoot) {
     FileMetadata meta;
     if (!queryFileMetadata(path, meta) || !meta.isRegularFile) return false;
     if (!forceInDocumentRoot) return true;
+
+    // Get document root
     std::string docRootStr = conf::DOCUMENT_ROOT.string();
     normalizeBackslashes(docRootStr);
+
+    // Normalize with document root
     std::string normPath = path;
     normalizeBackslashes(normPath);
     return normPath.find(docRootStr) == 0;
@@ -107,19 +115,29 @@ int isSymlinked(const std::filesystem::path& path, const bool isAlreadyCanonical
 
     // Walk from document root to path, checking for symlinks & reparse points
     const fs::path relativeToRoot = absolutePath.lexically_relative(canonicalRoot);
-    fs::path currentParts = canonicalRoot;
-    for (const auto& part : relativeToRoot) {
-        // Check if individual part is a symlink
-        currentParts /= part;
-        #ifdef _WIN32
-            const DWORD attrs = GetFileAttributesW(currentParts.wstring().c_str());
+    #ifdef _WIN32
+        std::wstring currentPartsW = canonicalRoot.wstring();
+        if (!currentPartsW.empty() && currentPartsW.back() != L'/' && currentPartsW.back() != L'\\')
+            currentPartsW += L'/';
+
+        for (const auto& part : relativeToRoot) {
+            std::wstring partW = part.wstring();
+            if (partW == L"." || partW.empty()) continue;
+            currentPartsW += partW;
+            const DWORD attrs = GetFileAttributesW(currentPartsW.c_str());
             if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT))
                 return IS_SYMLINK;
-        #else
+            currentPartsW += L'/';
+        }
+    #else
+        fs::path currentParts = canonicalRoot;
+        for (const auto& part : relativeToRoot) {
+            // Check if individual part is a symlink
+            currentParts /= part;
             if (fs::is_symlink(fs::symlink_status(currentParts)))
                 return IS_SYMLINK;
-        #endif
-    }
+        }
+    #endif
 
     // Base case, this is NOT a symlink
     return NOT_SYMLINK;
@@ -133,19 +151,8 @@ std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path) {
     return resolved;
 }
 
-bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem::path& resolved) {
-    // Note: ChatGPT helped me a bit with this part because WinAPI sucks :p
-    // and I'm doing this to learn socket programming, NOT the Windows API
-
+bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem::path& resolved, FileMetadata* pOutMeta) {
     #ifdef _WIN32
-        // Return expected misses without raising debugger-visible exceptions
-        std::error_code ec;
-        if (!std::filesystem::exists(path, ec)) {
-            if (ec && ec != std::errc::no_such_file_or_directory && ec != std::errc::not_a_directory)
-                throw std::filesystem::filesystem_error("Failed to inspect path", path, ec);
-            return false;
-        }
-
         // Get fully-qualified path
         std::wstring pathStr = path.wstring();
         wchar_t fullPathStr[MAX_PATH];
@@ -169,6 +176,22 @@ bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem:
             const DWORD error = GetLastError();
             if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_DIRECTORY) return false;
             throw std::runtime_error("Failed to open file handle");
+        }
+
+        // Query metadata directly from open handle if requested
+        if (pOutMeta) {
+            BY_HANDLE_FILE_INFORMATION fileInfo;
+            if (GetFileInformationByHandle(handle, &fileInfo)) {
+                pOutMeta->exists = true;
+                pOutMeta->isDirectory = (fileInfo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+                pOutMeta->isRegularFile = !pOutMeta->isDirectory && !(fileInfo.dwFileAttributes & FILE_ATTRIBUTE_DEVICE);
+                pOutMeta->size = (static_cast<size_t>(fileInfo.nFileSizeHigh) << 32) | fileInfo.nFileSizeLow;
+
+                ULARGE_INTEGER ull;
+                ull.LowPart = fileInfo.ftLastWriteTime.dwLowDateTime;
+                ull.HighPart = fileInfo.ftLastWriteTime.dwHighDateTime;
+                pOutMeta->lastModTime = static_cast<std::time_t>((ull.QuadPart - 116444736000000000ULL) / 10000000ULL);
+            }
         }
 
         // Get final path name from file handle
@@ -199,6 +222,10 @@ bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem:
         if (ec == std::errc::no_such_file_or_directory || ec == std::errc::not_a_directory)
             return false;
         if (ec) throw std::filesystem::filesystem_error("Failed to resolve path", path, ec);
+
+        if (pOutMeta)
+            queryFileMetadata(canonical.string(), *pOutMeta);
+
         resolved = std::move(canonical);
         return true;
     #endif

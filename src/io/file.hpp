@@ -22,6 +22,7 @@ class File {
         bool isLinked = false; // True if symlink or hardlink
         bool isDirectory = false;
         bool ioFailure = false; // True if an IO failure occured
+        size_t fileSize = 0;
         
         std::string MIME;
 

@@ -51,28 +51,38 @@ namespace http {
         return toRead;
     }
 
-    FileStream::FileStream(const std::string& path, const bool isTempFile)
+    FileStream::FileStream(const std::string& path, const bool isTempFile, const size_t knownSize)
         : isTempFile(isTempFile), path(path) {
-        this->handle = std::ifstream(path, std::ios::binary | std::ios::ate );
+        if (knownSize != static_cast<size_t>(-1)) {
+            // Open stream directly at beginning when size is already known
+            this->handle = std::ifstream(path, std::ios::binary);
+            if (!this->handle.is_open()) {
+                this->_status = STREAM_FAILURE;
+                return;
+            }
+            originalSize = knownSize;
+        } else {
+            this->handle = std::ifstream(path, std::ios::binary | std::ios::ate);
 
-        // Check if successful
-        if (!this->handle.is_open()) {
-            this->_status = STREAM_FAILURE;
-            return;
-        }
+            // Check if successful
+            if (!this->handle.is_open()) {
+                this->_status = STREAM_FAILURE;
+                return;
+            }
 
-        // Verify the size and initial seek before exposing this stream to callers
-        const auto end = handle.tellg();
-        if (end == std::streampos(-1)) {
-            this->_status = STREAM_FAILURE;
-            return;
+            // Verify the size and initial seek before exposing this stream to callers
+            const auto end = handle.tellg();
+            if (end == std::streampos(-1)) {
+                this->_status = STREAM_FAILURE;
+                return;
+            }
+            handle.seekg(0, std::ios::beg);
+            if (!handle) {
+                this->_status = STREAM_FAILURE;
+                return;
+            }
+            originalSize = static_cast<size_t>(end);
         }
-        handle.seekg(0, std::ios::beg);
-        if (!handle) {
-            this->_status = STREAM_FAILURE;
-            return;
-        }
-        originalSize = static_cast<size_t>(end);
     }
 
     FileStream::~FileStream() {

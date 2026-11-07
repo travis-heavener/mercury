@@ -43,7 +43,7 @@ int isSymlinked(const std::filesystem::path&, const bool = false);
 std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path);
 
 // Return false for missing paths; preserve exceptions for other IO failures
-bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem::path& resolved);
+bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem::path& resolved, FileMetadata* pOutMeta = nullptr);
 
 // Creates the immediate directory for log files if missing, will silently fail
 void createLogDirectoryIfMissing(const std::filesystem::path& path);

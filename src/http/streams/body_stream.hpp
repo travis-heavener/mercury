@@ -38,7 +38,7 @@ namespace http {
 
     class FileStream : public IBodyStream {
         public:
-            explicit FileStream(const std::string&, const bool=false);
+            explicit FileStream(const std::string&, const bool=false, const size_t=static_cast<size_t>(-1));
             ~FileStream();
             size_t read(char* buffer, size_t maxBytes);
             size_t size() const;

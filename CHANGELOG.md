@@ -2,6 +2,7 @@
 
 ## [0.39.0] - 2026-10-30
 - Added: DisableLogs config node, which overrides log file paths and prevents writing logs entirely
+- Change: reduce number of repeated filesystem operations, particularly on Windows builds
 - Chore: update CREDITS.md for Zstandard, now points to `meta/zstd` instead of `facebook/zstd`
 
 ## [0.38.2] - 2026-10-27
