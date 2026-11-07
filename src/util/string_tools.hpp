@@ -28,6 +28,13 @@ inline void strToLower(std::string& str) {
     });
 }
 
+// Compare string views case-insensitively
+inline bool equalsCi(const std::string_view a, const std::string_view b) {
+    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](const char x, const char y) {
+        return std::toupper(static_cast<unsigned char>(x)) == std::toupper(static_cast<unsigned char>(y));
+    });
+}
+
 void splitString(std::vector<std::string>&, const std::string&, const char, const bool);
 void splitStringUnique(std::unordered_set<std::string>&, const std::string&, const char, const bool);
 

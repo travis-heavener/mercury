@@ -13,6 +13,7 @@ namespace {
     // Thread-local response read buffers eliminate per-request buffer allocation churn
     thread_local std::vector<char> threadLocalStreamBuffer;
     thread_local std::vector<char> threadLocalPrecompBuffer;
+    thread_local std::string threadLocalHeadersBuffer;
 
     inline char* getStreamBuffer(const size_t requiredSize) {
         if (threadLocalStreamBuffer.size() < requiredSize)
@@ -24,6 +25,10 @@ namespace {
         if (threadLocalPrecompBuffer.size() < requiredSize)
             threadLocalPrecompBuffer.resize(requiredSize);
         return threadLocalPrecompBuffer.data();
+    }
+
+    inline std::string& getHeadersBuffer() {
+        return threadLocalHeadersBuffer;
     }
 }
 
@@ -451,8 +456,13 @@ namespace http {
         for (const auto& [name, value] : this->headers)
             estimatedSize += name.size() + 2 + value.size() + 2;
 
-        std::string headersBlock;
-        headersBlock.reserve(estimatedSize);
+        const bool combineBody = !omitBody && bodySize > 0 && bodySize <= conf::RESPONSE_BUFFER_SIZE;
+        const size_t totalBufferSize = estimatedSize + (combineBody ? bodySize : 0);
+
+        std::string& headersBlock = getHeadersBuffer();
+        headersBlock.clear();
+        if (headersBlock.capacity() < totalBufferSize)
+            headersBlock.reserve(totalBufferSize);
 
         // Format status line
         headersBlock.append(httpVersion);
@@ -470,6 +480,17 @@ namespace http {
             headersBlock.append(CRLF);
         }
         headersBlock.append(CRLF);
+
+        // Coalesce headers and small body payload into a single socket write
+        if (combineBody) {
+            const size_t headerLen = headersBlock.size();
+            headersBlock.resize(headerLen + bodySize);
+            const size_t bytesRead = pBodyStream->read(headersBlock.data() + headerLen, bodySize);
+            if (bytesRead < bodySize)
+                headersBlock.resize(headerLen + bytesRead);
+            const ssize_t writeStatus = sendFunc(headersBlock.data(), headersBlock.size());
+            return (writeStatus < 0) ? writeStatus : 0;
+        }
 
         // Write to buffer
         ssize_t status = sendFunc(headersBlock.data(), headersBlock.size());

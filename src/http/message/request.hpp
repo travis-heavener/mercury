@@ -10,9 +10,9 @@ namespace http {
 
     class Request {
         public:
-            Request(headers_map_t& headers, const std::string&, std::string, const bool, const RequestFlags&);
+            Request(headers_map_t& headers, std::string_view, const std::string&, const bool, const RequestFlags&);
 
-            std::optional<std::string> getHeader(std::string) const;
+            std::optional<std::string> getHeader(std::string_view) const;
             inline const std::string getIPStr() const { return ipStr; };
             inline METHOD getMethod() const { return method; };
             inline const std::string& getMethodStr() const { return methodStr; };

@@ -4,6 +4,8 @@
 - Added: DisableLogs config node, which overrides log file paths and prevents writing logs entirely
 - Change: reduce number of repeated filesystem operations, particularly on Windows builds
 - Change: reuse thread-local buffers and stack hex formatting during response streaming to reduce allocation overhead
+- Change: coalesce response headers and small payloads into single socket write to eliminate round-trip latency
+- Change: eliminate redundant string allocations and token sets during HTTP request parsing and keep-alive handling
 - Chore: update CREDITS.md for Zstandard, now points to `meta/zstd` instead of `facebook/zstd`
 
 ## [0.38.2] - 2026-10-27
