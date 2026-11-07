@@ -11,6 +11,8 @@
 - Change: add bounded thread-safe in-memory cache for static files with automatic modification and permission revalidation
 - Change: Linux builds no longer are compressed using UPX to reduce RSS at marginal build size cost
 - Change: batch server telemetry statistics via thread-local counters and cache-line alignment to eliminate atomic contention and false sharing across worker threads
+- Change: cap glibc memory arenas to 2 and configure trim threshold on Linux to prevent multi-threaded heap bloat
+- Change: bound worker thread stack size to 512 KB on POSIX to minimize resident page allocations and improve cache locality
 - Chore: update CREDITS.md for Zstandard, now points to `meta/zstd` instead of `facebook/zstd`
 
 ## [0.38.2] - 2026-10-27
