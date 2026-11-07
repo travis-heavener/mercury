@@ -60,9 +60,6 @@ $(TARGET_LINUX): $(DEPS) $(ARTIFACTS_LOCK)
 	@$(CXX) \
 		$(SRCS) -o $(TARGET_LINUX) \
 		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_LINUX) $(LIB_LINUX) $(LIB_FLAGS)
-	@if [ "$(DEBUG)" != "1" ]; then \
-		upx $(TARGET_LINUX) -qqq; \
-	fi
 	@echo "✅ Built for Linux."
 
 ###################################################################
