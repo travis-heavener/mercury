@@ -137,7 +137,8 @@ namespace http {
             }
         }
 
-        ACCESS_LOG << "Listening on port " << this->port << " (" << *this << ")." << std::endl;
+        if (!conf::DISABLE_LOGS)
+            ACCESS_LOG << "Listening on port " << this->port << " (" << *this << ")." << std::endl;
         return 0;
     }
 
@@ -433,10 +434,12 @@ namespace http {
                 ServerStats::getInstance().recordStatusCode(response->getStatus());
 
                 // Log the final status, including errors detected while preparing the body
-                ACCESS_LOG << request.getMethodStr() << ' '
-                    << formatClientIP(request.getIPStr(), request.isDNT()) << ' '
-                    << request.getPaths().rawPathFromRequest << " -- (" << response->getStatus()
-                    << ") [" << request.getVersion() << ']' << std::endl;
+                if (!conf::DISABLE_LOGS) {
+                    ACCESS_LOG << request.getMethodStr() << ' '
+                        << formatClientIP(request.getIPStr(), request.isDNT()) << ' '
+                        << request.getPaths().rawPathFromRequest << " -- (" << response->getStatus()
+                        << ") [" << request.getVersion() << ']' << std::endl;
+                }
 
                 // Do not process queued requests after a failed write or forced closure
                 if (!keepAlive || status < 0 || response->shouldCloseConnection()) break;

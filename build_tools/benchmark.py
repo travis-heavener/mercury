@@ -587,12 +587,16 @@ class ServerSupervisor:
             "DocumentRoot": os.path.join(self.repo_root, "tests", "root"),
             "AccessLogFile": os.devnull,
             "ErrorLogFile": os.path.join(self.bench_dir, "mercury_error.log"),
+            "DisableLogs": "on",
             "MaxThreadsPerChild": str(self.worker_threads),
         }
 
         # Assign worker ceiling for requested persistent-client concurrency
         for key, value in values.items():
-            root.find(key).text = value
+            elem = root.find(key)
+            if elem is None:
+                elem = ET.SubElement(root, key)
+            elem.text = value
 
         ET.indent(tree, space="    ")
         tree.write(destination, encoding="utf-8")

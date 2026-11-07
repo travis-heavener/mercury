@@ -17,6 +17,10 @@
 class Logger;
 std::string genTimestamp();
 
+namespace conf {
+    extern bool DISABLE_LOGS;
+}
+
 // Log stream class
 using StreamManipulator = std::ostream& (*)(std::ostream&);
 class LoggerStream {
@@ -25,6 +29,7 @@ class LoggerStream {
 
         template<typename T>
         LoggerStream& operator<<(const T& val) {
+            if (conf::DISABLE_LOGS) return *this;
             buffer << val;
             return *this;
         }
@@ -57,6 +62,7 @@ class Logger {
 
         // Queues access logs
         inline void queueAccessLog(std::string log) {
+            if (conf::DISABLE_LOGS) return;
             std::lock_guard<std::mutex> lock(writeMutex);
             if (isExited) return;
             if (accessQueue.size() >= MAX_LOG_QUEUE_SIZE)
@@ -67,6 +73,7 @@ class Logger {
 
         // Queues error logs
         inline void queueErrorLog(std::string log) {
+            if (conf::DISABLE_LOGS) return;
             std::lock_guard<std::mutex> lock(writeMutex);
             if (isExited) return;
             if (errorQueue.size() >= MAX_LOG_QUEUE_SIZE)

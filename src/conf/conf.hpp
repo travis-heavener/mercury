@@ -60,6 +60,7 @@ namespace conf {
 
     extern std::filesystem::path ACCESS_LOG_FILE;
     extern std::filesystem::path ERROR_LOG_FILE;
+    extern bool DISABLE_LOGS;
     extern int CLIENT_SECURITY_MODE;
     extern std::string IP_HASH_SALT;
 

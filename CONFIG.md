@@ -16,6 +16,7 @@ All configuration nodes must be wrapped within a singular `<Mercury>` root node.
 - [Rewrite](#rewrite)
 
 ### Logging
+- [DisableLogs](#disablelogs)
 - [AccessLogFile](#accesslogfile)
 - [ErrorLogFile](#errorlogfile)
 - [ClientSecurityMode](#clientsecuritymode)
@@ -153,8 +154,21 @@ Example:
 <IndexFiles> index.html, index.htm, index.php </IndexFiles>
 ```
 
+### DisableLogs
+Disables all server logging (both access and error logs).
+
+When set to `on`, this setting overrides both `AccessLogFile` and `ErrorLogFile`, suppressing disk writes, string formatting, and logger worker thread processing entirely.
+
+Default: `off`
+
+Example:
+
+```xml
+<DisableLogs> on </DisableLogs>
+```
+
 ### AccessLogFile
-Specifies where server access logs are stored.
+Specifies where server access logs are stored. Overridden if `DisableLogs` is set to `on`.
 
 Default: `./logs/access.log`
 
@@ -165,7 +179,7 @@ Example:
 ```
 
 ### ErrorLogFile
-Specifies where server error logs are stored.
+Specifies where server error logs are stored. Overridden if `DisableLogs` is set to `on`.
 
 Default: `./logs/error.log`
 
