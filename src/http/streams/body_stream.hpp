@@ -2,6 +2,7 @@
 #define __HTTP_BODY_STREAM_HPP
 
 #include <fstream>
+#include <memory>
 #include <queue>
 #include <string>
 #include <vector>
@@ -56,6 +57,17 @@ namespace http {
             size_t size() const;
         private:
             std::string data;
+            size_t offset;
+    };
+
+    class CachedFileStream : public IBodyStream {
+        public:
+            explicit CachedFileStream(std::shared_ptr<const std::string> pData)
+                : pData(std::move(pData)), offset(0) {}
+            size_t read(char* buffer, size_t maxBytes);
+            size_t size() const;
+        private:
+            std::shared_ptr<const std::string> pData;
             size_t offset;
     };
 

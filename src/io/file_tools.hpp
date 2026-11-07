@@ -18,6 +18,8 @@ struct FileMetadata {
     bool isRegularFile = false;
     size_t size = 0;
     std::time_t lastModTime = 0;
+    uint32_t mode = 0;
+    uint64_t inode = 0;
 };
 
 // Query file stat metadata in single syscall

@@ -1,11 +1,15 @@
 #include "file.hpp"
 
+#include "file_cache.hpp"
 #include "../conf/conf.hpp"
 #include "../io/file_tools.hpp"
 #include "../util/string_tools.hpp"
 #include "../util/toolbox.hpp"
 
 File::File(const http::RequestPath& paths) {
+    if (io::FileCache::getInstance().tryGet(paths.decodedURI, *this))
+        return;
+
     this->decodedURIWithoutPathInfo = paths.decodedURI;
     this->queryString = paths.rawQueryString.empty() ? "" : paths.rawQueryString.substr(1);
 
@@ -147,6 +151,12 @@ File::File(const http::RequestPath& paths) {
         this->exists = false;
         return;
     }
+
+    // Cache static regular files
+    if (this->exists && !this->isLinked && !this->isDirectory && !this->ioFailure &&
+        !this->absoluteResourcePath.ends_with(".php") && this->phpPathInfo.empty()) {
+        io::FileCache::getInstance().put(*this, paths.decodedURI);
+    }
 }
 
 int File::loadToBuffer(std::unique_ptr<http::IBodyStream>& pStream) {
@@ -159,6 +169,12 @@ int File::loadToBuffer(std::unique_ptr<http::IBodyStream>& pStream) {
         // Update MIME
         this->MIME = "text/html; charset=UTF-8";
         return IO_SUCCESS;
+    }
+
+    // Serve from in-memory cache if content is cached
+    if (this->pCachedContent != nullptr) {
+        pStream = std::make_unique<http::CachedFileStream>(this->pCachedContent);
+        return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
     }
 
     // Base case, load to FileStream

@@ -7,6 +7,7 @@
 - Change: coalesce response headers and small payloads into single socket write to eliminate round-trip latency
 - Change: eliminate redundant string allocations and token sets during HTTP request parsing and keep-alive handling
 - Change: optimize configuration match rules with catch-all and exact match bypass and per-request match result caching
+- Change: add bounded thread-safe in-memory cache for static files with automatic modification and permission revalidation
 - Chore: update CREDITS.md for Zstandard, now points to `meta/zstd` instead of `facebook/zstd`
 
 ## [0.38.2] - 2026-10-27

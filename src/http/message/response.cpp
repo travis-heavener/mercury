@@ -117,9 +117,11 @@ namespace http {
             setBodyStream(std::make_unique<MemoryStream>(""));
         }
 
-        // Get last modified GMT string
-        if (bodyStatus == IO_SUCCESS && !file.isDirectory)
+        // Get last modified GMT string and advertise range support for static files
+        if (bodyStatus == IO_SUCCESS && !file.isDirectory) {
             this->setHeader("Last-Modified", file.getLastModifiedGMT());
+            this->setHeader("Accept-Ranges", "bytes");
+        }
 
         this->setHeader("Content-Length", tostr(this->pBodyStream->size()));
         return bodyStatus;
@@ -337,8 +339,10 @@ namespace http {
             setBodyStream( std::unique_ptr<IBodyStream>( new MemoryStream("") ) );
         };
 
-        // Advertise byte ranges for FileStreams
-        if (dynamic_cast<FileStream*>(pBodyStream.get()) != nullptr)
+        // Advertise byte ranges for FileStreams or range-capable static bodies
+        if (dynamic_cast<FileStream*>(pBodyStream.get()) != nullptr ||
+            dynamic_cast<CachedFileStream*>(pBodyStream.get()) != nullptr ||
+            this->headers.contains("Accept-Ranges"))
             this->setHeader("Accept-Ranges", "bytes");
 
         // Verify the content isn't too large as a MemoryStream

@@ -44,6 +44,10 @@ namespace conf {
     unsigned int MAX_REQUEST_LINE_LENGTH;
     unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
     unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
+    unsigned int MAX_FILE_CACHE_ENTRIES = 1024;
+    unsigned int MAX_CACHEABLE_FILE_SIZE = 1048576;
+    unsigned int MAX_FILE_CACHE_TOTAL_SIZE = 33554432;
+    unsigned int FILE_CACHE_REVALIDATION_INTERVAL = 1000;
     unsigned int IDLE_THREADS_PER_CHILD, MAX_THREADS_PER_CHILD;
     std::vector<std::unique_ptr<Match>> matchConfigs;
     std::vector<std::string> INDEX_FILES;
@@ -91,6 +95,7 @@ namespace conf {
         "AccessLogFile", "ErrorLogFile", "DisableLogs", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "CGITimeout", "WinPHPCGIPath", "EnableFastCGI", "FastCGIAddress", "FastCGITimeout", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
+        "MaxFileCacheEntries", "MaxCacheableFileSize", "MaxFileCacheTotalSize", "FileCacheRevalidationInterval",
         "MinResponseCompressionSize", "IdleThreadsPerChild", "MaxThreadsPerChild", "ShowWelcomeBanner", "ShowDonationBanner", "ShowPrivilegeDeescalationMessage", "ShowPrivilegeDropMessage", "HidePrivilegeDeescalationMessage", "StartupCheckLatestRelease"
     };
 
@@ -687,6 +692,18 @@ namespace conf {
         if (loadUint(root, MIN_COMPRESSION_SIZE, "MinResponseCompressionSize", 750) == CONF_FAILURE)
             return CONF_FAILURE;
 
+        if (loadUint(root, MAX_FILE_CACHE_ENTRIES, "MaxFileCacheEntries", 1024) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, MAX_CACHEABLE_FILE_SIZE, "MaxCacheableFileSize", 1048576) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, MAX_FILE_CACHE_TOTAL_SIZE, "MaxFileCacheTotalSize", 33554432) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, FILE_CACHE_REVALIDATION_INTERVAL, "FileCacheRevalidationInterval", 1000) == CONF_FAILURE)
+            return CONF_FAILURE;
+
         /************************** LOAD PATHS **************************/
 
         if (!DISABLE_LOGS) {
@@ -831,6 +848,12 @@ namespace conf {
 
         // Reset logging settings
         DISABLE_LOGS = false;
+
+        // Reset file cache settings
+        MAX_FILE_CACHE_ENTRIES = 1024;
+        MAX_CACHEABLE_FILE_SIZE = 1048576;
+        MAX_FILE_CACHE_TOTAL_SIZE = 33554432;
+        FILE_CACHE_REVALIDATION_INTERVAL = 1000;
 
         // Remove any stray temp files under lock
         std::unordered_set<std::string> remainingTempFiles;

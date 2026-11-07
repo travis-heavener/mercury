@@ -44,6 +44,8 @@ bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
         outMeta.isRegularFile = (st.st_mode & _S_IFREG) != 0;
         outMeta.size = static_cast<size_t>(st.st_size);
         outMeta.lastModTime = st.st_mtime;
+        outMeta.mode = static_cast<uint32_t>(st.st_mode);
+        outMeta.inode = 0;
         return true;
     #else
         struct stat st;
@@ -55,6 +57,8 @@ bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
         outMeta.isRegularFile = S_ISREG(st.st_mode);
         outMeta.size = static_cast<size_t>(st.st_size);
         outMeta.lastModTime = st.st_mtime;
+        outMeta.mode = static_cast<uint32_t>(st.st_mode);
+        outMeta.inode = static_cast<uint64_t>(st.st_ino);
         return true;
     #endif
 }

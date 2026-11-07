@@ -51,6 +51,45 @@ namespace http {
         return toRead;
     }
 
+    size_t CachedFileStream::size() const {
+        if (!pData) return 0;
+        if (byteRanges.empty()) return pData->size();
+        size_t total = 0;
+        for (const byte_range_t& range : byteRanges)
+            total += range.second - range.first + 1;
+        return total;
+    }
+
+    size_t CachedFileStream::read(char* buffer, size_t maxBytes) {
+        if (!pData || maxBytes == 0) return 0;
+
+        // Handle byte ranges
+        if (byteRangeIndex < byteRanges.size() && !byteRanges.empty() && offset > byteRanges[byteRangeIndex].second) {
+            ++byteRangeIndex;
+            return 0;
+        }
+
+        size_t remaining;
+        if (!byteRanges.empty()) {
+            if (byteRangeIndex >= byteRanges.size()) return 0;
+
+            byte_range_t& front = byteRanges[byteRangeIndex];
+            if (offset < front.first) offset = front.first;
+
+            size_t totalRangeSize = front.second - front.first + 1;
+            remaining = totalRangeSize - (offset - front.first);
+        } else {
+            remaining = pData->size() - offset;
+        }
+
+        size_t toRead = (std::min)(remaining, maxBytes);
+        if (toRead == 0) return 0;
+
+        memcpy(buffer, pData->data() + offset, toRead);
+        offset += toRead;
+        return toRead;
+    }
+
     FileStream::FileStream(const std::string& path, const bool isTempFile, const size_t knownSize)
         : isTempFile(isTempFile), path(path) {
         if (knownSize != static_cast<size_t>(-1)) {

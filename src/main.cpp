@@ -11,6 +11,7 @@
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
 #include "http/telemetry/version_checker.hpp"
+#include "io/file_cache.hpp"
 #include "logs/logger.hpp"
 #include "util/cli.hpp"
 #include "util/privilege.hpp"
@@ -65,6 +66,9 @@ void cleanExit() {
     #ifdef _WIN32
         WSACleanup();
     #endif
+
+    // Clear static file cache
+    io::FileCache::getInstance().clear();
 
     // Log process closure
     ACCESS_LOG << "Process killed successfully." << std::endl;
