@@ -41,35 +41,103 @@ namespace http {
         return instance;
     }
 
+    struct ThreadLocalStats {
+        uint64_t requests = 0;
+        uint64_t bytesRead = 0;
+        uint64_t bytesSent = 0;
+        uint64_t status2xx = 0;
+        uint64_t status3xx = 0;
+        uint64_t status4xx = 0;
+        uint64_t status5xx = 0;
+        uint64_t statusOther = 0;
+        uint32_t opsCount = 0;
+
+        ~ThreadLocalStats() {
+            ServerStats::flush();
+        }
+    };
+
+    static thread_local ThreadLocalStats threadStats;
+    static constexpr uint32_t STATS_FLUSH_BATCH_SIZE = 64;
+
     ServerStats::ServerStats() : startTime(std::chrono::steady_clock::now()) {}
+
+    // Used to flush thread-local metric counters into cumulative global atomics
+    void ServerStats::flush() {
+        if (threadStats.opsCount == 0) return;
+
+        auto& inst = getInstance();
+        if (threadStats.requests > 0) {
+            inst.totalRequests.fetch_add(threadStats.requests, std::memory_order_relaxed);
+            threadStats.requests = 0;
+        }
+        if (threadStats.bytesRead > 0) {
+            inst.totalBytesRead.fetch_add(threadStats.bytesRead, std::memory_order_relaxed);
+            threadStats.bytesRead = 0;
+        }
+        if (threadStats.bytesSent > 0) {
+            inst.totalBytesSent.fetch_add(threadStats.bytesSent, std::memory_order_relaxed);
+            threadStats.bytesSent = 0;
+        }
+        if (threadStats.status2xx > 0) {
+            inst.status2xx.fetch_add(threadStats.status2xx, std::memory_order_relaxed);
+            threadStats.status2xx = 0;
+        }
+        if (threadStats.status3xx > 0) {
+            inst.status3xx.fetch_add(threadStats.status3xx, std::memory_order_relaxed);
+            threadStats.status3xx = 0;
+        }
+        if (threadStats.status4xx > 0) {
+            inst.status4xx.fetch_add(threadStats.status4xx, std::memory_order_relaxed);
+            threadStats.status4xx = 0;
+        }
+        if (threadStats.status5xx > 0) {
+            inst.status5xx.fetch_add(threadStats.status5xx, std::memory_order_relaxed);
+            threadStats.status5xx = 0;
+        }
+        if (threadStats.statusOther > 0) {
+            inst.statusOther.fetch_add(threadStats.statusOther, std::memory_order_relaxed);
+            threadStats.statusOther = 0;
+        }
+        threadStats.opsCount = 0;
+    }
 
     // Record incoming request count
     void ServerStats::recordRequest() {
-        totalRequests.fetch_add(1, std::memory_order_relaxed);
+        ++threadStats.requests;
+        if (++threadStats.opsCount >= STATS_FLUSH_BATCH_SIZE)
+            flush();
     }
 
     // Categorize response status and increment metric counter
     void ServerStats::recordStatusCode(const int status) {
         if (status >= 200 && status < 300)
-            status2xx.fetch_add(1, std::memory_order_relaxed);
+            ++threadStats.status2xx;
         else if (status >= 300 && status < 400)
-            status3xx.fetch_add(1, std::memory_order_relaxed);
+            ++threadStats.status3xx;
         else if (status >= 400 && status < 500)
-            status4xx.fetch_add(1, std::memory_order_relaxed);
+            ++threadStats.status4xx;
         else if (status >= 500 && status < 600)
-            status5xx.fetch_add(1, std::memory_order_relaxed);
+            ++threadStats.status5xx;
         else
-            statusOther.fetch_add(1, std::memory_order_relaxed);
+            ++threadStats.statusOther;
+
+        if (++threadStats.opsCount >= STATS_FLUSH_BATCH_SIZE)
+            flush();
     }
 
     // Record incoming ingress byte count
     void ServerStats::recordBytesRead(const size_t bytes) {
-        totalBytesRead.fetch_add(bytes, std::memory_order_relaxed);
+        threadStats.bytesRead += bytes;
+        if (++threadStats.opsCount >= STATS_FLUSH_BATCH_SIZE)
+            flush();
     }
 
     // Record outgoing egress byte count
     void ServerStats::recordBytesSent(const size_t bytes) {
-        totalBytesSent.fetch_add(bytes, std::memory_order_relaxed);
+        threadStats.bytesSent += bytes;
+        if (++threadStats.opsCount >= STATS_FLUSH_BATCH_SIZE)
+            flush();
     }
 
     // Format uptime duration from start timestamp
@@ -81,6 +149,7 @@ namespace http {
 
     // Generate formatted statistics summary report
     std::string ServerStats::formatStats(const size_t usedThreads, const size_t totalThreads, const size_t pendingConnections, const size_t activeClients) const {
+        flush();
         const auto now = std::chrono::steady_clock::now();
         const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime);
 

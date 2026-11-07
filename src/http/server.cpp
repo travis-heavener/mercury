@@ -178,6 +178,7 @@ namespace http {
     }
 
     int Server::closeClientSocket(const int sock, SSL* pSSL) {
+        ServerStats::flush();
         this->untrackClient(sock);
         if (this->useTLS) SSL_free(pSSL); // Cleanup TLS
         return this->closeSocket(sock);

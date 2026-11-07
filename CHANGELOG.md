@@ -2,6 +2,7 @@
 
 ## [0.39.0] - 2026-11-06
 - Added: DisableLogs config node, which overrides log file paths and prevents writing logs entirely
+- Added: MaxFileCacheEntries, MaxCacheableFileSize, MaxFileCacheTotalSize, and FileCacheRevalidationInterval config directives to tune static file caching
 - Change: reduce number of repeated filesystem operations, particularly on Windows builds
 - Change: reuse thread-local buffers and stack hex formatting during response streaming to reduce allocation overhead
 - Change: coalesce response headers and small payloads into single socket write to eliminate round-trip latency
@@ -9,6 +10,7 @@
 - Change: optimize configuration match rules with catch-all and exact match bypass and per-request match result caching
 - Change: add bounded thread-safe in-memory cache for static files with automatic modification and permission revalidation
 - Change: Linux builds no longer are compressed using UPX to reduce RSS at marginal build size cost
+- Change: batch server telemetry statistics via thread-local counters and cache-line alignment to eliminate atomic contention and false sharing across worker threads
 - Chore: update CREDITS.md for Zstandard, now points to `meta/zstd` instead of `facebook/zstd`
 
 ## [0.38.2] - 2026-10-27

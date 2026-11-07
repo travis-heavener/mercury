@@ -16,6 +16,9 @@ namespace http {
             // Initialize server stats and record process start time
             ServerStats();
 
+            // Used to flush thread-local metric counters into cumulative global atomics
+            static void flush();
+
             // Record incoming request count
             void recordRequest();
 
@@ -46,14 +49,14 @@ namespace http {
 
         private:
             std::chrono::steady_clock::time_point startTime; // Process start timestamp
-            std::atomic<uint64_t> totalRequests{0};          // Cumulative HTTP request count
-            std::atomic<uint64_t> totalBytesRead{0};         // Cumulative ingress bytes read
-            std::atomic<uint64_t> totalBytesSent{0};         // Cumulative egress bytes written
-            std::atomic<uint64_t> status2xx{0};              // 2xx Success status count
-            std::atomic<uint64_t> status3xx{0};              // 3xx Redirection status count
-            std::atomic<uint64_t> status4xx{0};              // 4xx Client error status count
-            std::atomic<uint64_t> status5xx{0};              // 5xx Server error status count
-            std::atomic<uint64_t> statusOther{0};            // Non-standard or informational status count
+            alignas(64) std::atomic<uint64_t> totalRequests{0};  // Cumulative HTTP request count
+            alignas(64) std::atomic<uint64_t> totalBytesRead{0}; // Cumulative ingress bytes read
+            alignas(64) std::atomic<uint64_t> totalBytesSent{0}; // Cumulative egress bytes written
+            alignas(64) std::atomic<uint64_t> status2xx{0};      // 2xx Success status count
+            alignas(64) std::atomic<uint64_t> status3xx{0};      // 3xx Redirection status count
+            alignas(64) std::atomic<uint64_t> status4xx{0};      // 4xx Client error status count
+            alignas(64) std::atomic<uint64_t> status5xx{0};      // 5xx Server error status count
+            alignas(64) std::atomic<uint64_t> statusOther{0};    // Non-standard or informational status count
     };
 
 }
