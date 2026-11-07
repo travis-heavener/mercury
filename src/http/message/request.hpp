@@ -6,6 +6,10 @@
 #include "../tools.hpp"
 #include "response.hpp"
 
+namespace conf {
+    class Match;
+}
+
 namespace http {
 
     class Request {
@@ -27,6 +31,7 @@ namespace http {
 
             inline const headers_map_t& getHeaders() const { return headers; };
             inline const std::vector<std::pair<size_t, size_t>>& getByteRanges() const { return byteRanges; };
+            const std::vector<const conf::Match*>& getMatchedRules() const;
 
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
@@ -63,6 +68,9 @@ namespace http {
 
             std::string body;
             int compressMethods = NO_COMPRESS;
+
+            mutable std::vector<const conf::Match*> matchedRules;
+            mutable bool matchedRulesEvaluated = false;
     };
 
 }

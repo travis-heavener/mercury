@@ -1,6 +1,7 @@
 #include "request.hpp"
 
 #include "../../conf/conf.hpp"
+#include "../../conf/rules/match.hpp"
 #include "../../logs/logger.hpp"
 #include "../../util/string_tools.hpp"
 #include "../../util/toolbox.hpp"
@@ -154,6 +155,8 @@ namespace http {
     void Request::rewriteRawPath(const std::string& newPath) {
         // Redo path logic
         this->_has400Error |= !loadRequestPaths(paths, newPath, true);
+        this->matchedRulesEvaluated = false;
+        this->matchedRules.clear();
     }
 
     // This method exists to combine common methods from the version handlers
@@ -191,8 +194,8 @@ namespace http {
 
         // Handle directory listings
         if (file.isDirectory) {
-            for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
-                if (!pMatch->showDirectoryIndexes() && pMatch->doesRequestMatch(paths.decodedURI, headers)) {
+            for (const conf::Match* pMatch : this->getMatchedRules()) {
+                if (!pMatch->showDirectoryIndexes()) {
                     // Hide the directory index
                     this->setStatusMaybeErrorDoc(response, 403);
                     return false;
@@ -218,6 +221,20 @@ namespace http {
 
     bool Request::isEncodingAccepted(const std::string& encoding) const {
         return acceptedEncodings.find(encoding) != acceptedEncodings.end();
+    }
+
+    const std::vector<const conf::Match*>& Request::getMatchedRules() const {
+        if (!matchedRulesEvaluated) {
+            matchedRulesEvaluated = true;
+            if (!conf::matchConfigs.empty()) {
+                matchedRules.reserve(conf::matchConfigs.size());
+                for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
+                    if (pMatch && pMatch->doesRequestMatch(paths.decodedURI, headers))
+                        matchedRules.push_back(pMatch.get());
+                }
+            }
+        }
+        return matchedRules;
     }
 
 }
