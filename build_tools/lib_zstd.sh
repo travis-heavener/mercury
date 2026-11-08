@@ -63,9 +63,12 @@ mv "zstd-$version" "zstd-$version-linux"
 # Update stored license
 mv "zstd-$version-linux/LICENSE" ../licenses/Zstandard_LICENSE.txt
 
+# Disable unused decompression, legacy decoders, dictionary builder, and deprecated APIs
+ZSTD_FLAGS="ZSTD_LEGACY_SUPPORT=0 ZSTD_LIB_DECOMPRESSION=0 ZSTD_LIB_DICTBUILDER=0 ZSTD_LIB_DEPRECATED=0"
+
 (
     cd "zstd-$version-linux/lib"
-    make -j$(nproc) libzstd.a 1> /dev/null
+    make -j$(nproc) libzstd.a $ZSTD_FLAGS 1> /dev/null
     cp *.h "$LIB_PATH/zstd/linux/include"
     mv libzstd.a "$LIB_PATH/zstd/linux/lib"
 ) &
@@ -73,7 +76,7 @@ mv "zstd-$version-linux/LICENSE" ../licenses/Zstandard_LICENSE.txt
 if [ "$LINUX_ONLY" != "1" ]; then
     (
         cd "zstd-$version-windows/lib"
-        make -j$(nproc) libzstd.a CC=x86_64-w64-mingw32-gcc 1> /dev/null
+        make -j$(nproc) libzstd.a CC=x86_64-w64-mingw32-gcc AR=x86_64-w64-mingw32-ar $ZSTD_FLAGS 1> /dev/null
         cp *.h "$LIB_PATH/zstd/windows/include"
         mv libzstd.a "$LIB_PATH/zstd/windows/lib"
     ) &
