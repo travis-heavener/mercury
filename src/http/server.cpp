@@ -238,6 +238,28 @@ namespace http {
         #endif
     }
 
+    // Stream sanitized paths without heap allocations or temporary string copies
+    struct SanitizedLogPath {
+        std::string_view path;
+
+        friend std::ostream& operator<<(std::ostream& os, const SanitizedLogPath& sp) {
+            constexpr char HEX[] = "0123456789ABCDEF";
+            size_t start = 0;
+            for (size_t i = 0; i < sp.path.size(); ++i) {
+                const unsigned char c = static_cast<unsigned char>(sp.path[i]);
+                if (c < 32 || c >= 127) {
+                    if (i > start) os.write(sp.path.data() + start, i - start);
+                    os << "\\x" << HEX[c >> 4] << HEX[c & 0x0F];
+                    start = i + 1;
+                }
+            }
+            if (start < sp.path.size()) {
+                os.write(sp.path.data() + start, sp.path.size() - start);
+            }
+            return os;
+        }
+    };
+
     // Complete TLS handshake w/ deadline to prevent stalling worker threads
     bool Server::acceptTLS(SSL* pSSL, const int client, const int timeoutMS) {
         if (!setSocketBlocking(client, false)) return false;
@@ -529,7 +551,7 @@ namespace http {
                 if (!conf::DISABLE_LOGS) {
                     ACCESS_LOG << request.getMethodStr() << ' '
                         << formatClientIP(request.getIPStr(), request.isDNT()) << ' '
-                        << request.getPaths().rawPathFromRequest << " -- (" << response->getStatus()
+                        << SanitizedLogPath{request.getPaths().rawPathFromRequest} << " -- (" << response->getStatus()
                         << ") [" << request.getVersion() << ']' << std::endl;
                 }
 
