@@ -73,8 +73,10 @@ mv "brotli-$version-linux/LICENSE" ../licenses/Brotli_LICENSE.txt
     cmake .. \
         -DCMAKE_BUILD_TYPE=Release \
         -DBROTLI_BUNDLED_MODE=ON \
+        -DBROTLI_BUILD_TOOLS=OFF \
+        -DBROTLI_DISABLE_TESTS=ON \
         -DBUILD_SHARED_LIBS=OFF &> /dev/null
-    make -j$(nproc) &> /dev/null
+    make -j$(nproc) brotlienc brotlicommon &> /dev/null
 
     # Move library files
     mv *.a "$LIB_PATH/brotli/linux/lib"
@@ -89,11 +91,12 @@ if [ "$LINUX_ONLY" != "1" ]; then
         cmake .. \
             -DCMAKE_SYSTEM_NAME=Windows \
             -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
-            -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
             -DCMAKE_BUILD_TYPE=Release \
             -DBROTLI_BUNDLED_MODE=ON \
+            -DBROTLI_BUILD_TOOLS=OFF \
+            -DBROTLI_DISABLE_TESTS=ON \
             -DBUILD_SHARED_LIBS=OFF &> /dev/null
-        make -j$(nproc) &> /dev/null
+        make -j$(nproc) brotlienc brotlicommon &> /dev/null
 
         # Move library files
         mv *.a "$LIB_PATH/brotli/windows/lib"
