@@ -131,8 +131,8 @@ namespace http::cgi {
             for (char& c : cgiKey) if (c == '-') c = '_';
             strToUpper(cgiKey);
 
-            // Ignore Authorization header (already passed)
-            if (cgiKey != "HTTP_AUTHORIZATION" && cgiKey != "HTTP_CONTENT_LENGTH" && cgiKey != "HTTP_CONTENT_TYPE")
+            // Exclude dedicated CGI variables and block HTTPoxy vulnerability (RFC 3875 §4.1.18)
+            if (cgiKey != "HTTP_AUTHORIZATION" && cgiKey != "HTTP_CONTENT_LENGTH" && cgiKey != "HTTP_CONTENT_TYPE" && cgiKey != "HTTP_PROXY")
                 envsMap[cgiKey] = val;
         }
 

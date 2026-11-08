@@ -1,5 +1,7 @@
 #include "server.hpp"
 
+#include <algorithm>
+#include <chrono>
 #include <iostream>
 
 #include "../conf/conf.hpp"
@@ -180,7 +182,7 @@ namespace http {
     int Server::closeClientSocket(const int sock, SSL* pSSL) {
         ServerStats::flush();
         this->untrackClient(sock);
-        if (this->useTLS) SSL_free(pSSL); // Cleanup TLS
+        if (this->useTLS && pSSL != nullptr) SSL_free(pSSL); // Cleanup TLS
         return this->closeSocket(sock);
     }
 
@@ -207,6 +209,68 @@ namespace http {
         pfd.events = POLLIN;
         pfd.revents = 0;
         return poll(&pfd, 1, timeoutMS);
+    }
+
+    // Toggle socket blocking state across platforms
+    static bool setSocketBlocking(const int sock, const bool blocking) {
+        #ifdef _WIN32
+            u_long mode = blocking ? 0 : 1;
+            return ioctlsocket(sock, FIONBIO, &mode) == 0;
+        #else
+            const int flags = fcntl(sock, F_GETFL, 0);
+            if (flags < 0) return false;
+            return fcntl(sock, F_SETFL, blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK)) >= 0;
+        #endif
+    }
+
+    // Configure socket read and write timeouts
+    static void setSocketTimeout(const int sock, const int timeoutSec) {
+        #ifdef _WIN32
+            const DWORD timeoutMs = static_cast<DWORD>(timeoutSec) * 1000;
+            setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeoutMs), sizeof(timeoutMs));
+            setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeoutMs), sizeof(timeoutMs));
+        #else
+            struct timeval tv{};
+            tv.tv_sec = timeoutSec;
+            tv.tv_usec = 0;
+            setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv));
+            setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv));
+        #endif
+    }
+
+    // Complete TLS handshake w/ deadline to prevent stalling worker threads
+    bool Server::acceptTLS(SSL* pSSL, const int client, const int timeoutMS) {
+        if (!setSocketBlocking(client, false)) return false;
+
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMS);
+        bool success = false;
+
+        while (!this->isExiting) {
+            const int rv = SSL_accept(pSSL);
+            if (rv > 0) {
+                success = true;
+                break;
+            }
+
+            const int err = SSL_get_error(pSSL, rv);
+            if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
+                break;
+
+            const auto now = std::chrono::steady_clock::now();
+            if (now >= deadline) break;
+
+            const int remMS = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count());
+            struct pollfd pfd{};
+            pfd.fd = client;
+            pfd.events = (err == SSL_ERROR_WANT_READ ? POLLIN : POLLOUT);
+            pfd.revents = 0;
+
+            const int polled = poll(&pfd, 1, std::min(remMS, 1000));
+            if (polled < 0) break;
+        }
+
+        setSocketBlocking(client, true);
+        return success;
     }
 
     // Register clients under the same lock used by shutdown
@@ -283,12 +347,16 @@ namespace http {
             // Skip clients that were queued before shutdown began
             if (isExiting) throw http::Exception();
 
-            // Complete the TLS handshake before reading HTTP data
+            // Apply read and write deadlines to prevent slow clients from stalling worker threads
+            setSocketTimeout(client, conf::KEEP_ALIVE_TIMEOUT);
+
+            // Complete the TLS handshake w/ timeout before reading HTTP data
             if (useTLS) {
                 pSSL = SSL_new(pSSL_CTX);
                 if (pSSL == nullptr) throw http::Exception();
                 SSL_set_fd(pSSL, client);
-                if (SSL_accept(pSSL) <= 0) throw http::Exception();
+                if (!this->acceptTLS(pSSL, client, conf::KEEP_ALIVE_TIMEOUT * 1000))
+                    throw http::Exception();
             }
 
             // Keep unread data across requests; one read may contain several requests

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.39.2] - 2026-11-08
+- Fix: prevent HTTPoxy vulnerability by filtering Proxy / HTTP_PROXY header forwarding in CGI and FastCGI parameter encoders (#518)
+- Fix: mitigate pre-auth TLS handshake blocking Denial of Service with non-blocking handshake deadline and socket timeout enforcement (#519)
+- Fix: prevent Windows NTFS Alternate Data Stream (ADS) source code disclosure by rejecting colon stream markers in URI paths and path resolution (#520)
+
 ## [0.39.1] - 2026-11-08
 - Chore: parallelize compilation with intermediate object rules, automatic header dependency tracking (-MMD -MP), debug/release build directory separation, and transparent ccache support
 - Chore: add ccache to install_deps.sh for apt, pacman, and dnf package managers

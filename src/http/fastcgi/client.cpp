@@ -279,8 +279,8 @@ namespace http::fastcgi {
             for (char& c : cgiKey) if (c == '-') c = '_';
             strToUpper(cgiKey);
 
-            // Exclude headers mapped to dedicated CGI variables
-            if (cgiKey != "HTTP_AUTHORIZATION" && cgiKey != "HTTP_CONTENT_LENGTH" && cgiKey != "HTTP_CONTENT_TYPE")
+            // Exclude headers mapped to dedicated CGI variables and block HTTPoxy (RFC 3875 §4.1.18)
+            if (cgiKey != "HTTP_AUTHORIZATION" && cgiKey != "HTTP_CONTENT_LENGTH" && cgiKey != "HTTP_CONTENT_TYPE" && cgiKey != "HTTP_PROXY")
                 encoder.add(cgiKey, val);
         }
     }

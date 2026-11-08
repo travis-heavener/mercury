@@ -138,6 +138,9 @@ bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem:
         if (result == 0 || result >= MAX_PATH)
             throw std::runtime_error("Failed to get full path name");
 
+        // Reject NTFS alternate data streams (ADS) beyond drive letter colon
+        if (result > 2 && wcschr(fullPathStr + 2, L':') != nullptr) return false;
+
         // Open the file to get a handle
         HANDLE handle = CreateFileW(
             fullPathStr,
