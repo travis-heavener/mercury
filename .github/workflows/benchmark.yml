@@ -19,7 +19,7 @@ on:
         default: "10"
         type: string
       create_pr:
-        description: "Open a PR updating README.md with benchmark results"
+        description: "Commit README.md results directly (or open a PR if on main)"
         required: false
         default: false
         type: boolean
@@ -402,7 +402,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           token: ${{ steps.app-token.outputs.token || github.token }}
-          ref: ${{ github.sha }}
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
 
       # Download result artifacts from both benchmark jobs
@@ -440,30 +440,52 @@ jobs:
               exit 1
           fi
 
-      # Commit and push branch
+      # Commit and push changes (direct to branch if not on main, or via branch + PR if on main)
 
       - name: Commit and Push Changes
         id: commit
         env:
-          BRANCH_NAME: perf/benchmark-results-${{ github.run_id }}-${{ github.run_attempt }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          IS_MAIN: ${{ github.ref_name == 'main' }}
+          PR_BRANCH: perf/benchmark-results-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           git config user.name "Mercury Actions Bot"
           git config user.email "mercury-actions-bot[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH_NAME"
-          git add README.md
-          if git diff --staged --quiet; then
-              echo "No changes in README.md to commit"
-              echo "has_changes=false" >> $GITHUB_OUTPUT
+
+          if [ "$IS_MAIN" = "true" ]; then
+              git checkout -b "$PR_BRANCH"
+              git add README.md
+              if git diff --staged --quiet; then
+                  echo "No changes in README.md to commit"
+                  echo "has_changes=false" >> $GITHUB_OUTPUT
+                  echo "committed_to_branch=false" >> $GITHUB_OUTPUT
+              else
+                  git commit -m "perf: update performance benchmarks in README.md"
+                  git push origin "$PR_BRANCH"
+                  echo "has_changes=true" >> $GITHUB_OUTPUT
+                  echo "committed_to_branch=false" >> $GITHUB_OUTPUT
+              fi
           else
-              git commit -m "perf: update performance benchmarks in README.md"
-              git push origin "$BRANCH_NAME"
-              echo "has_changes=true" >> $GITHUB_OUTPUT
+              git add README.md
+              if git diff --staged --quiet; then
+                  echo "No changes in README.md to commit"
+                  echo "has_changes=false" >> $GITHUB_OUTPUT
+                  echo "committed_to_branch=false" >> $GITHUB_OUTPUT
+              else
+                  git commit -m "perf: update performance benchmarks in README.md"
+                  git push origin "$BRANCH_NAME" || {
+                      git pull --rebase origin "$BRANCH_NAME"
+                      git push origin "$BRANCH_NAME"
+                  }
+                  echo "has_changes=true" >> $GITHUB_OUTPUT
+                  echo "committed_to_branch=true" >> $GITHUB_OUTPUT
+              fi
           fi
 
-      # Open or update Pull Request via GitHub CLI
+      # Open or update Pull Request via GitHub CLI (only when dispatched against main)
 
       - name: Create Pull Request
-        if: steps.commit.outputs.has_changes == 'true'
+        if: steps.commit.outputs.has_changes == 'true' && steps.commit.outputs.committed_to_branch != 'true'
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
           BRANCH_NAME: perf/benchmark-results-${{ github.run_id }}-${{ github.run_attempt }}
@@ -506,7 +528,11 @@ jobs:
       - name: Publish Aggregated Step Summary
         if: always()
         run: |
-          echo "## Benchmark PR Summary" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.commit.outputs.committed_to_branch }}" = "true" ]; then
+              echo "## Benchmark Results Committed to \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          else
+              echo "## Benchmark PR Summary" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f "./results/linux/linux-results.md" ]; then
               cat ./results/linux/linux-results.md >> $GITHUB_STEP_SUMMARY
