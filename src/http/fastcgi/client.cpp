@@ -17,6 +17,7 @@
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
 #include "../../util/string_tools.hpp"
+#include "../tools.hpp"
 #include "params.hpp"
 #include "protocol.hpp"
 
@@ -623,8 +624,12 @@ namespace http::fastcgi {
 
             // Route record payload according to stream type
             if (header.type == FCGI_STDOUT) {
-                // Buffer standard output stream
+                // Buffer standard output stream up to configured body limit
                 if (cLen > 0) {
+                    if (cLen > conf::MAX_RESPONSE_BODY || (stdoutBuffer.size() + stderrBuffer.size()) > conf::MAX_RESPONSE_BODY - cLen) {
+                        ERROR_LOG << "FastCGI stdout exceeded maximum response body limit (" << conf::MAX_RESPONSE_BODY << " bytes)" << std::endl;
+                        return false;
+                    }
                     size_t prevSize = stdoutBuffer.size();
                     stdoutBuffer.resize(prevSize + cLen);
                     if (!this->recvExact(stdoutBuffer.data() + prevSize, cLen)) return false;
@@ -632,8 +637,12 @@ namespace http::fastcgi {
                 // Discard padding bytes
                 if (pLen > 0 && !this->skipBytes(pLen)) return false;
             } else if (header.type == FCGI_STDERR) {
-                // Buffer standard error stream
+                // Buffer standard error stream up to configured body limit
                 if (cLen > 0) {
+                    if (cLen > conf::MAX_RESPONSE_BODY || (stdoutBuffer.size() + stderrBuffer.size()) > conf::MAX_RESPONSE_BODY - cLen) {
+                        ERROR_LOG << "FastCGI stderr exceeded maximum limit (" << conf::MAX_RESPONSE_BODY << " bytes)" << std::endl;
+                        return false;
+                    }
                     size_t prevSize = stderrBuffer.size();
                     stderrBuffer.resize(prevSize + cLen);
                     if (!this->recvExact(stderrBuffer.data() + prevSize, cLen)) return false;
@@ -719,45 +728,48 @@ namespace http::fastcgi {
                 // Split key-value pair and sanitize header names
                 size_t colon = line.find(':');
                 if (colon != std::string_view::npos) {
-                    std::string key(line.substr(0, colon));
-                    std::string val(line.substr(colon + 1));
-                    trimString(key);
-                    trimString(val);
-                    formatHeaderCasing(key);
+                    std::string_view key = trimStringView(line.substr(0, colon));
+                    std::string_view val = trimStringView(line.substr(colon + 1));
 
                     // Extract CGI Status override or apply header field
-                    if (key == "Status") {
-                        try {
-                            res.setStatus(static_cast<uint16_t>(std::stoul(val)));
-                        } catch (...) {
+                    if (strEqualsCaseInsensitive(key, "status")) {
+                        if (val.size() >= 3 && val[0] >= '1' && val[0] <= '5' &&
+                            val[1] >= '0' && val[1] <= '9' && val[2] >= '0' && val[2] <= '9' &&
+                            (val.size() == 3 || val[3] == ' ' || val[3] == '\t')) {
+                            res.setStatus(static_cast<uint16_t>((val[0] - '0') * 100 + (val[1] - '0') * 10 + (val[2] - '0')));
+                        } else {
                             res.setStatus(200);
                         }
-                    } else {
+                    } else if (isValidHeaderName(key) && isValidHeaderValue(val)) {
                         try {
-                            res.setHeader(key, val);
+                            res.setHeader(std::string(key), std::string(val));
                         } catch (...) { /* Ignore invalid header from CGI script */ }
                     }
                 }
             }
         }
 
-        // Extract response body payload
-        std::string body = stdoutBuffer.substr(bodyStart);
-        const size_t bodySize = body.size();
+        const bool stdoutOriginallyEmpty = stdoutBuffer.empty();
+
+        // Extract response body payload without duplicate heap reallocation
+        if (bodyStart > 0) {
+            stdoutBuffer.erase(0, bodyStart);
+        }
+        const size_t bodySize = stdoutBuffer.size();
 
         res.setHeader("Content-Length", std::to_string(bodySize));
 
         // Infer Content-Type or handle empty response payload
         if (bodySize == 0) {
-            if (res.getStatus() == 200 && stdoutBuffer.empty())
+            if (res.getStatus() == 200 && stdoutOriginallyEmpty)
                 res.setStatus(204);
             res.clearHeader("Content-Type");
         } else if (res.getContentType() == "text/html; charset=UTF-8" || res.getContentType().empty()) {
-            inferContentType(body, res);
+            inferContentType(stdoutBuffer, res);
         }
 
         // Attach response payload stream
-        res.setBodyStream(std::make_unique<MemoryStream>(std::move(body)));
+        res.setBodyStream(std::make_unique<MemoryStream>(std::move(stdoutBuffer)));
         return true;
     }
 

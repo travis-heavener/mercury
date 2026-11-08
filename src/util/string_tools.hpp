@@ -5,6 +5,7 @@
 #include <cctype>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -56,6 +57,24 @@ inline void trimString(std::string& str) {
     const size_t end = str.find_last_not_of(" \t");
     if (end + 1 < str.size()) str.erase(end + 1);
     if (start > 0) str.erase(0, start);
+}
+
+// Returns string view trimmed of leading and trailing whitespace
+inline std::string_view trimStringView(std::string_view str) {
+    const size_t start = str.find_first_not_of(" \t");
+    if (start == std::string_view::npos) return {};
+    const size_t end = str.find_last_not_of(" \t");
+    return str.substr(start, end - start + 1);
+}
+
+// Returns true if string views match case-insensitively
+inline bool strEqualsCaseInsensitive(std::string_view a, std::string_view b) {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (std::tolower(static_cast<unsigned char>(a[i])) != std::tolower(static_cast<unsigned char>(b[i])))
+            return false;
+    }
+    return true;
 }
 
 void decodeURI(std::string&);

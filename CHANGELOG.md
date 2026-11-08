@@ -4,6 +4,9 @@
 - Fix: prevent HTTPoxy vulnerability by filtering Proxy / HTTP_PROXY header forwarding in CGI and FastCGI parameter encoders (#518)
 - Fix: mitigate pre-auth TLS handshake blocking Denial of Service with non-blocking handshake deadline and socket timeout enforcement (#519)
 - Fix: prevent Windows NTFS Alternate Data Stream (ADS) source code disclosure by rejecting colon stream markers in URI paths and path resolution (#520)
+- Fix: cap buffered FastCGI stdout and stderr streams at configured response body limit to prevent memory exhaustion (#525)
+- Fix: enforce TLS 1.2 minimum protocol version and restrict modern cipher suites (#528)
+- Fix: sanitize control characters and terminal escape sequences in access logger (#529)
 
 ## [0.39.1] - 2026-11-08
 - Chore: parallelize compilation with intermediate object rules, automatic header dependency tracking (-MMD -MP), debug/release build directory separation, and transparent ccache support
