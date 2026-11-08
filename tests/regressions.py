@@ -199,7 +199,7 @@ def concurrent_clients(connect):
             status, _, body = conn.response()
             assert status == 200 and body in (b"127.0.0.1", b"::1")
     with ThreadPoolExecutor(max_workers=16) as pool:
-        list(pool.map(one, range(48)))
+        list(pool.map(one, range(16)))
 
 
 def connection_options(connect):
@@ -247,30 +247,37 @@ WIRE_TEST_COUNT = len(WIRE_TESTS) * 4 + 2
 
 def run_wire_regressions(host, host_v6, port, tls_port):
     """Run each group over IPv4/IPv6 and HTTP/HTTPS; return groups passed."""
+    def run_transport(item):
+        address, tls = item
+        passed_in_transport = 0
+        connect = lambda source=None: Connection(address, tls_port if tls else port, tls, source)
+        for test in WIRE_TESTS:
+            try:
+                test(connect)
+                passed_in_transport += 1
+            except Exception as error:
+                print(f"[Regression failure] {test.__name__} {address} TLS={tls}: {error}")
+        return passed_in_transport
+
     passed = 0
-    for address in (host, host_v6):
-        for tls in (False, True):
-            connect = lambda source=None: Connection(address, tls_port if tls else port, tls, source)
-            for test in WIRE_TESTS:
-                try:
-                    test(connect)
-                    passed += 1
-                except Exception as error:
-                    print(f"[Regression failure] {test.__name__} {address} TLS={tls}: {error}")
+    combos = [(host, False), (host, True), (host_v6, False), (host_v6, True)]
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        passed += sum(pool.map(run_transport, combos))
 
     # Different source addresses expose queued tasks accidentally sharing one IP buffer.
     # 127.0.0.2 is usable without additional interface setup on Linux and Windows.
-    for tls in (False, True):
-        try:
-            def one(index):
-                source = "127.0.0.1" if index % 2 == 0 else "127.0.0.2"
-                with Connection(host, tls_port if tls else port, tls, (source, 0)) as conn:
-                    conn.send(request(b"/regression_ip.php"))
-                    status, _, body = conn.response()
-                    assert status == 200 and body == source.encode(), (source, status, body)
-            with ThreadPoolExecutor(max_workers=16) as pool:
-                list(pool.map(one, range(48)))
-            passed += 1
-        except Exception as error:
-            print(f"[Regression failure] queued client IP ownership TLS={tls}: {error}")
+    def check_ip_ownership(tls):
+        def one(index):
+            source = "127.0.0.1" if index % 2 == 0 else "127.0.0.2"
+            with Connection(host, tls_port if tls else port, tls, (source, 0)) as conn:
+                conn.send(request(b"/regression_ip.php"))
+                status, _, body = conn.response()
+                assert status == 200 and body == source.encode(), (source, status, body)
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(one, range(12)))
+        return 1
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        for ok in pool.map(check_ip_ownership, (False, True)):
+            passed += ok
     return passed

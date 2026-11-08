@@ -58,6 +58,7 @@ if mode in ("hang", "closed_hang", "escaped_hang"):
     if mode == "escaped_hang":
         os.setpgid(0, os.getpgid(os.getppid()))
     Path(os.environ["SCRIPT_FILENAME"]).with_suffix(".started").write_text(str(os.getpid()))
+    Path(os.environ["SCRIPT_FILENAME"]).parent.joinpath(f"{mode}.started").write_text(str(os.getpid()))
     if mode == "closed_hang":
         os.close(1)
         os.close(2)
@@ -156,10 +157,13 @@ class CGIProcessTests(unittest.TestCase):
 
     # Verify CGI worker stderr warning logs escaped diagnostics without injecting headers
     def test_stderr_warning_keeps_valid_response(self):
+        targets = (("127.0.0.1", False), ("127.0.0.1", True), ("::1", False), ("::1", True))
         with mercury_process(self.config()):
-            for host, tls in (("127.0.0.1", False), ("127.0.0.1", True), ("::1", False), ("::1", True)):
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                results = list(executor.map(lambda t: (t, self.response("warning", host=t[0], tls=t[1])), targets))
+
+            for (host, tls), (status, headers, body) in results:
                 with self.subTest(host=host, tls=tls):
-                    status, headers, body = self.response("warning", host=host, tls=tls)
                     self.assertEqual((status, body), (200, b"ok"))
                     self.assertNotIn(b"x-injected", headers)
 
@@ -213,15 +217,28 @@ class CGIProcessTests(unittest.TestCase):
 
     # Verify worker timeout returns 504 Gateway Timeout and terminates hung process
     def test_timeout_covers_streams_and_worker_exit(self):
+        modes = ("hang", "closed_hang", "escaped_hang")
         with mercury_process(self.config(timeout=1)):
-            for mode in ("hang", "closed_hang", "escaped_hang"):
+            def exercise(mode):
+                start = time.monotonic()
+                status = self.response(mode)[0]
+                elapsed = time.monotonic() - start
+                marker = self.root / f"{mode}.started"
+                deadline = time.monotonic() + 2
+                while not marker.exists() and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                worker_pid = int(marker.read_text())
+                return mode, status, elapsed, worker_pid
+
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                results = list(executor.map(exercise, modes))
+
+            for mode, status, elapsed, worker_pid in results:
                 with self.subTest(mode=mode):
-                    start = time.monotonic()
-                    self.assertEqual(self.response(mode)[0], 504)
-                    self.assertLess(time.monotonic() - start, 4)
+                    self.assertEqual(status, 504)
+                    self.assertLess(elapsed, 4)
 
                     # Verify worker process was terminated
-                    worker_pid = int((self.root / "worker.started").read_text())
                     self.assertFalse(is_process_running(worker_pid))
 
     # Verify server startup rejects invalid zero timeout configuration
@@ -331,11 +348,26 @@ class RunnerDiagnosticsTests(unittest.TestCase):
 def run_compact_suite():
     # Load test suite from current module
     suite = unittest.defaultTestLoader.loadTestsFromModule(sys.modules[__name__])
-    print(f"Starting run: Linux CGI Process Tests ({suite.countTestCases()} tests)", flush=True)
+    total = suite.countTestCases()
+    print(f"Starting run: Linux CGI Process Tests ({total} tests)", flush=True)
+
+    is_tty = sys.stdout.isatty()
+
+    # Track progress dynamically to prevent visual terminal stalls
+    class ProgressResult(unittest.TestResult):
+        def stopTest(self, test):
+            super().stopTest(test)
+            if is_tty:
+                sys.stdout.write(f"\r  Running tests... [{self.testsRun}/{total}]")
+                sys.stdout.flush()
 
     # Run tests and capture failure details
-    result = unittest.TestResult()
+    result = ProgressResult()
     suite.run(result)
+
+    if is_tty:
+        sys.stdout.write("\r\033[K")
+        sys.stdout.flush()
 
     # Output detailed failure traces if any occurred
     for label, entries in (("failure", result.failures), ("error", result.errors)):

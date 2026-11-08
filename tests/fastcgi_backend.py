@@ -99,11 +99,11 @@ class FastCGIBackend:
                     import grp
                     user = f"user = {account.pw_name}\ngroup = {grp.getgrgid(account.pw_gid).gr_name}\n"
                 # Generate private pool instead of using distro FPM configuration
-                # Keep eight workers available for concurrent HTTP assertions
+                # Keep 16 workers available for concurrent HTTP assertions
                 pool.write_text(
                     f"[global]\ndaemonize = no\nerror_log = {directory}/fpm.log\n"
                     f"[mercury_tests]\n{user}listen = {listen}\n"
-                    "pm = static\npm.max_children = 8\ncatch_workers_output = yes\n"
+                    "pm = static\npm.max_children = 16\ncatch_workers_output = yes\n"
                     "security.limit_extensions = .php\nphp_admin_value[cgi.fix_pathinfo] = 1\n"
                 )
                 # Keep master in foreground so fixture can wait for and stop it
