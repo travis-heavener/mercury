@@ -2,6 +2,9 @@
 
 #ifdef _WIN32
     #include "../winheader.hpp"
+#else
+    #include <fcntl.h>
+    #include <unistd.h>
 #endif
 
 #include <algorithm>
@@ -254,7 +257,6 @@ std::shared_mutex tempFileSetMutex;
 // Creates and returns the full, absolute path to a new tmp file, returning true if successful
 bool createTempFile(std::string& outPath) {
     std::string buffer;
-    std::error_code ec;
 
     int i = 0;
     std::unique_lock lock(tempFileSetMutex);
@@ -262,13 +264,32 @@ bool createTempFile(std::string& outPath) {
         // Determine temp file name
         genRandomString(buffer, TMP_FILE_NAME_LEN);
         outPath = (conf::TMP_PATH / buffer).string();
-    } while (++i < TMP_FILE_MAX_RETRIES && (currentTempFiles.find(outPath) != currentTempFiles.end() || std::filesystem::exists(outPath, ec)));
 
-    // Return true if filename is available
-    if (currentTempFiles.find(outPath) == currentTempFiles.end() && !std::filesystem::exists(outPath, ec)) {
-        currentTempFiles.insert(outPath);
-        return true;
-    }
+        if (currentTempFiles.find(outPath) != currentTempFiles.end())
+            continue;
+
+        #ifdef _WIN32
+            // Atomically create file with exclusive creation to prevent TOCTOU symlink hijacking
+            std::wstring wPath = std::filesystem::path(outPath).wstring();
+            HANDLE hFile = CreateFileW(wPath.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_NORMAL, NULL);
+            if (hFile != INVALID_HANDLE_VALUE) {
+                CloseHandle(hFile);
+                currentTempFiles.insert(outPath);
+                return true;
+            }
+        #else
+            // Atomically create file w/ mode 0600 (owner read/write only) to prevent TOCTOU and symlink attacks
+            #ifndef O_CLOEXEC
+                #define O_CLOEXEC 0
+            #endif
+            int fd = open(outPath.c_str(), O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+            if (fd >= 0) {
+                close(fd);
+                currentTempFiles.insert(outPath);
+                return true;
+            }
+        #endif
+    } while (++i < TMP_FILE_MAX_RETRIES);
 
     ERROR_LOG << "Failed to create temp file: " << outPath << std::endl;
     return false;

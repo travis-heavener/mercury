@@ -36,7 +36,11 @@ std::string fetchLatestVersion() {
     }
 
     // 2. Create socket
-    const int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    #ifdef SOCK_CLOEXEC
+        const int sock = socket(res->ai_family, res->ai_socktype | SOCK_CLOEXEC, res->ai_protocol);
+    #else
+        const int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    #endif
     if (sock < 0) {
         freeaddrinfo(res);
         return "";

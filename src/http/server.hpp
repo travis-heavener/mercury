@@ -4,13 +4,14 @@
 #ifdef _WIN32
     #include "../winheader.hpp"
 #else
-    #include <sys/socket.h>
     #include <arpa/inet.h>
+    #include <cerrno>
+    #include <fcntl.h>
     #include <netinet/in.h>
     #include <netinet/tcp.h>
-    #include <unistd.h>
     #include <poll.h>
-    #include <fcntl.h>
+    #include <sys/socket.h>
+    #include <unistd.h>
 #endif
 
 #include <atomic>

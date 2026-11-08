@@ -8,6 +8,8 @@
 - Fix: enforce TLS 1.2 minimum protocol version and restrict modern cipher suites (#528)
 - Fix: sanitize control characters and terminal escape sequences in access logger (#529)
 - Fix: escape HTML entities in directory indexing to prevent stored and reflected cross-site scripting (#526)
+- Fix: ensure atomic temp file creation with restrictive 0600 permissions to prevent symlink attacks and race conditions (#521)
+- Fix: close inherited file descriptors across CGI process spawn with /proc/self/fd fallback and SOCK_CLOEXEC flags (#522)
 
 ## [0.39.1] - 2026-11-08
 - Chore: parallelize compilation with intermediate object rules, automatic header dependency tracking (-MMD -MP), debug/release build directory separation, and transparent ccache support

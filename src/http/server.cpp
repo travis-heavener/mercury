@@ -70,7 +70,11 @@ namespace http {
 
     int Server::bindSocket() {
         // Open the socket
-        this->sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        #ifdef SOCK_CLOEXEC
+            this->sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP);
+        #else
+            this->sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        #endif
 
         if (this->sock < 0) {
             ERROR_LOG << "Failed to open socket (" << *this << ") on port " << this->port << std::endl;
@@ -327,7 +331,14 @@ namespace http {
         if (rv <= 0) return -1; // Timeout or error
 
         // Accept the ready client and return its peer address
-        return accept(listener, (struct sockaddr*)&clientAddr, &clientLen);
+        #if defined(__linux__) && defined(SOCK_CLOEXEC)
+            const int client = accept4(listener, (struct sockaddr*)&clientAddr, &clientLen, SOCK_CLOEXEC);
+            if (client < 0 && (errno == ENOSYS || errno == EINVAL))
+                return accept(listener, (struct sockaddr*)&clientAddr, &clientLen);
+            return client;
+        #else
+            return accept(listener, (struct sockaddr*)&clientAddr, &clientLen);
+        #endif
     }
 
     void Server::acceptLoop() {

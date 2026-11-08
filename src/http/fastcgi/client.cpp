@@ -333,7 +333,11 @@ namespace http::fastcgi {
                 return false;
             #else
                 // Open UNIX domain stream socket
-                this->sock = socket(AF_UNIX, SOCK_STREAM, 0);
+                #ifdef SOCK_CLOEXEC
+                    this->sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+                #else
+                    this->sock = socket(AF_UNIX, SOCK_STREAM, 0);
+                #endif
                 if (this->sock < 0) {
                     ERROR_LOG << "Failed to open UNIX domain socket for FastCGI" << std::endl;
                     return false;
@@ -382,7 +386,11 @@ namespace http::fastcgi {
                         break;
                     }
                 #else
-                    this->sock = socket(pCur->ai_family, pCur->ai_socktype, pCur->ai_protocol);
+                    #ifdef SOCK_CLOEXEC
+                        this->sock = socket(pCur->ai_family, pCur->ai_socktype | SOCK_CLOEXEC, pCur->ai_protocol);
+                    #else
+                        this->sock = socket(pCur->ai_family, pCur->ai_socktype, pCur->ai_protocol);
+                    #endif
                     if (this->sock < 0) continue;
                     if (::connect(this->sock, pCur->ai_addr, pCur->ai_addrlen) == 0) {
                         connected = true;

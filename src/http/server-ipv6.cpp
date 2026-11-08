@@ -38,7 +38,11 @@ namespace http {
         int lastErrno = -1;
         while (++bindAttempts <= MAX_IPV6_BIND_ATTEMPTS) {
             // Open the socket
-            this->sock = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+            #ifdef SOCK_CLOEXEC
+                this->sock = socket(AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP);
+            #else
+                this->sock = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+            #endif
 
             // Bind socket options
             const bool isLastAttempt = bindAttempts == MAX_IPV6_BIND_ATTEMPTS;

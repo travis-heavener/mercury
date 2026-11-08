@@ -5,6 +5,7 @@
 #else
     #include <cerrno>
     #include <csignal>
+    #include <dirent.h>
     #include <fcntl.h>
     #include <poll.h>
     #include <spawn.h>
@@ -713,10 +714,39 @@ namespace http::cgi {
                 if (error == 0) error = posix_spawn_file_actions_addclose(&settings.actions, fd);
 
             // Exclude other server descriptors when libc provides closefrom actions
-            #ifdef __GLIBC__
+            #if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
                 #if __GLIBC_PREREQ(2, 34)
-                    if (error == 0) error = posix_spawn_file_actions_addclosefrom_np(&settings.actions, 3);
+                    #define HAS_POSIX_SPAWN_CLOSEFROM 1
                 #endif
+            #endif
+
+            #ifdef HAS_POSIX_SPAWN_CLOSEFROM
+                if (error == 0) error = posix_spawn_file_actions_addclosefrom_np(&settings.actions, 3);
+                #undef HAS_POSIX_SPAWN_CLOSEFROM
+            #else
+                // Enumerate open descriptors via /proc/self/fd on musl or older glibc
+                if (error == 0) {
+                    DIR* pDescriptors = opendir("/proc/self/fd");
+                    if (pDescriptors) {
+                        const int directoryFD = dirfd(pDescriptors);
+                        while (dirent* pEntry = readdir(pDescriptors)) {
+                            char* pEnd = nullptr;
+                            const long descriptor = std::strtol(pEntry->d_name, &pEnd, 10);
+                            if (*pEnd == '\0' && descriptor > STDERR_FILENO && descriptor != directoryFD) {
+                                bool alreadyClosed = false;
+                                for (const int fd : {stdinRead, stdinWrite, stdoutRead, stdoutWrite, stderrPipe[0], stderrPipe[1]}) {
+                                    if (descriptor == fd) {
+                                        alreadyClosed = true;
+                                        break;
+                                    }
+                                }
+                                if (!alreadyClosed && error == 0)
+                                    error = posix_spawn_file_actions_addclose(&settings.actions, static_cast<int>(descriptor));
+                            }
+                        }
+                        closedir(pDescriptors);
+                    }
+                }
             #endif
 
             // Own worker process group and restore normal pipe signal behavior
