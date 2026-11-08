@@ -36,7 +36,11 @@ if [[ -n "$PUGIXML_LATEST" && "$PUGIXML_CURRENT" != "$PUGIXML_LATEST" ]]; then
 fi
 
 # Check Zlib
-ZLIB_LATEST=$( curl -Ls https://api.github.com/repos/madler/zlib/releases/latest | grep -Po "\"tag_name\":\s*\"v\K(\d+\.\d+\.\d+)(?=\")" )
+ZLIB_LATEST=$( curl -Ls https://api.github.com/repos/madler/zlib/releases/latest | grep -Po "\"tag_name\":\s*\"v\K(\d+\.\d+(\.\d+)?)(?=\")" )
+# Append .0 if version is shortened (e.g. v1.4 vs v1.3.X)
+if [[ $ZLIB_LATEST =~ ^[0-9]+\.[0-9]+$ ]]; then
+    ZLIB_LATEST="${ZLIB_LATEST}.0"
+fi
 if [[ -n "$ZLIB_LATEST" && "$ZLIB_CURRENT" != "$ZLIB_LATEST" ]]; then
     sed -i "s|ZLIB=$ZLIB_CURRENT|ZLIB=$ZLIB_LATEST|" ./build_tools/dependencies.txt
     DEPS_CHANGED+=("Zlib v$ZLIB_LATEST")
