@@ -1,33 +1,32 @@
 #include "request.hpp"
 
 #include "../../conf/conf.hpp"
+#include "../../conf/rules/match.hpp"
 #include "../../logs/logger.hpp"
 #include "../../util/string_tools.hpp"
 #include "../../util/toolbox.hpp"
 
 namespace http {
 
-    Request::Request(headers_map_t& headers, const std::string& raw, std::string clientIP, const bool isHTTPS, const RequestFlags& reqFlags)
+    Request::Request(headers_map_t& headers, std::string_view raw, const std::string& clientIP, const bool isHTTPS, const RequestFlags& reqFlags)
         : headers(headers), ipStr(clientIP), isHTTPS(isHTTPS), reqFlags(reqFlags) {
-        std::string line;
-        size_t startIndex = 0;
-
         // Read verb, path, & protocol version
-        readLine(raw, line, startIndex);
-
-        // Check for invalid status line
-        if (line.size() == 0 || line.back() != '\r')
+        const size_t lineEnd = raw.find("\r\n");
+        if (lineEnd == std::string_view::npos || lineEnd == 0)
             throw http::Exception(); // Force close connection
-        line.pop_back();
 
-        const size_t firstSpaceIndex = line.find(" ");
-        const size_t secondSpaceIndex = line.find(" ", firstSpaceIndex+1);
+        const std::string_view line = raw.substr(0, lineEnd);
+        const size_t firstSpaceIndex = line.find(' ');
+        if (firstSpaceIndex == std::string_view::npos)
+            throw http::Exception();
 
-        this->methodStr = line.substr(0, firstSpaceIndex);
+        const size_t secondSpaceIndex = line.find(' ', firstSpaceIndex + 1);
+
+        this->methodStr = std::string(line.substr(0, firstSpaceIndex));
 
         // Check for HTTP/0.9 unique status line
-        if (secondSpaceIndex != std::string::npos) {
-            this->httpVersionStr = line.substr(secondSpaceIndex + 1);
+        if (secondSpaceIndex != std::string_view::npos) {
+            this->httpVersionStr = std::string(line.substr(secondSpaceIndex + 1));
 
             // Prevent explicit HTTP/0.9 version in status line
             if (this->httpVersionStr == "HTTP/0.9")
@@ -37,7 +36,9 @@ namespace http {
         }
 
         // Parse path logic
-        const std::string rawPathFromRequest = line.substr(firstSpaceIndex + 1, secondSpaceIndex - firstSpaceIndex - 1);
+        const std::string rawPathFromRequest = (secondSpaceIndex != std::string_view::npos)
+            ? std::string(line.substr(firstSpaceIndex + 1, secondSpaceIndex - firstSpaceIndex - 1))
+            : std::string(line.substr(firstSpaceIndex + 1));
         this->_has400Error |= !loadRequestPaths(paths, rawPathFromRequest);
 
         // Determine method
@@ -51,21 +52,45 @@ namespace http {
         else                                    this->method = METHOD::UNKNOWN;
 
         // Skip headers & read remaining buffer
-        startIndex = raw.find("\r\n\r\n");
-        if (startIndex != std::string::npos && startIndex + 4 <= raw.size())
-            this->body = raw.substr(startIndex + 4);
+        const size_t bodyStart = raw.find("\r\n\r\n");
+        if (bodyStart != std::string_view::npos && bodyStart + 4 <= raw.size())
+            this->body = std::string(raw.substr(bodyStart + 4));
 
         // Extract accepted MIME types
-        if (this->headers.find("ACCEPT") != this->headers.end())
-            parseAcceptHeader(acceptedMIMETypes, this->headers["ACCEPT"]);
+        const auto itAccept = this->headers.find("ACCEPT");
+        if (itAccept != this->headers.end())
+            parseAcceptHeader(acceptedMIMETypes, itAccept->second);
 
         // Extract accepted encodings
-        if (this->headers.find("ACCEPT-ENCODING") != this->headers.end())
-            splitStringUnique(acceptedEncodings, this->headers["ACCEPT-ENCODING"], ',', true);
+        const auto itEncoding = this->headers.find("ACCEPT-ENCODING");
+        if (itEncoding != this->headers.end()) {
+            std::string_view encView = itEncoding->second;
+            size_t startIndex = 0;
+            while (startIndex < encView.size()) {
+                const size_t comma = encView.find(',', startIndex);
+                std::string_view token = (comma == std::string_view::npos)
+                    ? encView.substr(startIndex)
+                    : encView.substr(startIndex, comma - startIndex);
+                startIndex = (comma == std::string_view::npos) ? encView.size() : comma + 1;
+
+                const size_t firstNotSpace = token.find_first_not_of(" \t");
+                if (firstNotSpace != std::string_view::npos) {
+                    const size_t lastNotSpace = token.find_last_not_of(" \t");
+                    token = token.substr(firstNotSpace, lastNotSpace - firstNotSpace + 1);
+
+                    const size_t semi = token.find(';');
+                    if (semi != std::string_view::npos)
+                        token = token.substr(0, semi);
+                    if (!token.empty())
+                        this->acceptedEncodings.emplace(token);
+                }
+            }
+        }
 
         // Extract byte ranges
-        if (this->headers.find("RANGE") != this->headers.end())
-            parseRangeHeader(byteRanges, this->headers["RANGE"]);
+        const auto itRange = this->headers.find("RANGE");
+        if (itRange != this->headers.end())
+            parseRangeHeader(byteRanges, itRange->second);
 
         // Determine compression method
         if (this->isEncodingAccepted("zstd"))
@@ -83,12 +108,14 @@ namespace http {
             this->_has400Error |= true;
     }
 
-    std::optional<std::string> Request::getHeader(std::string header) const {
-        std::optional<std::string> opt;
-        strToUpper(header);
-        const auto result = this->headers.find(header);
-        if (result != headers.end()) opt.emplace(result->second);
-        return opt;
+    std::optional<std::string> Request::getHeader(std::string_view header) const {
+        std::string upperKey;
+        upperKey.resize(header.size());
+        for (size_t i = 0; i < header.size(); ++i)
+            upperKey[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(header[i])));
+        const auto result = this->headers.find(upperKey);
+        if (result != headers.end()) return result->second;
+        return std::nullopt;
     }
 
     int Request::getCompressMethod(const std::string& MIME) const {
@@ -119,14 +146,17 @@ namespace http {
     }
 
     bool Request::isDNT() const {
-        const std::optional<std::string> dnt = getHeader("DNT");
-        const std::optional<std::string> gpc = getHeader("Sec-GPC");
-        return ( dnt.has_value() && dnt.value() == "1" ) || ( gpc.has_value() && gpc.value() == "1" );
+        const auto itDnt = this->headers.find("DNT");
+        const auto itGpc = this->headers.find("SEC-GPC");
+        return (itDnt != this->headers.end() && itDnt->second == "1") ||
+               (itGpc != this->headers.end() && itGpc->second == "1");
     }
 
     void Request::rewriteRawPath(const std::string& newPath) {
         // Redo path logic
         this->_has400Error |= !loadRequestPaths(paths, newPath, true);
+        this->matchedRulesEvaluated = false;
+        this->matchedRules.clear();
     }
 
     // This method exists to combine common methods from the version handlers
@@ -164,8 +194,8 @@ namespace http {
 
         // Handle directory listings
         if (file.isDirectory) {
-            for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
-                if (!pMatch->showDirectoryIndexes() && pMatch->doesRequestMatch(paths.decodedURI, headers)) {
+            for (const conf::Match* pMatch : this->getMatchedRules()) {
+                if (!pMatch->showDirectoryIndexes()) {
                     // Hide the directory index
                     this->setStatusMaybeErrorDoc(response, 403);
                     return false;
@@ -191,6 +221,20 @@ namespace http {
 
     bool Request::isEncodingAccepted(const std::string& encoding) const {
         return acceptedEncodings.find(encoding) != acceptedEncodings.end();
+    }
+
+    const std::vector<const conf::Match*>& Request::getMatchedRules() const {
+        if (!matchedRulesEvaluated) {
+            matchedRulesEvaluated = true;
+            if (!conf::matchConfigs.empty()) {
+                matchedRules.reserve(conf::matchConfigs.size());
+                for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
+                    if (pMatch && pMatch->doesRequestMatch(paths.decodedURI, headers))
+                        matchedRules.push_back(pMatch.get());
+                }
+            }
+        }
+        return matchedRules;
     }
 
 }

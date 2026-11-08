@@ -9,6 +9,10 @@
 
 #define MIME_UNSET ""
 
+namespace io {
+    class FileCache;
+}
+
 class File {
     public:
         File(const http::RequestPath& paths);
@@ -22,6 +26,7 @@ class File {
         bool isLinked = false; // True if symlink or hardlink
         bool isDirectory = false;
         bool ioFailure = false; // True if an IO failure occured
+        size_t fileSize = 0;
         
         std::string MIME;
 
@@ -37,7 +42,12 @@ class File {
         // The PHP path info string, for PHP files only
         std::string phpPathInfo;
 
+        // Cached file content if available in memory
+        std::shared_ptr<const std::string> pCachedContent;
+
     private:
+        friend class io::FileCache;
+
         bool hasModTime = false;
         std::time_t lastModTime = 0;
         mutable std::string lastModGMT;

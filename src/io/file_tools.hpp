@@ -18,6 +18,8 @@ struct FileMetadata {
     bool isRegularFile = false;
     size_t size = 0;
     std::time_t lastModTime = 0;
+    uint32_t mode = 0;
+    uint64_t inode = 0;
 };
 
 // Query file stat metadata in single syscall
@@ -36,14 +38,12 @@ inline bool isUNCPath(const std::filesystem::path& path) {
 
 void normalizeBackslashes(std::string& path);
 
-bool doesFileExist(const std::string&, const bool);
-bool doesDirectoryExist(const std::string&, const bool);
 int isSymlinked(const std::filesystem::path&, const bool = false);
 
 std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path);
 
 // Return false for missing paths; preserve exceptions for other IO failures
-bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem::path& resolved);
+bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem::path& resolved, FileMetadata* pOutMeta = nullptr);
 
 // Creates the immediate directory for log files if missing, will silently fail
 void createLogDirectoryIfMissing(const std::filesystem::path& path);

@@ -6,13 +6,17 @@
 #include "../tools.hpp"
 #include "response.hpp"
 
+namespace conf {
+    class Match;
+}
+
 namespace http {
 
     class Request {
         public:
-            Request(headers_map_t& headers, const std::string&, std::string, const bool, const RequestFlags&);
+            Request(headers_map_t& headers, std::string_view, const std::string&, const bool, const RequestFlags&);
 
-            std::optional<std::string> getHeader(std::string) const;
+            std::optional<std::string> getHeader(std::string_view) const;
             inline const std::string getIPStr() const { return ipStr; };
             inline METHOD getMethod() const { return method; };
             inline const std::string& getMethodStr() const { return methodStr; };
@@ -27,6 +31,7 @@ namespace http {
 
             inline const headers_map_t& getHeaders() const { return headers; };
             inline const std::vector<std::pair<size_t, size_t>>& getByteRanges() const { return byteRanges; };
+            const std::vector<const conf::Match*>& getMatchedRules() const;
 
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
@@ -63,6 +68,9 @@ namespace http {
 
             std::string body;
             int compressMethods = NO_COMPRESS;
+
+            mutable std::vector<const conf::Match*> matchedRules;
+            mutable bool matchedRulesEvaluated = false;
     };
 
 }

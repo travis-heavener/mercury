@@ -141,28 +141,27 @@ namespace http {
         throw http::Exception(); // Missing header terminator
     }
 
-    void parseAcceptHeader(std::unordered_set<std::string>& splitVec, std::string& string) {
-        std::vector<std::string> splitBuf;
+    void parseAcceptHeader(std::unordered_set<std::string>& splitVec, std::string_view rawHeader) {
         size_t startIndex = 0;
-        for (size_t i = 0; i < string.size(); i++) {
-            if (string[i] == ',') {
-                std::string substr = string.substr(startIndex, i-startIndex);
-                trimString(substr);
-                if (substr.size() > 0) splitBuf.push_back(substr);
-                startIndex = i+1;
+        while (startIndex < rawHeader.size()) {
+            const size_t comma = rawHeader.find(',', startIndex);
+            std::string_view token = (comma == std::string_view::npos)
+                ? rawHeader.substr(startIndex)
+                : rawHeader.substr(startIndex, comma - startIndex);
+            startIndex = (comma == std::string_view::npos) ? rawHeader.size() : comma + 1;
+
+            // Trim whitespace
+            const size_t firstNotSpace = token.find_first_not_of(" \t");
+            if (firstNotSpace != std::string_view::npos) {
+                const size_t lastNotSpace = token.find_last_not_of(" \t");
+                token = token.substr(firstNotSpace, lastNotSpace - firstNotSpace + 1);
+                const size_t semi = token.find(';');
+                if (semi != std::string_view::npos)
+                    token = token.substr(0, semi);
+                if (!token.empty())
+                    splitVec.emplace(token);
             }
         }
-
-        // Append last snippet
-        if (startIndex < string.size()) {
-            std::string substr = string.substr(startIndex);
-            trimString(substr);
-            if (substr.size() > 0) splitBuf.push_back(substr);
-        }
-
-        // Format split buffer
-        for (std::string& mime : splitBuf)
-            splitVec.insert(mime.substr(0, mime.find(';')));
     }
 
     void parseRangeHeader(std::vector<byte_range_t>& splitVec, std::string& rawHeader) {

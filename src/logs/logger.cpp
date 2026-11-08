@@ -45,22 +45,37 @@ void Logger::stop() {
 
 // Writes from each queue to log files
 void Logger::threadWrite() {
+    std::queue<std::string> localAccess;
+    std::queue<std::string> localError;
+
     while (true) {
-        std::unique_lock<std::mutex> lock(writeMutex);
-        cv.wait(lock, [this]() {
-            return !accessQueue.empty() || !errorQueue.empty() || isExited;
-        });
+        {
+            std::unique_lock<std::mutex> lock(writeMutex);
+            cv.wait(lock, [this]() {
+                return !accessQueue.empty() || !errorQueue.empty() || isExited;
+            });
 
-        // Write logs
-        while (!accessQueue.empty()) {
-            conf::accessLogHandle << accessQueue.front() << std::endl;
-            accessQueue.pop();
+            // Swap queues under lock
+            std::swap(localAccess, accessQueue);
+            std::swap(localError, errorQueue);
         }
 
-        while (!errorQueue.empty()) {
-            conf::errorLogHandle << errorQueue.front() << std::endl;
-            errorQueue.pop();
+        // Write logs outside writeMutex
+        while (!localAccess.empty()) {
+            if (conf::accessLogHandle.is_open())
+                conf::accessLogHandle << localAccess.front() << '\n';
+            localAccess.pop();
         }
+        if (conf::accessLogHandle.is_open())
+            conf::accessLogHandle.flush();
+
+        while (!localError.empty()) {
+            if (conf::errorLogHandle.is_open())
+                conf::errorLogHandle << localError.front() << '\n';
+            localError.pop();
+        }
+        if (conf::errorLogHandle.is_open())
+            conf::errorLogHandle.flush();
 
         // Handle thread closure
         if (isExited) break;
@@ -68,6 +83,7 @@ void Logger::threadWrite() {
 }
 
 LoggerStream& LoggerStream::operator<<(StreamManipulator manip) {
+    if (conf::DISABLE_LOGS) return *this;
     if (manip == static_cast<StreamManipulator>(std::endl)) {
         // Queue to logger
         std::string log = genTimestamp() + buffer.str();

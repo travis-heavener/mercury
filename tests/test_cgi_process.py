@@ -256,6 +256,24 @@ class CGIProcessTests(unittest.TestCase):
         # Verify worker process was cleaned up after server shutdown
         self.assertFalse(is_process_running(worker_pid))
 
+    # Verify DisableLogs suppresses log file creation and writing
+    def test_disable_logs_suppresses_log_output(self):
+        text = self.config()
+        conf_path = Path(text)
+        conf_content = conf_path.read_text().replace(
+            "<Mercury>", "<Mercury><DisableLogs> on </DisableLogs>"
+        )
+        conf_path.write_text(conf_content)
+        if self.error_log.exists():
+            self.error_log.unlink()
+
+        with mercury_process(str(conf_path)):
+            status, _, body = self.response("warning")
+            self.assertEqual((status, body), (200, b"ok"))
+
+        # Confirm error log was not created
+        self.assertFalse(self.error_log.exists())
+
 
 class RunnerDiagnosticsTests(unittest.TestCase):
     # Used to emulate hung shutdown without waiting through real CI deadlines

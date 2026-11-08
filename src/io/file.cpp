@@ -1,11 +1,15 @@
 #include "file.hpp"
 
+#include "file_cache.hpp"
 #include "../conf/conf.hpp"
 #include "../io/file_tools.hpp"
 #include "../util/string_tools.hpp"
 #include "../util/toolbox.hpp"
 
 File::File(const http::RequestPath& paths) {
+    if (io::FileCache::getInstance().tryGet(paths.decodedURI, *this))
+        return;
+
     this->decodedURIWithoutPathInfo = paths.decodedURI;
     this->queryString = paths.rawQueryString.empty() ? "" : paths.rawQueryString.substr(1);
 
@@ -63,11 +67,12 @@ File::File(const http::RequestPath& paths) {
         try {
             std::filesystem::path resolved;
             if (!tryResolveCanonicalPath(
-                    conf::DOCUMENT_ROOT / std::filesystem::path(this->decodedURIWithoutPathInfo).relative_path(), resolved)) {
+                    conf::DOCUMENT_ROOT / std::filesystem::path(this->decodedURIWithoutPathInfo).relative_path(), resolved, &meta)) {
                 this->exists = false;
                 return;
             }
             this->absoluteResourcePath = resolved.string();
+            metaQueried = meta.exists;
         } catch (std::filesystem::filesystem_error&) {
             this->exists = false;
             return;
@@ -132,6 +137,7 @@ File::File(const http::RequestPath& paths) {
 
     this->hasModTime = true;
     this->lastModTime = meta.lastModTime;
+    this->fileSize = meta.size;
 
     // Reject symlinks or hardlinks
     const int linkStatus = isSymlinked( this->absoluteResourcePath, true );
@@ -144,6 +150,12 @@ File::File(const http::RequestPath& paths) {
     } else if (linkStatus == FILE_NOT_EXIST) {
         this->exists = false;
         return;
+    }
+
+    // Cache static regular files
+    if (this->exists && !this->isLinked && !this->isDirectory && !this->ioFailure &&
+        !this->absoluteResourcePath.ends_with(".php") && this->phpPathInfo.empty()) {
+        io::FileCache::getInstance().put(*this, paths.decodedURI);
     }
 }
 
@@ -159,8 +171,14 @@ int File::loadToBuffer(std::unique_ptr<http::IBodyStream>& pStream) {
         return IO_SUCCESS;
     }
 
+    // Serve from in-memory cache if content is cached
+    if (this->pCachedContent != nullptr) {
+        pStream = std::make_unique<http::CachedFileStream>(this->pCachedContent);
+        return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
+    }
+
     // Base case, load to FileStream
-    pStream = std::unique_ptr<http::IBodyStream>( new http::FileStream(absoluteResourcePath) );
+    pStream = std::unique_ptr<http::IBodyStream>( new http::FileStream(absoluteResourcePath, false, this->fileSize) );
     return pStream->status() == STREAM_SUCCESS ? IO_SUCCESS : IO_FAILURE;
 }
 

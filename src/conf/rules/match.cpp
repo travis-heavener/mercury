@@ -7,6 +7,11 @@
 namespace conf {
 
     Match::Match(const std::string& pattern) : pattern(pattern), patternStr(pattern) {
+        if (pattern == ".*" || pattern == "^.*$" || pattern == "^.*" || pattern == ".*$" || pattern == "(.*)" || pattern.empty()) {
+            this->isCatchAll = true;
+        } else if (pattern.find_first_of("*.+?[](){}|^$\\") == std::string::npos) {
+            this->isExactMatch = true;
+        }
     }
 
     std::unique_ptr<Match> loadMatch(pugi::xml_node& root) {
@@ -126,7 +131,13 @@ namespace conf {
     }
 
     bool Match::doesRequestMatch(const std::string& decodedURI, const http::headers_map_t& headers) const {
-        if (!std::regex_match(decodedURI, pattern)) return false;
+        if (this->isCatchAll) {
+            // Unconditional URI match
+        } else if (this->isExactMatch) {
+            if (decodedURI != this->patternStr) return false;
+        } else {
+            if (!std::regex_match(decodedURI, this->pattern)) return false;
+        }
 
         // Check mod headers
         for (const std::unique_ptr<IModHeader>& cond : headerFilters)

@@ -9,6 +9,22 @@
 #define CRLF "\r\n"
 #define tostr std::to_string
 
+namespace {
+    // Thread-local response read buffers eliminate per-request buffer allocation churn
+    thread_local std::vector<char> threadLocalStreamBuffer;
+    thread_local std::string threadLocalHeadersBuffer;
+
+    inline char* getStreamBuffer(const size_t requiredSize) {
+        if (threadLocalStreamBuffer.size() < requiredSize)
+            threadLocalStreamBuffer.resize(requiredSize);
+        return threadLocalStreamBuffer.data();
+    }
+
+    inline std::string& getHeadersBuffer() {
+        return threadLocalHeadersBuffer;
+    }
+}
+
 namespace http {
 
     Response::Response(const std::string& httpVersion) {
@@ -94,9 +110,11 @@ namespace http {
             setBodyStream(std::make_unique<MemoryStream>(""));
         }
 
-        // Get last modified GMT string
-        if (bodyStatus == IO_SUCCESS && !file.isDirectory)
+        // Get last modified GMT string and advertise range support for static files
+        if (bodyStatus == IO_SUCCESS && !file.isDirectory) {
             this->setHeader("Last-Modified", file.getLastModifiedGMT());
+            this->setHeader("Accept-Ranges", "bytes");
+        }
 
         this->setHeader("Content-Length", tostr(this->pBodyStream->size()));
         return bodyStatus;
@@ -165,9 +183,10 @@ namespace http {
         if (pBodyStream->size() <= conf::RESPONSE_BUFFER_SIZE) {
             std::string inMemoryBuffer;
             inMemoryBuffer.reserve(pBodyStream->size());
-            std::vector<char> readChunk(conf::RESPONSE_BUFFER_SIZE), compressChunk;
+            char* pReadChunk = getStreamBuffer(conf::RESPONSE_BUFFER_SIZE);
+            std::vector<char> compressChunk;
             while (true) {
-                size_t bytesRead = pBodyStream->read(readChunk.data(), conf::RESPONSE_BUFFER_SIZE);
+                size_t bytesRead = pBodyStream->read(pReadChunk, conf::RESPONSE_BUFFER_SIZE);
                 if (bytesRead == 0) {
                     if (pCompressor != nullptr) {
                         compressChunk.clear();
@@ -183,14 +202,14 @@ namespace http {
 
                 if (pCompressor != nullptr) {
                     compressChunk.clear();
-                    bytesRead = pCompressor->compress(readChunk.data(), compressChunk, bytesRead);
+                    bytesRead = pCompressor->compress(pReadChunk, compressChunk, bytesRead);
                     if (pCompressor->status() != STREAM_SUCCESS) {
                         ERROR_LOG << "Precompression error." << std::endl;
                         return false;
                     }
                     inMemoryBuffer.append(compressChunk.data(), bytesRead);
                 } else {
-                    inMemoryBuffer.append(readChunk.data(), bytesRead);
+                    inMemoryBuffer.append(pReadChunk, bytesRead);
                 }
             }
 
@@ -210,10 +229,11 @@ namespace http {
         }
 
         // Write in chunks
-        std::vector<char> readChunk(conf::RESPONSE_BUFFER_SIZE), compressChunk;
+        char* pReadChunk = getStreamBuffer(conf::RESPONSE_BUFFER_SIZE);
+        std::vector<char> compressChunk;
         while (true) {
             // Read
-            size_t bytesRead = pBodyStream->read(readChunk.data(), conf::RESPONSE_BUFFER_SIZE);
+            size_t bytesRead = pBodyStream->read(pReadChunk, conf::RESPONSE_BUFFER_SIZE);
             if (bytesRead == 0) {
                 // Send any remaining compression data
                 if (pCompressor != nullptr) {
@@ -236,7 +256,7 @@ namespace http {
             // Compress
             if (pCompressor != nullptr) {
                 compressChunk.clear();
-                bytesRead = pCompressor->compress(readChunk.data(), compressChunk, bytesRead);
+                bytesRead = pCompressor->compress(pReadChunk, compressChunk, bytesRead);
                 if (pCompressor->status() != STREAM_SUCCESS) {
                     ERROR_LOG << "Precompression error." << std::endl;
                     handle.close();
@@ -248,7 +268,7 @@ namespace http {
                 handle.write(compressChunk.data(), bytesRead);
             } else {
                 // Write w/o compression
-                handle.write(readChunk.data(), bytesRead);
+                handle.write(pReadChunk, bytesRead);
             }
         }
 
@@ -279,7 +299,6 @@ namespace http {
             }
             return static_cast<ssize_t>(sent);
         };
-        std::vector<char> readChunk(conf::RESPONSE_BUFFER_SIZE), compressChunk;
 
         // Handle HTTP/0.9 unique format
         if (this->httpVersion == "HTTP/0.9") {
@@ -290,11 +309,12 @@ namespace http {
                 return -1;
             }
 
+            char* pReadChunk = getStreamBuffer(conf::RESPONSE_BUFFER_SIZE);
             // Send chunks
             while (true) {
-                size_t bytesRead = pBodyStream->read(readChunk.data(), conf::RESPONSE_BUFFER_SIZE);
+                size_t bytesRead = pBodyStream->read(pReadChunk, conf::RESPONSE_BUFFER_SIZE);
                 if (bytesRead == 0) break;
-                ssize_t status = sendFunc(readChunk.data(), bytesRead);
+                ssize_t status = sendFunc(pReadChunk, bytesRead);
                 if (status < 0) return status;
             }
             return 0;
@@ -312,8 +332,10 @@ namespace http {
             setBodyStream( std::unique_ptr<IBodyStream>( new MemoryStream("") ) );
         };
 
-        // Advertise byte ranges for FileStreams
-        if (dynamic_cast<FileStream*>(pBodyStream.get()) != nullptr)
+        // Advertise byte ranges for FileStreams or range-capable static bodies
+        if (dynamic_cast<FileStream*>(pBodyStream.get()) != nullptr ||
+            dynamic_cast<CachedFileStream*>(pBodyStream.get()) != nullptr ||
+            this->headers.contains("Accept-Ranges"))
             this->setHeader("Accept-Ranges", "bytes");
 
         // Verify the content isn't too large as a MemoryStream
@@ -431,8 +453,13 @@ namespace http {
         for (const auto& [name, value] : this->headers)
             estimatedSize += name.size() + 2 + value.size() + 2;
 
-        std::string headersBlock;
-        headersBlock.reserve(estimatedSize);
+        const bool combineBody = !omitBody && bodySize > 0 && bodySize <= conf::RESPONSE_BUFFER_SIZE;
+        const size_t totalBufferSize = estimatedSize + (combineBody ? bodySize : 0);
+
+        std::string& headersBlock = getHeadersBuffer();
+        headersBlock.clear();
+        if (headersBlock.capacity() < totalBufferSize)
+            headersBlock.reserve(totalBufferSize);
 
         // Format status line
         headersBlock.append(httpVersion);
@@ -451,35 +478,51 @@ namespace http {
         }
         headersBlock.append(CRLF);
 
+        // Coalesce headers and small body payload into a single socket write
+        if (combineBody) {
+            const size_t headerLen = headersBlock.size();
+            headersBlock.resize(headerLen + bodySize);
+            const size_t bytesRead = pBodyStream->read(headersBlock.data() + headerLen, bodySize);
+            if (bytesRead < bodySize)
+                headersBlock.resize(headerLen + bytesRead);
+            const ssize_t writeStatus = sendFunc(headersBlock.data(), headersBlock.size());
+            if (headersBlock.capacity() > conf::RESPONSE_BUFFER_SIZE + 4096)
+                headersBlock.shrink_to_fit();
+            return (writeStatus < 0) ? writeStatus : 0;
+        }
+
         // Write to buffer
         ssize_t status = sendFunc(headersBlock.data(), headersBlock.size());
+        if (headersBlock.capacity() > conf::RESPONSE_BUFFER_SIZE + 4096)
+            headersBlock.shrink_to_fit();
         if (status < 0) return status;
 
         // Omit the body from HEAD requests OR if the body doesn't exist
         if (omitBody || bodySize == 0) return 0;
 
         // Send chunks
-        auto sendWrapper = [&](const std::vector<char>& chunk, const size_t bytesRead) -> int {
+        auto sendWrapper = [&](const char* pChunk, const size_t bytesRead) -> int {
             if (bytesRead == 0) return 0;
             if (usingTransEnc) {
                 // Convert to hex
-                std::stringstream ss;
-                ss << std::hex << bytesRead;
-                const std::string header = ss.str() + "\r\n";
-
-                if (sendFunc(header.data(), header.size()) < 0) return -1;
-                if (sendFunc(chunk.data(), bytesRead) < 0) return -1;
+                char hexBuf[32];
+                const int hexLen = snprintf(hexBuf, sizeof(hexBuf), "%zx\r\n", bytesRead);
+                if (hexLen > 0 && sendFunc(hexBuf, static_cast<size_t>(hexLen)) < 0) return -1;
+                if (sendFunc(pChunk, bytesRead) < 0) return -1;
                 if (sendFunc("\r\n", 2) < 0) return -1;
             } else {
-                if (sendFunc(chunk.data(), bytesRead) < 0) return -1;
+                if (sendFunc(pChunk, bytesRead) < 0) return -1;
             }
             return 0;
         };
 
+        char* pReadChunk = getStreamBuffer(conf::RESPONSE_BUFFER_SIZE);
+        std::vector<char> compressChunk;
+
         // Set to true if sending a new range
         while (true) {
             // Read
-            size_t bytesRead = pBodyStream->read(readChunk.data(), conf::RESPONSE_BUFFER_SIZE);
+            size_t bytesRead = pBodyStream->read(pReadChunk, conf::RESPONSE_BUFFER_SIZE);
             if (bytesRead == 0 && originalByteRanges.size() <= 1) {
                 // If sending multipart byte ranges, this is skipped
                 // Send any remaining compression data
@@ -493,7 +536,7 @@ namespace http {
                     }
 
                     // Send
-                    if (sendWrapper(compressChunk, bytesRead) < 0) return -1;
+                    if (sendWrapper(compressChunk.data(), bytesRead) < 0) return -1;
                 }
                 break;
             }
@@ -501,17 +544,17 @@ namespace http {
             // Compress
             if (pCompressor != nullptr) {
                 compressChunk.clear();
-                bytesRead = pCompressor->compress(readChunk.data(), compressChunk, bytesRead);
+                bytesRead = pCompressor->compress(pReadChunk, compressChunk, bytesRead);
                 if (pCompressor->status() != STREAM_SUCCESS) {
                     ERROR_LOG << "Compression error." << std::endl;
                     return -1;
                 }
 
                 // Send
-                if (sendWrapper(compressChunk, bytesRead) < 0)
+                if (sendWrapper(compressChunk.data(), bytesRead) < 0)
                     return -1;
             } else { // Send w/o compression
-                if (sendWrapper(readChunk, bytesRead) < 0) return -1;
+                if (sendWrapper(pReadChunk, bytesRead) < 0) return -1;
             }
         }
 

@@ -3,6 +3,9 @@
 #include <signal.h>
 
 #ifndef _WIN32
+    #if defined(__GLIBC__) || defined(__linux__)
+        #include <malloc.h>
+    #endif
     #include <sys/stat.h>
 #endif
 
@@ -11,6 +14,7 @@
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
 #include "http/telemetry/version_checker.hpp"
+#include "io/file_cache.hpp"
 #include "logs/logger.hpp"
 #include "util/cli.hpp"
 #include "util/privilege.hpp"
@@ -65,6 +69,9 @@ void cleanExit() {
     #ifdef _WIN32
         WSACleanup();
     #endif
+
+    // Clear static file cache
+    io::FileCache::getInstance().clear();
 
     // Log process closure
     ACCESS_LOG << "Process killed successfully." << std::endl;
@@ -146,6 +153,16 @@ int main(int argc, char* argv[]) {
     #else
         // Set standard umask
         umask(0022);
+
+        #if defined(__GLIBC__)
+            // Cap memory arenas and set trim threshold to prevent multi-threaded heap bloat
+            #ifdef M_ARENA_MAX
+                mallopt(M_ARENA_MAX, 2);
+            #endif
+            #ifdef M_TRIM_THRESHOLD
+                mallopt(M_TRIM_THRESHOLD, 128 * 1024);
+            #endif
+        #endif
     #endif
 
     // Configure interrupt handler

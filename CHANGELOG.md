@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.39.0] - 2026-11-07
+- Added: DisableLogs config node, which overrides log file paths and prevents writing logs entirely
+- Added: MaxFileCacheEntries, MaxCacheableFileSize, MaxFileCacheTotalSize, and FileCacheRevalidationInterval config directives to tune static file caching
+- Change: reduce number of repeated filesystem operations, particularly on Windows builds
+- Change: reuse thread-local buffers and stack hex formatting during response streaming to reduce allocation overhead
+- Change: coalesce response headers and small payloads into single socket write to eliminate round-trip latency
+- Change: eliminate redundant string allocations and token sets during HTTP request parsing and keep-alive handling
+- Change: optimize configuration match rules with catch-all and exact match bypass and per-request match result caching
+- Change: add bounded thread-safe in-memory cache for static files with automatic modification and permission revalidation
+- Change: builds no longer are compressed using UPX to reduce RSS at marginal build size cost
+- Change: batch server telemetry statistics via thread-local counters and cache-line alignment to eliminate atomic contention and false sharing across worker threads
+- Change: cap glibc memory arenas to 2 and configure trim threshold on Linux to prevent multi-threaded heap bloat
+- Change: bound worker thread stack size to 512 KB on POSIX to minimize resident page allocations and improve cache locality
+- Change: reduce default IdleThreadsPerChild from 12 to 4 to minimize baseline thread and stack allocations when idle
+- Change: reuse thread-local stream buffer across precompression and streaming phases and bound header buffer capacity
+- Change: enable compiler function and data sections (-ffunction-sections, -fdata-sections) and linker garbage collection (--gc-sections) with symbol stripping on release builds to reduce binary size
+- Change: remove unused legacy methods (doesFileExist, doesDirectoryExist, splitStringUnique, isElevated, readLine)
+- Chore: reuse cached static libraries and pre-built binaries in benchmark workflow to accelerate source build targets
+- Chore: update CREDITS.md for Zstandard, now points to `meta/zstd` instead of `facebook/zstd`
+- Perf: accelerate benchmark load generator with raw TCP keep-alive sockets to eliminate Python client bottleneck
+
 ## [0.38.2] - 2026-10-27
 - Added: CGITimeout config, sets total execution timeout (in seconds) for each traditional PHP-CGI request on Linux
 - Fix: improve traditional PHP-CGI handling for Linux builds

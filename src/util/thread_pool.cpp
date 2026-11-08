@@ -1,7 +1,74 @@
 #include "thread_pool.hpp"
 
+#include <stdexcept>
+
 #include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
+
+ThreadWrapper::ThreadWrapper(const bool isTemporary) : isTemporary(isTemporary) {}
+
+ThreadWrapper::~ThreadWrapper() {
+    this->join();
+}
+
+#ifndef _WIN32
+void ThreadWrapper::start(std::function<void()> fn) {
+    auto pFn = new std::function<void()>(std::move(fn));
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+
+    // Bound worker stack to 512 KB to reduce memory fragmentation and improve cache locality
+    size_t stackSize = 512 * 1024;
+    #if defined(PTHREAD_STACK_MIN)
+        if (stackSize < static_cast<size_t>(PTHREAD_STACK_MIN))
+            stackSize = PTHREAD_STACK_MIN;
+    #endif
+    pthread_attr_setstacksize(&attr, stackSize);
+
+    auto runner = [](void* arg) -> void* {
+        auto pTask = static_cast<std::function<void()>*>(arg);
+        try {
+            (*pTask)();
+        } catch (...) {
+            // Unhandled worker task exception
+        }
+        delete pTask;
+        return nullptr;
+    };
+
+    const int rc = pthread_create(&this->threadId, &attr, runner, pFn);
+    pthread_attr_destroy(&attr);
+    if (rc != 0) {
+        delete pFn;
+        throw std::runtime_error("Failed to spawn worker thread w/ bounded stack");
+    }
+    this->isJoinable = true;
+}
+
+bool ThreadWrapper::joinable() const {
+    return this->isJoinable;
+}
+
+void ThreadWrapper::join() {
+    if (this->isJoinable) {
+        pthread_join(this->threadId, nullptr);
+        this->isJoinable = false;
+    }
+}
+#else
+void ThreadWrapper::start(std::function<void()> fn) {
+    this->thread = std::thread(std::move(fn));
+}
+
+bool ThreadWrapper::joinable() const {
+    return this->thread.joinable();
+}
+
+void ThreadWrapper::join() {
+    if (this->thread.joinable())
+        this->thread.join();
+}
+#endif
 
 ThreadPool::ThreadPool() {
     std::unique_lock<std::mutex> lock(queueMutex);
@@ -28,7 +95,7 @@ void ThreadPool::addWorker(const bool isTemporary) {
     ThreadWrapper* identity = worker.get();
     workers.push_back(std::move(worker));
     try {
-        identity->setThread(std::thread([this, identity] { workerLoop(*identity); }));
+        identity->start([this, identity] { workerLoop(*identity); });
     } catch (...) {
         workers.pop_back();
         throw;
@@ -56,8 +123,8 @@ bool ThreadPool::enqueue(std::function<void()> task) {
 
     // Join finished temporary threads outside queueMutex
     for (const auto& worker : toJoin) {
-        if (worker->getThread().joinable())
-            worker->getThread().join();
+        if (worker->joinable())
+            worker->join();
     }
     return true;
 }
@@ -118,7 +185,7 @@ void ThreadPool::stop() {
 
     // Join without holding the queue lock; workers drain accepted tasks first.
     for (const auto& worker : joining)
-        if (worker->getThread().joinable()) worker->getThread().join();
+        if (worker->joinable()) worker->join();
 
     // Discard any remaining queued tasks to release captured resources
     {

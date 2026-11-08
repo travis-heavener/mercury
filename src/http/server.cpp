@@ -137,7 +137,8 @@ namespace http {
             }
         }
 
-        ACCESS_LOG << "Listening on port " << this->port << " (" << *this << ")." << std::endl;
+        if (!conf::DISABLE_LOGS)
+            ACCESS_LOG << "Listening on port " << this->port << " (" << *this << ")." << std::endl;
         return 0;
     }
 
@@ -177,6 +178,7 @@ namespace http {
     }
 
     int Server::closeClientSocket(const int sock, SSL* pSSL) {
+        ServerStats::flush();
         this->untrackClient(sock);
         if (this->useTLS) SSL_free(pSSL); // Cleanup TLS
         return this->closeSocket(sock);
@@ -293,6 +295,7 @@ namespace http {
             std::vector<char> readBuffer(conf::REQUEST_BUFFER_SIZE);
             std::string pending;
             unsigned int requestsLeft = conf::MAX_KEEP_ALIVE_REQUESTS;
+            headers_map_t reqHeaders;
 
             // Pass socket writes to Response, which retries partial writes
             std::function<ssize_t(const char*, const size_t)> sendFunc = [&](const char* data, size_t size) {
@@ -365,7 +368,7 @@ namespace http {
                 }
 
                 // Parse HTTP/1.x headers; simple HTTP/0.9 requests have no header block
-                headers_map_t reqHeaders;
+                reqHeaders.clear();
                 if (!isSimpleRequest) {
                     try {
                         loadEarlyHeaders(reqHeaders, pending);
@@ -397,29 +400,51 @@ namespace http {
 
                 // Extract exactly one request and retain any pipelined surplus
                 const size_t requestSize = headerSize + contentLength;
-                const std::string raw = pending.substr(0, requestSize);
-                pending.erase(0, requestSize);
+                const std::string_view raw(pending.data(), requestSize);
 
                 ServerStats::getInstance().recordRequest();
 
                 // Generate the response using the validated request and owned client IP
                 RequestFlags flags;
                 Request request(reqHeaders, raw, clientIPStr, useTLS, flags);
+
+                if (pending.size() == requestSize)
+                    pending.clear();
+                else
+                    pending.erase(0, requestSize);
+
                 std::unique_ptr<Response> response = genResponse(request);
 
-                // Read Connection as a case-insensitive list, not one literal value
-                std::string connValue = request.getHeader("Connection").value_or("");
-                strToUpper(connValue);
-                std::unordered_set<std::string> connOptions;
-                splitStringUnique(connOptions, connValue, ',', true);
+                // Read Connection as a case-insensitive list without allocating temporary collections
+                bool hasClose = false, hasKeepAlive = false;
+                const auto itConn = reqHeaders.find("CONNECTION");
+                if (itConn != reqHeaders.end()) {
+                    std::string_view connView = itConn->second;
+                    size_t start = 0;
+                    while (start < connView.size()) {
+                        const size_t comma = connView.find(',', start);
+                        std::string_view token = (comma == std::string_view::npos)
+                            ? connView.substr(start)
+                            : connView.substr(start, comma - start);
+                        start = (comma == std::string_view::npos) ? connView.size() : comma + 1;
+
+                        const size_t first = token.find_first_not_of(" \t");
+                        if (first != std::string_view::npos) {
+                            const size_t last = token.find_last_not_of(" \t");
+                            token = token.substr(first, last - first + 1);
+                            if (equalsCi(token, "close")) hasClose = true;
+                            else if (equalsCi(token, "keep-alive")) hasKeepAlive = true;
+                        }
+                    }
+                }
 
                 // A close option wins over keep-alive, including across repeated headers
                 // HTTP/1.1 persists by default; HTTP/1.0 requires explicit keep-alive
                 --requestsLeft;
                 const bool keepAlive = requestsLeft > 0 && conf::IS_KEEP_ALIVE_ENABLED &&
-                    !connOptions.contains("CLOSE") &&
+                    !hasClose &&
                     (request.getVersion() == "HTTP/1.1" ||
-                        (request.getVersion() == "HTTP/1.0" && connOptions.contains("KEEP-ALIVE")));
+                        (request.getVersion() == "HTTP/1.0" && hasKeepAlive));
 
                 // Advertise the remaining request allowance, closing on the final one
                 response->setHeader("Connection", keepAlive ? "keep-alive" : "close");
@@ -433,10 +458,12 @@ namespace http {
                 ServerStats::getInstance().recordStatusCode(response->getStatus());
 
                 // Log the final status, including errors detected while preparing the body
-                ACCESS_LOG << request.getMethodStr() << ' '
-                    << formatClientIP(request.getIPStr(), request.isDNT()) << ' '
-                    << request.getPaths().rawPathFromRequest << " -- (" << response->getStatus()
-                    << ") [" << request.getVersion() << ']' << std::endl;
+                if (!conf::DISABLE_LOGS) {
+                    ACCESS_LOG << request.getMethodStr() << ' '
+                        << formatClientIP(request.getIPStr(), request.isDNT()) << ' '
+                        << request.getPaths().rawPathFromRequest << " -- (" << response->getStatus()
+                        << ") [" << request.getVersion() << ']' << std::endl;
+                }
 
                 // Do not process queued requests after a failed write or forced closure
                 if (!keepAlive || status < 0 || response->shouldCloseConnection()) break;

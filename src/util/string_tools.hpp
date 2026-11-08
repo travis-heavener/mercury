@@ -28,8 +28,14 @@ inline void strToLower(std::string& str) {
     });
 }
 
+// Compare string views case-insensitively
+inline bool equalsCi(const std::string_view a, const std::string_view b) {
+    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](const char x, const char y) {
+        return std::toupper(static_cast<unsigned char>(x)) == std::toupper(static_cast<unsigned char>(y));
+    });
+}
+
 void splitString(std::vector<std::string>&, const std::string&, const char, const bool);
-void splitStringUnique(std::unordered_set<std::string>&, const std::string&, const char, const bool);
 
 inline void stringReplaceAll(std::string& haystack, const std::string& needle, const std::string& sub) {
     if (needle.empty()) return;
@@ -56,10 +62,6 @@ void decodeURI(std::string&);
 
 void formatHeaderCasing(std::string&);
 
-// Reads from the input string until the next line or end,
-// starting at startIndex and updating it in place (by ref).
-// Returns true if there was data read, false otherwise.
-bool readLine(const std::string& input, std::string& lineBuf, size_t& startIndex);
 
 inline size_t countAscii(const char* pData, const size_t size) {
     size_t asciiCount = 0;

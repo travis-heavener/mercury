@@ -1,27 +1,44 @@
 #ifndef __THREAD_POOL_HPP
 #define __THREAD_POOL_HPP
 
-#include <array>
 #include <atomic>
 #include <condition_variable>
 #include <functional>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <queue>
 #include <thread>
 #include <vector>
 
+#ifndef _WIN32
+    #include <pthread.h>
+#endif
+
 class ThreadWrapper {
     public:
-        ThreadWrapper(const bool isTemporary) : isTemporary(isTemporary) {};
-        void setThread(std::thread t) { thread = std::move(t); };
-        std::thread& getThread() { return thread; };
+        ThreadWrapper(const bool isTemporary);
+        ~ThreadWrapper();
+
+        // Used to start worker thread execution w/ bounded stack
+        void start(std::function<void()> fn);
+
+        // Check if thread is joinable
+        bool joinable() const;
+
+        // Join thread if active
+        void join();
+
         bool isTemporary;
         bool isDone = false;
         bool isInUse = false;
+
     private:
-        std::thread thread;
+        #ifndef _WIN32
+            pthread_t threadId{};
+            bool isJoinable = false;
+        #else
+            std::thread thread;
+        #endif
 };
 
 class ThreadPool {

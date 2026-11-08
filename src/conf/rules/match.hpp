@@ -29,6 +29,8 @@ namespace conf {
         private:
             std::regex pattern;
             std::string patternStr;
+            bool isCatchAll = false;
+            bool isExactMatch = false;
             std::unordered_map<std::string, std::string> headers;
             bool _showDirectoryIndexes;
             std::unique_ptr<Access> pAccess;

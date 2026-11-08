@@ -52,6 +52,10 @@ namespace conf {
     extern unsigned int MAX_REQUEST_LINE_LENGTH;
     extern unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
     extern unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
+    extern unsigned int MAX_FILE_CACHE_ENTRIES;
+    extern unsigned int MAX_CACHEABLE_FILE_SIZE;
+    extern unsigned int MAX_FILE_CACHE_TOTAL_SIZE;
+    extern unsigned int FILE_CACHE_REVALIDATION_INTERVAL;
     extern unsigned int IDLE_THREADS_PER_CHILD, MAX_THREADS_PER_CHILD;
     extern std::vector<std::unique_ptr<Match>> matchConfigs;
     extern std::vector<std::string> INDEX_FILES;
@@ -60,6 +64,7 @@ namespace conf {
 
     extern std::filesystem::path ACCESS_LOG_FILE;
     extern std::filesystem::path ERROR_LOG_FILE;
+    extern bool DISABLE_LOGS;
     extern int CLIENT_SECURITY_MODE;
     extern std::string IP_HASH_SALT;
 

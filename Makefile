@@ -40,7 +40,8 @@ DEBUG ?= 0
 ifeq ($(DEBUG),1)
     CXX_FLAGS += -g -O0
 else
-    CXX_FLAGS += -O3 -fno-strict-aliasing
+    CXX_FLAGS += -O3 -fno-strict-aliasing -ffunction-sections -fdata-sections
+    LIB_FLAGS += -Wl,--gc-sections -Wl,--strip-all
 endif
 
 # Recipes
@@ -60,9 +61,6 @@ $(TARGET_LINUX): $(DEPS) $(ARTIFACTS_LOCK)
 	@$(CXX) \
 		$(SRCS) -o $(TARGET_LINUX) \
 		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_LINUX) $(LIB_LINUX) $(LIB_FLAGS)
-	@if [ "$(DEBUG)" != "1" ]; then \
-		upx $(TARGET_LINUX) -qqq; \
-	fi
 	@echo "✅ Built for Linux."
 
 ###################################################################
@@ -79,9 +77,6 @@ $(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
 	@$(MINGW_CXX)-$(MINGW_CXX_SUFFIX) \
 		$(SRCS) $(TARGET_WIN_ICON) -o $(TARGET_WIN) \
 		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_WIN) $(LIB_WIN) $(LIB_FLAGS) $(WIN_FLAGS)
-	@if [ "$(DEBUG)" != "1" ]; then \
-		upx $(TARGET_WIN) -qqq; \
-	fi
 	@echo "✅ Built for Windows."
 
 ###################################################################

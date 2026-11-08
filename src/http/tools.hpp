@@ -34,7 +34,7 @@ namespace http {
     typedef std::unordered_map<std::string, std::string> headers_map_t;
     void loadEarlyHeaders(headers_map_t&, std::string_view);
 
-    void parseAcceptHeader(std::unordered_set<std::string>&, std::string&);
+    void parseAcceptHeader(std::unordered_set<std::string>&, std::string_view);
     void parseRangeHeader(std::vector<byte_range_t>&, std::string&);
 
     // Used to pass in flags to the Request object (e.g. URI too long, content too large)

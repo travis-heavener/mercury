@@ -44,6 +44,10 @@ namespace conf {
     unsigned int MAX_REQUEST_LINE_LENGTH;
     unsigned int REQUEST_BUFFER_SIZE, RESPONSE_BUFFER_SIZE;
     unsigned int MAX_REQUEST_BODY, MAX_RESPONSE_BODY;
+    unsigned int MAX_FILE_CACHE_ENTRIES = 1024;
+    unsigned int MAX_CACHEABLE_FILE_SIZE = 1048576;
+    unsigned int MAX_FILE_CACHE_TOTAL_SIZE = 33554432;
+    unsigned int FILE_CACHE_REVALIDATION_INTERVAL = 1000;
     unsigned int IDLE_THREADS_PER_CHILD, MAX_THREADS_PER_CHILD;
     std::vector<std::unique_ptr<Match>> matchConfigs;
     std::vector<std::string> INDEX_FILES;
@@ -52,6 +56,7 @@ namespace conf {
 
     std::filesystem::path ACCESS_LOG_FILE;
     std::filesystem::path ERROR_LOG_FILE;
+    bool DISABLE_LOGS = false;
     int CLIENT_SECURITY_MODE;
     std::string IP_HASH_SALT;
 
@@ -87,9 +92,10 @@ namespace conf {
 
     const std::vector<std::string> mercuryNodeNames = {
         "DocumentRoot", "BindAddressIPv4", "BindAddressIPv6", "Port", "TLSPort", "Redirect", "Rewrite",
-        "AccessLogFile", "ErrorLogFile", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "CGITimeout", "WinPHPCGIPath", "EnableFastCGI", "FastCGIAddress", "FastCGITimeout", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
+        "AccessLogFile", "ErrorLogFile", "DisableLogs", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "CGITimeout", "WinPHPCGIPath", "EnableFastCGI", "FastCGIAddress", "FastCGITimeout", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
+        "MaxFileCacheEntries", "MaxCacheableFileSize", "MaxFileCacheTotalSize", "FileCacheRevalidationInterval",
         "MinResponseCompressionSize", "IdleThreadsPerChild", "MaxThreadsPerChild", "ShowWelcomeBanner", "ShowDonationBanner", "ShowPrivilegeDeescalationMessage", "ShowPrivilegeDropMessage", "HidePrivilegeDeescalationMessage", "StartupCheckLatestRelease"
     };
 
@@ -569,6 +575,9 @@ namespace conf {
 
         /************ LOAD BOOLEANS ************/
 
+        if (loadOnOff(root, DISABLE_LOGS, "DisableLogs", false) == CONF_FAILURE)
+            return CONF_FAILURE;
+
         if (loadOnOff(root, ENABLE_LEGACY_HTTP, "EnableLegacyHTTPVersions", true) == CONF_FAILURE)
             return CONF_FAILURE;
 
@@ -663,7 +672,7 @@ namespace conf {
         if (loadUint(root, MAX_RESPONSE_BODY, "MaxResponseBody", 268435456) == CONF_FAILURE)
             return CONF_FAILURE;
 
-        if (loadUint(root, IDLE_THREADS_PER_CHILD, "IdleThreadsPerChild", 12, LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
+        if (loadUint(root, IDLE_THREADS_PER_CHILD, "IdleThreadsPerChild", 4, LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
             return CONF_FAILURE;
 
         if (loadUint(root, MAX_THREADS_PER_CHILD, "MaxThreadsPerChild", 60, LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
@@ -683,13 +692,33 @@ namespace conf {
         if (loadUint(root, MIN_COMPRESSION_SIZE, "MinResponseCompressionSize", 750) == CONF_FAILURE)
             return CONF_FAILURE;
 
+        if (loadUint(root, MAX_FILE_CACHE_ENTRIES, "MaxFileCacheEntries", 1024) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, MAX_CACHEABLE_FILE_SIZE, "MaxCacheableFileSize", 1048576) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, MAX_FILE_CACHE_TOTAL_SIZE, "MaxFileCacheTotalSize", 33554432) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        if (loadUint(root, FILE_CACHE_REVALIDATION_INTERVAL, "FileCacheRevalidationInterval", 1000) == CONF_FAILURE)
+            return CONF_FAILURE;
+
         /************************** LOAD PATHS **************************/
 
-        if (loadPath(root, ACCESS_LOG_FILE, "AccessLogFile", true, "./logs/access.log") == CONF_FAILURE)
-            return CONF_FAILURE;
+        if (!DISABLE_LOGS) {
+            if (loadPath(root, ACCESS_LOG_FILE, "AccessLogFile", true, "./logs/access.log") == CONF_FAILURE)
+                return CONF_FAILURE;
 
-        if (loadPath(root, ERROR_LOG_FILE, "ErrorLogFile", true, "./logs/error.log") == CONF_FAILURE)
-            return CONF_FAILURE;
+            if (loadPath(root, ERROR_LOG_FILE, "ErrorLogFile", true, "./logs/error.log") == CONF_FAILURE)
+                return CONF_FAILURE;
+        } else {
+            // Assign paths without creating log directories
+            pugi::xml_node accessNode = root.child("AccessLogFile");
+            ACCESS_LOG_FILE = accessNode ? accessNode.text().as_string() : "./logs/access.log";
+            pugi::xml_node errorNode = root.child("ErrorLogFile");
+            ERROR_LOG_FILE = errorNode ? errorNode.text().as_string() : "./logs/error.log";
+        }
 
         #ifdef _WIN32
             if ((IS_PHP_ENABLED || IS_FASTCGI_ENABLED) && loadPath(root, PHP_CGI_EXE_PATH, "WinPHPCGIPath", false, "./php/php-cgi.exe") == CONF_FAILURE)
@@ -750,24 +779,26 @@ namespace conf {
 
         /************************** Open log files **************************/
 
-        accessLogHandle = std::ofstream(ACCESS_LOG_FILE, std::ios_base::app);
-        if (!accessLogHandle.is_open()) {
-            std::cerr << "Failed to open Access Log File." << std::endl;
-            return CONF_FAILURE;
-        }
-        util::privilege::applyOwnershipAndPermissions(ACCESS_LOG_FILE, 0644);
+        if (!DISABLE_LOGS) {
+            accessLogHandle = std::ofstream(ACCESS_LOG_FILE, std::ios_base::app);
+            if (!accessLogHandle.is_open()) {
+                std::cerr << "Failed to open Access Log File." << std::endl;
+                return CONF_FAILURE;
+            }
+            util::privilege::applyOwnershipAndPermissions(ACCESS_LOG_FILE, 0644);
 
-        errorLogHandle = std::ofstream(ERROR_LOG_FILE, std::ios_base::app);
-        if (!errorLogHandle.is_open()) {
-            std::cerr << "Failed to open Error Log File." << std::endl;
-            return CONF_FAILURE;
+            errorLogHandle = std::ofstream(ERROR_LOG_FILE, std::ios_base::app);
+            if (!errorLogHandle.is_open()) {
+                std::cerr << "Failed to open Error Log File." << std::endl;
+                return CONF_FAILURE;
+            }
+            util::privilege::applyOwnershipAndPermissions(ERROR_LOG_FILE, 0644);
         }
-        util::privilege::applyOwnershipAndPermissions(ERROR_LOG_FILE, 0644);
 
         // Handle configuration test mode
         if (isTestMode) {
-            accessLogHandle.close();
-            errorLogHandle.close();
+            if (accessLogHandle.is_open()) accessLogHandle.close();
+            if (errorLogHandle.is_open()) errorLogHandle.close();
             cleanupConfig();
             std::cout << "Configuration file " << configPath << " syntax is OK\n"
                 << "Configuration file " << configPath << " test is successful" << std::endl;
@@ -814,6 +845,15 @@ namespace conf {
 
         // Reset display settings
         SHOW_PRIVILEGE_DEESCALATION_MESSAGE = true;
+
+        // Reset logging settings
+        DISABLE_LOGS = false;
+
+        // Reset file cache settings
+        MAX_FILE_CACHE_ENTRIES = 1024;
+        MAX_CACHEABLE_FILE_SIZE = 1048576;
+        MAX_FILE_CACHE_TOTAL_SIZE = 33554432;
+        FILE_CACHE_REVALIDATION_INTERVAL = 1000;
 
         // Remove any stray temp files under lock
         std::unordered_set<std::string> remainingTempFiles;

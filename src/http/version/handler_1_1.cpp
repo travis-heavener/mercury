@@ -61,26 +61,25 @@ namespace http::version::handler_1_1 {
 
         // Verify access is permitted
         if (!conf::matchConfigs.empty()) {
-            // Create sanitized IP address
-            const std::string& decodedURI = request.getDecodedURI();
-            const headers_map_t& headers = request.getHeaders();
-            try {
-                conf::SanitizedIP sip( conf::parseSanitizedClientIP(request.getIPStr()) );
+            const auto& matchedRules = request.getMatchedRules();
+            if (!matchedRules.empty()) {
+                // Create sanitized IP address
+                try {
+                    conf::SanitizedIP sip( conf::parseSanitizedClientIP(request.getIPStr()) );
 
-                // Check Match patterns
-                for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
-                    if (pMatch->doesRequestMatch(decodedURI, headers)) {
+                    // Check Match patterns
+                    for (const conf::Match* pMatch : matchedRules) {
                         // Verify access is permitted
                         if (!pMatch->getAccessControl()->isIPAccepted(sip)) {
                             setStatusMaybeErrorDoc(request, *pResponse, 403);
                             return pResponse;
                         }
                     }
+                } catch (std::invalid_argument&) {
+                    ERROR_LOG << "Invalid IP address while parsing sanitized IP (" << request.getIPStr() << ')' << std::endl;
+                    setStatusMaybeErrorDoc(request, *pResponse, 500);
+                    return pResponse;
                 }
-            } catch (std::invalid_argument&) {
-                ERROR_LOG << "Invalid IP address while parsing sanitized IP (" << request.getIPStr() << ')' << std::endl;
-                setStatusMaybeErrorDoc(request, *pResponse, 500);
-                return pResponse;
             }
         }
 
@@ -124,12 +123,9 @@ namespace http::version::handler_1_1 {
                     fastcgi::handleRequest(conf::FASTCGI_ADDRESS, file, request, *pResponse, static_cast<int>(conf::FASTCGI_TIMEOUT));
 
                     // Load additional headers
-                    const std::string& reqDecodedURI = request.getDecodedURI();
-                    const headers_map_t& reqHeaders = request.getHeaders();
-                    for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
-                        if (pMatch->doesRequestMatch(reqDecodedURI, reqHeaders))
-                            for (const auto& [name, value] : pMatch->getHeaders())
-                                pResponse->setHeader(name, value);
+                    for (const conf::Match* pMatch : request.getMatchedRules())
+                        for (const auto& [name, value] : pMatch->getHeaders())
+                            pResponse->setHeader(name, value);
 
                     // Update the byte ranges
                     if (pResponse->getContentLength() > 0)
@@ -141,12 +137,9 @@ namespace http::version::handler_1_1 {
                     cgi::handlePHPRequest(file, request, *pResponse);
 
                     // Load additional headers
-                    const std::string& reqDecodedURI = request.getDecodedURI();
-                    const headers_map_t& reqHeaders = request.getHeaders();
-                    for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
-                        if (pMatch->doesRequestMatch(reqDecodedURI, reqHeaders))
-                            for (const auto& [name, value] : pMatch->getHeaders())
-                                pResponse->setHeader(name, value);
+                    for (const conf::Match* pMatch : request.getMatchedRules())
+                        for (const auto& [name, value] : pMatch->getHeaders())
+                            pResponse->setHeader(name, value);
 
                     // Update the byte ranges
                     if (pResponse->getContentLength() > 0)
@@ -204,12 +197,9 @@ namespace http::version::handler_1_1 {
                         setStatusMaybeErrorDoc(request, *pResponse, 416); // Range Not Satisfiable
 
                 // Load additional headers for body loading
-                const std::string& reqDecodedURI = request.getDecodedURI();
-                const headers_map_t& reqHeaders = request.getHeaders();
-                for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs)
-                    if (pMatch->doesRequestMatch(reqDecodedURI, reqHeaders))
-                        for (const auto& [name, value] : pMatch->getHeaders())
-                            pResponse->setHeader(name, value);
+                for (const conf::Match* pMatch : request.getMatchedRules())
+                    for (const auto& [name, value] : pMatch->getHeaders())
+                        pResponse->setHeader(name, value);
                 break;
             }
             case METHOD::OPTIONS: { // OPTIONS introduced in HTTP/1.1
