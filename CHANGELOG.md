@@ -9,7 +9,7 @@
 - Change: eliminate redundant string allocations and token sets during HTTP request parsing and keep-alive handling
 - Change: optimize configuration match rules with catch-all and exact match bypass and per-request match result caching
 - Change: add bounded thread-safe in-memory cache for static files with automatic modification and permission revalidation
-- Change: Linux builds no longer are compressed using UPX to reduce RSS at marginal build size cost
+- Change: builds no longer are compressed using UPX to reduce RSS at marginal build size cost
 - Change: batch server telemetry statistics via thread-local counters and cache-line alignment to eliminate atomic contention and false sharing across worker threads
 - Change: cap glibc memory arenas to 2 and configure trim threshold on Linux to prevent multi-threaded heap bloat
 - Change: bound worker thread stack size to 512 KB on POSIX to minimize resident page allocations and improve cache locality
