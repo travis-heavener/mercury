@@ -15,9 +15,9 @@
 - Change: bound worker thread stack size to 512 KB on POSIX to minimize resident page allocations and improve cache locality
 - Change: reduce default IdleThreadsPerChild from 12 to 4 to minimize baseline thread and stack allocations when idle
 - Change: reuse thread-local stream buffer across precompression and streaming phases and bound header buffer capacity
-- Perf: accelerate benchmark load generator with raw TCP keep-alive sockets to eliminate Python client bottleneck
 - Chore: reuse cached static libraries and pre-built binaries in benchmark workflow to accelerate source build targets
 - Chore: update CREDITS.md for Zstandard, now points to `meta/zstd` instead of `facebook/zstd`
+- Perf: accelerate benchmark load generator with raw TCP keep-alive sockets to eliminate Python client bottleneck
 
 ## [0.38.2] - 2026-10-27
 - Added: CGITimeout config, sets total execution timeout (in seconds) for each traditional PHP-CGI request on Linux
