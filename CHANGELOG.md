@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.39.1] - 2026-11-08
+- Chore: parallelize compilation with intermediate object rules, automatic header dependency tracking (-MMD -MP), debug/release build directory separation, and transparent ccache support
+- Chore: add ccache to install_deps.sh for apt, pacman, and dnf package managers
+
 ## [0.39.0] - 2026-11-07
 - Added: DisableLogs config node, which overrides log file paths and prevents writing logs entirely
 - Added: MaxFileCacheEntries, MaxCacheableFileSize, MaxFileCacheTotalSize, and FileCacheRevalidationInterval config directives to tune static file caching

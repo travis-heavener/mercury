@@ -14,7 +14,7 @@ if [[ ! "$res" =~ ^(yes|y)$ ]]; then
 fi
 
 # Clean directories
-rm -f bin/* tmp/* releases/* conf/ssl/*.pem
+rm -rf bin/* tmp/* releases/* conf/ssl/*.pem build
 rm -rf libs
 
 # Reset config files

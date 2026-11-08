@@ -12,3 +12,4 @@ conf/mercury.conf
 conf/mimes.conf
 php/*
 tmp/*
+build/*
