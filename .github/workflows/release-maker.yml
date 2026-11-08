@@ -128,12 +128,11 @@ jobs:
       # Run release builder
       - name: Make Release
         run: |
-          # Do not let make -t create empty targets if a binary cache disappeared.
+          # Verify binary cache is present
           test -s bin/mercury
           test -s bin/mercury.exe
-          make -t all # Force to be up-to-date
           make lib_deps
-          make release
+          make release SKIP_BUILD=1
 
       # Read version from version.txt
       - name: Extract Version

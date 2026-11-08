@@ -6,7 +6,14 @@ cd "$(dirname "$0")/../"
 TOOLS_PATH=$(pwd)/build_tools/tools
 
 # Rebuild binaries
-make -j --no-print-directory -s
+if [ "$1" = "--no-build" ] || [ "$SKIP_BUILD" = "1" ]; then
+    if [ ! -s "bin/mercury" ] || [ ! -s "bin/mercury.exe" ]; then
+        echo "Missing release binaries in bin/" >&2
+        exit 1
+    fi
+else
+    make -j --no-print-directory -s
+fi
 
 $TOOLS_PATH/safe_rm "temp_release"
 $TOOLS_PATH/safe_rm "releases"

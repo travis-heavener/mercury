@@ -66,11 +66,11 @@ mv "zlib-$version-linux/LICENSE" ../licenses/zlib_LICENSE.txt
 (
     cd "zlib-$version-linux"
 
+    ./configure --static 1> /dev/null
+    make -j$(nproc) libz.a &> /dev/null
+
     cp zlib.h "$LIB_PATH/zlib/linux/include/"
     cp zconf.h "$LIB_PATH/zlib/linux/include/"
-
-    ./configure 1> /dev/null
-    make -j$(nproc) libz.a &> /dev/null
     mv libz.a "$LIB_PATH/zlib/linux/lib/"
 ) &
 
@@ -86,18 +86,11 @@ if [ "$LINUX_ONLY" != "1" ]; then
             sed -i 's/^CC *=.*$/CC=\$(PREFIX)gcc/' "$MAKEFILE_PATH"
         fi
 
-        make -j$(nproc) -B -f "$MAKEFILE_PATH" \
-            BINARY_PATH="/dev/null" \
-            INCLUDE_PATH="$LIB_PATH/zlib/windows/include" \
-            LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" &> /dev/null
+        make -j$(nproc) -f "$MAKEFILE_PATH" libz.a &> /dev/null
 
-        make -j$(nproc) -B -f "$MAKEFILE_PATH" install \
-            BINARY_PATH="/dev/null" \
-            INCLUDE_PATH="$LIB_PATH/zlib/windows/include" \
-            LIBRARY_PATH="$LIB_PATH/zlib/windows/lib" &> /dev/null
-
-        # Remove extra pkgconfig
-        rm -rf "$LIB_PATH/zlib/windows/lib/pkgconfig"
+        cp zlib.h "$LIB_PATH/zlib/windows/include/"
+        cp zconf.h "$LIB_PATH/zlib/windows/include/"
+        mv libz.a "$LIB_PATH/zlib/windows/lib/"
     ) &
 fi
 
