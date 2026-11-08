@@ -14,7 +14,7 @@
 #include "../conf/conf.hpp"
 #include "../io/file_tools.hpp"
 
-void formatFileSize(size_t fileSize, std::string& buffer) {
+static void formatFileSize(size_t fileSize, std::string& buffer) {
     long double truncatedSize;
     std::stringstream ss;
     ss << std::fixed << std::setprecision(2);
@@ -39,7 +39,7 @@ void formatFileSize(size_t fileSize, std::string& buffer) {
     buffer = ss.str();
 }
 
-void formatDate(std::filesystem::file_time_type dur, std::string& buffer) {
+static void formatDate(std::filesystem::file_time_type dur, std::string& buffer) {
     // Cast timestamp
     using namespace std::chrono;
     auto tp = system_clock::to_time_t(

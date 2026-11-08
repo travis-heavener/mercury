@@ -23,29 +23,6 @@ void splitString(std::vector<std::string>& vec, const std::string& string, const
     }
 }
 
-void splitStringUnique(std::unordered_set<std::string>& set, const std::string& string, const char delimiter, const bool stripWhitespace) {
-    size_t startIndex = 0;
-    for (size_t i = 0; i < string.size(); ++i) {
-        if (string[i] == delimiter) {
-            std::string substr = string.substr(startIndex, i-startIndex);
-            if (stripWhitespace)
-                trimString(substr);
-            if (substr.size() > 0)
-                set.insert(substr);
-            startIndex = i+1;
-        }
-    }
-
-    // Append last snippet
-    if (startIndex < string.size()) {
-        std::string substr = string.substr(startIndex);
-        if (stripWhitespace)
-            trimString(substr);
-        if (substr.size() > 0)
-            set.insert(substr);
-    }
-}
-
 void decodeURI(std::string& str) {
     auto hexValue = [](const char c) -> int {
         if (c >= '0' && c <= '9') return c - '0';
@@ -86,18 +63,3 @@ void formatHeaderCasing(std::string& header) {
     }
 }
 
-// Reads from the input string until the next line or end,
-// starting at startIndex and updating it in place (by ref).
-// Returns true if there was data read, false otherwise.
-bool readLine(const std::string& input, std::string& lineBuf, size_t& startIndex) {
-    // Check if at end
-    if (startIndex == input.length()) return false;
-
-    // Otherwise, read the next line
-    size_t endIndex = input.find('\n', startIndex);
-    lineBuf = input.substr(startIndex, endIndex - startIndex);
-
-    // Update startIndex
-    startIndex = (endIndex == std::string::npos) ? input.length() : (endIndex + 1);
-    return true;
-}

@@ -11,9 +11,6 @@
 #define IO_FAILURE 1
 #define IO_ABORTED 2
 
-void formatFileSize(size_t, std::string&);
-void formatDate(const std::chrono::system_clock::duration, std::string&);
-
 int loadErrorDoc(const int, std::unique_ptr<http::IBodyStream>&);
 int loadDirectoryListing(std::unique_ptr<http::IBodyStream>&, const std::string&, const std::string&);
 

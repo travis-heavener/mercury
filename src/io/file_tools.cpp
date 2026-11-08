@@ -63,32 +63,6 @@ bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
     #endif
 }
 
-bool doesFileExist(const std::string& path, const bool forceInDocumentRoot) {
-    FileMetadata meta;
-    if (!queryFileMetadata(path, meta) || !meta.isRegularFile) return false;
-    if (!forceInDocumentRoot) return true;
-
-    // Get document root
-    std::string docRootStr = conf::DOCUMENT_ROOT.string();
-    normalizeBackslashes(docRootStr);
-
-    // Normalize with document root
-    std::string normPath = path;
-    normalizeBackslashes(normPath);
-    return normPath.find(docRootStr) == 0;
-}
-
-bool doesDirectoryExist(const std::string& path, const bool forceInDocumentRoot) {
-    FileMetadata meta;
-    if (!queryFileMetadata(path, meta) || !meta.isDirectory) return false;
-    if (!forceInDocumentRoot) return true;
-    std::string docRootStr = conf::DOCUMENT_ROOT.string();
-    normalizeBackslashes(docRootStr);
-    std::string normPath = path;
-    normalizeBackslashes(normPath);
-    return normPath.find(docRootStr) == 0;
-}
-
 int isSymlinked(const std::filesystem::path& path, const bool isAlreadyCanonical) {
     namespace fs = std::filesystem; // Make my life EASIER
 

@@ -38,8 +38,6 @@ inline bool isUNCPath(const std::filesystem::path& path) {
 
 void normalizeBackslashes(std::string& path);
 
-bool doesFileExist(const std::string&, const bool);
-bool doesDirectoryExist(const std::string&, const bool);
 int isSymlinked(const std::filesystem::path&, const bool = false);
 
 std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path);

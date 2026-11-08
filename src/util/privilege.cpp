@@ -16,15 +16,6 @@
 
 namespace util::privilege {
 
-    // Used to query if process is running with elevated root privileges
-    bool isElevated() {
-        #ifdef _WIN32
-            return false;
-        #else
-            return geteuid() == 0;
-        #endif
-    }
-
     // Used to detect invoking user when executed under sudo or doas
     std::optional<UserIdentity> getSudoUser() {
         #ifdef _WIN32
