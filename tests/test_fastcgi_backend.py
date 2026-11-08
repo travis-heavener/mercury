@@ -57,7 +57,7 @@ class ManagedBackendTests(unittest.TestCase):
     def assert_cleaned(self, children, directory):
         deadline = time.monotonic() + 5
         while any(child.is_running() for child in children) and time.monotonic() < deadline:
-            time.sleep(0.05)
+            time.sleep(0.01)
         self.assertFalse(any(child.is_running() for child in children))
         self.assertFalse(directory.exists())
 
@@ -134,13 +134,29 @@ class ManagedBackendTests(unittest.TestCase):
 # Used to match HTTP runner output while retaining failure tracebacks and skip counts
 def run_compact_suite():
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(ManagedBackendTests)
-    print(f"Starting run: Linux PHP-FPM Ownership Tests ({suite.countTestCases()} tests)", flush=True)
-    result = unittest.TestResult()
+    total = suite.countTestCases()
+    print(f"Starting run: Linux PHP-FPM Ownership Tests ({total} tests)", flush=True)
+
+    is_tty = sys.stdout.isatty()
+
+    # Track progress dynamically to prevent visual terminal stalls
+    class ProgressResult(unittest.TestResult):
+        def stopTest(self, test):
+            super().stopTest(test)
+            if is_tty:
+                sys.stdout.write(f"\r  Running tests... [{self.testsRun}/{total}]")
+                sys.stdout.flush()
+
+    result = ProgressResult()
     result.startTestRun()
     try:
         suite.run(result)
     finally:
         result.stopTestRun()
+
+    if is_tty:
+        sys.stdout.write("\r\033[K")
+        sys.stdout.flush()
 
     if result.wasSuccessful():
         passed = result.testsRun - len(result.skipped)

@@ -19,7 +19,7 @@ Mercury is a lightweight, configurable HTTP web server implemented in modern C++
 
 ## Key Features
 
-- **Blazing Fast & Low Memory**: Uses up to 58% less idle memory than Apache with sub-millisecond static response times.
+- **Blazing Fast & Low Memory**: Uses up to 65% less idle memory than Apache with over 160,000 req/sec throughput and sub-millisecond (0.1 ms) p50 response times.
 - **Protocol Support**: Full HTTP/1.1 (keep-alive, pipelining, chunked transfer encoding) with backward-compatible HTTP/1.0 and HTTP/0.9 handlers.
 - **Modern TLS**: TLS 1.3 encryption powered by OpenSSL with self-signed certificate automation.
 - **Streaming Compression**: Dynamic, on-the-fly compression supporting **Brotli**, **Zstandard**, **Gzip**, and **Deflate**.
@@ -226,7 +226,7 @@ make linux      # Compile bin/mercury
 make windows    # Cross-compile bin/mercury.exe (MinGW-w64)
 ```
 
-- **Debug Builds**: Run `DEBUG=1 make -j -B` to compile with `-g -O0` and bypass UPX binary compression.
+- **Debug Builds**: Run `DEBUG=1 make -j -B` to compile with `-g -O0` with unoptimized debug symbols.
 - **Running Tests**: Run `python3 tests/run.py` to execute the JSON test cases and socket wire regressions (requires `brotli`, `zstandard`, `psutil`, and generated TLS certs via `make cert`).
 - **Multi-Distro Testing**: Run `make docker_tests` to execute tests across Ubuntu, Debian, Alpine, Fedora, and Arch containers.
 

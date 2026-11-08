@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: clean all linux windows \
+.PHONY: clean clean_build all linux windows check_libs check_win_libs \
 	libs lib_deps libs_no_deps lib_brotli lib_openssl lib_zlib lib_pugixml lib_zstd \
 	release cert
 
@@ -22,8 +22,21 @@ CXX ?= g++
 MINGW_CXX := x86_64-w64-mingw32
 MINGW_CXX_SUFFIX := $(shell if command -v apt >/dev/null 2>&1; then echo g++-posix; else echo g++; fi)
 
+# Optional compiler cache wrapper
+CCACHE := $(shell command -v ccache 2>/dev/null)
+ifneq ($(CCACHE),)
+    ifeq ($(findstring ccache,$(CXX)),)
+        CXX_CMD := $(CCACHE) $(CXX)
+    else
+        CXX_CMD := $(CXX)
+    endif
+    WIN_CXX_CMD := $(CCACHE) $(MINGW_CXX)-$(MINGW_CXX_SUFFIX)
+else
+    CXX_CMD := $(CXX)
+    WIN_CXX_CMD := $(MINGW_CXX)-$(MINGW_CXX_SUFFIX)
+endif
+
 SRCS := $(shell find src -type f -name "*.cpp") $(wildcard $(PUGIXML_DIR)/*.cpp)
-DEPS := $(shell find src -type f -name "*.hpp") $(wildcard $(PUGIXML_DIR)/*.hpp) $(SRCS)
 
 CXX_FLAGS := -Wall -Wextra -Werror
 STATIC_FLAGS := -std=c++20
@@ -33,51 +46,88 @@ WIN_FLAGS := -static -lcrypt32 -lws2_32 -lbcrypt -mconsole
 # Targets
 TARGET_LINUX := bin/mercury
 TARGET_WIN := bin/mercury.exe
-TARGET_WIN_ICON := bin/icon.o
 
 # Debug mode
 DEBUG ?= 0
 ifeq ($(DEBUG),1)
     CXX_FLAGS += -g -O0
+    BUILD_MODE := debug
 else
     CXX_FLAGS += -O3 -fno-strict-aliasing -ffunction-sections -fdata-sections
     LIB_FLAGS += -Wl,--gc-sections -Wl,--strip-all
+    BUILD_MODE := release
 endif
 
+# Object directories
+BUILD_DIR ?= build/$(BUILD_MODE)
+OBJ_LINUX_DIR := $(BUILD_DIR)/obj/linux
+OBJ_WIN_DIR := $(BUILD_DIR)/obj/windows
+TARGET_WIN_ICON := $(OBJ_WIN_DIR)/icon.o
+
+OBJS_LINUX := $(patsubst %.cpp, $(OBJ_LINUX_DIR)/%.o, $(SRCS))
+OBJS_WIN := $(patsubst %.cpp, $(OBJ_WIN_DIR)/%.o, $(SRCS))
+DEPS_LINUX := $(OBJS_LINUX:.o=.d)
+DEPS_WIN := $(OBJS_WIN:.o=.d)
+
 # Recipes
-all: $(TARGET_LINUX) $(TARGET_WIN)
-linux: $(TARGET_LINUX)
-windows: $(TARGET_WIN)
+all: check_libs $(TARGET_LINUX) $(TARGET_WIN)
+linux: check_libs $(TARGET_LINUX)
+windows: check_win_libs $(TARGET_WIN)
+
+check_libs:
+	@./build_tools/validate_libs.sh --q
+
+check_win_libs: check_libs
+	@if [[ ! -d ./libs/brotli/windows ]] || [[ ! -d ./libs/openssl/windows ]] || [[ ! -d ./libs/zlib/windows ]] || [[ ! -d ./libs/zstd/windows ]]; then \
+		echo "Missing Windows libraries"; \
+		exit 1; \
+	fi
 
 clean:
 	@./build_tools/clean.sh
+
+clean_build:
+	@rm -rf build bin/mercury bin/mercury.exe
+	@echo "✅ Cleaned build artifacts."
 
 ###################################################################
 ############################## LINUX ##############################
 ###################################################################
 
-$(TARGET_LINUX): $(DEPS) $(ARTIFACTS_LOCK)
-	@./build_tools/validate_libs.sh --q
-	@$(CXX) \
-		$(SRCS) -o $(TARGET_LINUX) \
-		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_LINUX) $(LIB_LINUX) $(LIB_FLAGS)
+$(OBJ_LINUX_DIR)/%.o: %.cpp $(ARTIFACTS_LOCK) | check_libs
+	@mkdir -p $(dir $@)
+	@$(CXX_CMD) $(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_LINUX) -MMD -MP -c $< -o $@
+
+$(TARGET_LINUX): $(OBJS_LINUX) $(ARTIFACTS_LOCK) | check_libs
+	@mkdir -p $(dir $@)
+	@$(CXX_CMD) \
+		$(OBJS_LINUX) -o $(TARGET_LINUX) \
+		$(STATIC_FLAGS) $(CXX_FLAGS) $(LIB_LINUX) $(LIB_FLAGS)
 	@echo "✅ Built for Linux."
 
 ###################################################################
 ############################# WINDOWS #############################
 ###################################################################
 
-$(TARGET_WIN): $(DEPS) src/winheader.hpp src/res/icon.ico $(ARTIFACTS_LOCK)
-	@if [[ ! -d ./libs/brotli/windows ]] || [[ ! -d ./libs/openssl/windows ]] || [[ ! -d ./libs/zlib/windows ]] || [[ ! -d ./libs/zstd/windows ]]; then \
-		echo "Missing Windows libraries"; \
-		exit 1; \
-	fi
-	@./build_tools/validate_libs.sh --q
-	@$(MINGW_CXX)-windres src/res/icon.rc -O coff -o $(TARGET_WIN_ICON)
-	@$(MINGW_CXX)-$(MINGW_CXX_SUFFIX) \
-		$(SRCS) $(TARGET_WIN_ICON) -o $(TARGET_WIN) \
-		$(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_WIN) $(LIB_WIN) $(LIB_FLAGS) $(WIN_FLAGS)
+$(TARGET_WIN_ICON): src/res/icon.rc src/res/icon.ico | check_win_libs
+	@mkdir -p $(dir $@)
+	@$(MINGW_CXX)-windres $< -O coff -o $@
+
+$(OBJ_WIN_DIR)/%.o: %.cpp $(ARTIFACTS_LOCK) | check_win_libs
+	@mkdir -p $(dir $@)
+	@$(WIN_CXX_CMD) $(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_WIN) -MMD -MP -c $< -o $@
+
+$(TARGET_WIN): $(OBJS_WIN) $(TARGET_WIN_ICON) src/winheader.hpp $(ARTIFACTS_LOCK) | check_win_libs
+	@mkdir -p $(dir $@)
+	@$(WIN_CXX_CMD) \
+		$(OBJS_WIN) $(TARGET_WIN_ICON) -o $(TARGET_WIN) \
+		$(STATIC_FLAGS) $(CXX_FLAGS) $(LIB_WIN) $(LIB_FLAGS) $(WIN_FLAGS)
 	@echo "✅ Built for Windows."
+
+ifeq ($(filter clean%,$(MAKECMDGOALS)),)
+    -include $(DEPS_LINUX)
+    -include $(DEPS_WIN)
+endif
 
 ###################################################################
 ############################ LIBRARIES ############################

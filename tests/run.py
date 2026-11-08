@@ -113,16 +113,16 @@ def run_single_test(case: TestCase, ipv4: bool, tls: bool) -> bool:
     test_type = f"IPv{4 if ipv4 else 6}{' SSL' if tls else ''}"
     try:
         addr = (host if ipv4 else host_v6, ssl_port if tls else port)
+        family = socket.AF_INET if ipv4 else socket.AF_INET6
 
         # Dispatch test over TLS or plaintext socket connection
-        if tls:
-            with socket.create_connection(addr) as sock:
+        with socket.socket(family, socket.SOCK_STREAM) as sock:
+            sock.connect(addr)
+            if tls:
                 with ssl_ctx.wrap_socket(sock, server_hostname=host if ipv4 else host_v6) as s:
                     return case.test(s, f"{test_type} test")
-        else:
-            with socket.socket(socket.AF_INET if ipv4 else socket.AF_INET6, socket.SOCK_STREAM) as s:
-                s.connect(addr)
-                return case.test(s, f"{test_type} test")
+            else:
+                return case.test(sock, f"{test_type} test")
     except KeyboardInterrupt as e:
         raise e
     except Exception as e:
@@ -134,6 +134,7 @@ def run_single_test(case: TestCase, ipv4: bool, tls: bool) -> bool:
 def run_tests(cases: list[TestCase], max_workers: int) -> int:
     num_passing = 0
     futures = []
+    is_tty = sys.stdout.isatty()
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         try:
@@ -144,13 +145,24 @@ def run_tests(cases: list[TestCase], max_workers: int) -> int:
                 futures.append(executor.submit(run_single_test, case, ipv4=False, tls=False))
                 futures.append(executor.submit(run_single_test, case, ipv4=False, tls=True))
 
+            total = len(futures)
+
             # Collect results as they complete
-            for f in as_completed(futures):
+            for count, f in enumerate(as_completed(futures), 1):
                 try:
                     if f.result():
                         num_passing += 1
                 except Exception as e:
                     print(f"[Error]: Test threw exception: {e}")
+
+                # Emit responsive terminal progress to eliminate visual stalls
+                if is_tty and (count % 32 == 0 or count == total):
+                    sys.stdout.write(f"\r  Running tests... [{count}/{total}]")
+                    sys.stdout.flush()
+
+            if is_tty and total > 0:
+                sys.stdout.write("\r\033[K")
+                sys.stdout.flush()
         except KeyboardInterrupt as e:
             # Cancel pending futures on interrupt
             for f in futures:
@@ -303,12 +315,18 @@ if __name__ == "__main__":
 
                     # Execute integration test cases
                     run_start = num_passing
-                    num_passing += run_tests(run["cases"], max_workers=12)
+                    num_passing += run_tests(run["cases"], max_workers=24)
 
                     # Execute wire-level regression tests if requested
                     wire_passed = None
                     if run["wire_regressions"]:
+                        if sys.stdout.isatty():
+                            sys.stdout.write("\r  Running wire regressions...")
+                            sys.stdout.flush()
                         wire_passed = run_wire_regressions(host, host_v6, port, ssl_port)
+                        if sys.stdout.isatty():
+                            sys.stdout.write("\r\033[K")
+                            sys.stdout.flush()
                         num_passing += wire_passed
 
                     # Verify managed Windows PHP survives default 500-request recycle boundary

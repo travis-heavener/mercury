@@ -9,7 +9,7 @@ PKG_MGR=$("./tools/getpm")
 case "$PKG_MGR" in
     apt)
         sudo apt-get update
-        sudo apt-get install -y upx \
+        sudo apt-get install -y \
             build-essential perl wget \
             mingw-w64 nasm \
             cmake make \
@@ -17,11 +17,12 @@ case "$PKG_MGR" in
             zip \
             openssl \
             python3 python3-brotli python3-zstandard python3-psutil \
-            php-cgi php-fpm
+            php-cgi php-fpm \
+            ccache
         ;;
     pacman)
         sudo pacman -Syu --noconfirm
-        sudo pacman -S --noconfirm upx \
+        sudo pacman -S --noconfirm \
             base-devel perl wget \
             mingw-w64 nasm \
             cmake make \
@@ -29,11 +30,12 @@ case "$PKG_MGR" in
             zip \
             openssl \
             python python-brotli python-zstandard python-psutil \
-            php-cgi php-fpm
+            php-cgi php-fpm \
+            ccache
         ;;
     dnf)
         sudo dnf makecache -y
-        sudo dnf install -y upx \
+        sudo dnf install -y \
             rpmdevtools perl wget \
             mingw64-gcc-c++ libstdc++-static nasm \
             cmake make \
@@ -41,7 +43,8 @@ case "$PKG_MGR" in
             zip \
             openssl \
             python3 python3-brotli python3-zstandard python3-psutil \
-            php-cgi php-fpm
+            php-cgi php-fpm \
+            ccache
         ;;
     *)
         echo "Unsupported package manager: $PKG_MGR" >&2

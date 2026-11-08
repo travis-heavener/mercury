@@ -15,7 +15,7 @@ Mercury is an HTTP/1.1 (with backward-compatible HTTP/1.0 and HTTP/0.9 support) 
 - **Compression**: Brotli (`libbrotlienc`, `libbrotlicommon`), Zstandard (`libzstd`), and zlib (`libz`, supporting gzip and deflate).
 - **Configuration Parsing**: PugiXML (`libs/pugixml`) for XML-based server configurations.
 - **Dynamic Content**: Fast CGI execution engine supporting PHP via `php-cgi`.
-- **Binary Packaging**: UPX executable compression for release builds.
+- **Binary Packaging**: Self-contained, statically linked executables with linker dead-code elimination and symbol stripping.
 
 ---
 

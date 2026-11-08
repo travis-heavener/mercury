@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.39.1] - 2026-11-08
+- Chore: parallelize compilation with intermediate object rules, automatic header dependency tracking (-MMD -MP), debug/release build directory separation, and transparent ccache support
+- Chore: add ccache to install_deps.sh for apt, pacman, and dnf package managers
+- Chore: bump Zlib v1.3.2 -> v1.4
+- Docs: update key performance stats in README (following v0.39.0 release)
+- Test: accelerate test suite execution by parallelizing wire regression transports, running concurrent CGI timeout checks, eliminating getaddrinfo overhead on direct socket connections, and adding dynamic terminal progress reporting
+
 ## [0.39.0] - 2026-11-07
 - Added: DisableLogs config node, which overrides log file paths and prevents writing logs entirely
 - Added: MaxFileCacheEntries, MaxCacheableFileSize, MaxFileCacheTotalSize, and FileCacheRevalidationInterval config directives to tune static file caching

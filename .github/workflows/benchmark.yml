@@ -135,7 +135,7 @@ jobs:
         run: |
           if [ ! -s bin/mercury ] || [ ! -s bin/mercury.exe ]; then
             sudo apt-get update
-            sudo apt-get install -y build-essential nasm cmake perl wget zip upx-ucl
+            sudo apt-get install -y build-essential nasm cmake perl wget zip
             chmod +x build_tools/*.sh build_tools/tools/*
             sudo ./build_tools/install_workflow_deps.sh --verbose
           fi

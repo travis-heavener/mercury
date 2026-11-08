@@ -9,7 +9,7 @@ This document outlines the standard operational workflows, build systems, debugg
 Mercury is developed primarily on Linux (Ubuntu, Debian, Fedora, Arch). Windows builds are produced via MinGW-w64 cross-compilation from Linux.
 
 ### Required Packages
-- **Build Tools**: `g++` (v11+ with C++20 support) or `clang++`, `make`, `nasm`, `upx-ucl` (or `upx`).
+- **Build Tools**: `g++` (v11+ with C++20 support) or `clang++`, `make`, `nasm`, `ccache`.
 - **Windows Cross-Compiler**: `mingw-w64` (`x86_64-w64-mingw32-g++` and `x86_64-w64-mingw32-windres`).
 - **Runtime & CGI**: `php-cgi` (must be on `$PATH`).
 - **Python Test Suite**: Python 3.10+ with `brotli`, `zstandard`, and `psutil`:
@@ -39,16 +39,15 @@ The project uses a root [`Makefile`](../Makefile) with strict compiler warnings 
 | `make linux` | Builds optimized Linux executable | `bin/mercury` |
 | `make windows` | Cross-compiles Windows executable with icon resource | `bin/mercury.exe` |
 | `make all` | Builds both Linux and Windows targets | `bin/mercury`, `bin/mercury.exe` |
-| `DEBUG=1 make -j -B` | Builds in debug mode (`-g -O0`, UPX compression skipped) | `bin/mercury` |
+| `DEBUG=1 make -j -B` | Builds in debug mode (`-g -O0`) | `bin/mercury` |
 | `CXX=clang++ make linux` | Builds Linux target using Clang | `bin/mercury` |
 | `make cert` | Generates 365-day self-signed TLS 1.3 keypair | `conf/ssl/cert.pem`, `conf/ssl/key.pem` |
 | `make clean` | Removes build artifacts, object files, and logs | `bin/`, `tmp/`, `logs/` |
 | `make docker_tests` | Executes test suite across multiple Docker container distros | Multi-distro verification |
 
-### UPX Executable Compression
-Release builds automatically run `upx -qqq` on compiled binaries to minimize binary footprint.
+### Debug Builds
 > [!IMPORTANT]
-> When debugging with `gdb`, profiling, or analyzing crashes, **always build with `DEBUG=1`** (`DEBUG=1 make -j -B`). UPX packing obfuscates symbols and prevents debugger attachment.
+> When debugging with `gdb`, profiling, or analyzing crashes, build with `DEBUG=1` (`DEBUG=1 make -j -B`). This compiles with `-g -O0` and preserves unoptimized debug symbols.
 
 ---
 
