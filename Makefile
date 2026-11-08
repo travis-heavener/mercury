@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: clean clean_build all linux windows \
+.PHONY: clean clean_build all linux windows check_libs check_win_libs \
 	libs lib_deps libs_no_deps lib_brotli lib_openssl lib_zlib lib_pugixml lib_zstd \
 	release cert
 
@@ -70,9 +70,18 @@ DEPS_LINUX := $(OBJS_LINUX:.o=.d)
 DEPS_WIN := $(OBJS_WIN:.o=.d)
 
 # Recipes
-all: $(TARGET_LINUX) $(TARGET_WIN)
-linux: $(TARGET_LINUX)
-windows: $(TARGET_WIN)
+all: check_libs $(TARGET_LINUX) $(TARGET_WIN)
+linux: check_libs $(TARGET_LINUX)
+windows: check_win_libs $(TARGET_WIN)
+
+check_libs:
+	@./build_tools/validate_libs.sh --q
+
+check_win_libs: check_libs
+	@if [[ ! -d ./libs/brotli/windows ]] || [[ ! -d ./libs/openssl/windows ]] || [[ ! -d ./libs/zlib/windows ]] || [[ ! -d ./libs/zstd/windows ]]; then \
+		echo "Missing Windows libraries"; \
+		exit 1; \
+	fi
 
 clean:
 	@./build_tools/clean.sh
@@ -85,13 +94,12 @@ clean_build:
 ############################## LINUX ##############################
 ###################################################################
 
-$(OBJ_LINUX_DIR)/%.o: %.cpp $(ARTIFACTS_LOCK)
+$(OBJ_LINUX_DIR)/%.o: %.cpp $(ARTIFACTS_LOCK) | check_libs
 	@mkdir -p $(dir $@)
 	@$(CXX_CMD) $(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_LINUX) -MMD -MP -c $< -o $@
 
-$(TARGET_LINUX): $(OBJS_LINUX) $(ARTIFACTS_LOCK)
+$(TARGET_LINUX): $(OBJS_LINUX) $(ARTIFACTS_LOCK) | check_libs
 	@mkdir -p $(dir $@)
-	@./build_tools/validate_libs.sh --q
 	@$(CXX_CMD) \
 		$(OBJS_LINUX) -o $(TARGET_LINUX) \
 		$(STATIC_FLAGS) $(CXX_FLAGS) $(LIB_LINUX) $(LIB_FLAGS)
@@ -101,20 +109,15 @@ $(TARGET_LINUX): $(OBJS_LINUX) $(ARTIFACTS_LOCK)
 ############################# WINDOWS #############################
 ###################################################################
 
-$(TARGET_WIN_ICON): src/res/icon.rc src/res/icon.ico
+$(TARGET_WIN_ICON): src/res/icon.rc src/res/icon.ico | check_win_libs
 	@mkdir -p $(dir $@)
 	@$(MINGW_CXX)-windres $< -O coff -o $@
 
-$(OBJ_WIN_DIR)/%.o: %.cpp $(ARTIFACTS_LOCK)
+$(OBJ_WIN_DIR)/%.o: %.cpp $(ARTIFACTS_LOCK) | check_win_libs
 	@mkdir -p $(dir $@)
 	@$(WIN_CXX_CMD) $(STATIC_FLAGS) $(CXX_FLAGS) $(INCLUDE_WIN) -MMD -MP -c $< -o $@
 
-$(TARGET_WIN): $(OBJS_WIN) $(TARGET_WIN_ICON) src/winheader.hpp $(ARTIFACTS_LOCK)
-	@if [[ ! -d ./libs/brotli/windows ]] || [[ ! -d ./libs/openssl/windows ]] || [[ ! -d ./libs/zlib/windows ]] || [[ ! -d ./libs/zstd/windows ]]; then \
-		echo "Missing Windows libraries"; \
-		exit 1; \
-	fi
-	@./build_tools/validate_libs.sh --q
+$(TARGET_WIN): $(OBJS_WIN) $(TARGET_WIN_ICON) src/winheader.hpp $(ARTIFACTS_LOCK) | check_win_libs
 	@mkdir -p $(dir $@)
 	@$(WIN_CXX_CMD) \
 		$(OBJS_WIN) $(TARGET_WIN_ICON) -o $(TARGET_WIN) \
