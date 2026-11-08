@@ -100,18 +100,58 @@ jobs:
         with:
           ref: ${{ github.sha }}
 
+      # Restore cached binaries from build workflow if available for this commit
+      - name: Restore Linux Binaries
+        uses: actions/cache@v6
+        with:
+          path: ./bin/mercury
+          key: mercury-linux-binaries-${{ github.sha }}
+
+      - name: Restore Windows Binaries
+        uses: actions/cache@v6
+        with:
+          path: ./bin/mercury.exe
+          key: mercury-windows-binaries-${{ github.sha }}
+          enableCrossOsArchive: true
+
+      # Restore cached static libraries built in build.yml
+      - name: Restore Cached Libs
+        uses: actions/cache@v6
+        with:
+          path: ./libs
+          key: >-
+            ${{ runner.os }}-artifacts-${{
+              hashFiles(
+                '**/build_tools/lib_pugixml.sh',
+                '**/build_tools/lib_zlib.sh',
+                '**/build_tools/lib_openssl.sh',
+                '**/build_tools/lib_brotli.sh',
+                '**/build_tools/lib_zstd.sh',
+                '**/build_tools/dependencies.txt'
+              )
+            }}
+
       - name: Install Build Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential nasm cmake perl wget zip upx-ucl
-          chmod +x build_tools/*.sh build_tools/tools/*
-          sudo ./build_tools/install_workflow_deps.sh --verbose
+          if [ ! -s bin/mercury ] || [ ! -s bin/mercury.exe ]; then
+            sudo apt-get update
+            sudo apt-get install -y build-essential nasm cmake perl wget zip upx-ucl
+            chmod +x build_tools/*.sh build_tools/tools/*
+            sudo ./build_tools/install_workflow_deps.sh --verbose
+          fi
 
       - name: Build Release Binaries
         run: |
-          mkdir -p bin
-          make -j2 libs_no_deps
-          make -j2 -B all
+          if [ -s bin/mercury ] && [ -s bin/mercury.exe ]; then
+            echo "✅ Using pre-built binaries from build workflow cache"
+          else
+            mkdir -p bin
+            if [ ! -d libs ] || ! ./build_tools/validate_libs.sh --q >/dev/null 2>&1; then
+              mkdir -p libs
+              make -j2 libs_no_deps
+            fi
+            make -j2 -B all
+          fi
 
       - uses: actions/upload-artifact@v7
         with:
