@@ -5,6 +5,7 @@
 - Chore: add ccache to install_deps.sh for apt, pacman, and dnf package managers
 - Docs: update key performance stats in README (following v0.39.0 release)
 - Test: accelerate test suite execution by parallelizing wire regression transports, running concurrent CGI timeout checks, eliminating getaddrinfo overhead on direct socket connections, and adding dynamic terminal progress reporting
+- Chore: bump Zlib v1.3.2 -> v1.4
 
 ## [0.39.0] - 2026-11-07
 - Added: DisableLogs config node, which overrides log file paths and prevents writing logs entirely
