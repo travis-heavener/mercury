@@ -48,6 +48,32 @@ def http_fixture(status=200, payload=b"benchmark"):
         thread.join()
 
 
+class MemorySamplerTests(unittest.TestCase):
+    def test_sampler_prefers_pss_when_available(self):
+        proc = mock.Mock()
+        full_info = mock.Mock(pss=2097152, rss=4194304)
+        proc.memory_full_info.return_value = full_info
+        self.assertEqual(bench.MemorySampler._process_rss(proc), 2097152)
+
+    def test_sampler_falls_back_to_rss_when_pss_missing(self):
+        proc = mock.Mock()
+        full_info = mock.Mock(spec=["rss"], rss=4194304)
+        proc.memory_full_info.return_value = full_info
+        self.assertEqual(bench.MemorySampler._process_rss(proc), 4194304)
+
+    def test_sampler_sums_parent_and_children(self):
+        sampler = bench.MemorySampler(1234)
+        parent_proc = mock.Mock()
+        parent_proc.memory_full_info.return_value = mock.Mock(pss=2097152, rss=4194304)
+        child_proc = mock.Mock()
+        child_proc.memory_full_info.return_value = mock.Mock(pss=1048576, rss=2097152)
+        parent_proc.children.return_value = [child_proc]
+
+        with mock.patch("build_tools.benchmark.psutil.Process", return_value=parent_proc):
+            total_mb = sampler.sample_now()
+            self.assertAlmostEqual(total_mb, 3.0)
+
+
 class LoadTests(unittest.TestCase):
     def test_wrong_response_never_becomes_successful_throughput(self):
         with http_fixture(status=404) as port:
@@ -282,6 +308,14 @@ class SupervisorTests(unittest.TestCase):
                 self.assertIn(f"ThreadLimit {expected}", content)
                 self.assertIn(f"MaxRequestWorkers {expected}", content)
                 self.assertNotIn("@WORKER_THREADS@", content)
+
+                # Verify Nginx template replacement and file cache directive
+                supervisor.name = "nginx"
+                supervisor.conf_file = str(REPO_ROOT / "tests/conf_files/benchmark/nginx.conf")
+                nginx_content = Path(supervisor._prepare_config()).read_text()
+                self.assertNotIn("@WORKER_PROCESSES@", nginx_content)
+                self.assertNotIn("@WORKER_CONNECTIONS@", nginx_content)
+                self.assertIn("open_file_cache", nginx_content)
 
 
 class SuiteLifecycleTests(unittest.TestCase):

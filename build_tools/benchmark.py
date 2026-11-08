@@ -100,15 +100,28 @@ class MemorySampler:
                 self.samples.append(rss)
             self._stop_event.wait(self.interval_seconds)
 
+    @staticmethod
+    def _process_rss(proc: psutil.Process) -> int:
+        try:
+            # Use PSS on Linux to account for shared resident memory without double-counting
+            full = proc.memory_full_info()
+            if hasattr(full, "pss") and full.pss is not None and full.pss > 0:
+                return full.pss
+            return full.rss
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            return 0
+        except Exception:
+            try:
+                return proc.memory_info().rss
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                return 0
+
     def sample_now(self) -> float:
         try:
             parent = psutil.Process(self.pid)
-            total_bytes = parent.memory_info().rss
+            total_bytes = self._process_rss(parent)
             for child in parent.children(recursive=True):
-                try:
-                    total_bytes += child.memory_info().rss
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                    pass
+                total_bytes += self._process_rss(child)
             return total_bytes / (1024.0 * 1024.0)
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             return 0.0
@@ -727,6 +740,7 @@ class ServerSupervisor:
             "REPO_ROOT": self._config_path(self.repo_root),
             "WORKER_THREADS": str(self.worker_threads),
             "WORKER_CONNECTIONS": str(max(1024, self.concurrency * 2)),
+            "WORKER_PROCESSES": "1" if sys.platform == "win32" else "auto",
         }
         if self.name == "apache":
             values.update(self._apache_config_values())
@@ -1268,8 +1282,9 @@ class OutputFormatter:
             f"concurrency={results.concurrency}, duration={results.duration_seconds}s, "
             f"payload={results.payload_size_bytes} bytes, "
             f"threaded worker limit={results.worker_thread_limit}. "
-            "RSS sums parent and child resident memory "
-            "(shared pages may be counted repeatedly); CI results are host-dependent.*"
+            "Memory sums resident memory across parent and child processes "
+            "(proportional PSS on Linux to avoid double-counting shared pages); "
+            "CI results are host-dependent.*"
         )
         return "\n".join(lines)
 
