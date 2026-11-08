@@ -7,6 +7,7 @@
 - Fix: cap buffered FastCGI stdout and stderr streams at configured response body limit to prevent memory exhaustion (#525)
 - Fix: enforce TLS 1.2 minimum protocol version and restrict modern cipher suites (#528)
 - Fix: sanitize control characters and terminal escape sequences in access logger (#529)
+- Fix: escape HTML entities in directory indexing to prevent stored and reflected cross-site scripting (#526)
 
 ## [0.39.1] - 2026-11-08
 - Chore: parallelize compilation with intermediate object rules, automatic header dependency tracking (-MMD -MP), debug/release build directory separation, and transparent ccache support
