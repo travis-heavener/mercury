@@ -29,9 +29,43 @@ jobs:
       - name: Install Python Deps
         run: python -m pip install --upgrade "brotli>=1.2.1" zstandard psutil
 
-      - name: Setup PHP
+      # Get current ISO week for weekly cache rotation
+      - name: Get Current Week
+        id: get-week
+        shell: pwsh
         run: |
-          ./conf/setup_php.ps1
+          $week = Get-Date -UFormat "%Y-%W"
+          echo "week=$week" >> $env:GITHUB_OUTPUT
+
+      # Cache PHP installation for one week to avoid rate limiting
+      - name: Cache PHP Installation
+        id: cache-php
+        uses: actions/cache@v6
+        with:
+          path: ./php
+          key: ${{ runner.os }}-php-week-${{ steps.get-week.outputs.week }}-${{ hashFiles('conf/setup_php.ps1') }}
+
+      - name: Setup PHP
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'php/php-cgi.exe')) {
+            ./conf/setup_php.ps1
+          }
+          if (-not (Test-Path 'tmp')) {
+            New-Item -ItemType Directory -Force -Path 'tmp' | Out-Null
+          }
+          $extPath = (Resolve-Path 'php/ext').ProviderPath
+          $tmpPath = (Resolve-Path 'tmp').ProviderPath
+          (Get-Content php/php.ini) | ForEach-Object {
+            if ($_ -match '^extension_dir\s*=') { "extension_dir = `"$extPath`"" }
+            elseif ($_ -match '^upload_tmp_dir\s*=') { "upload_tmp_dir = `"$tmpPath`"" }
+            else { $_ }
+          } | Set-Content php/php.ini
+          (Get-Content php/mercury-cgi.ini) | ForEach-Object {
+            if ($_ -match '^extension_dir\s*=') { "extension_dir = `"$extPath`"" }
+            elseif ($_ -match '^upload_tmp_dir\s*=') { "upload_tmp_dir = `"$tmpPath`"" }
+            else { $_ }
+          } | Set-Content php/mercury-cgi.ini
           & ./php/php-cgi.exe -v
 
       # Install postmortem capture before short-lived PHP workers start
