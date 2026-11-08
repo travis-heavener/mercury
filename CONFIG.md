@@ -60,6 +60,10 @@ All configuration nodes must be wrapped within a singular `<Mercury>` root node.
 - [MinResponseCompressionSize](#minresponsecompressionsize)
 - [IdleThreadsPerChild](#idlethreadsperchild)
 - [MaxThreadsPerChild](#maxthreadsperchild)
+- [MaxFileCacheEntries](#maxfilecacheentries)
+- [MaxCacheableFileSize](#maxcacheablefilesize)
+- [MaxFileCacheTotalSize](#maxfilecachetotalsize)
+- [FileCacheRevalidationInterval](#filecacherevalidationinterval)
 
 ### Misc.
 - [ShowWelcomeBanner](#showwelcomebanner)
@@ -668,12 +672,12 @@ Note that under heavy load, up to MaxThreadsPerChild threads may be created per 
 
 There are four server threads: IPv4, IPv4 w/ TLS, IPv6, and IPv6 w/ TLS.
 
-Default: `12`
+Default: `4`
 
 Example:
 
 ```xml
-<IdleThreadsPerChild> 12 </IdleThreadsPerChild>
+<IdleThreadsPerChild> 4 </IdleThreadsPerChild>
 ```
 
 ### MaxThreadsPerChild
@@ -689,6 +693,50 @@ Example:
 
 ```xml
 <MaxThreadsPerChild> 60 </MaxThreadsPerChild>
+```
+
+### MaxFileCacheEntries
+Specifies the maximum number of static file entries retained in the thread-safe in-memory cache. Set to `0` to disable in-memory file caching.
+
+Default: `1024`
+
+Example:
+
+```xml
+<MaxFileCacheEntries> 1024 </MaxFileCacheEntries>
+```
+
+### MaxCacheableFileSize
+Specifies the maximum size of an individual static file (in bytes) eligible for in-memory caching. Files exceeding this threshold are served directly from disk via chunked streaming.
+
+Default: `1048576` (1 MiB)
+
+Example:
+
+```xml
+<MaxCacheableFileSize> 1048576 </MaxCacheableFileSize>
+```
+
+### MaxFileCacheTotalSize
+Specifies the maximum total memory footprint (in bytes) allocated for all cached static file payloads across the server.
+
+Default: `33554432` (32 MiB)
+
+Example:
+
+```xml
+<MaxFileCacheTotalSize> 33554432 </MaxFileCacheTotalSize>
+```
+
+### FileCacheRevalidationInterval
+Specifies the minimum duration (in milliseconds) between filesystem `stat` queries for a cached entry to detect file modifications or permission updates on disk.
+
+Default: `1000` (1 second)
+
+Example:
+
+```xml
+<FileCacheRevalidationInterval> 1000 </FileCacheRevalidationInterval>
 ```
 
 ### ShowWelcomeBanner
