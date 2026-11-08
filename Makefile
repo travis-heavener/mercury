@@ -156,7 +156,7 @@ lib_zstd:
 
 release:
 	@./build_tools/validate_libs.sh --q
-	@./build_tools/release.sh
+	@./build_tools/release.sh $(if $(filter 1,$(SKIP_BUILD)$(NO_BUILD)),--no-build,)
 
 # Runs tests against various Docker images
 docker_tests:
