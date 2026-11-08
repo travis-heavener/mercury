@@ -66,16 +66,21 @@ mv "openssl-$version" "openssl-$version-linux"
 # Update stored license
 mv "openssl-$version-linux/LICENSE.txt" ../licenses/OpenSSL_LICENSE.txt
 
+# Disable unused CLI apps, protocols, transports, and legacy ciphers
+OPENSSL_OPTS="no-shared no-dso no-asm no-comp no-tests no-docs no-legacy no-apps no-quic no-dtls no-sctp no-cms no-cmp no-ts no-ocsp no-srp no-psk no-ct no-dsa no-des no-rc2 no-rc4 no-idea no-seed no-aria no-bf no-cast no-camellia no-sm2 no-sm3 no-sm4 no-md4 no-mdc2 no-whirlpool no-rmd160"
+
 (
     cd "openssl-$version-linux"
 
-    ./Configure linux-x86_64 no-shared no-dso no-asm no-comp no-tests no-docs no-legacy --prefix="$LIB_PATH/openssl/linux" 1> /dev/null
-    make -j$(nproc) &>/dev/null
-    make install_sw &>/dev/null
+    ./Configure linux-x86_64 $OPENSSL_OPTS --prefix="$LIB_PATH/openssl/linux" 1> /dev/null
+    make -j$(nproc) build_libs &>/dev/null
+    make install_dev &>/dev/null
 
     # Move library files
-    mv "$LIB_PATH/openssl/linux/lib64/"*.a "$LIB_PATH/openssl/linux/lib"
-    rm -rf "$LIB_PATH/openssl/linux/lib64"
+    if [ -d "$LIB_PATH/openssl/linux/lib64" ]; then
+        mv "$LIB_PATH/openssl/linux/lib64/"*.a "$LIB_PATH/openssl/linux/lib" 2>/dev/null || true
+        rm -rf "$LIB_PATH/openssl/linux/lib64"
+    fi
     rm -rf "$LIB_PATH/openssl/linux/bin"
 ) &
 
@@ -83,13 +88,15 @@ if [ "$LINUX_ONLY" != "1" ]; then
     (
         cd "openssl-$version-windows"
 
-        ./Configure mingw64 no-shared no-dso no-asm no-comp no-tests no-docs no-legacy --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" 1> /dev/null
-        make -j$(nproc) &>/dev/null
-        make install_sw &>/dev/null
+        ./Configure mingw64 $OPENSSL_OPTS --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" 1> /dev/null
+        make -j$(nproc) build_libs &>/dev/null
+        make install_dev &>/dev/null
 
         # Move library files
-        mv "$LIB_PATH/openssl/windows/lib64/"*.a "$LIB_PATH/openssl/windows/lib"
-        rm -rf "$LIB_PATH/openssl/windows/lib64"
+        if [ -d "$LIB_PATH/openssl/windows/lib64" ]; then
+            mv "$LIB_PATH/openssl/windows/lib64/"*.a "$LIB_PATH/openssl/windows/lib" 2>/dev/null || true
+            rm -rf "$LIB_PATH/openssl/windows/lib64"
+        fi
         rm -rf "$LIB_PATH/openssl/windows/bin"
     ) &
 fi
