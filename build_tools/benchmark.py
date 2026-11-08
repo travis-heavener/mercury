@@ -390,35 +390,42 @@ class LoadGenerator:
     def _run_python(
         host: str, port: int, path: str, concurrency: int, duration: int
     ) -> Tuple[float, float, float, float]:
-        # Returns (rps, mean_ms, p50_ms, p99_ms) via multithreaded keep-alive client
+        # Returns (rps, mean_ms, p50_ms, p99_ms) via high-performance raw-socket keep-alive client
         stop_time = time.perf_counter() + duration
+
+        # Pre-encode HTTP GET request buffer to eliminate per-request formatting overhead
+        request_bytes = (
+            f"GET {path} HTTP/1.1\r\n"
+            f"Host: {host}:{port}\r\n"
+            f"User-Agent: MercuryBenchmark/1.0\r\n"
+            f"Accept-Encoding: identity\r\n"
+            f"Connection: keep-alive\r\n\r\n"
+        ).encode("latin1")
 
         # Thread-safe container collecting per-thread request counts and latency samples
         stats_list: List[Tuple[int, List[float], int]] = []
         stats_lock = threading.Lock()
         error_counts = Counter()
-        headers = {
-            "Accept-Encoding": "identity",
-            "Connection": "keep-alive",
-            "User-Agent": "MercuryBenchmark/1.0",
-        }
 
-        # Worker routine executing persistent HTTP keep-alive loop
+        # Worker routine executing persistent HTTP keep-alive loop over raw socket
         def worker():
             local_reqs = 0
             local_latencies: List[float] = []
-            conn: Optional[http.client.HTTPConnection] = None
+            sock: Optional[socket.socket] = None
             consecutive_errors = 0
             failed_reqs = 0
             local_errors = Counter()
+            buf = bytearray()
 
-            # Instantiate persistent HTTP connection
+            # Connect socket and enable TCP_NODELAY to disable Nagle's algorithm
             def get_conn():
-                return http.client.HTTPConnection(host, port, timeout=5)
+                s = socket.create_connection((host, port), timeout=5)
+                s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                return s
 
             # Attempt initial connection before entering timed loop
             try:
-                conn = get_conn()
+                sock = get_conn()
             except Exception:
                 pass
 
@@ -426,33 +433,100 @@ class LoadGenerator:
             while time.perf_counter() < stop_time:
                 t0 = time.perf_counter()
                 try:
-                    if conn is None:
-                        conn = get_conn()
+                    if sock is None:
+                        sock = get_conn()
+                        buf.clear()
 
-                    # Dispatch HTTP GET request with keep-alive headers
-                    conn.request("GET", path, headers=headers)
-                    resp = conn.getresponse()
+                    # Transmit full request buffer in single write
+                    sock.sendall(request_bytes)
 
-                    # Read and drain full response payload to enable socket reuse
-                    resp.read()
-                    if resp.status != 200:
-                        raise RuntimeError(f"HTTP {resp.status}")
+                    # Read full response w/ header and body framing
+                    header_end = -1
+                    content_length = -1
+                    is_chunked = False
+                    status_code = 0
+
+                    while True:
+                        if header_end < 0:
+                            header_end = buf.find(b"\r\n\r\n")
+                            if header_end >= 0:
+                                # Extract status line and verify HTTP 200
+                                header_bytes = bytes(buf[:header_end])
+                                first_line_end = header_bytes.find(b"\r\n")
+                                status_line = header_bytes if first_line_end < 0 else header_bytes[:first_line_end]
+                                parts = status_line.split(b" ", 2)
+                                status_code = int(parts[1]) if len(parts) >= 2 and parts[1].isdigit() else 0
+
+                                # Parse Content-Length and Transfer-Encoding headers
+                                header_lower = header_bytes.lower()
+                                cl_idx = header_lower.find(b"content-length:")
+                                if cl_idx >= 0:
+                                    val_start = cl_idx + 15
+                                    eol = header_lower.find(b"\r\n", val_start)
+                                    val = header_lower[val_start:eol if eol >= 0 else len(header_lower)].strip()
+                                    try:
+                                        content_length = int(val)
+                                    except ValueError:
+                                        content_length = 0
+                                if b"transfer-encoding:" in header_lower and b"chunked" in header_lower:
+                                    is_chunked = True
+
+                        if header_end >= 0:
+                            if status_code != 200 and status_code != 204 and status_code != 304:
+                                del buf[:header_end + 4]
+                                raise RuntimeError(f"HTTP {status_code}")
+
+                            if content_length >= 0:
+                                total_expected = header_end + 4 + content_length
+                                if len(buf) >= total_expected:
+                                    del buf[:total_expected]
+                                    break
+                            elif is_chunked:
+                                body_part = buf[header_end + 4:]
+                                if body_part.startswith(b"0\r\n\r\n"):
+                                    del buf[:header_end + 4 + 5]
+                                    break
+                                term_idx = body_part.find(b"\r\n0\r\n\r\n")
+                                if term_idx >= 0:
+                                    del buf[:header_end + 4 + term_idx + 7]
+                                    break
+                            elif status_code == 204 or status_code == 304:
+                                del buf[:header_end + 4]
+                                break
+                            else:
+                                if b"connection: close" in header_lower:
+                                    while True:
+                                        chunk = sock.recv(65536)
+                                        if not chunk:
+                                            break
+                                    del buf[:]
+                                    sock.close()
+                                    sock = None
+                                    break
+                                del buf[:header_end + 4]
+                                break
+
+                        chunk = sock.recv(65536)
+                        if not chunk:
+                            raise ConnectionResetError("Server closed connection")
+                        buf.extend(chunk)
+
                     t1 = time.perf_counter()
-
                     local_reqs += 1
                     # Record round-trip request latency in milliseconds
                     local_latencies.append((t1 - t0) * 1000.0)
 
                     # Reset consecutive error counter on successful exchange
                     consecutive_errors = 0
-                except (OSError, http.client.HTTPException, RuntimeError) as exc:
-                    # Close corrupted socket connection on error
-                    if conn:
+                except (OSError, RuntimeError) as exc:
+                    # Close socket and clear buffer on failure
+                    if sock:
                         try:
-                            conn.close()
+                            sock.close()
                         except Exception:
                             pass
-                        conn = None
+                        sock = None
+                    buf.clear()
 
                     failed_reqs += 1
                     local_errors[f"{type(exc).__name__}: {exc}"] += 1
@@ -461,10 +535,10 @@ class LoadGenerator:
                     if consecutive_errors >= 5:
                         time.sleep(0.01)
 
-            # Clean up active connection upon worker exit
-            if conn:
+            # Clean up active socket upon worker exit
+            if sock:
                 try:
-                    conn.close()
+                    sock.close()
                 except Exception:
                     pass
 
