@@ -13,7 +13,7 @@ Mercury is a lightweight, high-performance, configurable HTTP server implemented
 | **Build Linux** | `make linux` | Produces `bin/mercury` |
 | **Build Windows** | `make windows` | Cross-compiles `bin/mercury.exe` using MinGW-w64 |
 | **Build All** | `make all` | Builds both Linux and Windows binaries |
-| **Debug Build** | `DEBUG=1 make -j -B` | Enables `-g -O0` and skips UPX compression |
+| **Debug Build** | `DEBUG=1 make -j -B` | Enables `-g -O0` for debugging |
 | **Run Server** | `./bin/mercury [-c conf-file]` | Defaults to `conf/mercury.conf` (`--help` for options) |
 | **Create TLS Certs** | `make cert` | Generates self-signed test keypair in `conf/ssl/` |
 | **Run Test Suite** | `python3 tests/run.py` | Runs JSON cases and socket wire regressions |

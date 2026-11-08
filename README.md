@@ -226,7 +226,7 @@ make linux      # Compile bin/mercury
 make windows    # Cross-compile bin/mercury.exe (MinGW-w64)
 ```
 
-- **Debug Builds**: Run `DEBUG=1 make -j -B` to compile with `-g -O0` and bypass UPX binary compression.
+- **Debug Builds**: Run `DEBUG=1 make -j -B` to compile with `-g -O0` with unoptimized debug symbols.
 - **Running Tests**: Run `python3 tests/run.py` to execute the JSON test cases and socket wire regressions (requires `brotli`, `zstandard`, `psutil`, and generated TLS certs via `make cert`).
 - **Multi-Distro Testing**: Run `make docker_tests` to execute tests across Ubuntu, Debian, Alpine, Fedora, and Arch containers.
 

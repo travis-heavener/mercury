@@ -44,7 +44,7 @@ Interactive console commands (available while running):
 `help`, `status`, `info`, `pwd`, `ping`, `phpinit`, `clear`, `exit`.
 
 ## Building from Source
-Prerequisites: GCC (C++20), Make, NASM, UPX, and OpenSSL. Windows builds cross-compile from Linux using MinGW-w64 (`x86_64-w64-mingw32-g++`).
+Prerequisites: GCC (C++20), Make, NASM, and OpenSSL. Windows builds cross-compile from Linux using MinGW-w64 (`x86_64-w64-mingw32-g++`).
 
 ```bash
 git clone https://github.com/travis-heavener/mercury.git && cd mercury
