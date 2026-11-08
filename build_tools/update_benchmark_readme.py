@@ -58,19 +58,19 @@ def update_readme(
         print(f"Error: Could not locate '{perf_header}' in {readme_path}", file=sys.stderr)
         return False
 
-    # Find separator following Performance section
-    end_marker = "\n---\n"
     start_idx = readme_content.find(perf_header)
-    end_idx = readme_content.find(end_marker, start_idx)
 
-    if end_idx == -1:
+    # Find separator following Performance section
+    separator_match = re.search(r"\n+---\n", readme_content[start_idx:])
+    if not separator_match:
         print(
-            f"Error: Could not locate section end delimiter '{end_marker}' after {perf_header}",
+            f"Error: Could not locate section end delimiter '---' after {perf_header}",
             file=sys.stderr,
         )
         return False
 
-    perf_section = readme_content[start_idx:end_idx]
+    perf_section = readme_content[start_idx : start_idx + separator_match.start()]
+    trailing_content = readme_content[start_idx + separator_match.end() :]
 
     # Parse new content
     linux_table = None
@@ -131,7 +131,12 @@ def update_readme(
 
     new_perf_section = "\n\n".join(blocks)
 
-    updated_readme = readme_content[:start_idx] + new_perf_section + readme_content[end_idx:]
+    updated_readme = (
+        readme_content[:start_idx]
+        + new_perf_section
+        + "\n\n---\n\n"
+        + trailing_content.lstrip("\n")
+    )
 
     if dry_run:
         print("=== DRY RUN: Updated Performance Section ===")
