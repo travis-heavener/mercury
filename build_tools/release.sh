@@ -63,7 +63,7 @@ rm -f "./$VERSION/conf/setup_php.ps1"
 # Create tar.gz archive
 tar -czvf "$LINUX_ARCHIVE" * &> /dev/null
 
-echo "✅ Linux release archive created: $LINUX_ARCHIVE"
+echo "✅ Linux release archive created: ${LINUX_ARCHIVE:3}"
 
 # ==== Windows Build ====
 
@@ -79,7 +79,7 @@ cp "../conf/setup_php.ps1" "./$VERSION/conf/"
 # Create zip archive
 zip -r "$WIN_ARCHIVE" * &> /dev/null
 
-echo "✅ Windows release archive created: $WIN_ARCHIVE"
+echo "✅ Windows release archive created: ${WIN_ARCHIVE:3}"
 
 # ==== Generate SUMMARY.md ====
 
