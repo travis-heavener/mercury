@@ -12,19 +12,12 @@
 namespace {
     // Thread-local response read buffers eliminate per-request buffer allocation churn
     thread_local std::vector<char> threadLocalStreamBuffer;
-    thread_local std::vector<char> threadLocalPrecompBuffer;
     thread_local std::string threadLocalHeadersBuffer;
 
     inline char* getStreamBuffer(const size_t requiredSize) {
         if (threadLocalStreamBuffer.size() < requiredSize)
             threadLocalStreamBuffer.resize(requiredSize);
         return threadLocalStreamBuffer.data();
-    }
-
-    inline char* getPrecompBuffer(const size_t requiredSize) {
-        if (threadLocalPrecompBuffer.size() < requiredSize)
-            threadLocalPrecompBuffer.resize(requiredSize);
-        return threadLocalPrecompBuffer.data();
     }
 
     inline std::string& getHeadersBuffer() {
@@ -190,7 +183,7 @@ namespace http {
         if (pBodyStream->size() <= conf::RESPONSE_BUFFER_SIZE) {
             std::string inMemoryBuffer;
             inMemoryBuffer.reserve(pBodyStream->size());
-            char* pReadChunk = getPrecompBuffer(conf::RESPONSE_BUFFER_SIZE);
+            char* pReadChunk = getStreamBuffer(conf::RESPONSE_BUFFER_SIZE);
             std::vector<char> compressChunk;
             while (true) {
                 size_t bytesRead = pBodyStream->read(pReadChunk, conf::RESPONSE_BUFFER_SIZE);
@@ -236,7 +229,7 @@ namespace http {
         }
 
         // Write in chunks
-        char* pReadChunk = getPrecompBuffer(conf::RESPONSE_BUFFER_SIZE);
+        char* pReadChunk = getStreamBuffer(conf::RESPONSE_BUFFER_SIZE);
         std::vector<char> compressChunk;
         while (true) {
             // Read
@@ -493,11 +486,15 @@ namespace http {
             if (bytesRead < bodySize)
                 headersBlock.resize(headerLen + bytesRead);
             const ssize_t writeStatus = sendFunc(headersBlock.data(), headersBlock.size());
+            if (headersBlock.capacity() > conf::RESPONSE_BUFFER_SIZE + 4096)
+                headersBlock.shrink_to_fit();
             return (writeStatus < 0) ? writeStatus : 0;
         }
 
         // Write to buffer
         ssize_t status = sendFunc(headersBlock.data(), headersBlock.size());
+        if (headersBlock.capacity() > conf::RESPONSE_BUFFER_SIZE + 4096)
+            headersBlock.shrink_to_fit();
         if (status < 0) return status;
 
         // Omit the body from HEAD requests OR if the body doesn't exist

@@ -672,7 +672,7 @@ namespace conf {
         if (loadUint(root, MAX_RESPONSE_BODY, "MaxResponseBody", 268435456) == CONF_FAILURE)
             return CONF_FAILURE;
 
-        if (loadUint(root, IDLE_THREADS_PER_CHILD, "IdleThreadsPerChild", 12, LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
+        if (loadUint(root, IDLE_THREADS_PER_CHILD, "IdleThreadsPerChild", 4, LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
             return CONF_FAILURE;
 
         if (loadUint(root, MAX_THREADS_PER_CHILD, "MaxThreadsPerChild", 60, LOAD_UINT_FORBID_ZERO) == CONF_FAILURE)
