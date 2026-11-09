@@ -62,6 +62,8 @@ namespace conf {
 
     bool USE_TLS;
     port_t TLS_PORT;
+    std::filesystem::path TLS_CERT_FILE;
+    std::filesystem::path TLS_KEY_FILE;
 
     bool IS_PHP_ENABLED;
     unsigned int CGI_TIMEOUT = 30;
@@ -91,7 +93,7 @@ namespace conf {
     /**********************************************************/
 
     const std::vector<std::string> mercuryNodeNames = {
-        "DocumentRoot", "BindAddressIPv4", "BindAddressIPv6", "Port", "TLSPort", "Redirect", "Rewrite",
+        "DocumentRoot", "BindAddressIPv4", "BindAddressIPv6", "Port", "TLSPort", "TLSCertFile", "TLSKeyFile", "TLSCertificateFile", "TLSPrivateKeyFile", "Redirect", "Rewrite",
         "AccessLogFile", "ErrorLogFile", "DisableLogs", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "CGITimeout", "WinPHPCGIPath", "EnableFastCGI", "FastCGIAddress", "FastCGITimeout", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
@@ -777,6 +779,31 @@ namespace conf {
             return CONF_FAILURE;
         }
 
+        // Load TLS certificate and private key paths
+        pugi::xml_node certNode = root.child("TLSCertFile");
+        if (!certNode) certNode = root.child("TLSCertificateFile");
+        const std::string defaultCert = "./conf/ssl/cert.pem";
+
+        pugi::xml_node keyNode = root.child("TLSKeyFile");
+        if (!keyNode) keyNode = root.child("TLSPrivateKeyFile");
+        const std::string defaultKey = "./conf/ssl/key.pem";
+
+        if (USE_TLS) {
+            const std::string certPathVal = certNode ? certNode.text().as_string() : defaultCert;
+            const std::string certNodeName = certNode ? certNode.name() : "TLSCertFile";
+            if (resolvePath(certPathVal, TLS_CERT_FILE, certNodeName, false) == CONF_FAILURE)
+                return CONF_FAILURE;
+
+            const std::string keyPathVal = keyNode ? keyNode.text().as_string() : defaultKey;
+            const std::string keyNodeName = keyNode ? keyNode.name() : "TLSKeyFile";
+            if (resolvePath(keyPathVal, TLS_KEY_FILE, keyNodeName, false) == CONF_FAILURE)
+                return CONF_FAILURE;
+        } else {
+            // Assign paths without requiring files to exist when TLS is disabled
+            TLS_CERT_FILE = certNode ? certNode.text().as_string() : defaultCert;
+            TLS_KEY_FILE = keyNode ? keyNode.text().as_string() : defaultKey;
+        }
+
         /************************** Open log files **************************/
 
         if (!DISABLE_LOGS) {
@@ -848,6 +875,10 @@ namespace conf {
 
         // Reset logging settings
         DISABLE_LOGS = false;
+
+        // Reset TLS paths
+        TLS_CERT_FILE.clear();
+        TLS_KEY_FILE.clear();
 
         // Reset file cache settings
         MAX_FILE_CACHE_ENTRIES = 1024;

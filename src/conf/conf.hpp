@@ -70,6 +70,8 @@ namespace conf {
 
     extern bool USE_TLS;
     extern port_t TLS_PORT;
+    extern std::filesystem::path TLS_CERT_FILE;
+    extern std::filesystem::path TLS_KEY_FILE;
 
     extern bool IS_PHP_ENABLED;
     extern unsigned int CGI_TIMEOUT;

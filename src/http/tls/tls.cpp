@@ -12,9 +12,6 @@
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
 
-#define CERT_PATH "conf/ssl/cert.pem"
-#define KEY_PATH "conf/ssl/key.pem"
-
 namespace http {
 
 SSL_CTX* initTLSContext() {
@@ -39,17 +36,17 @@ SSL_CTX* initTLSContext() {
     SSL_CTX_set_ciphersuites(ctx, "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256");
 
     // Load cert and key
-    const std::string certPath = (conf::CWD / CERT_PATH).string();
-    const std::string keyPath = (conf::CWD / KEY_PATH).string();
+    const std::string certPath = conf::TLS_CERT_FILE.string();
+    const std::string keyPath = conf::TLS_KEY_FILE.string();
 
     if ( SSL_CTX_use_certificate_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM) <= 0) {
-        ERROR_LOG << "Failed to load ./conf/ssl/cert.pem" << std::endl;
+        ERROR_LOG << "Failed to load TLS certificate file (" << certPath << ')' << std::endl;
         SSL_CTX_free(ctx);
         return nullptr;
     }
 
     if ( SSL_CTX_use_PrivateKey_file(ctx, keyPath.c_str(), SSL_FILETYPE_PEM) <= 0) {
-        ERROR_LOG << "Failed to load ./conf/ssl/key.pem" << std::endl;
+        ERROR_LOG << "Failed to load TLS private key file (" << keyPath << ')' << std::endl;
         SSL_CTX_free(ctx);
         return nullptr;
     }
@@ -74,7 +71,7 @@ void printTLSInfo() {
         return;
     }
 
-    const std::string certPath = (conf::CWD / CERT_PATH).string();
+    const std::string certPath = conf::TLS_CERT_FILE.string();
     FILE* fp = fopen(certPath.c_str(), "r");
     if (!fp) {
         std::cout << "> TLS enabled on port " << conf::TLS_PORT
@@ -135,6 +132,3 @@ void printTLSInfo() {
 }
 
 }
-
-#undef CERT_PATH
-#undef KEY_PATH

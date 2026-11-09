@@ -440,8 +440,12 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
                   << " (IPv4: " << formatOnOff(conf::IS_IPV4_ENABLED)
                   << ", IPv6: " << formatOnOff(conf::IS_IPV6_ENABLED) << ")\n"
                   << "    TLS Port:                 " << conf::TLS_PORT
-                  << " (TLS: " << formatOnOff(conf::USE_TLS) << ")\n"
-                  << "    Legacy HTTP (1.0/0.9):    " << formatOnOff(conf::ENABLE_LEGACY_HTTP) << "\n"
+                  << " (TLS: " << formatOnOff(conf::USE_TLS) << ")\n";
+        if (conf::USE_TLS) {
+            std::cout << "    TLS Certificate:          " << conf::TLS_CERT_FILE.string() << '\n'
+                      << "    TLS Private Key:          " << conf::TLS_KEY_FILE.string() << '\n';
+        }
+        std::cout << "    Legacy HTTP (1.0/0.9):    " << formatOnOff(conf::ENABLE_LEGACY_HTTP) << "\n"
                   << "  [Connection & Limits]\n"
                   << "    Keep-Alive:               " << formatOnOff(conf::IS_KEEP_ALIVE_ENABLED)
                   << " (timeout: " << conf::KEEP_ALIVE_TIMEOUT << "s, max: " << conf::MAX_KEEP_ALIVE_REQUESTS << " reqs)\n"

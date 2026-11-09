@@ -12,6 +12,8 @@ All configuration nodes must be wrapped within a singular `<Mercury>` root node.
 - [BindAddressIPv6](#bindaddressipv6)
 - [Port](#port)
 - [TLSPort](#tlsport)
+- [TLSCertFile](#tlscertfile)
+- [TLSKeyFile](#tlskeyfile)
 - [Redirect](#redirect)
 - [Rewrite](#rewrite)
 
@@ -120,7 +122,7 @@ Example:
 ### TLSPort
 Specifies which port to serve SSL/TLS traffic over (valid range: 1–65535), or "off" if disabled.
 
-See `conf/ssl/cert.pem` and `conf/ssl/key.pem`.
+See [TLSCertFile](#tlscertfile) and [TLSKeyFile](#tlskeyfile).
 
 Default: `off`
 
@@ -128,6 +130,32 @@ Example:
 
 ```xml
 <TLSPort> off </TLSPort>
+```
+
+### TLSCertFile
+Specifies the path to the SSL/TLS public certificate file (PEM format).
+
+*(Also accepts `<TLSCertificateFile>`)*
+
+Default: `./conf/ssl/cert.pem`
+
+Example:
+
+```xml
+<TLSCertFile> ./conf/ssl/cert.pem </TLSCertFile>
+```
+
+### TLSKeyFile
+Specifies the path to the SSL/TLS private key file (PEM format).
+
+*(Also accepts `<TLSPrivateKeyFile>`)*
+
+Default: `./conf/ssl/key.pem`
+
+Example:
+
+```xml
+<TLSKeyFile> ./conf/ssl/key.pem </TLSKeyFile>
 ```
 
 ### EnableLegacyHTTPVersions
