@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstring>
 #include <cwchar>
 #include <map>
@@ -393,36 +394,44 @@ namespace http::cgi {
             return WriteFile(hPipe, data.c_str(), (DWORD)data.size(), &written, NULL) && written == data.size();
         }
 
-        // Reads everything from a pipe until EOF
-        void readFromPipe(HANDLE hPipe, std::ofstream& tmpHandle, PROCESS_INFORMATION& procInfo) {
+        // Reads everything from a pipe until EOF or timeout
+        void readFromPipe(HANDLE hPipe, std::ofstream& tmpHandle, PROCESS_INFORMATION& procInfo, bool& timedOut) {
             char buffer[4096];
             DWORD bytesRead;
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(conf::CGI_TIMEOUT);
+
             while (true) {
-                BOOL isOk = ReadFile(hPipe, buffer, sizeof(buffer), &bytesRead, NULL);
-
-                if (isOk && bytesRead > 0) {
-                    tmpHandle.write(buffer, bytesRead);
-                    continue;
+                if (std::chrono::steady_clock::now() >= deadline) {
+                    timedOut = true;
+                    ERROR_LOG << "PHP CGI worker timed out after " << conf::CGI_TIMEOUT << " seconds" << std::endl;
+                    TerminateProcess(procInfo.hProcess, 1);
+                    tmpHandle.setstate(std::ios::badbit);
+                    break;
                 }
 
-                // ReadFile failed or returned nothing
-                DWORD err = GetLastError();
-                if (err == ERROR_NO_DATA || err == ERROR_PIPE_LISTENING) {
-                    Sleep(1);
-                    continue;
+                DWORD bytesAvail = 0;
+                if (!PeekNamedPipe(hPipe, NULL, 0, NULL, &bytesAvail, NULL)) {
+                    // Pipe closed by worker (EOF)
+                    break;
                 }
 
-                // Check if process exited
-                DWORD wait = WaitForSingleObject(procInfo.hProcess, 0);
+                if (bytesAvail > 0) {
+                    const DWORD toRead = std::min<DWORD>(sizeof(buffer), bytesAvail);
+                    if (ReadFile(hPipe, buffer, toRead, &bytesRead, NULL) && bytesRead > 0) {
+                        tmpHandle.write(buffer, bytesRead);
+                        continue;
+                    }
+                    break;
+                }
 
-                if (wait == WAIT_OBJECT_0) {
-                    // Child closed, drain any remaining output
+                // Check if worker process exited
+                if (WaitForSingleObject(procInfo.hProcess, 0) == WAIT_OBJECT_0) {
+                    // Drain any remaining output before breaking
                     while (ReadFile(hPipe, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0)
                         tmpHandle.write(buffer, bytesRead);
                     break;
                 }
 
-                // Allow time to wait for response
                 Sleep(1);
             }
 
@@ -453,10 +462,10 @@ namespace http::cgi {
 
         // Closes pipes on a worker
         void Process::closePipes() {
-            if (stdinRead != NULL) CloseHandle(stdinRead);
-            if (stdinWrite != NULL) CloseHandle(stdinWrite);
-            if (stdoutRead != NULL) CloseHandle(stdoutRead);
-            if (stdoutWrite != NULL) CloseHandle(stdoutWrite);
+            if (stdinRead != NULL) { CloseHandle(stdinRead); stdinRead = NULL; }
+            if (stdinWrite != NULL) { CloseHandle(stdinWrite); stdinWrite = NULL; }
+            if (stdoutRead != NULL) { CloseHandle(stdoutRead); stdoutRead = NULL; }
+            if (stdoutWrite != NULL) { CloseHandle(stdoutWrite); stdoutWrite = NULL; }
         }
 
         // Spawns a new CGI process
@@ -551,22 +560,39 @@ namespace http::cgi {
 
         // Close the spawned process
         void Process::closeProcess() {
-            WaitForSingleObject(procInfo.hProcess, INFINITE);
-            CloseHandle(procInfo.hProcess);
-            CloseHandle(procInfo.hThread);
+            if (procInfo.hProcess != NULL) {
+                // Wait briefly for worker to exit naturally before force terminating
+                if (WaitForSingleObject(procInfo.hProcess, 1000) != WAIT_OBJECT_0) {
+                    TerminateProcess(procInfo.hProcess, 1);
+                    WaitForSingleObject(procInfo.hProcess, 1000);
+                }
+                CloseHandle(procInfo.hProcess);
+                procInfo.hProcess = NULL;
+            }
+            if (procInfo.hThread != NULL) {
+                CloseHandle(procInfo.hThread);
+                procInfo.hThread = NULL;
+            }
         }
 
         // Sends the string of text (from loadCGIRequestToString) to the CGI
         void Process::send(const std::string& input, std::ofstream& tmpHandle) {
-            // Write request body to stdin
-            writeToPipe(stdinWrite, input);
+            // Write request body to stdin if present
+            if (!input.empty())
+                writeToPipe(stdinWrite, input);
 
             // Close write end to send EOF to CGI
             CloseHandle(stdinWrite);
             stdinWrite = NULL;
 
             // Read response from CGI
-            readFromPipe(stdoutRead, tmpHandle, procInfo);
+            readFromPipe(stdoutRead, tmpHandle, procInfo, timedOut);
+
+            // Close read end of stdout pipe
+            CloseHandle(stdoutRead);
+            stdoutRead = NULL;
+
+            if (timedOut) return;
 
             // Report crashed or silent Windows workers before handles close
             DWORD exitCode = 0;
@@ -579,10 +605,6 @@ namespace http::cgi {
                           << ", captured stdout bytes: " << tmpHandle.tellp() << std::endl;
                 if (exitCode != 0) tmpHandle.setstate(std::ios::badbit);
             }
-
-            // After reading, also close the read end
-            CloseHandle(stdoutRead);
-            stdoutRead = NULL;
         }
     #else // Linux piping functions
         // Used to release one descriptor without leaving stale ownership

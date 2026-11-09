@@ -356,6 +356,10 @@ namespace http {
                 closeSocket(client);
                 continue;
             }
+
+            // Apply read and write deadlines to prevent slow clients from stalling worker threads
+            setSocketTimeout(client, conf::KEEP_ALIVE_TIMEOUT);
+
             this->extractClientIP(clientAddr, clientIPStr); // Read client IP
 
             // Queue the handler with its own IP string and shared server lifetime
@@ -404,14 +408,14 @@ namespace http {
             };
 
             // Append the next available block without discarding buffered request data
-            auto readMore = [&]() -> bool {
-                if (isExiting) return false;
+            auto readMore = [&](const int timeoutMs = conf::KEEP_ALIVE_TIMEOUT * 1000) -> bool {
+                if (isExiting || timeoutMs <= 0) return false;
 
                 // Decrypted TLS bytes can already be waiting without socket activity
                 if (!useTLS || SSL_pending(pSSL) == 0) {
                     struct pollfd pfd{};
                     pfd.fd = client;
-                    const ssize_t ready = waitForClientData(pfd, conf::KEEP_ALIVE_TIMEOUT * 1000);
+                    const ssize_t ready = waitForClientData(pfd, timeoutMs);
                     if (ready <= 0 || !(pfd.revents & POLLIN)) return false;
                 }
 
@@ -439,6 +443,10 @@ namespace http {
                 bool lineTooLong = false, isSimpleRequest = false;
                 constexpr size_t maxHeaderBytes = 64 * 1024;
 
+                // Overall deadline for receiving complete request headers
+                const auto headerDeadline = std::chrono::steady_clock::now() +
+                    std::chrono::seconds(conf::KEEP_ALIVE_TIMEOUT);
+
                 // Read the complete header block, checking limits after every append
                 while (true) {
                     const size_t lineEnd = pending.find("\r\n");
@@ -455,7 +463,11 @@ namespace http {
 
                     // Stop buffering once a complete request header or a limit is found
                     if (lineTooLong || headerEnd != std::string::npos || pending.size() > maxHeaderBytes) break;
-                    if (!readMore()) throw http::Exception();
+
+                    const auto now = std::chrono::steady_clock::now();
+                    if (now >= headerDeadline) throw http::Exception();
+                    const auto remainingMs = std::chrono::duration_cast<std::chrono::milliseconds>(headerDeadline - now).count();
+                    if (!readMore(static_cast<int>(remainingMs))) throw http::Exception();
                 }
 
                 // Report oversized request lines separately from oversized headers

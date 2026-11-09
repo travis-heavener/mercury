@@ -10,6 +10,8 @@
 - Fix: escape HTML entities in directory indexing to prevent stored and reflected cross-site scripting (#526)
 - Fix: ensure atomic temp file creation with restrictive 0600 permissions to prevent symlink attacks and race conditions (#521)
 - Fix: close inherited file descriptors across CGI process spawn with /proc/self/fd fallback and SOCK_CLOEXEC flags (#522)
+- Fix: enforce cumulative request header deadline and socket write timeouts to mitigate Slowloris worker exhaustion (#527)
+- Fix: enforce CGI timeout and non-blocking pipe reads on Windows to prevent worker thread starvation (#524)
 
 ## [0.39.1] - 2026-11-08
 - Chore: parallelize compilation with intermediate object rules, automatic header dependency tracking (-MMD -MP), debug/release build directory separation, and transparent ccache support
