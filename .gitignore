@@ -13,3 +13,4 @@ conf/mimes.conf
 php/*
 tmp/*
 build/*
+WORKPLAN.md
