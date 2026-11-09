@@ -365,9 +365,14 @@ if __name__ == "__main__":
             ownership_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_fastcgi_backend.py")
             ownership_ok = subprocess.run([sys.executable, ownership_script, "--mercury-output"]).returncode == 0
 
+        # Run rate limiting integration tests across all platforms
+        print("=" * 80, flush=True)
+        ratelimit_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_ratelimit.py")
+        ratelimit_ok = subprocess.run([sys.executable, ratelimit_script, "--mercury-output"]).returncode == 0
+
         # Print overall test suite summary
         print("=" * 80)
-        success = num_passing == num_total and ownership_ok and cgi_ok
+        success = num_passing == num_total and ownership_ok and cgi_ok and ratelimit_ok
         print("✅ Success" if success else "❌ Failure")
         print(f"Passing: {num_passing}/{num_total}")
         sys.exit(0 if success else 1)

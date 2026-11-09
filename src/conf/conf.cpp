@@ -14,6 +14,7 @@
 #include "../http/fastcgi/client.hpp"
 #include "../io/file_tools.hpp"
 #include "../util/privilege.hpp"
+#include "../util/ratelimit.hpp"
 #include "../util/string_tools.hpp"
 
 #define LOAD_UINT_FORBID_ZERO false
@@ -60,6 +61,10 @@ namespace conf {
     int CLIENT_SECURITY_MODE;
     std::string IP_HASH_SALT;
 
+    bool IS_RATE_LIMIT_ENABLED = false;
+    double RATE_LIMIT_RATE = 100.0;
+    double RATE_LIMIT_BURST = 20.0;
+
     bool USE_TLS;
     port_t TLS_PORT;
     std::filesystem::path TLS_CERT_FILE;
@@ -94,6 +99,7 @@ namespace conf {
 
     const std::vector<std::string> mercuryNodeNames = {
         "DocumentRoot", "BindAddressIPv4", "BindAddressIPv6", "Port", "TLSPort", "TLSCertFile", "TLSKeyFile", "TLSCertificateFile", "TLSPrivateKeyFile", "Redirect", "Rewrite",
+        "RateLimit",
         "AccessLogFile", "ErrorLogFile", "DisableLogs", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "CGITimeout", "WinPHPCGIPath", "EnableFastCGI", "FastCGIAddress", "FastCGITimeout", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
@@ -134,6 +140,7 @@ namespace conf {
     int loadClientSecurityMode(const pugi::xml_node& root, int& var, const int defaultMode=CLIENT_SEC_GPC_MASKED);
     int loadClientSecurityIPSalt(const pugi::xml_node& root, std::string& var, const std::string& defaultSalt="fAhGD0OnCe4YhSyx");
     int loadFastCGIAddress(const pugi::xml_node& root, std::string& var);
+    int loadRateLimit(const pugi::xml_node& root);
 
     // Loads the directory of the running executable to path
     // Returns true if successful or false otherwise
@@ -575,6 +582,11 @@ namespace conf {
         if (loadClientSecurityIPSalt(root, IP_HASH_SALT) == CONF_FAILURE)
             return CONF_FAILURE;
 
+        /************ LOAD RATE LIMIT ************/
+
+        if (loadRateLimit(root) == CONF_FAILURE)
+            return CONF_FAILURE;
+
         /************ LOAD BOOLEANS ************/
 
         if (loadOnOff(root, DISABLE_LOGS, "DisableLogs", false) == CONF_FAILURE)
@@ -875,6 +887,12 @@ namespace conf {
 
         // Reset logging settings
         DISABLE_LOGS = false;
+
+        // Reset rate limiter settings
+        IS_RATE_LIMIT_ENABLED = false;
+        RATE_LIMIT_RATE = 100.0;
+        RATE_LIMIT_BURST = 20.0;
+        util::RateLimiter::getInstance().clear();
 
         // Reset TLS paths
         TLS_CERT_FILE.clear();
@@ -1314,6 +1332,83 @@ namespace conf {
         }
 
         var = valueStr;
+        return CONF_SUCCESS;
+    }
+
+    // Used to load RateLimit configuration settings and whitelisted CIDRs
+    int loadRateLimit(const pugi::xml_node& root) {
+        const pugi::xml_node node = root.child("RateLimit");
+        if (!node) {
+            IS_RATE_LIMIT_ENABLED = false;
+            RATE_LIMIT_RATE = 100.0;
+            RATE_LIMIT_BURST = 20.0;
+            util::RateLimiter::getInstance().configure(false, 100.0, 20.0);
+            return CONF_SUCCESS;
+        }
+
+        // Parse enabled attribute
+        std::string enabledStr = "on";
+        if (node.attribute("enabled")) {
+            enabledStr = node.attribute("enabled").as_string();
+        }
+        trimString(enabledStr);
+        strToLower(enabledStr);
+        if (enabledStr == "on") {
+            IS_RATE_LIMIT_ENABLED = true;
+        } else if (enabledStr == "off") {
+            IS_RATE_LIMIT_ENABLED = false;
+        } else {
+            std::cerr << "Failed to parse config file, invalid enabled attribute for RateLimit." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Parse rate (requests per second) attribute
+        std::string rateStr = "100";
+        if (node.attribute("rate")) rateStr = node.attribute("rate").as_string();
+        trimString(rateStr);
+
+        try {
+            if (rateStr.empty() || rateStr[0] == '-') throw std::invalid_argument("");
+            size_t idx = 0;
+            RATE_LIMIT_RATE = std::stod(rateStr, &idx);
+            if (idx != rateStr.size() || RATE_LIMIT_RATE <= 0.0) throw std::invalid_argument("");
+        } catch (...) {
+            std::cerr << "Failed to parse config file, invalid rate attribute for RateLimit." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Parse burst capacity attribute
+        std::string burstStr = "20";
+        if (node.attribute("burst")) burstStr = node.attribute("burst").as_string();
+        trimString(burstStr);
+
+        try {
+            if (burstStr.empty() || burstStr[0] == '-') throw std::invalid_argument("");
+            size_t idx = 0;
+            RATE_LIMIT_BURST = std::stod(burstStr, &idx);
+            if (idx != burstStr.size() || RATE_LIMIT_BURST < 1.0) throw std::invalid_argument("");
+        } catch (...) {
+            std::cerr << "Failed to parse config file, invalid burst attribute for RateLimit." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        util::RateLimiter::getInstance().configure(IS_RATE_LIMIT_ENABLED, RATE_LIMIT_RATE, RATE_LIMIT_BURST);
+
+        // Parse whitelist entries
+        for (const pugi::xml_node& child : node.children()) {
+            const std::string name = child.name();
+            if (name == "Whitelist") {
+                try {
+                    SanitizedIP sip = parseSanitizedIP(child);
+                    util::RateLimiter::getInstance().addWhitelist(sip);
+                } catch (std::exception&) {
+                    std::cerr << "Failed to parse config file, invalid IP/CIDR in RateLimit whitelist: "
+                              << child.text().as_string() << std::endl;
+                    return CONF_FAILURE;
+                }
+            }
+        }
+
         return CONF_SUCCESS;
     }
 }

@@ -7,6 +7,7 @@
 #include "../conf/conf.hpp"
 #include "../io/file.hpp"
 #include "../logs/logger.hpp"
+#include "../util/ratelimit.hpp"
 #include "../util/string_tools.hpp"
 #include "../util/toolbox.hpp"
 
@@ -526,10 +527,25 @@ namespace http {
                 else
                     pending.erase(0, requestSize);
 
-                std::unique_ptr<Response> response = genResponse(request);
+                // Enforce rate limiting if enabled
+                std::unique_ptr<Response> response = nullptr;
+                double retryAfter = 0.0;
+                const bool isRateLimited = conf::IS_RATE_LIMIT_ENABLED &&
+                    !util::RateLimiter::getInstance().checkAndConsume(clientIPStr, request.isDNT(), retryAfter);
+
+                if (isRateLimited) {
+                    response = std::make_unique<Response>(request.getVersion().empty() ? "HTTP/1.1" : request.getVersion());
+                    response->setStatus(429);
+                    response->setHeader("Retry-After", std::to_string(static_cast<int>(retryAfter)));
+                    response->setHeader("Connection", "close");
+                    if (request.isMIMEAccepted("text/html"))
+                        response->loadBodyFromErrorDoc(429);
+                } else {
+                    response = genResponse(request);
+                }
 
                 // Read Connection as a case-insensitive list without allocating temporary collections
-                bool hasClose = false, hasKeepAlive = false;
+                bool hasClose = isRateLimited, hasKeepAlive = false;
                 const auto itConn = reqHeaders.find("CONNECTION");
                 if (itConn != reqHeaders.end()) {
                     std::string_view connView = itConn->second;
@@ -553,7 +569,8 @@ namespace http {
 
                 // A close option wins over keep-alive, including across repeated headers
                 // HTTP/1.1 persists by default; HTTP/1.0 requires explicit keep-alive
-                --requestsLeft;
+                if (requestsLeft > 0) --requestsLeft;
+                if (isRateLimited) requestsLeft = 0;
                 const bool keepAlive = requestsLeft > 0 && conf::IS_KEEP_ALIVE_ENABLED &&
                     !hasClose &&
                     (request.getVersion() == "HTTP/1.1" ||

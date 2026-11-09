@@ -68,6 +68,10 @@ namespace conf {
     extern int CLIENT_SECURITY_MODE;
     extern std::string IP_HASH_SALT;
 
+    extern bool IS_RATE_LIMIT_ENABLED;
+    extern double RATE_LIMIT_RATE;
+    extern double RATE_LIMIT_BURST;
+
     extern bool USE_TLS;
     extern port_t TLS_PORT;
     extern std::filesystem::path TLS_CERT_FILE;

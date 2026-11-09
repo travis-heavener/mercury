@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.40.0] - 2026-11-09
+- Added: implement IP-based privacy-preserving rate limiting with token bucket algorithm, sharded mutexes, CIDR whitelisting, and RFC 6585 429 response (#443)
+
 ## [0.39.2] - 2026-11-08
 - Added: TLSCertFile and TLSKeyFile config directives to configure custom SSL/TLS certificate and private key paths
 - Fix: prevent HTTPoxy vulnerability by filtering Proxy / HTTP_PROXY header forwarding in CGI and FastCGI parameter encoders (#518)

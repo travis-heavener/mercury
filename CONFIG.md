@@ -17,10 +17,11 @@ All configuration nodes must be wrapped within a singular `<Mercury>` root node.
 - [Redirect](#redirect)
 - [Rewrite](#rewrite)
 
-### Logging
+### Logging & Security
 - [DisableLogs](#disablelogs)
 - [AccessLogFile](#accesslogfile)
 - [ErrorLogFile](#errorlogfile)
+- [RateLimit](#ratelimit)
 - [ClientSecurityMode](#clientsecuritymode)
 - [ClientSecurityIPSalt](#clientsecurityipsalt)
 
@@ -247,6 +248,32 @@ Example:
 
 ```xml
 <ClientSecurityIPSalt> CXt6NX36UdsVCl5o </ClientSecurityIPSalt>
+```
+
+### RateLimit
+Controls client IP rate limiting to mitigate denial-of-service (DoS) floods and brute-force attempts via a token bucket algorithm.
+
+Attributes:
+- `enabled`: `on` or `off` (default: `off`)
+- `rate`: Token replenishment speed in requests per second added back to the client's bucket (default: `100`, e.g. `2` adds one request every 0.5s)
+- `burst`: Maximum bucket capacity — the number of requests a client can send instantaneously in an initial spike before being limited (default: `20`)
+
+When a client exhausts their available burst tokens, subsequent requests receive `429 Too Many Requests` with a `Retry-After` header until tokens replenish according to `rate`.
+
+Child nodes:
+- `<Whitelist>`: Optional IP addresses or CIDR ranges exempt from rate limiting (e.g. `127.0.0.1/32`, `::1/128`). Multiple entries are allowed.
+
+When `ClientSecurityMode` is set to `GPCHashed` or `Hashed`, rate limiting uses the HMAC-SHA256 privacy hash of the client's IP, enforcing limits with zero knowledge of the raw IP address. In `GPCMasked` or `Masked` mode, rate limiting applies at the subnet level (`/24` for IPv4, `/48` for IPv6).
+
+Default: `off`
+
+Example:
+
+```xml
+<RateLimit enabled="on" rate="50" burst="10">
+    <Whitelist> 127.0.0.1 </Whitelist>
+    <Whitelist> ::1 </Whitelist>
+</RateLimit>
 ```
 
 ### EnablePHPCGI
