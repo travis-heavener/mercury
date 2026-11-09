@@ -4,6 +4,7 @@
 
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
+#include "../../util/string_tools.hpp"
 #include "../../util/toolbox.hpp"
 #include "../cgi/process.hpp"
 #include "../fastcgi/client.hpp"
@@ -118,7 +119,7 @@ namespace http::version::handler_1_1 {
                 return pResponse;
 
             // Check for PHP files
-            if (file.absoluteResourcePath.ends_with(".php")) {
+            if (isPHPFile(file.absoluteResourcePath)) {
                 if (conf::IS_FASTCGI_ENABLED) {
                     fastcgi::handleRequest(conf::FASTCGI_ADDRESS, file, request, *pResponse, static_cast<int>(conf::FASTCGI_TIMEOUT));
 

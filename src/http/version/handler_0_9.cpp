@@ -1,8 +1,9 @@
 #include "handler_0_9.hpp"
 
 #include "../../conf/conf.hpp"
-#include "../../util/toolbox.hpp"
 #include "../../logs/logger.hpp"
+#include "../../util/string_tools.hpp"
+#include "../../util/toolbox.hpp"
 
 namespace http::version::handler_0_9 {
 
@@ -61,7 +62,7 @@ namespace http::version::handler_0_9 {
             return pResponse;
 
         // Prevent returning static PHP files over legacy HTTP protocols
-        if ((conf::IS_PHP_ENABLED || conf::IS_FASTCGI_ENABLED) && file.absoluteResourcePath.ends_with(".php")) {
+        if ((conf::IS_PHP_ENABLED || conf::IS_FASTCGI_ENABLED) && isPHPFile(file.absoluteResourcePath)) {
             pResponse->setStatus(403);
             return pResponse;
         }

@@ -12,6 +12,7 @@
 - Fix: close inherited file descriptors across CGI process spawn with /proc/self/fd fallback and SOCK_CLOEXEC flags (#522)
 - Fix: enforce cumulative request header deadline and socket write timeouts to mitigate Slowloris worker exhaustion (#527)
 - Fix: enforce CGI timeout and non-blocking pipe reads on Windows to prevent worker thread starvation (#524)
+- Fix: enforce case-insensitive rule matching and prevent 8.3 short filename alias ACL bypasses on Windows (#523)
 
 ## [0.39.1] - 2026-11-08
 - Chore: parallelize compilation with intermediate object rules, automatic header dependency tracking (-MMD -MP), debug/release build directory separation, and transparent ccache support

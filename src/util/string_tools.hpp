@@ -37,6 +37,17 @@ inline bool equalsCi(const std::string_view a, const std::string_view b) {
     });
 }
 
+// Return true if path ends with .php (case-insensitive on Windows)
+inline bool isPHPFile(const std::string_view path) {
+#ifdef _WIN32
+    if (path.size() >= 4)
+        return equalsCi(path.substr(path.size() - 4), ".php");
+    return false;
+#else
+    return path.ends_with(".php");
+#endif
+}
+
 void splitString(std::vector<std::string>&, const std::string&, const char, const bool);
 
 inline void stringReplaceAll(std::string& haystack, const std::string& needle, const std::string& sub) {

@@ -3,8 +3,9 @@
 #include <optional>
 
 #include "../../conf/conf.hpp"
-#include "../../util/toolbox.hpp"
 #include "../../logs/logger.hpp"
+#include "../../util/string_tools.hpp"
+#include "../../util/toolbox.hpp"
 
 #define ALLOWED_STATIC_METHODS "GET, HEAD"
 
@@ -112,7 +113,7 @@ namespace http::version::handler_1_0 {
             return pResponse;
 
         // Prevent returning static PHP files over legacy HTTP protocols
-        if ((conf::IS_PHP_ENABLED || conf::IS_FASTCGI_ENABLED) && file.absoluteResourcePath.ends_with(".php")) {
+        if ((conf::IS_PHP_ENABLED || conf::IS_FASTCGI_ENABLED) && isPHPFile(file.absoluteResourcePath)) {
             pResponse->setStatus(403);
             return pResponse;
         }

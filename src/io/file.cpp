@@ -16,15 +16,24 @@ File::File(const http::RequestPath& paths) {
     FileMetadata meta;
     bool metaQueried = false;
 
+#ifdef _WIN32
+    bool hasPhpExt = false;
+    std::string lowerUri = decodedURIWithoutPathInfo;
+    strToLower(lowerUri);
+    hasPhpExt = lowerUri.find(".php") != std::string::npos;
+#else
+    bool hasPhpExt = decodedURIWithoutPathInfo.find(".php") != std::string::npos;
+#endif
+
     // Extract PHP path info only when PHP or FastCGI enabled and path contains .php
-    if ((conf::IS_PHP_ENABLED || conf::IS_FASTCGI_ENABLED) && decodedURIWithoutPathInfo.find(".php") != std::string::npos) {
+    if ((conf::IS_PHP_ENABLED || conf::IS_FASTCGI_ENABLED) && hasPhpExt) {
         std::filesystem::path rawPathNoPathInfo;
         std::filesystem::path rawPathCopy = std::filesystem::path(decodedURIWithoutPathInfo);
         bool hasPathInfo = false;
         for (const auto& part : rawPathCopy) {
             if (!hasPathInfo) {
                 rawPathNoPathInfo /= part;
-                if (part.string().ends_with(".php")) {
+                if (isPHPFile(part.string())) {
                     FileMetadata phpMeta;
                     const std::string candidatePath = (conf::DOCUMENT_ROOT / rawPathNoPathInfo.relative_path()).string();
                     if (queryFileMetadata(candidatePath, phpMeta) && phpMeta.isRegularFile) {
@@ -103,10 +112,25 @@ File::File(const http::RequestPath& paths) {
     normalizeBackslashes(docRootStr);
     std::string normResourcePath = this->absoluteResourcePath;
     normalizeBackslashes(normResourcePath);
+#ifdef _WIN32
+    if (!normResourcePath.empty() && !docRootStr.empty()) {
+        normResourcePath[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(normResourcePath[0])));
+        docRootStr[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(docRootStr[0])));
+    }
+#endif
     if (normResourcePath.find(docRootStr) != 0) {
         this->exists = false;
         return;
     }
+
+#ifdef _WIN32
+    // Canonicalize relative URI using filesystem-normalized path on Windows
+    std::string canonicalRelPath = normResourcePath.substr(docRootStr.length());
+    if (canonicalRelPath.empty() || canonicalRelPath.front() != '/') {
+        canonicalRelPath.insert(canonicalRelPath.begin(), '/');
+    }
+    this->decodedURIWithoutPathInfo = canonicalRelPath;
+#endif
 
     // Check for index file
     if (this->absoluteResourcePath.back() == '/') {
@@ -154,7 +178,7 @@ File::File(const http::RequestPath& paths) {
 
     // Cache static regular files
     if (this->exists && !this->isLinked && !this->isDirectory && !this->ioFailure &&
-        !this->absoluteResourcePath.ends_with(".php") && this->phpPathInfo.empty()) {
+        !isPHPFile(this->absoluteResourcePath) && this->phpPathInfo.empty()) {
         io::FileCache::getInstance().put(*this, paths.decodedURI);
     }
 }

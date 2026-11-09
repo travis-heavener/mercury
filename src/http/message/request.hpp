@@ -32,6 +32,9 @@ namespace http {
             inline const headers_map_t& getHeaders() const { return headers; };
             inline const std::vector<std::pair<size_t, size_t>>& getByteRanges() const { return byteRanges; };
             const std::vector<const conf::Match*>& getMatchedRules() const;
+#ifdef _WIN32
+            const std::vector<const conf::Match*>& getCanonicalMatchedRules(const std::string& canonicalURI) const;
+#endif
 
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
@@ -71,6 +74,10 @@ namespace http {
 
             mutable std::vector<const conf::Match*> matchedRules;
             mutable bool matchedRulesEvaluated = false;
+#ifdef _WIN32
+            mutable std::vector<const conf::Match*> canonicalMatchedRules;
+            mutable bool canonicalMatchedRulesEvaluated = false;
+#endif
     };
 
 }

@@ -8,6 +8,7 @@ Counts below are test groups, not individual requests or assertions.
 from concurrent.futures import ThreadPoolExecutor
 import socket
 import ssl
+import sys
 
 
 # Assertions implement test failures; optimized Python would silently remove them.
@@ -143,10 +144,18 @@ def php_bytes(connect):
 
 def authorization(connect):
     """Apply the same denial to equivalent paths before filesystem lookup."""
-    for path in (b"/private/file.txt", b"/./private/file.txt", b"/%2e/private/file.txt", b"/%5cprivate/file.txt", b"//private//file.txt"):
+    paths = [b"/private/file.txt", b"/./private/file.txt", b"/%2e/private/file.txt", b"/%5cprivate/file.txt", b"//private//file.txt"]
+    if sys.platform in ("win32", "cygwin"):
+        paths.append(b"/PRIVATE/file.txt")
+    for path in paths:
         with connect() as conn:
             conn.send(request(path))
             assert conn.response()[0] == 403, f"access rule bypass: {path!r}"
+
+    if sys.platform in ("win32", "cygwin"):
+        with connect() as conn:
+            conn.send(request(b"/private/FILE~1.TXT"))
+            assert conn.response()[0] == 400
 
 
 def redirect_injection(connect):

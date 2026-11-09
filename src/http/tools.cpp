@@ -226,8 +226,8 @@ namespace http {
         for (char& c : decoded) {
             if (static_cast<unsigned char>(c) < 32 || c == 127) return false;
             #ifdef _WIN32
-                // Reject colons on Windows (drive letters and NTFS alternate data streams)
-                if (c == ':') return false;
+                // Reject colons and tildes on Windows (ADS and 8.3 short filename alias access)
+                if (c == ':' || c == '~') return false;
             #else
                 // Reject NTFS alternate data stream markers across all platforms
                 if (c == ':' && (decoded.find(":$DATA") != std::string::npos || decoded.find(".php:") != std::string::npos))

@@ -157,6 +157,10 @@ namespace http {
         this->_has400Error |= !loadRequestPaths(paths, newPath, true);
         this->matchedRulesEvaluated = false;
         this->matchedRules.clear();
+#ifdef _WIN32
+        this->canonicalMatchedRulesEvaluated = false;
+        this->canonicalMatchedRules.clear();
+#endif
     }
 
     // This method exists to combine common methods from the version handlers
@@ -194,7 +198,12 @@ namespace http {
 
         // Handle directory listings
         if (file.isDirectory) {
-            for (const conf::Match* pMatch : this->getMatchedRules()) {
+#ifdef _WIN32
+            const auto& dirRules = this->getCanonicalMatchedRules(file.decodedURIWithoutPathInfo);
+#else
+            const auto& dirRules = this->getMatchedRules();
+#endif
+            for (const conf::Match* pMatch : dirRules) {
                 if (!pMatch->showDirectoryIndexes()) {
                     // Hide the directory index
                     this->setStatusMaybeErrorDoc(response, 403);
@@ -208,6 +217,28 @@ namespace http {
             this->setStatusMaybeErrorDoc(response, 404);
             return false;
         }
+
+#ifdef _WIN32
+        // Re-verify access control on resolved canonical path on Windows only when it differs from request URI
+        if (!conf::matchConfigs.empty() && !equalsCi(paths.decodedURI, file.decodedURIWithoutPathInfo)) {
+            const auto& canonicalRules = this->getCanonicalMatchedRules(file.decodedURIWithoutPathInfo);
+            if (!canonicalRules.empty()) {
+                try {
+                    conf::SanitizedIP sip(conf::parseSanitizedClientIP(this->getIPStr()));
+                    for (const conf::Match* pMatch : canonicalRules) {
+                        if (!pMatch->getAccessControl()->isIPAccepted(sip)) {
+                            this->setStatusMaybeErrorDoc(response, 403);
+                            return false;
+                        }
+                    }
+                } catch (const std::invalid_argument&) {
+                    ERROR_LOG << "Invalid IP address while parsing sanitized IP (" << this->getIPStr() << ')' << std::endl;
+                    this->setStatusMaybeErrorDoc(response, 500);
+                    return false;
+                }
+            }
+        }
+#endif
 
         // Base case, file is valid
         return true;
@@ -236,5 +267,24 @@ namespace http {
         }
         return matchedRules;
     }
+
+#ifdef _WIN32
+    const std::vector<const conf::Match*>& Request::getCanonicalMatchedRules(const std::string& canonicalURI) const {
+        if (equalsCi(paths.decodedURI, canonicalURI))
+            return this->getMatchedRules();
+
+        if (!canonicalMatchedRulesEvaluated) {
+            canonicalMatchedRulesEvaluated = true;
+            if (!conf::matchConfigs.empty()) {
+                canonicalMatchedRules.reserve(conf::matchConfigs.size());
+                for (const std::unique_ptr<conf::Match>& pMatch : conf::matchConfigs) {
+                    if (pMatch && pMatch->doesRequestMatch(canonicalURI, headers))
+                        canonicalMatchedRules.push_back(pMatch.get());
+                }
+            }
+        }
+        return canonicalMatchedRules;
+    }
+#endif
 
 }

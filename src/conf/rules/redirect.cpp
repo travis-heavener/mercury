@@ -6,8 +6,13 @@
 
 namespace conf {
 
+#ifdef _WIN32
+    Redirect::Redirect(const std::string& pattern, const std::string& to, const unsigned int status)
+        : pattern(pattern, std::regex_constants::ECMAScript | std::regex_constants::icase), patternStr(pattern), to(to), status(status) {}
+#else
     Redirect::Redirect(const std::string& pattern, const std::string& to, const unsigned int status)
         : pattern(pattern), patternStr(pattern), to(to), status(status) {}
+#endif
 
     void Redirect::loadRedirectedPath(const std::string& currentPath, std::string& outPath) const {
         outPath.clear();

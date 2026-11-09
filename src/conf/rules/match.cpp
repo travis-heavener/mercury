@@ -6,7 +6,12 @@
 
 namespace conf {
 
+#ifdef _WIN32
+    Match::Match(const std::string& pattern)
+        : pattern(pattern, std::regex_constants::ECMAScript | std::regex_constants::icase), patternStr(pattern) {
+#else
     Match::Match(const std::string& pattern) : pattern(pattern), patternStr(pattern) {
+#endif
         if (pattern == ".*" || pattern == "^.*$" || pattern == "^.*" || pattern == ".*$" || pattern == "(.*)" || pattern.empty()) {
             this->isCatchAll = true;
         } else if (pattern.find_first_of("*.+?[](){}|^$\\") == std::string::npos) {
@@ -134,7 +139,11 @@ namespace conf {
         if (this->isCatchAll) {
             // Unconditional URI match
         } else if (this->isExactMatch) {
+#ifdef _WIN32
+            if (!equalsCi(decodedURI, this->patternStr)) return false;
+#else
             if (decodedURI != this->patternStr) return false;
+#endif
         } else {
             if (!std::regex_match(decodedURI, this->pattern)) return false;
         }
