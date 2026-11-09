@@ -6,8 +6,13 @@
 
 namespace conf {
 
+#ifdef _WIN32
+    Rewrite::Rewrite(const std::string& pattern, const std::string& to)
+        : pattern(pattern, std::regex_constants::ECMAScript | std::regex_constants::icase), patternStr(pattern), to(to) {}
+#else
     Rewrite::Rewrite(const std::string& pattern, const std::string& to)
         : pattern(pattern), patternStr(pattern), to(to) {}
+#endif
 
     bool Rewrite::loadRewrittenPath(std::string& path) const {
         // Check if the regex matches

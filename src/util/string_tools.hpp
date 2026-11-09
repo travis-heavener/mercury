@@ -3,8 +3,10 @@
 
 #include <algorithm>
 #include <cctype>
+#include <ostream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -35,6 +37,17 @@ inline bool equalsCi(const std::string_view a, const std::string_view b) {
     });
 }
 
+// Return true if path ends with .php (case-insensitive on Windows)
+inline bool isPHPFile(const std::string_view path) {
+#ifdef _WIN32
+    if (path.size() >= 4)
+        return equalsCi(path.substr(path.size() - 4), ".php");
+    return false;
+#else
+    return path.ends_with(".php");
+#endif
+}
+
 void splitString(std::vector<std::string>&, const std::string&, const char, const bool);
 
 inline void stringReplaceAll(std::string& haystack, const std::string& needle, const std::string& sub) {
@@ -56,6 +69,85 @@ inline void trimString(std::string& str) {
     const size_t end = str.find_last_not_of(" \t");
     if (end + 1 < str.size()) str.erase(end + 1);
     if (start > 0) str.erase(0, start);
+}
+
+// Returns string view trimmed of leading and trailing whitespace
+inline std::string_view trimStringView(std::string_view str) {
+    const size_t start = str.find_first_not_of(" \t");
+    if (start == std::string_view::npos) return {};
+    const size_t end = str.find_last_not_of(" \t");
+    return str.substr(start, end - start + 1);
+}
+
+// Returns true if string views match case-insensitively
+inline bool strEqualsCaseInsensitive(std::string_view a, std::string_view b) {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (std::tolower(static_cast<unsigned char>(a[i])) != std::tolower(static_cast<unsigned char>(b[i])))
+            return false;
+    }
+    return true;
+}
+
+// Wrapper for streaming HTML-escaped characters (&, <, >, ", ') without allocations
+struct HtmlEscaped {
+    std::string_view text;
+
+    friend std::ostream& operator<<(std::ostream& os, const HtmlEscaped& esc) {
+        size_t start = 0;
+        const size_t len = esc.text.size();
+        for (size_t i = 0; i < len; ++i) {
+            const char c = esc.text[i];
+            const char* pSub = nullptr;
+            size_t subLen = 0;
+            switch (c) {
+                case '&':  pSub = "&amp;";  subLen = 5; break;
+                case '<':  pSub = "&lt;";   subLen = 4; break;
+                case '>':  pSub = "&gt;";   subLen = 4; break;
+                case '"':  pSub = "&quot;"; subLen = 6; break;
+                case '\'': pSub = "&#39;";  subLen = 5; break;
+                default:   continue;
+            }
+            if (i > start)
+                os.write(esc.text.data() + start, static_cast<std::streamsize>(i - start));
+            os.write(pSub, static_cast<std::streamsize>(subLen));
+            start = i + 1;
+        }
+        if (start < len)
+            os.write(esc.text.data() + start, static_cast<std::streamsize>(len - start));
+        return os;
+    }
+};
+
+// Returns string with HTML entities escaped (&, <, >, ", ')
+inline std::string escapeHtml(std::string_view input) {
+    size_t extra = 0;
+    for (const char c : input) {
+        if (c == '&' || c == '<' || c == '>' || c == '"' || c == '\'')
+            extra += 5;
+    }
+    if (extra == 0) return std::string(input);
+
+    std::string out;
+    out.reserve(input.size() + extra);
+    size_t start = 0;
+    const size_t len = input.size();
+    for (size_t i = 0; i < len; ++i) {
+        const char* pSub = nullptr;
+        switch (input[i]) {
+            case '&':  pSub = "&amp;";  break;
+            case '<':  pSub = "&lt;";   break;
+            case '>':  pSub = "&gt;";   break;
+            case '"':  pSub = "&quot;"; break;
+            case '\'': pSub = "&#39;";  break;
+            default:   continue;
+        }
+        if (i > start) out.append(input.substr(start, i - start));
+        out.append(pSub);
+        start = i + 1;
+    }
+    if (start < len) out.append(input.substr(start, len - start));
+    return out;
 }
 
 void decodeURI(std::string&);

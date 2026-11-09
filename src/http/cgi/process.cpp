@@ -5,6 +5,7 @@
 #else
     #include <cerrno>
     #include <csignal>
+    #include <dirent.h>
     #include <fcntl.h>
     #include <poll.h>
     #include <spawn.h>
@@ -15,6 +16,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstring>
 #include <cwchar>
 #include <map>
@@ -131,8 +133,8 @@ namespace http::cgi {
             for (char& c : cgiKey) if (c == '-') c = '_';
             strToUpper(cgiKey);
 
-            // Ignore Authorization header (already passed)
-            if (cgiKey != "HTTP_AUTHORIZATION" && cgiKey != "HTTP_CONTENT_LENGTH" && cgiKey != "HTTP_CONTENT_TYPE")
+            // Exclude dedicated CGI variables and block HTTPoxy vulnerability (RFC 3875 §4.1.18)
+            if (cgiKey != "HTTP_AUTHORIZATION" && cgiKey != "HTTP_CONTENT_LENGTH" && cgiKey != "HTTP_CONTENT_TYPE" && cgiKey != "HTTP_PROXY")
                 envsMap[cgiKey] = val;
         }
 
@@ -392,36 +394,44 @@ namespace http::cgi {
             return WriteFile(hPipe, data.c_str(), (DWORD)data.size(), &written, NULL) && written == data.size();
         }
 
-        // Reads everything from a pipe until EOF
-        void readFromPipe(HANDLE hPipe, std::ofstream& tmpHandle, PROCESS_INFORMATION& procInfo) {
+        // Reads everything from a pipe until EOF or timeout
+        void readFromPipe(HANDLE hPipe, std::ofstream& tmpHandle, PROCESS_INFORMATION& procInfo, bool& timedOut) {
             char buffer[4096];
             DWORD bytesRead;
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(conf::CGI_TIMEOUT);
+
             while (true) {
-                BOOL isOk = ReadFile(hPipe, buffer, sizeof(buffer), &bytesRead, NULL);
-
-                if (isOk && bytesRead > 0) {
-                    tmpHandle.write(buffer, bytesRead);
-                    continue;
+                if (std::chrono::steady_clock::now() >= deadline) {
+                    timedOut = true;
+                    ERROR_LOG << "PHP CGI worker timed out after " << conf::CGI_TIMEOUT << " seconds" << std::endl;
+                    TerminateProcess(procInfo.hProcess, 1);
+                    tmpHandle.setstate(std::ios::badbit);
+                    break;
                 }
 
-                // ReadFile failed or returned nothing
-                DWORD err = GetLastError();
-                if (err == ERROR_NO_DATA || err == ERROR_PIPE_LISTENING) {
-                    Sleep(1);
-                    continue;
+                DWORD bytesAvail = 0;
+                if (!PeekNamedPipe(hPipe, NULL, 0, NULL, &bytesAvail, NULL)) {
+                    // Pipe closed by worker (EOF)
+                    break;
                 }
 
-                // Check if process exited
-                DWORD wait = WaitForSingleObject(procInfo.hProcess, 0);
+                if (bytesAvail > 0) {
+                    const DWORD toRead = std::min<DWORD>(sizeof(buffer), bytesAvail);
+                    if (ReadFile(hPipe, buffer, toRead, &bytesRead, NULL) && bytesRead > 0) {
+                        tmpHandle.write(buffer, bytesRead);
+                        continue;
+                    }
+                    break;
+                }
 
-                if (wait == WAIT_OBJECT_0) {
-                    // Child closed, drain any remaining output
+                // Check if worker process exited
+                if (WaitForSingleObject(procInfo.hProcess, 0) == WAIT_OBJECT_0) {
+                    // Drain any remaining output before breaking
                     while (ReadFile(hPipe, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0)
                         tmpHandle.write(buffer, bytesRead);
                     break;
                 }
 
-                // Allow time to wait for response
                 Sleep(1);
             }
 
@@ -452,10 +462,10 @@ namespace http::cgi {
 
         // Closes pipes on a worker
         void Process::closePipes() {
-            if (stdinRead != NULL) CloseHandle(stdinRead);
-            if (stdinWrite != NULL) CloseHandle(stdinWrite);
-            if (stdoutRead != NULL) CloseHandle(stdoutRead);
-            if (stdoutWrite != NULL) CloseHandle(stdoutWrite);
+            if (stdinRead != NULL) { CloseHandle(stdinRead); stdinRead = NULL; }
+            if (stdinWrite != NULL) { CloseHandle(stdinWrite); stdinWrite = NULL; }
+            if (stdoutRead != NULL) { CloseHandle(stdoutRead); stdoutRead = NULL; }
+            if (stdoutWrite != NULL) { CloseHandle(stdoutWrite); stdoutWrite = NULL; }
         }
 
         // Spawns a new CGI process
@@ -550,22 +560,39 @@ namespace http::cgi {
 
         // Close the spawned process
         void Process::closeProcess() {
-            WaitForSingleObject(procInfo.hProcess, INFINITE);
-            CloseHandle(procInfo.hProcess);
-            CloseHandle(procInfo.hThread);
+            if (procInfo.hProcess != NULL) {
+                // Wait briefly for worker to exit naturally before force terminating
+                if (WaitForSingleObject(procInfo.hProcess, 1000) != WAIT_OBJECT_0) {
+                    TerminateProcess(procInfo.hProcess, 1);
+                    WaitForSingleObject(procInfo.hProcess, 1000);
+                }
+                CloseHandle(procInfo.hProcess);
+                procInfo.hProcess = NULL;
+            }
+            if (procInfo.hThread != NULL) {
+                CloseHandle(procInfo.hThread);
+                procInfo.hThread = NULL;
+            }
         }
 
         // Sends the string of text (from loadCGIRequestToString) to the CGI
         void Process::send(const std::string& input, std::ofstream& tmpHandle) {
-            // Write request body to stdin
-            writeToPipe(stdinWrite, input);
+            // Write request body to stdin if present
+            if (!input.empty())
+                writeToPipe(stdinWrite, input);
 
             // Close write end to send EOF to CGI
             CloseHandle(stdinWrite);
             stdinWrite = NULL;
 
             // Read response from CGI
-            readFromPipe(stdoutRead, tmpHandle, procInfo);
+            readFromPipe(stdoutRead, tmpHandle, procInfo, timedOut);
+
+            // Close read end of stdout pipe
+            CloseHandle(stdoutRead);
+            stdoutRead = NULL;
+
+            if (timedOut) return;
 
             // Report crashed or silent Windows workers before handles close
             DWORD exitCode = 0;
@@ -578,10 +605,6 @@ namespace http::cgi {
                           << ", captured stdout bytes: " << tmpHandle.tellp() << std::endl;
                 if (exitCode != 0) tmpHandle.setstate(std::ios::badbit);
             }
-
-            // After reading, also close the read end
-            CloseHandle(stdoutRead);
-            stdoutRead = NULL;
         }
     #else // Linux piping functions
         // Used to release one descriptor without leaving stale ownership
@@ -713,10 +736,39 @@ namespace http::cgi {
                 if (error == 0) error = posix_spawn_file_actions_addclose(&settings.actions, fd);
 
             // Exclude other server descriptors when libc provides closefrom actions
-            #ifdef __GLIBC__
+            #if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
                 #if __GLIBC_PREREQ(2, 34)
-                    if (error == 0) error = posix_spawn_file_actions_addclosefrom_np(&settings.actions, 3);
+                    #define HAS_POSIX_SPAWN_CLOSEFROM 1
                 #endif
+            #endif
+
+            #ifdef HAS_POSIX_SPAWN_CLOSEFROM
+                if (error == 0) error = posix_spawn_file_actions_addclosefrom_np(&settings.actions, 3);
+                #undef HAS_POSIX_SPAWN_CLOSEFROM
+            #else
+                // Enumerate open descriptors via /proc/self/fd on musl or older glibc
+                if (error == 0) {
+                    DIR* pDescriptors = opendir("/proc/self/fd");
+                    if (pDescriptors) {
+                        const int directoryFD = dirfd(pDescriptors);
+                        while (dirent* pEntry = readdir(pDescriptors)) {
+                            char* pEnd = nullptr;
+                            const long descriptor = std::strtol(pEntry->d_name, &pEnd, 10);
+                            if (*pEnd == '\0' && descriptor > STDERR_FILENO && descriptor != directoryFD) {
+                                bool alreadyClosed = false;
+                                for (const int fd : {stdinRead, stdinWrite, stdoutRead, stdoutWrite, stderrPipe[0], stderrPipe[1]}) {
+                                    if (descriptor == fd) {
+                                        alreadyClosed = true;
+                                        break;
+                                    }
+                                }
+                                if (!alreadyClosed && error == 0)
+                                    error = posix_spawn_file_actions_addclose(&settings.actions, static_cast<int>(descriptor));
+                            }
+                        }
+                        closedir(pDescriptors);
+                    }
+                }
             #endif
 
             // Own worker process group and restore normal pipe signal behavior

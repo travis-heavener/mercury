@@ -4,12 +4,14 @@
 #ifdef _WIN32
     #include "../winheader.hpp"
 #else
-    #include <sys/socket.h>
     #include <arpa/inet.h>
+    #include <cerrno>
+    #include <fcntl.h>
     #include <netinet/in.h>
     #include <netinet/tcp.h>
-    #include <unistd.h>
     #include <poll.h>
+    #include <sys/socket.h>
+    #include <unistd.h>
 #endif
 
 #include <atomic>
@@ -70,6 +72,7 @@ namespace http {
             void extractClientIP(struct sockaddr_storage&, char*) const;
             ssize_t waitForClientData(struct pollfd&, const int);
             int acceptConnection(struct sockaddr_storage&, socklen_t&);
+            bool acceptTLS(SSL*, const int, const int);
 
             // Client socket tracking methods
             bool trackClient(const int);

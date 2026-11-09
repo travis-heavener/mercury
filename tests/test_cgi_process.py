@@ -94,6 +94,8 @@ if mode == "inspect":
     output.write(("leaked:" + ",".join(inherited)).encode() if inherited else b"clean")
 elif mode == "duplex":
     output.write(hashlib.sha256(body).hexdigest().encode())
+elif mode == "httpoxy":
+    output.write(b"has_proxy" if "HTTP_PROXY" in os.environ else b"no_proxy")
 else:
     output.write(b"ok")
 
@@ -147,13 +149,32 @@ class CGIProcessTests(unittest.TestCase):
         return str(path)
 
     # Used to send binary bodies w/ exact framing and read complete responses
-    def response(self, mode, body=b"", host="127.0.0.1", tls=False):
-        headers = b"Connection: close\r\nContent-Length: " + str(len(body)).encode() + b"\r\n"
+    def response(self, mode, body=b"", host="127.0.0.1", tls=False, extra_headers=b""):
+        headers = b"Connection: close\r\nContent-Length: " + str(len(body)).encode() + b"\r\n" + extra_headers
 
         # Connect and dispatch framed POST request
         with Connection(host, 8081 if tls else 8080, tls=tls) as connection:
             connection.send(request(b"/worker.php?" + mode.encode(), method=b"POST", headers=headers, body=body))
             return connection.response()
+
+    # Verify Proxy header is omitted from CGI environment variables (HTTPoxy protection)
+    def test_httpoxy_header_omitted_from_environment(self):
+        with mercury_process(self.config()):
+            status, _, body = self.response("httpoxy", extra_headers=b"Proxy: http://attacker.local:8080\r\n")
+            self.assertEqual((status, body), (200, b"no_proxy"))
+
+    # Verify unauthenticated stalling TLS connection does not block other worker threads
+    def test_stalled_tls_handshake_does_not_block_workers(self):
+        with mercury_process(self.config()):
+            raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                raw_sock.connect(("127.0.0.1", 8081))
+                status_tls, _, body_tls = self.response("warning", tls=True)
+                self.assertEqual((status_tls, body_tls), (200, b"ok"))
+                status_plain, _, body_plain = self.response("warning", tls=False)
+                self.assertEqual((status_plain, body_plain), (200, b"ok"))
+            finally:
+                raw_sock.close()
 
     # Verify CGI worker stderr warning logs escaped diagnostics without injecting headers
     def test_stderr_warning_keeps_valid_response(self):

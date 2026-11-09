@@ -1,5 +1,7 @@
 #include "server.hpp"
 
+#include <algorithm>
+#include <chrono>
 #include <iostream>
 
 #include "../conf/conf.hpp"
@@ -68,7 +70,11 @@ namespace http {
 
     int Server::bindSocket() {
         // Open the socket
-        this->sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        #ifdef SOCK_CLOEXEC
+            this->sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP);
+        #else
+            this->sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        #endif
 
         if (this->sock < 0) {
             ERROR_LOG << "Failed to open socket (" << *this << ") on port " << this->port << std::endl;
@@ -180,7 +186,7 @@ namespace http {
     int Server::closeClientSocket(const int sock, SSL* pSSL) {
         ServerStats::flush();
         this->untrackClient(sock);
-        if (this->useTLS) SSL_free(pSSL); // Cleanup TLS
+        if (this->useTLS && pSSL != nullptr) SSL_free(pSSL); // Cleanup TLS
         return this->closeSocket(sock);
     }
 
@@ -207,6 +213,90 @@ namespace http {
         pfd.events = POLLIN;
         pfd.revents = 0;
         return poll(&pfd, 1, timeoutMS);
+    }
+
+    // Toggle socket blocking state across platforms
+    static bool setSocketBlocking(const int sock, const bool blocking) {
+        #ifdef _WIN32
+            u_long mode = blocking ? 0 : 1;
+            return ioctlsocket(sock, FIONBIO, &mode) == 0;
+        #else
+            const int flags = fcntl(sock, F_GETFL, 0);
+            if (flags < 0) return false;
+            return fcntl(sock, F_SETFL, blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK)) >= 0;
+        #endif
+    }
+
+    // Configure socket read and write timeouts
+    static void setSocketTimeout(const int sock, const int timeoutSec) {
+        #ifdef _WIN32
+            const DWORD timeoutMs = static_cast<DWORD>(timeoutSec) * 1000;
+            setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeoutMs), sizeof(timeoutMs));
+            setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeoutMs), sizeof(timeoutMs));
+        #else
+            struct timeval tv{};
+            tv.tv_sec = timeoutSec;
+            tv.tv_usec = 0;
+            setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv));
+            setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv));
+        #endif
+    }
+
+    // Stream sanitized paths without heap allocations or temporary string copies
+    struct SanitizedLogPath {
+        std::string_view path;
+
+        friend std::ostream& operator<<(std::ostream& os, const SanitizedLogPath& sp) {
+            constexpr char HEX[] = "0123456789ABCDEF";
+            size_t start = 0;
+            for (size_t i = 0; i < sp.path.size(); ++i) {
+                const unsigned char c = static_cast<unsigned char>(sp.path[i]);
+                if (c < 32 || c >= 127) {
+                    if (i > start) os.write(sp.path.data() + start, i - start);
+                    os << "\\x" << HEX[c >> 4] << HEX[c & 0x0F];
+                    start = i + 1;
+                }
+            }
+            if (start < sp.path.size()) {
+                os.write(sp.path.data() + start, sp.path.size() - start);
+            }
+            return os;
+        }
+    };
+
+    // Complete TLS handshake w/ deadline to prevent stalling worker threads
+    bool Server::acceptTLS(SSL* pSSL, const int client, const int timeoutMS) {
+        if (!setSocketBlocking(client, false)) return false;
+
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMS);
+        bool success = false;
+
+        while (!this->isExiting) {
+            const int rv = SSL_accept(pSSL);
+            if (rv > 0) {
+                success = true;
+                break;
+            }
+
+            const int err = SSL_get_error(pSSL, rv);
+            if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
+                break;
+
+            const auto now = std::chrono::steady_clock::now();
+            if (now >= deadline) break;
+
+            const int remMS = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count());
+            struct pollfd pfd{};
+            pfd.fd = client;
+            pfd.events = (err == SSL_ERROR_WANT_READ ? POLLIN : POLLOUT);
+            pfd.revents = 0;
+
+            const int polled = poll(&pfd, 1, std::min(remMS, 1000));
+            if (polled < 0) break;
+        }
+
+        setSocketBlocking(client, true);
+        return success;
     }
 
     // Register clients under the same lock used by shutdown
@@ -241,7 +331,14 @@ namespace http {
         if (rv <= 0) return -1; // Timeout or error
 
         // Accept the ready client and return its peer address
-        return accept(listener, (struct sockaddr*)&clientAddr, &clientLen);
+        #if defined(__linux__) && defined(SOCK_CLOEXEC)
+            const int client = accept4(listener, (struct sockaddr*)&clientAddr, &clientLen, SOCK_CLOEXEC);
+            if (client < 0 && (errno == ENOSYS || errno == EINVAL))
+                return accept(listener, (struct sockaddr*)&clientAddr, &clientLen);
+            return client;
+        #else
+            return accept(listener, (struct sockaddr*)&clientAddr, &clientLen);
+        #endif
     }
 
     void Server::acceptLoop() {
@@ -259,6 +356,10 @@ namespace http {
                 closeSocket(client);
                 continue;
             }
+
+            // Apply read and write deadlines to prevent slow clients from stalling worker threads
+            setSocketTimeout(client, conf::KEEP_ALIVE_TIMEOUT);
+
             this->extractClientIP(clientAddr, clientIPStr); // Read client IP
 
             // Queue the handler with its own IP string and shared server lifetime
@@ -283,12 +384,16 @@ namespace http {
             // Skip clients that were queued before shutdown began
             if (isExiting) throw http::Exception();
 
-            // Complete the TLS handshake before reading HTTP data
+            // Apply read and write deadlines to prevent slow clients from stalling worker threads
+            setSocketTimeout(client, conf::KEEP_ALIVE_TIMEOUT);
+
+            // Complete the TLS handshake w/ timeout before reading HTTP data
             if (useTLS) {
                 pSSL = SSL_new(pSSL_CTX);
                 if (pSSL == nullptr) throw http::Exception();
                 SSL_set_fd(pSSL, client);
-                if (SSL_accept(pSSL) <= 0) throw http::Exception();
+                if (!this->acceptTLS(pSSL, client, conf::KEEP_ALIVE_TIMEOUT * 1000))
+                    throw http::Exception();
             }
 
             // Keep unread data across requests; one read may contain several requests
@@ -303,14 +408,14 @@ namespace http {
             };
 
             // Append the next available block without discarding buffered request data
-            auto readMore = [&]() -> bool {
-                if (isExiting) return false;
+            auto readMore = [&](const int timeoutMs = conf::KEEP_ALIVE_TIMEOUT * 1000) -> bool {
+                if (isExiting || timeoutMs <= 0) return false;
 
                 // Decrypted TLS bytes can already be waiting without socket activity
                 if (!useTLS || SSL_pending(pSSL) == 0) {
                     struct pollfd pfd{};
                     pfd.fd = client;
-                    const ssize_t ready = waitForClientData(pfd, conf::KEEP_ALIVE_TIMEOUT * 1000);
+                    const ssize_t ready = waitForClientData(pfd, timeoutMs);
                     if (ready <= 0 || !(pfd.revents & POLLIN)) return false;
                 }
 
@@ -338,6 +443,10 @@ namespace http {
                 bool lineTooLong = false, isSimpleRequest = false;
                 constexpr size_t maxHeaderBytes = 64 * 1024;
 
+                // Overall deadline for receiving complete request headers
+                const auto headerDeadline = std::chrono::steady_clock::now() +
+                    std::chrono::seconds(conf::KEEP_ALIVE_TIMEOUT);
+
                 // Read the complete header block, checking limits after every append
                 while (true) {
                     const size_t lineEnd = pending.find("\r\n");
@@ -354,7 +463,11 @@ namespace http {
 
                     // Stop buffering once a complete request header or a limit is found
                     if (lineTooLong || headerEnd != std::string::npos || pending.size() > maxHeaderBytes) break;
-                    if (!readMore()) throw http::Exception();
+
+                    const auto now = std::chrono::steady_clock::now();
+                    if (now >= headerDeadline) throw http::Exception();
+                    const auto remainingMs = std::chrono::duration_cast<std::chrono::milliseconds>(headerDeadline - now).count();
+                    if (!readMore(static_cast<int>(remainingMs))) throw http::Exception();
                 }
 
                 // Report oversized request lines separately from oversized headers
@@ -461,7 +574,7 @@ namespace http {
                 if (!conf::DISABLE_LOGS) {
                     ACCESS_LOG << request.getMethodStr() << ' '
                         << formatClientIP(request.getIPStr(), request.isDNT()) << ' '
-                        << request.getPaths().rawPathFromRequest << " -- (" << response->getStatus()
+                        << SanitizedLogPath{request.getPaths().rawPathFromRequest} << " -- (" << response->getStatus()
                         << ") [" << request.getVersion() << ']' << std::endl;
                 }
 

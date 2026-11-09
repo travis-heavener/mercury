@@ -119,8 +119,9 @@ void testPopulateParams() {
     headers["Host"] = "localhost:8080";
     headers["User-Agent"] = "MercuryTest/1.0";
     headers["X-Custom-Header"] = "CustomValue";
+    headers["Proxy"] = "http://evil-proxy.local:8080";
 
-    std::string rawReq = "GET /test.php/extra/path?action=edit&id=42 HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: MercuryTest/1.0\r\nX-Custom-Header: CustomValue\r\n\r\n";
+    std::string rawReq = "GET /test.php/extra/path?action=edit&id=42 HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: MercuryTest/1.0\r\nX-Custom-Header: CustomValue\r\nProxy: http://evil-proxy.local:8080\r\n\r\n";
     http::RequestFlags flags;
     http::Request req(headers, rawReq, "127.0.0.1", false, flags);
 
@@ -153,6 +154,7 @@ void testPopulateParams() {
     assert(findParam("SERVER_SOFTWARE") == "Mercury/0.37.0");
     assert(findParam("HTTP_USER_AGENT") == "MercuryTest/1.0");
     assert(findParam("HTTP_X_CUSTOM_HEADER") == "CustomValue");
+    assert(findParam("HTTP_PROXY").empty());
 
     std::cout << "[PASS] Environment parameter extraction and mapping" << std::endl;
 }

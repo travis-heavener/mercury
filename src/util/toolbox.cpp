@@ -173,7 +173,7 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std:
                 modTsBufStr.clear();
                 std::error_code timeEc;
                 formatDate(std::filesystem::last_write_time(std::filesystem::path(path).parent_path(), timeEc), modTsBufStr);
-                out << "<tr> <td><a href=\"" << hrefBuf << "\">..</a></td> <td></td> <td>" << modTsBufStr << "</td> </tr>\n";
+                out << "<tr> <td><a href=\"" << HtmlEscaped{hrefBuf} << "\">..</a></td> <td></td> <td>" << modTsBufStr << "</td> </tr>\n";
             }
         }
 
@@ -196,7 +196,7 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std:
             hrefBuf = (std::filesystem::path(rawPath) / fnameBuf).generic_string();
 
             // Append to document
-            out << "<tr> <td><a href=\"" << hrefBuf << "\">" << fnameBuf << "</a></td> <td>" << fsizeBufStr << "</td> <td>" << modTsBufStr << "</td> </tr>\n";
+            out << "<tr> <td><a href=\"" << HtmlEscaped{hrefBuf} << "\">" << HtmlEscaped{fnameBuf} << "</a></td> <td>" << fsizeBufStr << "</td> <td>" << modTsBufStr << "</td> </tr>\n";
         }
 
         // Add other file contents
@@ -218,7 +218,7 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std:
             hrefBuf = (std::filesystem::path(rawPath) / fnameBuf).generic_string();
 
             // Append to document
-            out << "<tr> <td><a href=\"" << hrefBuf << "\">" << fnameBuf << "</a></td> <td>" << fsizeBufStr << "</td> <td>" << modTsBufStr << "</td> </tr>\n";
+            out << "<tr> <td><a href=\"" << HtmlEscaped{hrefBuf} << "\">" << HtmlEscaped{fnameBuf} << "</a></td> <td>" << fsizeBufStr << "</td> <td>" << modTsBufStr << "</td> </tr>\n";
         }
     };
 
@@ -246,7 +246,7 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std:
             // Check for end of escaped sequence
             if (percIndex+1 < bytesRead) {
                 // Check escaped char
-                if (buffer[percIndex+1] == 'A')      out << rawPath;
+                if (buffer[percIndex+1] == 'A')      out << HtmlEscaped{rawPath};
                 else if (buffer[percIndex+1] == 'B') out << conf::VERSION;
                 else if (buffer[percIndex+1] == 'C') writeFiles(); // Load each file
                 else                                 out << '%' << buffer[percIndex+1];
@@ -267,7 +267,7 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std:
             }
 
             // Check escaped char
-            if (nextChar == 'A')      out << rawPath;
+            if (nextChar == 'A')      out << HtmlEscaped{rawPath};
             else if (nextChar == 'B') out << conf::VERSION;
             else if (nextChar == 'C') writeFiles(); // Load each file
             else                      out << '%' << nextChar;
