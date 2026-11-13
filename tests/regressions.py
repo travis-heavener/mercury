@@ -6,6 +6,7 @@ These groups run as part of the existing Python suite; no separate executable is
 Counts below are test groups, not individual requests or assertions.
 """
 from concurrent.futures import ThreadPoolExecutor
+import os
 import socket
 import ssl
 import sys
@@ -14,6 +15,8 @@ import sys
 # Assertions implement test failures; optimized Python would silently remove them.
 if not __debug__:
     raise RuntimeError("Run the regression suite without Python -O/PYTHONOPTIMIZE")
+
+HAS_SYMLINK_FIXTURE = False
 
 
 class Connection:
@@ -157,6 +160,35 @@ def authorization(connect):
             conn.send(request(b"/private/FILE~1.TXT"))
             assert conn.response()[0] == 400
 
+    # Verify access denial cannot be bypassed through resource aliases
+    with connect() as conn:
+        conn.send(request(b"/path_info_denied.php"))
+        assert conn.response()[0] == 403, "direct PHP access not denied"
+    with connect() as conn:
+        conn.send(request(b"/path_info_denied.php/extra"))
+        assert conn.response()[0] == 403, "PHP PATH_INFO alias bypassed access denial"
+
+    with connect() as conn:
+        conn.send(request(b"/indexed_denied/index.html"))
+        assert conn.response()[0] == 403, "direct index.html access not denied"
+    with connect() as conn:
+        conn.send(request(b"/indexed_denied/"))
+        assert conn.response()[0] == 403, "directory index alias bypassed access denial"
+
+    # Verify directory listing restrictions apply to unslashed directory URLs
+    with connect() as conn:
+        conn.send(request(b"/range_directory"))
+        assert conn.response()[0] == 403, "unslashed directory URL bypassed directory index restriction"
+
+    # Verify symlink aliases to denied resources and restricted listings
+    if HAS_SYMLINK_FIXTURE:
+        with connect() as conn:
+            conn.send(request(b"/private_alias/file.txt"))
+            assert conn.response()[0] == 403, "symlink alias bypassed access denial"
+        with connect() as conn:
+            conn.send(request(b"/range_alias/"))
+            assert conn.response()[0] == 403, "symlink alias bypassed directory index restriction"
+
 
 def redirect_injection(connect):
     """Keep encoded CR/LF in Location rather than creating a new response header."""
@@ -256,37 +288,60 @@ WIRE_TEST_COUNT = len(WIRE_TESTS) * 4 + 2
 
 def run_wire_regressions(host, host_v6, port, tls_port):
     """Run each group over IPv4/IPv6 and HTTP/HTTPS; return groups passed."""
-    def run_transport(item):
-        address, tls = item
-        passed_in_transport = 0
-        connect = lambda source=None: Connection(address, tls_port if tls else port, tls, source)
-        for test in WIRE_TESTS:
-            try:
-                test(connect)
-                passed_in_transport += 1
-            except Exception as error:
-                print(f"[Regression failure] {test.__name__} {address} TLS={tls}: {error}")
-        return passed_in_transport
+    global HAS_SYMLINK_FIXTURE
+    symlink_private = os.path.join(os.path.dirname(__file__), "root", "private_alias")
+    symlink_range = os.path.join(os.path.dirname(__file__), "root", "range_alias")
+    created_symlinks = []
+    try:
+        for alias_path, target in ((symlink_private, "private"), (symlink_range, "range_directory")):
+            if os.path.islink(alias_path) or os.path.exists(alias_path):
+                os.remove(alias_path)
+            os.symlink(target, alias_path)
+            created_symlinks.append(alias_path)
+        HAS_SYMLINK_FIXTURE = True
+    except (OSError, NotImplementedError):
+        HAS_SYMLINK_FIXTURE = False
 
-    passed = 0
-    combos = [(host, False), (host, True), (host_v6, False), (host_v6, True)]
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        passed += sum(pool.map(run_transport, combos))
+    try:
+        def run_transport(item):
+            address, tls = item
+            passed_in_transport = 0
+            connect = lambda source=None: Connection(address, tls_port if tls else port, tls, source)
+            for test in WIRE_TESTS:
+                try:
+                    test(connect)
+                    passed_in_transport += 1
+                except Exception as error:
+                    print(f"[Regression failure] {test.__name__} {address} TLS={tls}: {error}")
+            return passed_in_transport
 
-    # Different source addresses expose queued tasks accidentally sharing one IP buffer.
-    # 127.0.0.2 is usable without additional interface setup on Linux and Windows.
-    def check_ip_ownership(tls):
-        def one(index):
-            source = "127.0.0.1" if index % 2 == 0 else "127.0.0.2"
-            with Connection(host, tls_port if tls else port, tls, (source, 0)) as conn:
-                conn.send(request(b"/regression_ip.php"))
-                status, _, body = conn.response()
-                assert status == 200 and body == source.encode(), (source, status, body)
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            list(pool.map(one, range(12)))
-        return 1
+        passed = 0
+        combos = [(host, False), (host, True), (host_v6, False), (host_v6, True)]
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            passed += sum(pool.map(run_transport, combos))
 
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        for ok in pool.map(check_ip_ownership, (False, True)):
-            passed += ok
-    return passed
+        # Different source addresses expose queued tasks accidentally sharing one IP buffer.
+        # 127.0.0.2 is usable without additional interface setup on Linux and Windows.
+        def check_ip_ownership(tls):
+            def one(index):
+                source = "127.0.0.1" if index % 2 == 0 else "127.0.0.2"
+                with Connection(host, tls_port if tls else port, tls, (source, 0)) as conn:
+                    conn.send(request(b"/regression_ip.php"))
+                    status, _, body = conn.response()
+                    assert status == 200 and body == source.encode(), (source, status, body)
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                list(pool.map(one, range(12)))
+            return 1
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            for ok in pool.map(check_ip_ownership, (False, True)):
+                passed += ok
+        return passed
+    finally:
+        for alias_path in created_symlinks:
+            if os.path.islink(alias_path):
+                try:
+                    os.remove(alias_path)
+                except OSError:
+                    pass
+        HAS_SYMLINK_FIXTURE = False

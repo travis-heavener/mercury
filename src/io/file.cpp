@@ -123,15 +123,6 @@ File::File(const http::RequestPath& paths) {
         return;
     }
 
-#ifdef _WIN32
-    // Canonicalize relative URI using filesystem-normalized path on Windows
-    std::string canonicalRelPath = normResourcePath.substr(docRootStr.length());
-    if (canonicalRelPath.empty() || canonicalRelPath.front() != '/') {
-        canonicalRelPath.insert(canonicalRelPath.begin(), '/');
-    }
-    this->decodedURIWithoutPathInfo = canonicalRelPath;
-#endif
-
     // Check for index file
     if (this->absoluteResourcePath.back() == '/') {
         for (const std::string& indexFile : conf::INDEX_FILES) {
@@ -140,10 +131,23 @@ File::File(const http::RequestPath& paths) {
             if (queryFileMetadata(candidatePath, indexMeta) && indexMeta.isRegularFile) {
                 this->absoluteResourcePath = candidatePath;
                 meta = indexMeta; // Reuse queried metadata
+                normResourcePath = this->absoluteResourcePath;
+                normalizeBackslashes(normResourcePath);
+#ifdef _WIN32
+                if (!normResourcePath.empty() && !docRootStr.empty())
+                    normResourcePath[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(normResourcePath[0])));
+#endif
                 break;
             }
         }
     }
+
+    // Canonicalize relative URI using filesystem-normalized path
+    std::string canonicalRelPath = normResourcePath.substr(docRootStr.length());
+    if (canonicalRelPath.empty() || canonicalRelPath.front() != '/') {
+        canonicalRelPath.insert(canonicalRelPath.begin(), '/');
+    }
+    this->decodedURIWithoutPathInfo = canonicalRelPath;
 
     // Handle directory index or static file
     if (meta.isDirectory) {

@@ -157,10 +157,8 @@ namespace http {
         this->_has400Error |= !loadRequestPaths(paths, newPath, true);
         this->matchedRulesEvaluated = false;
         this->matchedRules.clear();
-#ifdef _WIN32
         this->canonicalMatchedRulesEvaluated = false;
         this->canonicalMatchedRules.clear();
-#endif
     }
 
     // This method exists to combine common methods from the version handlers
@@ -196,18 +194,29 @@ namespace http {
             return false;
         }
 
-        // Handle directory listings
-        if (file.isDirectory) {
 #ifdef _WIN32
-            const auto& dirRules = this->getCanonicalMatchedRules(file.decodedURIWithoutPathInfo);
+        const bool pathDiffers = !equalsCi(paths.decodedURI, file.decodedURIWithoutPathInfo);
 #else
-            const auto& dirRules = this->getMatchedRules();
+        const bool pathDiffers = (paths.decodedURI != file.decodedURIWithoutPathInfo);
 #endif
-            for (const conf::Match* pMatch : dirRules) {
+
+        // Handle directory listings: check both requested and canonical rules
+        if (file.isDirectory) {
+            for (const conf::Match* pMatch : this->getMatchedRules()) {
                 if (!pMatch->showDirectoryIndexes()) {
                     // Hide the directory index
                     this->setStatusMaybeErrorDoc(response, 403);
                     return false;
+                }
+            }
+
+            if (pathDiffers) {
+                for (const conf::Match* pMatch : this->getCanonicalMatchedRules(file.decodedURIWithoutPathInfo)) {
+                    if (!pMatch->showDirectoryIndexes()) {
+                        // Hide the directory index
+                        this->setStatusMaybeErrorDoc(response, 403);
+                        return false;
+                    }
                 }
             }
         }
@@ -218,9 +227,8 @@ namespace http {
             return false;
         }
 
-#ifdef _WIN32
-        // Re-verify access control on resolved canonical path on Windows only when it differs from request URI
-        if (!conf::matchConfigs.empty() && !equalsCi(paths.decodedURI, file.decodedURIWithoutPathInfo)) {
+        // Re-verify access control on resolved canonical path when it differs from request URI
+        if (!conf::matchConfigs.empty() && pathDiffers) {
             const auto& canonicalRules = this->getCanonicalMatchedRules(file.decodedURIWithoutPathInfo);
             if (!canonicalRules.empty()) {
                 try {
@@ -238,7 +246,6 @@ namespace http {
                 }
             }
         }
-#endif
 
         // Base case, file is valid
         return true;
@@ -268,9 +275,12 @@ namespace http {
         return matchedRules;
     }
 
-#ifdef _WIN32
     const std::vector<const conf::Match*>& Request::getCanonicalMatchedRules(const std::string& canonicalURI) const {
+#ifdef _WIN32
         if (equalsCi(paths.decodedURI, canonicalURI))
+#else
+        if (paths.decodedURI == canonicalURI)
+#endif
             return this->getMatchedRules();
 
         if (!canonicalMatchedRulesEvaluated) {
@@ -285,6 +295,5 @@ namespace http {
         }
         return canonicalMatchedRules;
     }
-#endif
 
 }
