@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.40.0] - 2026-11-09
+## [0.40.0] - 2026-11-14
 - Added: implement IP-based privacy-preserving rate limiting with token bucket algorithm, sharded mutexes, CIDR whitelisting, and RFC 6585 429 response (#443)
 - Added: resolve tilde (~) to user home directory in DocumentRoot, log files, TLS certificate paths, and CLI path arguments
 - Fix: enforce access control re-verification on canonical resource paths to prevent access-control bypass through resource aliases (PHP PATH_INFO, directory index, symlinks)
