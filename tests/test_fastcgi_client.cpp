@@ -10,8 +10,10 @@
 
 #ifndef _WIN32
     #include <arpa/inet.h>
+    #include <fcntl.h>
     #include <netinet/in.h>
     #include <sys/socket.h>
+    #include <sys/un.h>
     #include <unistd.h>
 #endif
 
@@ -21,6 +23,8 @@
 #include "../src/http/fastcgi/protocol.hpp"
 #include "../src/http/message/request.hpp"
 #include "../src/http/message/response.hpp"
+
+std::atomic<bool> isExiting{false};
 
 using namespace http::fastcgi;
 
@@ -461,10 +465,138 @@ void testTimeout504() {
 
     std::cout << "[PASS] Timeout handling on stalled backend (504 Gateway Timeout)" << std::endl;
 }
+
+// Test connection timeout on full UNIX domain socket backlog
+void testConnectTimeoutUds() {
+    std::string sockPath = "/tmp/mercury_test_uds_backlog_" + std::to_string(getpid()) + ".sock";
+    unlink(sockPath.c_str());
+
+    int listener = socket(AF_UNIX, SOCK_STREAM, 0);
+    assert(listener >= 0);
+
+    struct sockaddr_un sunAddr = {};
+    sunAddr.sun_family = AF_UNIX;
+    std::strncpy(sunAddr.sun_path, sockPath.c_str(), sizeof(sunAddr.sun_path) - 1);
+    assert(bind(listener, reinterpret_cast<struct sockaddr*>(&sunAddr), sizeof(sunAddr)) == 0);
+    assert(listen(listener, 0) == 0);
+
+    // Fill backlog with non-blocking connection
+    int filler = socket(AF_UNIX, SOCK_STREAM, 0);
+    assert(filler >= 0);
+    fcntl(filler, F_SETFL, fcntl(filler, F_GETFL, 0) | O_NONBLOCK);
+    (void)::connect(filler, reinterpret_cast<struct sockaddr*>(&sunAddr), sizeof(sunAddr));
+
+    Endpoint ep;
+    ep.type = TransportType::UNIX_SOCKET;
+    ep.path = sockPath;
+
+    Client client(1);
+    const auto t0 = std::chrono::steady_clock::now();
+    bool connected = client.connect(ep);
+    const auto elapsed = std::chrono::steady_clock::now() - t0;
+    const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+
+    assert(!connected);
+    assert(client.didTimeout());
+    assert(elapsedMs >= 900 && elapsedMs <= 2000);
+
+    close(filler);
+    close(listener);
+    unlink(sockPath.c_str());
+
+    std::cout << "[PASS] Connect timeout on full UNIX domain socket backlog" << std::endl;
+}
+
+// Test connection timeout on full TCP backlog
+void testConnectTimeoutTcp() {
+    int listener = socket(AF_INET, SOCK_STREAM, 0);
+    assert(listener >= 0);
+
+    int opt = 1;
+    setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    struct sockaddr_in sin = {};
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    sin.sin_port = 0;
+    assert(bind(listener, reinterpret_cast<struct sockaddr*>(&sin), sizeof(sin)) == 0);
+    assert(listen(listener, 1) == 0);
+
+    socklen_t sinLen = sizeof(sin);
+    assert(getsockname(listener, reinterpret_cast<struct sockaddr*>(&sin), &sinLen) == 0);
+    uint16_t mockPort = ntohs(sin.sin_port);
+
+    // Fill TCP backlog
+    std::vector<int> fillers;
+    for (int i = 0; i < 10; ++i) {
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        assert(sock >= 0);
+        fcntl(sock, F_SETFL, fcntl(sock, F_GETFL, 0) | O_NONBLOCK);
+        (void)::connect(sock, reinterpret_cast<struct sockaddr*>(&sin), sizeof(sin));
+        fillers.push_back(sock);
+    }
+
+    Endpoint ep;
+    ep.type = TransportType::TCP;
+    ep.host = "127.0.0.1";
+    ep.port = mockPort;
+
+    Client client(1);
+    const auto t0 = std::chrono::steady_clock::now();
+    bool connected = client.connect(ep);
+    const auto elapsed = std::chrono::steady_clock::now() - t0;
+    const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+
+    assert(!connected);
+    assert(client.didTimeout());
+    assert(elapsedMs >= 900 && elapsedMs <= 2000);
+
+    for (int s : fillers) close(s);
+    close(listener);
+
+    std::cout << "[PASS] Connect timeout on full TCP backlog" << std::endl;
+}
+
+// Test that server shutdown immediately wakes waiting hostname lookups
+void testResolverShutdownWakeup() {
+    Endpoint ep;
+    ep.type = TransportType::TCP;
+    ep.host = "nonexistent.stalled.lookup.invalid";
+    ep.port = 9000;
+
+    isExiting.store(false);
+
+    std::atomic<bool> threadFinished{false};
+    auto t0 = std::chrono::steady_clock::now();
+
+    std::thread clientThread([&ep, &threadFinished]() {
+        Client client(10);
+        client.connect(ep);
+        threadFinished = true;
+    });
+
+    // Let lookup enter wait state
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+    // Trigger shutdown and notify resolver condition variables
+    isExiting.store(true);
+    notifyResolverShutdown();
+
+    clientThread.join();
+    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+
+    assert(threadFinished.load());
+    assert(elapsedMs < 1000);
+
+    isExiting.store(false);
+
+    std::cout << "[PASS] Resolver shutdown immediately wakes waiting lookups" << std::endl;
+}
 #endif
 
 int main() {
     std::cout << "Running FastCGI transport client unit tests..." << std::endl;
+    conf::MAX_RESPONSE_BODY = 268435456;
     testEndpointParsing();
     testContentTypeInference();
     testPopulateParams();
@@ -474,6 +606,9 @@ int main() {
         testConnectionFailure();
         testPostRequestWithBody();
         testTimeout504();
+        testConnectTimeoutUds();
+        testConnectTimeoutTcp();
+        testResolverShutdownWakeup();
     #endif
 
     std::cout << "\nAll FastCGI Phase 2 & 7 unit tests PASSED!" << std::endl;

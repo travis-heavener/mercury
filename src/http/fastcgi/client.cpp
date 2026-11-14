@@ -1,6 +1,7 @@
 #include "client.hpp"
 
 #ifndef _WIN32
+    #include <fcntl.h>
     #include <netdb.h>
     #include <unistd.h>
 #endif
@@ -8,10 +9,14 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <condition_variable>
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <mutex>
 #include <sstream>
+#include <thread>
+#include <unordered_map>
 #include <vector>
 
 #include "../../conf/conf.hpp"
@@ -25,6 +30,9 @@
 #ifndef MSG_NOSIGNAL
     #define MSG_NOSIGNAL 0
 #endif
+
+// Global server exit status flag
+extern std::atomic<bool> isExiting;
 
 namespace http::fastcgi {
 
@@ -314,11 +322,229 @@ namespace http::fastcgi {
         return this->hasTimedOut;
     }
 
+    namespace {
+        // Thread-safe resolver coordination to bound background worker threads
+        struct ResolverEntry {
+            std::mutex mtx;
+            std::condition_variable cv;
+            bool done = false;
+            int rc = -1;
+            std::shared_ptr<struct addrinfo> addrInfo;
+        };
+
+        struct ResolverCoordinator {
+            std::mutex mtx;
+            std::condition_variable cv;
+            std::unordered_map<std::string, std::shared_ptr<ResolverEntry>> inFlightLookups;
+            size_t activeResolverThreads = 0;
+            static constexpr size_t MAX_RESOLVER_THREADS = 2;
+
+            // Wake all waiting lookups and pending thread slots during shutdown
+            void notifyShutdown() {
+                std::lock_guard<std::mutex> lock(this->mtx);
+                for (auto& [key, pEntry] : this->inFlightLookups) {
+                    if (pEntry) {
+                        try {
+                            std::lock_guard<std::mutex> entryLock(pEntry->mtx);
+                            pEntry->cv.notify_all();
+                        } catch (...) {
+                            // Suppress mutex exception during shutdown
+                        }
+                    }
+                }
+                this->cv.notify_all();
+            }
+        };
+
+        // Singleton coordinator managed via shared_ptr to prevent shutdown destruction races
+        static std::shared_ptr<ResolverCoordinator> getResolverCoordinator() {
+            static auto coordinator = std::make_shared<ResolverCoordinator>();
+            return coordinator;
+        }
+
+        // Resolve hostname to address candidates w/ bounded thread concurrency and timeout guard
+        static std::shared_ptr<struct addrinfo> resolveHostWithTimeout(
+            const std::string& host,
+            const std::string& port,
+            const struct addrinfo& hints,
+            const std::chrono::steady_clock::time_point& deadline,
+            bool& hasTimedOut) {
+
+            // Abort resolution if process is shutting down
+            if (::isExiting.load()) return nullptr;
+
+            // Attempt fast path for numeric IP addresses without invoking resolver thread
+            struct addrinfo numericHints = hints;
+            numericHints.ai_flags = AI_NUMERICHOST;
+            struct addrinfo* pNumeric = nullptr;
+            if (getaddrinfo(host.c_str(), port.c_str(), &numericHints, &pNumeric) == 0 && pNumeric != nullptr) {
+                return std::shared_ptr<struct addrinfo>(pNumeric, freeaddrinfo);
+            }
+
+            auto coordinator = getResolverCoordinator();
+            const std::string lookupKey = host + ":" + port;
+            std::shared_ptr<ResolverEntry> entry;
+            bool isLeader = false;
+
+            {
+                std::unique_lock<std::mutex> lock(coordinator->mtx);
+
+                auto it = coordinator->inFlightLookups.find(lookupKey);
+                if (it != coordinator->inFlightLookups.end()) {
+                    // Re-use in-flight lookup for same host
+                    entry = it->second;
+                } else {
+                    // Check deadline before waiting for worker slot
+                    if (std::chrono::steady_clock::now() >= deadline || ::isExiting.load()) {
+                        hasTimedOut = !::isExiting.load();
+                        return nullptr;
+                    }
+
+                    // Wait for available resolver thread slot without exceeding thread limit
+                    while (coordinator->activeResolverThreads >= ResolverCoordinator::MAX_RESOLVER_THREADS) {
+                        if (std::chrono::steady_clock::now() >= deadline || ::isExiting.load()) {
+                            hasTimedOut = !::isExiting.load();
+                            return nullptr;
+                        }
+                        const auto now = std::chrono::steady_clock::now();
+                        const auto step = std::min(deadline, now + std::chrono::milliseconds(50));
+                        coordinator->cv.wait_until(lock, step, [&coordinator]() {
+                            return coordinator->activeResolverThreads < ResolverCoordinator::MAX_RESOLVER_THREADS || ::isExiting.load();
+                        });
+                    }
+
+                    if (std::chrono::steady_clock::now() >= deadline || ::isExiting.load()) {
+                        hasTimedOut = !::isExiting.load();
+                        return nullptr;
+                    }
+
+                    // Re-check in-flight map after acquiring slot
+                    it = coordinator->inFlightLookups.find(lookupKey);
+                    if (it != coordinator->inFlightLookups.end()) {
+                        entry = it->second;
+                    } else {
+                        entry = std::make_shared<ResolverEntry>();
+                        coordinator->inFlightLookups[lookupKey] = entry;
+                        ++coordinator->activeResolverThreads;
+                        isLeader = true;
+                    }
+                }
+            }
+
+            if (isLeader) {
+                // Spawn bounded worker thread to perform getaddrinfo
+                try {
+                    std::thread workerThread([coordinator, lookupKey, entry, host, port, hints]() noexcept {
+                        struct addrinfo* pRes = nullptr;
+                        int rc = -1;
+                        std::shared_ptr<struct addrinfo> sp;
+
+                        try {
+                            rc = getaddrinfo(host.c_str(), port.c_str(), &hints, &pRes);
+                            if (rc == 0 && pRes != nullptr) {
+                                // Retain unique ownership if shared ownership allocation fails
+                                std::unique_ptr<struct addrinfo, decltype(&freeaddrinfo)> pOwned(pRes, freeaddrinfo);
+                                pRes = nullptr;
+                                sp = std::shared_ptr<struct addrinfo>(std::move(pOwned));
+                            }
+                        } catch (...) {
+                            if (pRes != nullptr) {
+                                freeaddrinfo(pRes);
+                                pRes = nullptr;
+                            }
+                            rc = -1;
+                        }
+
+                        try {
+                            {
+                                std::lock_guard<std::mutex> lock(entry->mtx);
+                                entry->rc = rc;
+                                entry->addrInfo = std::move(sp);
+                                entry->done = true;
+                            }
+                            entry->cv.notify_all();
+                        } catch (...) {
+                            // Suppress entry notification exception
+                        }
+
+                        try {
+                            std::lock_guard<std::mutex> lock(coordinator->mtx);
+                            coordinator->inFlightLookups.erase(lookupKey);
+                            --coordinator->activeResolverThreads;
+                            coordinator->cv.notify_one();
+                        } catch (...) {
+                            // Suppress coordinator cleanup exception
+                        }
+                    });
+                    workerThread.detach();
+                } catch (...) {
+                    // Clean up slot reservation and in-flight entry if thread spawn fails
+                    {
+                        std::lock_guard<std::mutex> lock(coordinator->mtx);
+                        coordinator->inFlightLookups.erase(lookupKey);
+                        --coordinator->activeResolverThreads;
+                        coordinator->cv.notify_one();
+                    }
+                    {
+                        std::lock_guard<std::mutex> lock(entry->mtx);
+                        entry->rc = -1;
+                        entry->done = true;
+                    }
+                    entry->cv.notify_all();
+                    return nullptr;
+                }
+            }
+
+            // Await completion or timeout w/ periodic shutdown check
+            std::unique_lock<std::mutex> lock(entry->mtx);
+            while (!entry->done) {
+                if (::isExiting.load()) return nullptr;
+                const auto now = std::chrono::steady_clock::now();
+                if (now >= deadline) { hasTimedOut = true; return nullptr; }
+                const auto step = std::min(deadline, now + std::chrono::milliseconds(50));
+                entry->cv.wait_until(lock, step, [&]() {
+                    return entry->done || ::isExiting.load();
+                });
+            }
+
+            if (!entry->done || ::isExiting.load()) {
+                if (!::isExiting.load()) hasTimedOut = true;
+                return nullptr;
+            }
+
+            if (entry->rc != 0 || !entry->addrInfo) return nullptr;
+
+            return entry->addrInfo;
+        }
+    }
+
+    // Notify and wake pending FastCGI resolver waiters during server shutdown
+    void notifyResolverShutdown() {
+        auto coordinator = getResolverCoordinator();
+        if (coordinator) {
+            coordinator->notifyShutdown();
+        }
+    }
+
+    // Toggle socket blocking mode across platforms
+    static bool setSocketBlocking(socket_t sock, bool blocking) {
+        #ifdef _WIN32
+            u_long mode = blocking ? 0 : 1;
+            return ioctlsocket(sock, FIONBIO, &mode) == 0;
+        #else
+            const int flags = fcntl(sock, F_GETFL, 0);
+            if (flags < 0) return false;
+            return fcntl(sock, F_SETFL, blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK)) >= 0;
+        #endif
+    }
+
     // Connect to target FastCGI endpoint via UNIX domain socket or TCP
     bool Client::connect(const Endpoint& endpoint) {
         // Reset socket state prior to connection
         this->close();
         this->hasTimedOut = false;
+
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(this->timeoutSeconds);
 
         if (endpoint.type == TransportType::UNIX_SOCKET) {
             #ifdef _WIN32
@@ -346,12 +572,73 @@ namespace http::fastcgi {
                 }
                 std::strncpy(sunAddr.sun_path, endpoint.path.c_str(), sizeof(sunAddr.sun_path) - 1);
 
-                // Establish connection to UNIX domain socket
-                if (::connect(this->sock, reinterpret_cast<struct sockaddr*>(&sunAddr), sizeof(sunAddr)) < 0) {
-                    ERROR_LOG << "Failed to connect to FastCGI UNIX socket (" << endpoint.path << "), errno: " << errno << std::endl;
+                // Set non-blocking mode during connection establishment
+                if (!setSocketBlocking(this->sock, false)) {
+                    ERROR_LOG << "Failed to set non-blocking mode on FastCGI UNIX socket (" << endpoint.path << ")" << std::endl;
                     this->close();
                     return false;
                 }
+
+                // Establish connection to UNIX domain socket w/ timeout guard
+                bool connected = false;
+                while (true) {
+                    if (::connect(this->sock, reinterpret_cast<struct sockaddr*>(&sunAddr), sizeof(sunAddr)) == 0) {
+                        connected = true;
+                        break;
+                    }
+
+                    if (errno == EINTR) { continue; }
+                    if (errno == EISCONN) { connected = true; break; }
+
+                    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                        const auto now = std::chrono::steady_clock::now();
+                        if (now >= deadline) { this->hasTimedOut = true; break; }
+                        const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count();
+                        const int sleepMs = static_cast<int>(std::min<int64_t>(remaining, 10));
+                        if (sleepMs <= 0) { this->hasTimedOut = true; break; }
+                        std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+                        continue;
+                    }
+
+                    if (errno == EINPROGRESS) {
+                        const auto now = std::chrono::steady_clock::now();
+                        if (now >= deadline) { this->hasTimedOut = true; break; }
+                        const int remainingMs = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count());
+                        struct pollfd pfd;
+                        pfd.fd = this->sock;
+                        pfd.events = POLLOUT;
+                        pfd.revents = 0;
+
+                        int pollRc = poll(&pfd, 1, remainingMs);
+                        if (pollRc == 0) { this->hasTimedOut = true; break; }
+                        if (pollRc > 0) {
+                            int err = 0;
+                            socklen_t len = sizeof(err);
+                            if (getsockopt(this->sock, SOL_SOCKET, SO_ERROR, &err, &len) == 0 && err == 0) {
+                                connected = true;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+
+                    // Fail immediately on unrecoverable errors (e.g. ENOENT, ECONNREFUSED)
+                    break;
+                }
+
+                if (!connected) {
+                    if (this->hasTimedOut) {
+                        ERROR_LOG << "Timed out connecting to FastCGI UNIX socket (" << endpoint.path << ") after "
+                                  << this->timeoutSeconds << "s" << std::endl;
+                    } else {
+                        ERROR_LOG << "Failed to connect to FastCGI UNIX socket (" << endpoint.path << "), errno: " << errno << std::endl;
+                    }
+                    this->close();
+                    return false;
+                }
+
+                // Restore blocking socket mode
+                setSocketBlocking(this->sock, true);
             #endif
         } else {
             // TCP socket connection
@@ -360,23 +647,78 @@ namespace http::fastcgi {
             hints.ai_socktype = SOCK_STREAM;
             hints.ai_protocol = IPPROTO_TCP;
 
-            // Resolve target hostname and port
-            struct addrinfo* pAddrInfo = nullptr;
-            std::string portStr = std::to_string(endpoint.port);
-            if (getaddrinfo(endpoint.host.c_str(), portStr.c_str(), &hints, &pAddrInfo) != 0 || pAddrInfo == nullptr) {
-                ERROR_LOG << "Failed to resolve FastCGI host: " << endpoint.host << std::endl;
+            // Resolve target hostname and port w/ bounded timeout guard
+            const std::string portStr = std::to_string(endpoint.port);
+            std::shared_ptr<struct addrinfo> pAddrInfo = resolveHostWithTimeout(
+                endpoint.host, portStr, hints, deadline, this->hasTimedOut
+            );
+
+            if (!pAddrInfo) {
+                if (this->hasTimedOut) {
+                    ERROR_LOG << "Timed out resolving FastCGI host: " << endpoint.host << " after "
+                              << this->timeoutSeconds << "s" << std::endl;
+                } else {
+                    ERROR_LOG << "Failed to resolve FastCGI host: " << endpoint.host << std::endl;
+                }
                 return false;
             }
 
             // Iterate over resolved candidates until connected
             bool connected = false;
-            for (struct addrinfo* pCur = pAddrInfo; pCur != nullptr; pCur = pCur->ai_next) {
+            for (struct addrinfo* pCur = pAddrInfo.get(); pCur != nullptr; pCur = pCur->ai_next) {
+                const auto now = std::chrono::steady_clock::now();
+                if (now >= deadline) {
+                    this->hasTimedOut = true;
+                    break;
+                }
+                const int remainingMs = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count());
+                if (remainingMs <= 0) {
+                    this->hasTimedOut = true;
+                    break;
+                }
+
                 #ifdef _WIN32
                     this->sock = socket(pCur->ai_family, pCur->ai_socktype, pCur->ai_protocol);
                     if (this->sock == FASTCGI_INVALID_SOCKET) continue;
-                    if (::connect(this->sock, pCur->ai_addr, static_cast<int>(pCur->ai_addrlen)) == 0) {
+
+                    if (!setSocketBlocking(this->sock, false)) {
+                        this->close();
+                        continue;
+                    }
+
+                    int connectRc = ::connect(this->sock, pCur->ai_addr, static_cast<int>(pCur->ai_addrlen));
+                    if (connectRc == 0) {
+                        setSocketBlocking(this->sock, true);
                         connected = true;
                         break;
+                    }
+
+                    if (WSAGetLastError() == WSAEWOULDBLOCK) {
+                        fd_set writeSet, errorSet;
+                        FD_ZERO(&writeSet);
+                        FD_SET(this->sock, &writeSet);
+                        FD_ZERO(&errorSet);
+                        FD_SET(this->sock, &errorSet);
+
+                        struct timeval tv{};
+                        tv.tv_sec = remainingMs / 1000;
+                        tv.tv_usec = (remainingMs % 1000) * 1000;
+
+                        int selectRc = select(0, nullptr, &writeSet, &errorSet, &tv);
+                        if (selectRc == 0) {
+                            this->hasTimedOut = true;
+                            this->close();
+                            break;
+                        }
+                        if (selectRc > 0 && FD_ISSET(this->sock, &writeSet) && !FD_ISSET(this->sock, &errorSet)) {
+                            int sockErr = 0;
+                            int errLen = sizeof(sockErr);
+                            if (getsockopt(this->sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&sockErr), &errLen) == 0 && sockErr == 0) {
+                                setSocketBlocking(this->sock, true);
+                                connected = true;
+                                break;
+                            }
+                        }
                     }
                 #else
                     #ifdef SOCK_CLOEXEC
@@ -385,17 +727,52 @@ namespace http::fastcgi {
                         this->sock = socket(pCur->ai_family, pCur->ai_socktype, pCur->ai_protocol);
                     #endif
                     if (this->sock < 0) continue;
-                    if (::connect(this->sock, pCur->ai_addr, pCur->ai_addrlen) == 0) {
+
+                    if (!setSocketBlocking(this->sock, false)) {
+                        this->close();
+                        continue;
+                    }
+
+                    int connectRc = ::connect(this->sock, pCur->ai_addr, pCur->ai_addrlen);
+                    if (connectRc == 0) {
+                        setSocketBlocking(this->sock, true);
                         connected = true;
                         break;
+                    }
+
+                    if (errno == EINPROGRESS || errno == EINTR) {
+                        struct pollfd pfd;
+                        pfd.fd = this->sock;
+                        pfd.events = POLLOUT;
+                        pfd.revents = 0;
+
+                        int pollRc = poll(&pfd, 1, remainingMs);
+                        if (pollRc == 0) {
+                            this->hasTimedOut = true;
+                            this->close();
+                            break;
+                        }
+                        if (pollRc > 0) {
+                            int sockErr = 0;
+                            socklen_t errLen = sizeof(sockErr);
+                            if (getsockopt(this->sock, SOL_SOCKET, SO_ERROR, &sockErr, &errLen) == 0 && sockErr == 0) {
+                                setSocketBlocking(this->sock, true);
+                                connected = true;
+                                break;
+                            }
+                        }
                     }
                 #endif
                 this->close();
             }
-            freeaddrinfo(pAddrInfo);
 
             if (!connected) {
-                ERROR_LOG << "Failed to connect to FastCGI TCP endpoint: " << endpoint.host << ":" << endpoint.port << std::endl;
+                if (this->hasTimedOut) {
+                    ERROR_LOG << "Timed out connecting to FastCGI TCP endpoint: " << endpoint.host << ":" << endpoint.port
+                              << " after " << this->timeoutSeconds << "s" << std::endl;
+                } else {
+                    ERROR_LOG << "Failed to connect to FastCGI TCP endpoint: " << endpoint.host << ":" << endpoint.port << std::endl;
+                }
                 return false;
             }
 
@@ -778,7 +1155,7 @@ namespace http::fastcgi {
     bool Client::execute(const Endpoint& endpoint, const File& file, const Request& req, Response& res) {
         // Connect to target backend endpoint
         if (!this->connect(endpoint)) {
-            res.setStatus(502);
+            res.setStatus(this->hasTimedOut ? 504 : 502);
             return false;
         }
 

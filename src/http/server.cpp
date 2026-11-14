@@ -13,6 +13,7 @@
 
 #include "tools.hpp"
 #include "telemetry/stats.hpp"
+#include "fastcgi/client.hpp"
 #include "version/handler_1_1.hpp"
 #include "version/handler_1_0.hpp"
 #include "version/handler_0_9.hpp"
@@ -38,6 +39,9 @@ namespace http {
     void Server::kill() {
         // Make repeated shutdown requests harmless
         if (isExiting.exchange(true)) return;
+
+        // Notify and wake pending FastCGI resolver waiters immediately
+        fastcgi::notifyResolverShutdown();
 
         // Remove the listener from service before closing its descriptor
         const int listener = sock.exchange(SOCKET_UNSET);
