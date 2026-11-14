@@ -325,8 +325,8 @@ namespace http {
         FD_SET(listener, &fds);
 
         struct timeval tv;
-        tv.tv_sec = 1; // 1 second timeout
-        tv.tv_usec = 0;
+        tv.tv_sec = 0;
+        tv.tv_usec = 250000; // 250ms polling timeout
 
         int rv = select(listener + 1, &fds, nullptr, nullptr, &tv);
         if (rv <= 0) return -1; // Timeout or error
@@ -348,6 +348,13 @@ namespace http {
             socklen_t clientLen = sizeof(clientAddr);
             char clientIPStr[INET6_ADDRSTRLEN];
 
+            // Prune expired queued connection tasks
+            try {
+                this->threadPool.pruneExpired();
+            } catch (const std::exception& e) {
+                ERROR_LOG << "Failed to prune expired tasks: " << e.what() << std::endl;
+            }
+
             // Accept connections
             const int client = this->acceptConnection(clientAddr, clientLen);
             if (client < 0) continue;
@@ -365,10 +372,17 @@ namespace http {
 
             // Queue the handler with its own IP string and shared server lifetime
             auto self = shared_from_this(); // Must inherit from enable_shared_from_this
+            const auto timeout = std::chrono::seconds(conf::KEEP_ALIVE_TIMEOUT);
             try {
-                if (threadPool.enqueue([self, client, ip = std::string(clientIPStr)]() {
-                    self->handleReqs(client, ip);
-                })) continue;
+                if (threadPool.enqueue(
+                    [self, client, ip = std::string(clientIPStr)]() {
+                        self->handleReqs(client, ip);
+                    },
+                    [self, client]() {
+                        self->untrackClient(client);
+                        self->closeSocket(client);
+                    },
+                    timeout)) continue;
             } catch (const std::exception& e) {
                 ERROR_LOG << "Failed to queue client: " << e.what() << std::endl;
             }

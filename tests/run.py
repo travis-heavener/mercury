@@ -370,9 +370,13 @@ if __name__ == "__main__":
         ratelimit_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_ratelimit.py")
         ratelimit_ok = subprocess.run([sys.executable, ratelimit_script, "--mercury-output"]).returncode == 0
 
+        # Run connection queue integration tests across all platforms
+        queue_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_connection_queue.py")
+        queue_ok = subprocess.run([sys.executable, queue_script, "--mercury-output"]).returncode == 0
+
         # Print overall test suite summary
         print("=" * 80)
-        success = num_passing == num_total and ownership_ok and cgi_ok and ratelimit_ok
+        success = num_passing == num_total and ownership_ok and cgi_ok and ratelimit_ok and queue_ok
         print("✅ Success" if success else "❌ Failure")
         print(f"Passing: {num_passing}/{num_total}")
         sys.exit(0 if success else 1)

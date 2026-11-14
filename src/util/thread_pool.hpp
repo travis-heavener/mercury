@@ -2,11 +2,12 @@
 #define __THREAD_POOL_HPP
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
-#include <queue>
 #include <thread>
 #include <vector>
 
@@ -46,16 +47,25 @@ class ThreadPool {
         ThreadPool();
         ~ThreadPool();
 
-        bool enqueue(std::function<void()> task);
+        bool enqueue(std::function<void()> task,
+                     std::function<void()> onExpire = nullptr,
+                     std::chrono::milliseconds timeout = std::chrono::milliseconds(0));
+        void pruneExpired();
         void stop();
         void getUsageInfo(size_t& usedThreads, size_t& totalThreads, size_t& pendingConnections);
     private:
+        struct QueuedTask {
+            std::function<void()> fn;
+            std::chrono::steady_clock::time_point deadline;
+            std::function<void()> onExpire;
+        };
+
         void workerLoop(ThreadWrapper& thisThread);
         void pruneTempThreads(std::vector<std::unique_ptr<ThreadWrapper>>& pruned);
         void addWorker(const bool isTemporary);
 
         std::vector<std::unique_ptr<ThreadWrapper>> workers;
-        std::queue<std::function<void()>> tasks;
+        std::deque<QueuedTask> tasks;
 
         std::mutex queueMutex;
         std::mutex stopMutex;
