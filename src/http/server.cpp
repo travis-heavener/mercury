@@ -165,11 +165,38 @@ namespace http {
         ssize_t status;
         if (this->useTLS) {
             status = SSL_write(pSSL, resBuffer, n);
+            if (status <= 0) {
+                const int err = SSL_get_error(pSSL, static_cast<int>(status));
+                if (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ) {
+                    struct pollfd pfd{};
+                    pfd.fd = client;
+                    pfd.events = (err == SSL_ERROR_WANT_WRITE ? POLLOUT : POLLIN);
+                    pfd.revents = 0;
+                    if (poll(&pfd, 1, conf::KEEP_ALIVE_TIMEOUT * 1000) > 0)
+                        status = SSL_write(pSSL, resBuffer, n);
+                }
+            }
         } else {
             #ifndef _WIN32
                 status = send(client, resBuffer, n, MSG_NOSIGNAL);
+                if (status < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                    struct pollfd pfd{};
+                    pfd.fd = client;
+                    pfd.events = POLLOUT;
+                    pfd.revents = 0;
+                    if (poll(&pfd, 1, conf::KEEP_ALIVE_TIMEOUT * 1000) > 0)
+                        status = send(client, resBuffer, n, MSG_NOSIGNAL);
+                }
             #else
                 status = send(client, resBuffer, n, 0);
+                if (status < 0 && (WSAGetLastError() == WSAEWOULDBLOCK)) {
+                    struct pollfd pfd{};
+                    pfd.fd = client;
+                    pfd.events = POLLOUT;
+                    pfd.revents = 0;
+                    if (poll(&pfd, 1, conf::KEEP_ALIVE_TIMEOUT * 1000) > 0)
+                        status = send(client, resBuffer, n, 0);
+                }
             #endif
         }
         if (status > 0)
@@ -426,23 +453,61 @@ namespace http {
             auto readMore = [&](const int timeoutMs = conf::KEEP_ALIVE_TIMEOUT * 1000) -> bool {
                 if (isExiting || timeoutMs <= 0) return false;
 
-                // Decrypted TLS bytes can already be waiting without socket activity
-                if (!useTLS || SSL_pending(pSSL) == 0) {
-                    struct pollfd pfd{};
-                    pfd.fd = client;
-                    const ssize_t ready = waitForClientData(pfd, timeoutMs);
-                    if (ready <= 0 || !(pfd.revents & POLLIN)) return false;
-                }
+                const auto readDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
 
-                // Stop on EOF or a read error; only append bytes actually received
-                const ssize_t n = readClientSock(readBuffer.data(), client, pSSL);
-                if (n <= 0) return false;
-                pending.append(readBuffer.data(), static_cast<size_t>(n));
-                return true;
+                // Enforce non-blocking socket mode to prevent partial TLS records from stalling
+                setSocketBlocking(client, false);
+
+                while (!isExiting) {
+                    if (useTLS) {
+                        const ssize_t n = SSL_read(pSSL, readBuffer.data(), conf::REQUEST_BUFFER_SIZE);
+                        if (n > 0) {
+                            ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
+                            pending.append(readBuffer.data(), static_cast<size_t>(n));
+                            return true;
+                        }
+
+                        const int err = SSL_get_error(pSSL, static_cast<int>(n));
+                        if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
+                            return false;
+
+                        const auto now = std::chrono::steady_clock::now();
+                        if (now >= readDeadline) return false;
+
+                        const int remMs = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(readDeadline - now).count());
+                        struct pollfd pfd{};
+                        pfd.fd = client;
+                        pfd.events = (err == SSL_ERROR_WANT_READ ? POLLIN : POLLOUT);
+                        pfd.revents = 0;
+
+                        const int ready = poll(&pfd, 1, remMs);
+                        if (ready <= 0) return false;
+                    } else {
+                        struct pollfd pfd{};
+                        pfd.fd = client;
+                        pfd.events = POLLIN;
+                        pfd.revents = 0;
+
+                        const auto now = std::chrono::steady_clock::now();
+                        if (now >= readDeadline) return false;
+
+                        const int remMs = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(readDeadline - now).count());
+                        const int ready = poll(&pfd, 1, remMs);
+                        if (ready <= 0 || !(pfd.revents & POLLIN)) return false;
+
+                        const ssize_t n = recv(client, readBuffer.data(), conf::REQUEST_BUFFER_SIZE, 0);
+                        if (n <= 0) return false;
+                        ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
+                        pending.append(readBuffer.data(), static_cast<size_t>(n));
+                        return true;
+                    }
+                }
+                return false;
             };
 
             // Reject framing errors before constructing a Request or reading its body
             auto reject = [&](const int status) {
+                setSocketBlocking(client, true);
                 Response response(pending.find("HTTP/1.0") < pending.find("\r\n") ? "HTTP/1.0" : "HTTP/1.1");
                 response.setStatus(status);
                 response.setHeader("Connection", "close");
@@ -523,8 +588,32 @@ namespace http {
 
                 // Wait for this body only; extra bytes belong to the next request
                 const size_t headerSize = headerEnd + (isSimpleRequest ? 2 : 4);
-                while (pending.size() - headerSize < contentLength)
-                    if (!readMore()) throw http::Exception();
+                if (pending.size() - headerSize < contentLength) {
+                    const auto bodyStartTime = std::chrono::steady_clock::now();
+                    constexpr size_t minBodyRate = 1024; // Minimum 1 KB/s throughput
+
+                    // Compute overall body deadline from keep-alive timeout and payload size
+                    const auto bodyDeadline = bodyStartTime +
+                        std::chrono::seconds(conf::KEEP_ALIVE_TIMEOUT) +
+                        std::chrono::seconds(contentLength / minBodyRate);
+
+                    while (pending.size() - headerSize < contentLength) {
+                        const auto now = std::chrono::steady_clock::now();
+                        if (now >= bodyDeadline) throw http::Exception();
+
+                        // Enforce minimum receive rate after initial keep-alive grace period
+                        const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - bodyStartTime).count();
+                        if (elapsed > static_cast<int64_t>(conf::KEEP_ALIVE_TIMEOUT)) {
+                            const size_t bytesRead = pending.size() - headerSize;
+                            const size_t expectedBytes = static_cast<size_t>(elapsed - static_cast<int64_t>(conf::KEEP_ALIVE_TIMEOUT)) * minBodyRate;
+                            if (bytesRead < expectedBytes) throw http::Exception();
+                        }
+
+                        const auto remainingMs = std::chrono::duration_cast<std::chrono::milliseconds>(bodyDeadline - now).count();
+                        const int stepTimeoutMs = static_cast<int>(std::min<int64_t>(static_cast<int64_t>(conf::KEEP_ALIVE_TIMEOUT) * 1000, remainingMs));
+                        if (!readMore(stepTimeoutMs)) throw http::Exception();
+                    }
+                }
 
                 // Extract exactly one request and retain any pipelined surplus
                 const size_t requestSize = headerSize + contentLength;
@@ -597,6 +686,7 @@ namespace http {
                         ", max=" + std::to_string(requestsLeft));
 
                 // Send headers and body (HEAD sends headers only)
+                setSocketBlocking(client, true);
                 const ssize_t status = response->streamBody(request.isMIMEAccepted("text/html"), request.getMethod() == METHOD::HEAD, sendFunc);
 
                 ServerStats::getInstance().recordStatusCode(response->getStatus());
