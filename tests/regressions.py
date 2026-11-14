@@ -109,6 +109,19 @@ def malformed_ranges(connect):
             conn.send(request(headers=b"Range: " + value + b"\r\n"))
             assert conn.response()[0] == 200
 
+    # Satisfiable oversized and mixed byte ranges return 206 with available bytes (RFC 9110 Section 14.1.2)
+    for value in (b"bytes=0-99999", b"bytes=-99999", b"bytes=0-4,99999-"):
+        with connect() as conn:
+            conn.send(request(b"/small.txt", headers=b"Range: " + value + b"\r\n"))
+            status, headers, body = conn.response()
+            assert status == 206, f"Expected 206 for {value}, got {status}"
+            if value == b"bytes=0-4,99999-":
+                assert body == b"HELLO", f"Expected HELLO for {value}, got {body}"
+                assert b"bytes 0-4/11" in headers.get(b"content-range", b""), f"Expected Content-Range bytes 0-4/11, got {headers.get(b'content-range')}"
+            else:
+                assert body == b"HELLO WORLD", f"Expected full body for {value}, got {body}"
+                assert b"bytes 0-10/11" in headers.get(b"content-range", b""), f"Expected Content-Range bytes 0-10/11, got {headers.get(b'content-range')}"
+
 
 def pipelines(connect):
     """Keep request bodies and subsequent requests separate on one connection."""

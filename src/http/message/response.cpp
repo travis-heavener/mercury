@@ -133,22 +133,33 @@ namespace http {
     }
 
     bool Response::extendByteRanges(const std::vector<byte_range_t>& byteRanges) {
-        // Validate each byte range
+        if (byteRanges.empty()) return true;
         const size_t streamSize = pBodyStream->size();
+        if (streamSize == 0) return false;
+
+        // Filter satisfiable byte ranges (RFC 9110 Section 14.1.2)
         const size_t npos = std::string::npos;
+        std::vector<byte_range_t> satisfiableRanges;
         for (const byte_range_t& byteRange : byteRanges) {
             const size_t first = byteRange.first, second = byteRange.second;
-            if ((first == npos && (second > streamSize || second == 0)) || // Ex. bytes=-500
-                (second == npos && (first >= streamSize)) || // Ex. bytes=0-
-                (first != npos && second != npos && (first > second || first >= streamSize || second >= streamSize)) // Ex. bytes=200-300
-            ) {
-                return false;
+            if (first == npos) {
+                // Suffix range: bytes=-N (N must be > 0)
+                if (second == 0) return false;
+                satisfiableRanges.push_back(byteRange);
+            } else if (second == npos) {
+                // Open range: bytes=N- (N must be < streamSize)
+                if (first < streamSize) satisfiableRanges.push_back(byteRange);
+            } else {
+                // Explicit range: bytes=N-M (first must be <= second)
+                if (first > second) return false;
+                if (first < streamSize) satisfiableRanges.push_back(byteRange);
             }
         }
+        if (satisfiableRanges.empty()) return false;
 
         // Sort and coalesce byte ranges
         std::vector<byte_range_t> sortedByteRanges;
-        intervalMergeByteRanges(byteRanges, sortedByteRanges, streamSize);
+        intervalMergeByteRanges(satisfiableRanges, sortedByteRanges, streamSize);
 
         // Verify only one byte range is present
         if (sortedByteRanges.size() > 1) return false;
