@@ -175,6 +175,20 @@ class CGIProcessTests(unittest.TestCase):
             status, _, body = self.response("httpoxy", extra_headers=b"Proxy: http://attacker.local:8080\r\n")
             self.assertEqual((status, body), (200, b"no_proxy"))
 
+    # Verify directory links escape question marks and still reach named file
+    def test_directory_listing_encodes_question_mark(self):
+        (self.root / "odd?name.txt").write_text("question mark fixture")
+        with mercury_process(self.config()):
+            with Connection("127.0.0.1", 8080) as connection:
+                connection.send(request(b"/"))
+                status, _, body = connection.response()
+                self.assertEqual(status, 200)
+                self.assertIn(b'href="/odd%3Fname.txt"', body)
+            with Connection("127.0.0.1", 8080) as connection:
+                connection.send(request(b"/odd%3Fname.txt"))
+                status, _, body = connection.response()
+                self.assertEqual((status, body), (200, b"question mark fixture"))
+
     # Verify unauthenticated stalling TLS connection does not block other worker threads
     def test_stalled_tls_handshake_does_not_block_workers(self):
         with mercury_process(self.config()):

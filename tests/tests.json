@@ -497,7 +497,8 @@
                 "desc": "Directory Index Tests",
                 "versions": [ "0.9", "1.0", "1.1" ],
                 "cases": [
-                    { "method": "GET", "path": "/", "expectedStatus": 200, "expectedBody": "Index of", "expectedBodyContainsMode": true }
+                    { "method": "GET", "path": "/", "expectedStatus": 200, "expectedBody": "Index of", "expectedBodyContainsMode": true },
+                    { "method": "GET", "path": "/", "expectedStatus": 200, "expectedBody": "href=\"/special%23name%25file.txt\"", "expectedBodyContainsMode": true }
                 ]
             }
         ]

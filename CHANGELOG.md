@@ -18,6 +18,7 @@
 - Fix: enforce TLS peer certificate and hostname verification, response size cap, and deadline on startup update check
 - Fix: restore all release assets and status templates during updater rollback to prevent mixed-version installations
 - Fix: clamp oversized byte ranges to representation length instead of rejecting with 416
+- Fix: percent-encode directory listing hyperlinks to prevent URI fragment and query parameter misinterpretation
 
 ## [0.39.2] - 2026-11-08
 - Added: TLSCertFile and TLSKeyFile config directives to configure custom SSL/TLS certificate and private key paths

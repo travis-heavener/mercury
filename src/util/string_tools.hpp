@@ -150,6 +150,24 @@ inline std::string escapeHtml(std::string_view input) {
     return out;
 }
 
+// Encode URI path, escaping characters outside unreserved set while preserving '/'
+inline std::string encodeURIPath(std::string_view path) {
+    constexpr char HEX[] = "0123456789ABCDEF";
+    std::string encoded;
+    encoded.reserve(path.size() + 16);
+    for (const unsigned char c : path) {
+        if (c == '/' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' || c == '~') {
+            encoded.push_back(static_cast<char>(c));
+        } else {
+            encoded.push_back('%');
+            encoded.push_back(HEX[(c >> 4) & 0x0F]);
+            encoded.push_back(HEX[c & 0x0F]);
+        }
+    }
+    return encoded;
+}
+
 void decodeURI(std::string&);
 
 void formatHeaderCasing(std::string&);
