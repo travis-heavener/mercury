@@ -75,6 +75,18 @@ output.write(b"Content-Type: application/octet-stream\r\n\r\n")
 if mode == "duplex":
     output.write(b"P" * 131072)
     output.flush()
+elif mode == "flood":
+    try:
+        while True:
+            output.write(b"F" * 65536)
+            output.flush()
+    except BrokenPipeError:
+        pass
+    sys.exit(0)
+elif mode == "oversized":
+    output.write(b"O" * 16384)
+    output.flush()
+    sys.exit(0)
 
 # Read full request payload from stdin
 body = sys.stdin.buffer.read()
@@ -311,6 +323,90 @@ class CGIProcessTests(unittest.TestCase):
 
         # Confirm error log was not created
         self.assertFalse(self.error_log.exists())
+
+    # Verify CGI worker stdout flood terminates at response body ceiling and returns 413
+    def test_stdout_flood_terminates_worker_and_returns_payload_too_large(self):
+        text = self.config()
+        conf_path = Path(text)
+        conf_content = conf_path.read_text().replace(
+            "<Mercury>", "<Mercury><MaxResponseBody> 1024 </MaxResponseBody>"
+        )
+        conf_path.write_text(conf_content)
+
+        with mercury_process(str(conf_path)):
+            status, _, _ = self.response("flood")
+            self.assertEqual(status, 413)
+
+        # Confirm error log recorded body limit failure
+        self.assertIn("exceeded maximum response body limit (1024 bytes)", self.error_log.read_text())
+
+    # Verify CGI worker response exceeding MaxResponseBody returns 413
+    def test_oversized_cgi_response_returns_payload_too_large(self):
+        text = self.config()
+        conf_path = Path(text)
+        conf_content = conf_path.read_text().replace(
+            "<Mercury>", "<Mercury><MaxResponseBody> 1024 </MaxResponseBody>"
+        )
+        conf_path.write_text(conf_content)
+
+        with mercury_process(str(conf_path)):
+            status, _, _ = self.response("oversized")
+            self.assertEqual(status, 413)
+
+    # Verify static file exceeding MaxResponseBody returns 413
+    def test_static_file_exceeding_max_response_body_returns_payload_too_large(self):
+        text = self.config()
+        conf_path = Path(text)
+        conf_content = conf_path.read_text().replace(
+            "<Mercury>", "<Mercury><MaxResponseBody> 1024 </MaxResponseBody>"
+        )
+        conf_path.write_text(conf_content)
+        (self.root / "oversized.txt").write_text("X" * 4096)
+
+        with mercury_process(str(conf_path)):
+            with Connection("127.0.0.1", 8080) as connection:
+                connection.send(request(b"/oversized.txt"))
+                status, _, _ = connection.response()
+                self.assertEqual(status, 413)
+
+    # Verify CGI response where headers exceed MaxResponseBody but body is within limit returns 200
+    def test_cgi_headers_do_not_count_against_body_limit(self):
+        text = self.config()
+        conf_path = Path(text)
+        conf_content = conf_path.read_text().replace(
+            "<Mercury>", "<Mercury><MaxResponseBody> 32 </MaxResponseBody>"
+        )
+        conf_path.write_text(conf_content)
+
+        with mercury_process(str(conf_path)):
+            status, _, body = self.response("normal")
+            self.assertEqual((status, body), (200, b"ok"))
+
+    # Verify HTTP/0.9 request exceeding MaxResponseBody closes connection without sending body
+    def test_http09_exceeding_max_response_body_closes_connection_without_body(self):
+        text = self.config()
+        conf_path = Path(text)
+        conf_content = conf_path.read_text().replace(
+            "<Mercury>", "<Mercury><MaxResponseBody> 32 </MaxResponseBody>"
+        )
+        conf_path.write_text(conf_content)
+        (self.root / "large1024.txt").write_text("A" * 1024)
+
+        with mercury_process(str(conf_path)):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.connect(("127.0.0.1", 8080))
+                sock.sendall(b"GET /large1024.txt\r\n")
+                data = b""
+                sock.settimeout(2.0)
+                try:
+                    while True:
+                        chunk = sock.recv(4096)
+                        if not chunk:
+                            break
+                        data += chunk
+                except socket.timeout:
+                    pass
+                self.assertEqual(data, b"")
 
 
 class RunnerDiagnosticsTests(unittest.TestCase):

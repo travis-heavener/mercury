@@ -224,7 +224,17 @@ namespace http::cgi {
 
         // Reject failed worker capture instead of treating crash as empty success
         if (!tmpOutHandle) {
-            res.setStatus(process.hasTimedOut() ? 504 : 502);
+            if (process.hasExceededBodyLimit()) {
+                res.setStatus(413);
+                res.setHeader("Connection", "close");
+                res.clearHeader("Keep-Alive");
+                if (req.isMIMEAccepted("text/html"))
+                    res.loadBodyFromErrorDoc(413);
+            } else if (process.hasTimedOut()) {
+                res.setStatus(504);
+            } else {
+                res.setStatus(502);
+            }
             tmpOutHandle.close();
             removeTempFile(tmpPath);
             return;
@@ -376,6 +386,65 @@ namespace http::cgi {
         removeTempFile(tmpPath);
     }
 
+    // Tracks CGI stdout streaming to distinguish headers from body bytes
+    struct CGIOutputDrainer {
+        std::string headerTail;
+        bool inHeaders = true;
+        size_t headerBytes = 0;
+        size_t bodyBytes = 0;
+
+        bool consume(const char* buffer, size_t count, bool& exceededLimit) {
+            if (inHeaders) {
+                std::string searchBuf = headerTail;
+                searchBuf.append(buffer, count);
+                size_t delimPos = searchBuf.find("\r\n\r\n");
+                size_t delimLen = 4;
+                const size_t lfPos = searchBuf.find("\n\n");
+                if (lfPos != std::string::npos && (delimPos == std::string::npos || lfPos < delimPos)) {
+                    delimPos = lfPos;
+                    delimLen = 2;
+                }
+
+                if (delimPos != std::string::npos) {
+                    inHeaders = false;
+                    const size_t totalHeaderInSearch = delimPos + delimLen;
+                    const size_t headerBytesInChunk = totalHeaderInSearch > headerTail.size() ? totalHeaderInSearch - headerTail.size() : 0;
+                    headerBytes += headerBytesInChunk;
+                    headerTail.clear();
+
+                    const size_t bodyBytesInChunk = count > headerBytesInChunk ? count - headerBytesInChunk : 0;
+                    if (bodyBytesInChunk > conf::MAX_RESPONSE_BODY || bodyBytes > conf::MAX_RESPONSE_BODY - bodyBytesInChunk) {
+                        exceededLimit = true;
+                        ERROR_LOG << "PHP CGI worker output exceeded maximum response body limit (" << conf::MAX_RESPONSE_BODY << " bytes)" << std::endl;
+                        return false;
+                    }
+                    bodyBytes += bodyBytesInChunk;
+                } else {
+                    headerBytes += count;
+                    if (headerBytes > 65536) {
+                        ERROR_LOG << "PHP CGI worker headers exceeded maximum limit" << std::endl;
+                        return false;
+                    }
+                    if (count >= 3) {
+                        headerTail.assign(buffer + count - 3, 3);
+                    } else {
+                        headerTail.append(buffer, count);
+                        if (headerTail.size() > 3)
+                            headerTail.erase(0, headerTail.size() - 3);
+                    }
+                }
+            } else {
+                if (count > conf::MAX_RESPONSE_BODY || bodyBytes > conf::MAX_RESPONSE_BODY - count) {
+                    exceededLimit = true;
+                    ERROR_LOG << "PHP CGI worker output exceeded maximum response body limit (" << conf::MAX_RESPONSE_BODY << " bytes)" << std::endl;
+                    return false;
+                }
+                bodyBytes += count;
+            }
+            return true;
+        }
+    };
+
     /************************************************************************/
     /*                          PLATFORM SPECIFICS                          */
     /************************************************************************/
@@ -388,9 +457,10 @@ namespace http::cgi {
         }
 
         // Reads everything from a pipe until EOF or timeout
-        void readFromPipe(HANDLE hPipe, std::ofstream& tmpHandle, PROCESS_INFORMATION& procInfo, bool& timedOut) {
+        void readFromPipe(HANDLE hPipe, std::ofstream& tmpHandle, PROCESS_INFORMATION& procInfo, bool& timedOut, bool& exceededLimit) {
             char buffer[4096];
             DWORD bytesRead;
+            CGIOutputDrainer drainer;
             const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(conf::CGI_TIMEOUT);
 
             while (true) {
@@ -411,6 +481,11 @@ namespace http::cgi {
                 if (bytesAvail > 0) {
                     const DWORD toRead = std::min<DWORD>(sizeof(buffer), bytesAvail);
                     if (ReadFile(hPipe, buffer, toRead, &bytesRead, NULL) && bytesRead > 0) {
+                        if (!drainer.consume(buffer, bytesRead, exceededLimit)) {
+                            TerminateProcess(procInfo.hProcess, 1);
+                            tmpHandle.setstate(std::ios::badbit);
+                            break;
+                        }
                         tmpHandle.write(buffer, bytesRead);
                         continue;
                     }
@@ -420,8 +495,14 @@ namespace http::cgi {
                 // Check if worker process exited
                 if (WaitForSingleObject(procInfo.hProcess, 0) == WAIT_OBJECT_0) {
                     // Drain any remaining output before breaking
-                    while (ReadFile(hPipe, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0)
+                    while (ReadFile(hPipe, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0) {
+                        if (!drainer.consume(buffer, bytesRead, exceededLimit)) {
+                            TerminateProcess(procInfo.hProcess, 1);
+                            tmpHandle.setstate(std::ios::badbit);
+                            break;
+                        }
                         tmpHandle.write(buffer, bytesRead);
+                    }
                     break;
                 }
 
@@ -579,13 +660,13 @@ namespace http::cgi {
             stdinWrite = NULL;
 
             // Read response from CGI
-            readFromPipe(stdoutRead, tmpHandle, procInfo, timedOut);
+            readFromPipe(stdoutRead, tmpHandle, procInfo, timedOut, exceededBodyLimit);
 
             // Close read end of stdout pipe
             CloseHandle(stdoutRead);
             stdoutRead = NULL;
 
-            if (timedOut) return;
+            if (timedOut || exceededBodyLimit) return;
 
             // Report crashed or silent Windows workers before handles close
             DWORD exitCode = 0;
@@ -648,7 +729,7 @@ namespace http::cgi {
         };
 
         // Used to drain bounded chunks so busy workers cannot bypass timeout checks
-        static bool drainWorkerPipe(int& fd, std::ofstream* pOutput, std::string& diagnostic, bool& truncated) {
+        static bool drainWorkerPipe(int& fd, std::ofstream* pOutput, std::string& diagnostic, bool& truncated, CGIOutputDrainer& drainer, bool& exceededLimit) {
             char buffer[4096];
             constexpr size_t MAX_DIAGNOSTIC = 4096;
             for (int i = 0; i < 16; ++i) {
@@ -660,6 +741,7 @@ namespace http::cgi {
                 }
 
                 if (pOutput != nullptr) {
+                    if (!drainer.consume(buffer, static_cast<size_t>(count), exceededLimit)) return false;
                     pOutput->write(buffer, count);
                     if (!*pOutput) return false;
                 } else {
@@ -819,6 +901,7 @@ namespace http::cgi {
         // Transfer all three streams concurrently under one request deadline
         void Process::send(const std::string& input, std::ofstream& tmpHandle) {
             size_t offset = 0;
+            CGIOutputDrainer drainer;
             std::string diagnostic;
             bool truncated = false, succeeded = true;
             if (input.empty()) closePipe(stdinWrite);
@@ -873,8 +956,9 @@ namespace http::cgi {
                     if (fds[i].fd < 0 || fds[i].revents == 0) continue;
                     int& fd = i == 1 ? stdoutRead : stderrRead;
                     if ((fds[i].revents & POLLNVAL) ||
-                        !drainWorkerPipe(fd, i == 1 ? &tmpHandle : nullptr, diagnostic, truncated)) {
-                        ERROR_LOG << "Failed to capture PHP CGI worker output" << std::endl;
+                        !drainWorkerPipe(fd, i == 1 ? &tmpHandle : nullptr, diagnostic, truncated, drainer, exceededBodyLimit)) {
+                        if (!exceededBodyLimit)
+                            ERROR_LOG << "Failed to capture PHP CGI worker output" << std::endl;
                         succeeded = false;
                         break;
                     }

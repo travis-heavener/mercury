@@ -300,6 +300,45 @@ namespace http {
             return static_cast<ssize_t>(sent);
         };
 
+        // Lambda to reset Content-Length, close the connection, and wipe the stream
+        auto clearBodyAndResetStream = [&]() {
+            clearByteRanges();
+            compressMethod = NO_COMPRESS;
+            clearHeader("Content-Encoding");
+            this->clearHeader("Content-Type");
+            this->clearHeader("Keep-Alive");
+            this->clearHeader("Accept-Ranges");
+            this->clearHeader("Last-Modified");
+            this->clearHeader("ETag");
+            this->setHeader("Content-Length", "0");
+            this->setHeader("Connection", "close");
+            setBodyStream( std::unique_ptr<IBodyStream>( new MemoryStream("") ) );
+        };
+
+        // Reject responses exceeding configured body limit
+        if (!omitBody && pBodyStream != nullptr &&
+            ((!originalByteRanges.empty() && totalByteRangeSize > conf::MAX_RESPONSE_BODY) ||
+            (originalByteRanges.empty() && pBodyStream->size() > conf::MAX_RESPONSE_BODY)))
+        {
+            this->setStatus(413);
+            this->clearHeader("Keep-Alive");
+            this->clearHeader("Accept-Ranges");
+            this->clearHeader("Content-Encoding");
+            this->clearHeader("Last-Modified");
+            this->clearHeader("ETag");
+            this->setHeader("Connection", "close");
+            compressMethod = NO_COMPRESS;
+            if (isHTMLAccepted) { // Replace body
+                this->loadBodyFromErrorDoc(413);
+
+                // Verify the error doc ALSO isn't too large
+                if (pBodyStream->size() > conf::MAX_RESPONSE_BODY)
+                    clearBodyAndResetStream();
+            } else { // Remove body
+                clearBodyAndResetStream();
+            }
+        }
+
         // Handle HTTP/0.9 unique format
         if (this->httpVersion == "HTTP/0.9") {
             // Verify status is unset (only set by errors)
@@ -320,42 +359,11 @@ namespace http {
             return 0;
         }
 
-        // Lambda to reset Content-Length, close the connection, and wipe the stream
-        auto clearBodyAndResetStream = [&]() {
-            clearByteRanges();
-            compressMethod = NO_COMPRESS;
-            clearHeader("Content-Encoding");
-            this->clearHeader("Content-Type");
-            this->clearHeader("Keep-Alive");
-            this->setHeader("Content-Length", "0");
-            this->setHeader("Connection", "close");
-            setBodyStream( std::unique_ptr<IBodyStream>( new MemoryStream("") ) );
-        };
-
         // Advertise byte ranges for FileStreams or range-capable static bodies
         if (dynamic_cast<FileStream*>(pBodyStream.get()) != nullptr ||
             dynamic_cast<CachedFileStream*>(pBodyStream.get()) != nullptr ||
             this->headers.contains("Accept-Ranges"))
             this->setHeader("Accept-Ranges", "bytes");
-
-        // Verify the content isn't too large as a MemoryStream
-        if (dynamic_cast<MemoryStream*>(pBodyStream.get()) != nullptr &&
-            ((!originalByteRanges.empty() && totalByteRangeSize > conf::MAX_RESPONSE_BODY) ||
-            (originalByteRanges.empty() && pBodyStream->size() > conf::MAX_RESPONSE_BODY)))
-        {
-            this->setStatus(413);
-            this->clearHeader("Keep-Alive");
-            this->setHeader("Connection", "close");
-            if (isHTMLAccepted) { // Replace body
-                this->loadBodyFromErrorDoc(413);
-
-                // Verify the error doc ALSO isn't too large
-                if (pBodyStream->size() > conf::MAX_RESPONSE_BODY)
-                    clearBodyAndResetStream();
-            } else { // Remove body
-                clearBodyAndResetStream();
-            }
-        }
 
         // Check if the body needs to be pre-compressed (HTTP/1.0 or HTTP/1.1+ w/ small bodies)
         bool wasPrecompressed = false;

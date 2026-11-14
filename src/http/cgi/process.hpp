@@ -31,6 +31,7 @@ namespace http::cgi {
             void send(const std::string& input, std::ofstream& tmpHandle);
             bool hasSucceeded() const { return isSuccess; };
             bool hasTimedOut() const { return timedOut; }
+            bool hasExceededBodyLimit() const { return exceededBodyLimit; }
         private:
             bool createPipes(); // Creates the pipes for the worker
             bool spawnCGIProcess(env_block_t&); // Spawns a new CGI process
@@ -58,6 +59,7 @@ namespace http::cgi {
             // Whether or not the Worker succeeded to start
             bool isSuccess = false;
             bool timedOut = false;
+            bool exceededBodyLimit = false;
     };
 
 }
