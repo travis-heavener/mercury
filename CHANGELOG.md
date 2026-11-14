@@ -14,6 +14,7 @@
 - Fix: track nanosecond file modification timestamps to detect subsecond file edits during cache revalidation
 - Fix: enforce MaxResponseBody across all body stream representations and cap legacy CGI stdout capture to prevent disk exhaustion
 - Fix: enforce timeout during FastCGI connection establishment to prevent worker stalls on full listen backlogs
+- Fix: enforce CGI deadline across request body transmission and stream stdin concurrently on Windows to prevent worker stalls
 
 ## [0.39.2] - 2026-11-08
 - Added: TLSCertFile and TLSKeyFile config directives to configure custom SSL/TLS certificate and private key paths

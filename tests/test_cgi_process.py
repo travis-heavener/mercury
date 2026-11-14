@@ -274,6 +274,22 @@ class CGIProcessTests(unittest.TestCase):
                     # Verify worker process was terminated
                     self.assertFalse(is_process_running(worker_pid))
 
+    # Verify worker timeout covers child closing stdout while request body remains unconsumed
+    def test_timeout_covers_closed_stdout_with_unconsumed_body(self):
+        with mercury_process(self.config(timeout=1)):
+            start = time.monotonic()
+            status = self.response("closed_hang", b"X" * 131072)[0]
+            elapsed = time.monotonic() - start
+            marker = self.root / "closed_hang.started"
+            deadline = time.monotonic() + 2
+            while not marker.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            worker_pid = int(marker.read_text())
+
+            self.assertEqual(status, 504)
+            self.assertLess(elapsed, 4)
+            self.assertFalse(is_process_running(worker_pid))
+
     # Verify server startup rejects invalid zero timeout configuration
     def test_zero_execution_timeout_is_rejected(self):
         result = subprocess.run([str(PROJECT_ROOT / "bin/mercury"), "-c", self.config(timeout=0)],

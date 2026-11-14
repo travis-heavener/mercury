@@ -53,8 +53,9 @@ namespace http::cgi {
                 int stderrRead = -1;
 
                 pid_t childPid = -1;
-                std::chrono::steady_clock::time_point deadline;
             #endif
+
+            std::chrono::steady_clock::time_point deadline;
 
             // Whether or not the Worker succeeded to start
             bool isSuccess = false;
