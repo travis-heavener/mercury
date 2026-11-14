@@ -464,7 +464,7 @@ void handleCLICommands(const std::string& buf, std::atomic<bool>& isExiting, std
                   << (conf::IS_FASTCGI_ENABLED ? (" (" + conf::FASTCGI_ADDRESS + ")") : "") << '\n'
                   << "  [Security & Logging]\n"
                   << "    Client Security Mode:     " << formatSecurityMode(conf::CLIENT_SECURITY_MODE) << '\n'
-                  << "    Rate Limiting:            " << (conf::IS_RATE_LIMIT_ENABLED ? ("On (" + std::to_string(static_cast<int>(conf::RATE_LIMIT_RATE)) + " req/s, burst: " + std::to_string(static_cast<int>(conf::RATE_LIMIT_BURST)) + ")") : "Off") << '\n'
+                  << "    Rate Limiting:            " << (conf::IS_RATE_LIMIT_ENABLED ? ("on (" + std::to_string(static_cast<int>(conf::RATE_LIMIT_RATE)) + " req/s, burst: " + std::to_string(static_cast<int>(conf::RATE_LIMIT_BURST)) + ")") : "off") << '\n'
                   << "    Disable Logs:             " << formatOnOff(conf::DISABLE_LOGS) << '\n'
                   << "    Access Log File:          " << conf::ACCESS_LOG_FILE.string() << '\n'
                   << "    Error Log File:           " << conf::ERROR_LOG_FILE.string()
