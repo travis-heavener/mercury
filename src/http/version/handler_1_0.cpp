@@ -4,7 +4,6 @@
 
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
-#include "../../util/string_tools.hpp"
 #include "../../util/toolbox.hpp"
 
 #define ALLOWED_STATIC_METHODS "GET, HEAD"

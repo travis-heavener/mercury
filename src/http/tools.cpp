@@ -1,12 +1,10 @@
 #include "tools.hpp"
 
 #include <algorithm>
-#include <cctype>
 #include <charconv>
 #include <string>
 #include <string_view>
 
-#include "../logs/logger.hpp"
 #include "../util/string_tools.hpp"
 
 namespace http {

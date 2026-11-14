@@ -4,7 +4,6 @@
 
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
-#include "../../util/string_tools.hpp"
 #include "../../util/toolbox.hpp"
 #include "../cgi/process.hpp"
 #include "../fastcgi/client.hpp"

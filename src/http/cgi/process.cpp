@@ -27,8 +27,6 @@
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
 #include "../../io/file_tools.hpp"
-#include "../../util/string_tools.hpp"
-#include "../../util/toolbox.hpp"
 
 // Global server exit status flag
 extern std::atomic<bool> isExiting;

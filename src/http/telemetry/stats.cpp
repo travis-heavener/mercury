@@ -1,6 +1,5 @@
 #include "stats.hpp"
 
-#include <algorithm>
 #include <iomanip>
 #include <sstream>
 
