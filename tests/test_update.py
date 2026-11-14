@@ -262,6 +262,48 @@ class TestUpdateUtility(unittest.TestCase):
             self.assertFalse(is_ok)
             self.assertTrue(len(msg) > 0)
 
+    def test_validate_config_rejects_numeric_overflow(self):
+        if not self.binary_path.exists():
+            self.skipTest("Mercury binary not present in bin/")
+
+        with tempfile.TemporaryDirectory() as tmp_dir_str:
+            tmp_dir = Path(tmp_dir_str)
+
+            # Test integer overflow exceeding 32-bit unsigned bounds
+            overflow_conf = tmp_dir / "overflow.conf"
+            overflow_conf.write_text("<Mercury><MaxRequestBody>4294967296</MaxRequestBody></Mercury>")
+            is_ok, msg = update.validate_config(self.binary_path, overflow_conf, self.repo_root)
+            self.assertFalse(is_ok)
+            self.assertIn("MaxRequestBody", msg)
+
+            # Test 16-bit integer overflow
+            backlog_conf = tmp_dir / "backlog.conf"
+            backlog_conf.write_text("<Mercury><MaxRequestBacklog>65536</MaxRequestBacklog></Mercury>")
+            is_ok, msg = update.validate_config(self.binary_path, backlog_conf, self.repo_root)
+            self.assertFalse(is_ok)
+            self.assertIn("MaxRequestBacklog", msg)
+
+            # Test trailing non-digit characters
+            invalid_str_conf = tmp_dir / "invalid_str.conf"
+            invalid_str_conf.write_text("<Mercury><MaxRequestBody>123abc</MaxRequestBody></Mercury>")
+            is_ok, msg = update.validate_config(self.binary_path, invalid_str_conf, self.repo_root)
+            self.assertFalse(is_ok)
+            self.assertIn("MaxRequestBody", msg)
+
+            # Test negative CIDR prefix length wrapping to positive value
+            cidr_conf = tmp_dir / "cidr.conf"
+            cidr_conf.write_text('<Mercury><Match pattern=".*"><Access mode="allow all"><Deny>127.0.0.1/-18446744073709551615</Deny></Access></Match></Mercury>')
+            is_ok, msg = update.validate_config(self.binary_path, cidr_conf, self.repo_root)
+            self.assertFalse(is_ok)
+            self.assertIn("Deny", msg)
+
+            # Test negative redirect status code wrapping to positive value
+            redirect_conf = tmp_dir / "redirect.conf"
+            redirect_conf.write_text('<Mercury><Redirect pattern="^/a$" to="/b">-18446744073709551315</Redirect></Mercury>')
+            is_ok, msg = update.validate_config(self.binary_path, redirect_conf, self.repo_root)
+            self.assertFalse(is_ok)
+            self.assertIn("Redirect", msg)
+
     def test_validate_config_accepts_minimal_and_optional_nodes(self):
         if not self.binary_path.exists():
             self.skipTest("Mercury binary not present in bin/")

@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <iostream>
+#include <limits>
 #include <mutex>
 #include <utility>
 
@@ -781,12 +782,14 @@ namespace conf {
         USE_TLS = tlsPortRaw != "off";
         try {
             // Prevent negatives
-            if (tlsPortRaw.size() == 0) throw std::invalid_argument("");
+            if (tlsPortRaw.empty()) throw std::invalid_argument("");
             if (USE_TLS && tlsPortRaw[0] == '-') throw std::invalid_argument("");
-            unsigned long val = USE_TLS ? std::stoul(tlsPortRaw) : 0;
+            size_t idx = 0;
+            const unsigned long long val = USE_TLS ? std::stoull(tlsPortRaw, &idx) : 0;
+            if (USE_TLS && idx != tlsPortRaw.size()) throw std::invalid_argument("");
             if (USE_TLS && (val == 0 || val > 65535)) throw std::invalid_argument("");
             TLS_PORT = USE_TLS ? static_cast<port_t>(val) : 0;
-        } catch (std::invalid_argument&) {
+        } catch (...) {
             std::cerr << "Failed to parse config file, invalid value for TLSPort." << std::endl;
             return CONF_FAILURE;
         }
@@ -1013,12 +1016,16 @@ namespace conf {
 
         try {
             // Prevent negatives
-            if (valueStr.size() == 0) throw std::invalid_argument("");
-            if (valueStr[0] == '-') throw std::invalid_argument("");
+            if (valueStr.empty() || valueStr[0] == '-') throw std::invalid_argument("");
 
-            var = std::stoull(valueStr);
-            if (!allowZero && var == 0) throw std::invalid_argument("");
-        } catch (std::invalid_argument&) {
+            size_t idx = 0;
+            const unsigned long long val = std::stoull(valueStr, &idx);
+            if (idx != valueStr.size()) throw std::invalid_argument("");
+            if (val > std::numeric_limits<unsigned int>::max()) throw std::out_of_range("");
+            if (!allowZero && val == 0) throw std::invalid_argument("");
+
+            var = static_cast<unsigned int>(val);
+        } catch (...) {
             std::cerr << "Failed to parse config file, invalid unsigned integer value for " << nodeName << '.' << std::endl;
             return CONF_FAILURE;
         }
@@ -1039,14 +1046,16 @@ namespace conf {
 
         try {
             // Prevent negatives
-            if (valueStr.size() == 0) throw std::invalid_argument("");
-            if (valueStr[0] == '-') throw std::invalid_argument("");
+            if (valueStr.empty() || valueStr[0] == '-') throw std::invalid_argument("");
 
-            unsigned long val = std::stoul(valueStr);
+            size_t idx = 0;
+            const unsigned long long val = std::stoull(valueStr, &idx);
+            if (idx != valueStr.size()) throw std::invalid_argument("");
+            if (val > std::numeric_limits<unsigned short>::max()) throw std::out_of_range("");
             if (!allowZero && val == 0) throw std::invalid_argument("");
-            if (val > 65535) throw std::invalid_argument("");
+
             var = static_cast<unsigned short>(val);
-        } catch (std::invalid_argument&) {
+        } catch (...) {
             std::cerr << "Failed to parse config file, invalid unsigned integer value for " << nodeName << '.' << std::endl;
             return CONF_FAILURE;
         }

@@ -81,7 +81,17 @@ namespace conf {
         // Extract prefix length, if present
         const size_t slashIndex = raw.find('/');
         if (slashIndex != std::string::npos) {
-            prefixLength = static_cast<unsigned int>( std::stoul( raw.substr(slashIndex+1) ) );
+            try {
+                size_t idx = 0;
+                std::string prefixStr = raw.substr(slashIndex + 1);
+                trimString(prefixStr);
+                if (prefixStr.empty() || prefixStr[0] == '-') throw std::invalid_argument("");
+                const unsigned long long p = std::stoull(prefixStr, &idx);
+                if (idx != prefixStr.size() || p > 128) throw std::invalid_argument("");
+                prefixLength = static_cast<int>(p);
+            } catch (...) {
+                throw std::invalid_argument("Invalid prefix length in CIDR");
+            }
 
             // Remove prefix length
             while (raw.size() > slashIndex)

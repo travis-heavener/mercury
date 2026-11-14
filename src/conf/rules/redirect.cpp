@@ -45,10 +45,16 @@ namespace conf {
 
         unsigned int status;
         try {
-            status = std::stoul( root.text().as_string() );
+            size_t idx = 0;
+            std::string statusStr = root.text().as_string();
+            trimString(statusStr);
+            if (statusStr.empty() || statusStr[0] == '-') throw std::invalid_argument("");
+            const unsigned long long val = std::stoull(statusStr, &idx);
+            if (idx != statusStr.size() || val > 999) throw std::invalid_argument("");
+            status = static_cast<unsigned int>(val);
             if (status < 300 || (status > 304 && status != 307 && status != 308))
                 throw std::invalid_argument("");
-        } catch (std::invalid_argument&) {
+        } catch (...) {
             std::cerr << "Failed to parse config file, Redirect node has invalid HTTP status code." << std::endl;
             return nullptr;
         }
