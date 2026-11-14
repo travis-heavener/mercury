@@ -449,6 +449,17 @@ namespace http {
                 return writeClientSock(client, pSSL, data, size);
             };
 
+            // Send complete buffer, retrying partial socket writes
+            auto sendAll = [&](std::string_view sv) -> bool {
+                size_t sent = 0;
+                while (sent < sv.size()) {
+                    const ssize_t n = sendFunc(sv.data() + sent, sv.size() - sent);
+                    if (n <= 0 || static_cast<size_t>(n) > sv.size() - sent) return false;
+                    sent += static_cast<size_t>(n);
+                }
+                return true;
+            };
+
             // Append the next available block without discarding buffered request data
             auto readMore = [&](const int timeoutMs = conf::KEEP_ALIVE_TIMEOUT * 1000) -> bool {
                 if (isExiting || timeoutMs <= 0) return false;
@@ -588,6 +599,26 @@ namespace http {
 
                 // Wait for this body only; extra bytes belong to the next request
                 const size_t headerSize = headerEnd + (isSimpleRequest ? 2 : 4);
+
+                // Handle client expectations before waiting for body payload
+                if (reqHeaders.contains("EXPECT")) {
+                    const size_t lineEnd = pending.find("\r\n");
+                    std::string_view reqLine(pending.data(), lineEnd != std::string_view::npos ? lineEnd : pending.size());
+                    while (!reqLine.empty() && (reqLine.back() == ' ' || reqLine.back() == '\t'))
+                        reqLine.remove_suffix(1);
+
+                    if (!equalsCi(reqHeaders["EXPECT"], "100-continue")) {
+                        reject(417);
+                        break;
+                    }
+                    if (reqLine.ends_with("HTTP/1.1") &&
+                        contentLength > 0 &&
+                        pending.size() - headerSize < contentLength) {
+                        static constexpr std::string_view continue100 = "HTTP/1.1 100 Continue\r\n\r\n";
+                        if (!sendAll(continue100))
+                            throw http::Exception();
+                    }
+                }
                 if (pending.size() - headerSize < contentLength) {
                     const auto bodyStartTime = std::chrono::steady_clock::now();
                     constexpr size_t minBodyRate = 1024; // Minimum 1 KB/s throughput

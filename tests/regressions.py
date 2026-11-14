@@ -75,7 +75,7 @@ class Connection:
             size = int(headers[b"content-length"])
             body = self.reader.read(size)
             assert len(body) == size, "truncated body"
-        elif status not in (204, 304):
+        elif status not in (100, 204, 304):
             raise AssertionError("unframed persistent response")
         return status, headers, body
 
@@ -285,10 +285,29 @@ def simple_request(connect):
         assert conn.reader.read() == b"HELLO WORLD", "simple request waited for headers"
 
 
+def expect_100_continue(connect):
+    """Send 100 Continue interim response before consuming request body."""
+    # Test valid 100-continue expectation
+    with connect() as conn:
+        conn.send(b"POST /body_tests/raw.php HTTP/1.1\r\nHost: localhost\r\nExpect: 100-continue\r\nContent-Length: 5\r\n\r\n")
+        status, _, _ = conn.response()
+        assert status == 100, f"Expected 100 Continue, got {status}"
+        conn.send(b"hello")
+        status, _, body = conn.response()
+        assert status == 200 and body == b"hello", f"Expected 200 hello, got {status} {body}"
+
+    # Test unsupported expectation returns 417 Expectation Failed
+    with connect() as conn:
+        conn.send(b"POST /body_tests/raw.php HTTP/1.1\r\nHost: localhost\r\nExpect: unsupported-expectation\r\nContent-Length: 5\r\n\r\n")
+        status, _, _ = conn.response()
+        assert status == 417, f"Expected 417 Expectation Failed, got {status}"
+
+
 WIRE_TESTS = (
     malformed_headers, malformed_ranges, pipelines, fragmented_body, php_bytes,
     authorization, redirect_injection, directory_range, keep_alive_limit,
     header_limit, concurrent_clients, connection_options, simple_request,
+    expect_100_continue,
 )
 # Each group runs in four transport combinations, plus two mixed-source-IP groups.
 WIRE_TEST_COUNT = len(WIRE_TESTS) * 4 + 2
