@@ -1,16 +1,43 @@
+# Local editor data
 .vscode/*
-logs/*
-temp_release/*
 __pycache__/
-libs/*
-*.gch
+
+# Local secrets
 *.pem
+
+# Release artifacts
+releases/
 releases/*
-bin/*
-artifacts.lock
+temp_release/
+temp_release/*
+
+# Locally modified configuration files
 conf/mercury.conf
 conf/mimes.conf
+
+# Locally installed PHP runtime
+php/
 php/*
+
+# Temporary files
+tmp/
 tmp/*
+
+# Build artifacts
+bin/
+bin/*
+build/
 build/*
+libs/
+libs/*
+*.gch
+artifacts.lock
+
+# Temporary Markdown files
 WORKPLAN.md
+
+# Log files
+logs/
+logs/*
+tests/logs/
+tests/logs/*
