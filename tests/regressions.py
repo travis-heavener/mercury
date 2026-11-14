@@ -143,6 +143,14 @@ def php_bytes(connect):
     with connect() as conn:
         conn.send(request(b"/regression_query.php?name=a%26b&encoded=%2520&url=https://example.test/a//b"))
         assert conn.response()[2] == b'{"name":"a&b","encoded":"%20","url":"https://example.test/a//b"}'
+    # Verify unverified client Authorization header does not forge REMOTE_USER or AUTH_TYPE
+    with connect() as conn:
+        conn.send(request(b"/regression_auth.php", headers=b"Authorization: Bearer admin\r\n"))
+        status, _, body = conn.response()
+        assert status == 200, f"regression_auth.php status {status}"
+        assert body == b'{"auth_type":"","remote_user":"","http_authorization":"Bearer admin"}', (
+            f"authenticated identity forged: {body!r}"
+        )
 
 
 def authorization(connect):

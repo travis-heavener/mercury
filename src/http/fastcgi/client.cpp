@@ -223,16 +223,9 @@ namespace http::fastcgi {
 
     // Used to assemble FastCGI environment parameters from File and Request
     void populateParams(ParamEncoder& encoder, const File& file, const Request& req) {
-        // Parse HTTP Authorization header into credentials
-        const std::optional<std::string> authHeader = req.getHeader("Authorization");
-        if (authHeader.has_value()) {
-            const size_t authSpaceInd = authHeader->find(' ');
-            encoder.add("AUTH_TYPE", authHeader->substr(0, authSpaceInd));
-            encoder.add("REMOTE_USER", authSpaceInd == std::string::npos ? "" : authHeader->substr(authSpaceInd + 1));
-        } else {
-            encoder.add("AUTH_TYPE", "");
-            encoder.add("REMOTE_USER", "");
-        }
+        // Prevent forging server authentication credentials from unverified client headers
+        encoder.add("AUTH_TYPE", "");
+        encoder.add("REMOTE_USER", "");
 
         // Set payload length and type when request body exists
         const size_t contentLen = req.getBody().size();
@@ -281,7 +274,7 @@ namespace http::fastcgi {
             strToUpper(cgiKey);
 
             // Exclude headers mapped to dedicated CGI variables and block HTTPoxy (RFC 3875 §4.1.18)
-            if (cgiKey != "HTTP_AUTHORIZATION" && cgiKey != "HTTP_CONTENT_LENGTH" && cgiKey != "HTTP_CONTENT_TYPE" && cgiKey != "HTTP_PROXY")
+            if (cgiKey != "HTTP_CONTENT_LENGTH" && cgiKey != "HTTP_CONTENT_TYPE" && cgiKey != "HTTP_PROXY")
                 encoder.add(cgiKey, val);
         }
     }

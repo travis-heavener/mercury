@@ -84,15 +84,8 @@ namespace http::cgi {
         // Collect all envs
         std::map<std::string, std::string, std::less<>> envsMap;
 
-        const std::optional<std::string> authHeader = req.getHeader("Authorization");
-        if (authHeader.has_value()) {
-            const size_t authSpaceInd = authHeader->find(' ');
-            envsMap["AUTH_TYPE"] = authHeader->substr(0, authSpaceInd);
-            envsMap["REMOTE_USER"] = authSpaceInd == std::string::npos ?
-                "" : authHeader->substr(authSpaceInd+1);
-        } else {
-            envsMap["AUTH_TYPE"] = envsMap["REMOTE_USER"] = "";
-        }
+        // Prevent forging server authentication credentials from unverified client headers
+        envsMap["AUTH_TYPE"] = envsMap["REMOTE_USER"] = "";
 
         const size_t contentLen = req.getBody().size();
         if (contentLen > 0) {
@@ -133,8 +126,8 @@ namespace http::cgi {
             for (char& c : cgiKey) if (c == '-') c = '_';
             strToUpper(cgiKey);
 
-            // Exclude dedicated CGI variables and block HTTPoxy vulnerability (RFC 3875 §4.1.18)
-            if (cgiKey != "HTTP_AUTHORIZATION" && cgiKey != "HTTP_CONTENT_LENGTH" && cgiKey != "HTTP_CONTENT_TYPE" && cgiKey != "HTTP_PROXY")
+            // Exclude headers mapped to dedicated CGI variables and block HTTPoxy vulnerability (RFC 3875 §4.1.18)
+            if (cgiKey != "HTTP_CONTENT_LENGTH" && cgiKey != "HTTP_CONTENT_TYPE" && cgiKey != "HTTP_PROXY")
                 envsMap[cgiKey] = val;
         }
 
