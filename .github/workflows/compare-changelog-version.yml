@@ -7,7 +7,7 @@ on:
     branches: ["main"]
 
 jobs:
-  Compare:
+  Compare-Version:
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v7
