@@ -485,7 +485,7 @@ namespace conf {
         }
 
         // Resolve configuration file path relative to invocation directory if necessary
-        std::filesystem::path resolvedConfigPath = configPath;
+        std::filesystem::path resolvedConfigPath = expandUserHomePath(configPath);
         std::error_code ecConf;
         if (!resolvedConfigPath.is_absolute() && std::filesystem::exists(previousCWD / resolvedConfigPath, ecConf)) {
             resolvedConfigPath = previousCWD / resolvedConfigPath;
@@ -730,9 +730,9 @@ namespace conf {
         } else {
             // Assign paths without creating log directories
             pugi::xml_node accessNode = root.child("AccessLogFile");
-            ACCESS_LOG_FILE = accessNode ? accessNode.text().as_string() : "./logs/access.log";
+            ACCESS_LOG_FILE = expandUserHomePath(accessNode ? accessNode.text().as_string() : "./logs/access.log");
             pugi::xml_node errorNode = root.child("ErrorLogFile");
-            ERROR_LOG_FILE = errorNode ? errorNode.text().as_string() : "./logs/error.log";
+            ERROR_LOG_FILE = expandUserHomePath(errorNode ? errorNode.text().as_string() : "./logs/error.log");
         }
 
         #ifdef _WIN32
@@ -815,8 +815,8 @@ namespace conf {
                 return CONF_FAILURE;
         } else {
             // Assign paths without requiring files to exist when TLS is disabled
-            TLS_CERT_FILE = certNode ? certNode.text().as_string() : defaultCert;
-            TLS_KEY_FILE = keyNode ? keyNode.text().as_string() : defaultKey;
+            TLS_CERT_FILE = expandUserHomePath(certNode ? certNode.text().as_string() : defaultCert);
+            TLS_KEY_FILE = expandUserHomePath(keyNode ? keyNode.text().as_string() : defaultKey);
         }
 
         /************************** Open log files **************************/
@@ -1143,10 +1143,12 @@ namespace conf {
         std::string value = rawValue;
         trimString(value);
 
-        if (value.size() == 0) {
+        if (value.empty()) {
             std::cerr << "Failed to parse config file, invalid path provided for " << nodeName << '.' << std::endl;
             return CONF_FAILURE;
         }
+
+        const std::filesystem::path path = expandUserHomePath(value);
 
         // Format string
         if (value == ".") { // Use relative path
@@ -1155,13 +1157,16 @@ namespace conf {
         } else if (value.find("./") == 0) { // Use relative path
             var = CWD / value.substr(2);
             if (isLogFile) createLogDirectoryIfMissing(var);
+        } else if (value.starts_with('~')) { // Expand user home directory path
+            var = path;
+            if (isLogFile) createLogDirectoryIfMissing(var);
         } else { // Try as absolute path
-            var = std::filesystem::path(value);
+            var = path;
             if (isLogFile) createLogDirectoryIfMissing(var);
 
             if (!std::filesystem::exists(var)) {
                 // Try as relative path (ex. "path" instead of "./path")
-                var = CWD / value;
+                var = CWD / path;
                 if (isLogFile) createLogDirectoryIfMissing(var);
             }
         }
@@ -1229,7 +1234,7 @@ namespace conf {
 
     // Canonicalize and set document root directory
     int setDocumentRoot(const std::filesystem::path& path) {
-        std::filesystem::path target = path;
+        std::filesystem::path target = expandUserHomePath(path);
         if (!target.is_absolute()) {
             std::error_code ec;
             if (std::filesystem::exists(previousCWD / target, ec))

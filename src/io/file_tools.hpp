@@ -38,6 +38,9 @@ inline bool isUNCPath(const std::filesystem::path& path) {
 
 void normalizeBackslashes(std::string& path);
 
+// Expand leading tilde to user home directory
+std::filesystem::path expandUserHomePath(const std::filesystem::path& path);
+
 int isSymlinked(const std::filesystem::path&, const bool = false);
 
 std::filesystem::path resolveCanonicalPath(const std::filesystem::path& path);

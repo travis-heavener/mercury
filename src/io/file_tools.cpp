@@ -4,10 +4,13 @@
     #include "../winheader.hpp"
 #else
     #include <fcntl.h>
+    #include <pwd.h>
+    #include <sys/types.h>
     #include <unistd.h>
 #endif
 
 #include <algorithm>
+#include <cstdlib>
 #include <random>
 #include <sys/stat.h>
 
@@ -23,6 +26,84 @@ void normalizeBackslashes(std::string& path) {
         std::replace( path.begin() + 2, path.end(), '\\', '/' );
     else
         std::replace( path.begin(), path.end(), '\\', '/' );
+}
+
+// Expand leading tilde to user home directory
+std::filesystem::path expandUserHomePath(const std::filesystem::path& path) {
+    const std::string pathStr = path.string();
+    if (pathStr.empty() || pathStr[0] != '~')
+        return path;
+
+    std::string homeDir;
+    std::string remainder;
+
+    // Determine remainder
+    if (pathStr == "~") {
+        remainder = "";
+    } else if (pathStr[1] == '/' || pathStr[1] == '\\') {
+        size_t start = 2;
+        while (start < pathStr.size() && (pathStr[start] == '/' || pathStr[start] == '\\'))
+            ++start;
+        remainder = pathStr.substr(start);
+    } else {
+        #ifndef _WIN32
+            // Ex. ~travis, ~user
+            const size_t sep = pathStr.find_first_of("/\\");
+            const std::string user = (sep == std::string::npos) ? pathStr.substr(1) : pathStr.substr(1, sep - 1);
+            if (sep != std::string::npos) {
+                size_t start = sep + 1;
+                while (start < pathStr.size() && (pathStr[start] == '/' || pathStr[start] == '\\'))
+                    ++start;
+                remainder = pathStr.substr(start);
+            }
+
+            // Resolve home directory of user
+            struct passwd* pPw = getpwnam(user.c_str());
+            if (pPw && pPw->pw_dir && pPw->pw_dir[0] != '\0')
+                homeDir = pPw->pw_dir;
+            else
+                return path;
+        #else
+            return path;
+        #endif
+    }
+
+    // Determine home directory if currently empty
+    if (homeDir.empty()) {
+        #ifndef _WIN32
+            const char* pHome = std::getenv("HOME");
+            if (pHome && *pHome != '\0') {
+                homeDir = pHome;
+            } else {
+                struct passwd* pPw = getpwuid(getuid());
+                if (pPw && pPw->pw_dir && pPw->pw_dir[0] != '\0')
+                    homeDir = pPw->pw_dir;
+            }
+        #else
+            const char* pProfile = std::getenv("USERPROFILE");
+            if (pProfile && *pProfile != '\0') {
+                homeDir = pProfile;
+            } else {
+                const char* pDrive = std::getenv("HOMEDRIVE");
+                const char* pPath = std::getenv("HOMEPATH");
+                if (pDrive && pPath && *pDrive != '\0' && *pPath != '\0') {
+                    homeDir = std::string(pDrive) + pPath;
+                } else {
+                    const char* pHome = std::getenv("HOME");
+                    if (pHome && *pHome != '\0')
+                        homeDir = pHome;
+                }
+            }
+        #endif
+    }
+
+    if (homeDir.empty())
+        return path;
+
+    if (remainder.empty())
+        return std::filesystem::path(homeDir);
+
+    return std::filesystem::path(homeDir) / remainder;
 }
 
 bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
