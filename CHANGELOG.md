@@ -15,6 +15,7 @@
 - Fix: enforce MaxResponseBody across all body stream representations and cap legacy CGI stdout capture to prevent disk exhaustion
 - Fix: enforce timeout during FastCGI connection establishment to prevent worker stalls on full listen backlogs
 - Fix: enforce CGI deadline across request body transmission and stream stdin concurrently on Windows to prevent worker stalls
+- Fix: enforce TLS peer certificate and hostname verification, response size cap, and deadline on startup update check
 
 ## [0.39.2] - 2026-11-08
 - Added: TLSCertFile and TLSKeyFile config directives to configure custom SSL/TLS certificate and private key paths
