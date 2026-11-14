@@ -7,6 +7,7 @@
 - Fix: prevent forging CGI authenticated identity by not populating REMOTE_USER or AUTH_TYPE from unverified client Authorization headers
 - Fix: reject numeric configuration values that overflow integer bounds or contain trailing non-digits instead of silently truncating
 - Fix: enforce queue ceiling based on MaxRequestBacklog and expire idle queued connections after keep-alive timeout to prevent descriptor exhaustion
+- Fix: resolve relative DocumentRoot and configuration paths against caller working directory and config directory before falling back to Mercury directory
 
 ## [0.39.2] - 2026-11-08
 - Added: TLSCertFile and TLSKeyFile config directives to configure custom SSL/TLS certificate and private key paths

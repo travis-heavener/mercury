@@ -77,7 +77,7 @@ All configuration nodes must be wrapped within a singular `<Mercury>` root node.
 # Config
 
 ### DocumentRoot
-Specifies where files are served from, relative to the Mercury directory. Can be overridden on the command line via `-r, --root <path>`.
+Specifies where files are served from, relative to the current working directory, configuration file directory, or Mercury directory. Can be overridden on the command line via `-r, --root <path>`.
 
 Default: `./public/`
 

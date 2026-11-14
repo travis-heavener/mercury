@@ -93,6 +93,7 @@ namespace conf {
 
     // CWD in root directory of repo
     std::filesystem::path CWD, previousCWD = std::filesystem::current_path();
+    std::filesystem::path configDir;
 
     /**********************************************************/
     /********************* STATIC METHODS *********************/
@@ -487,9 +488,14 @@ namespace conf {
         // Resolve configuration file path relative to invocation directory if necessary
         std::filesystem::path resolvedConfigPath = expandUserHomePath(configPath);
         std::error_code ecConf;
-        if (!resolvedConfigPath.is_absolute() && std::filesystem::exists(previousCWD / resolvedConfigPath, ecConf)) {
-            resolvedConfigPath = previousCWD / resolvedConfigPath;
+        if (!resolvedConfigPath.is_absolute()) {
+            if (std::filesystem::exists(previousCWD / resolvedConfigPath, ecConf))
+                resolvedConfigPath = previousCWD / resolvedConfigPath;
+            else if (std::filesystem::exists(CWD / resolvedConfigPath, ecConf))
+                resolvedConfigPath = CWD / resolvedConfigPath;
         }
+
+        configDir = resolvedConfigPath.parent_path();
 
         // Read XML config file
         pugi::xml_document doc;
@@ -900,6 +906,7 @@ namespace conf {
         // Reset TLS paths
         TLS_CERT_FILE.clear();
         TLS_KEY_FILE.clear();
+        configDir.clear();
 
         // Reset file cache settings
         MAX_FILE_CACHE_ENTRIES = 1024;
@@ -1151,28 +1158,60 @@ namespace conf {
         const std::filesystem::path path = expandUserHomePath(value);
 
         // Format string
-        if (value == ".") { // Use relative path
-            var = CWD;
+        if (value == "." || value == "./" || value == ".\\") { // Use relative path
+            var = previousCWD;
             if (isLogFile) return CONF_FAILURE; // Cannot be a directory
-        } else if (value.find("./") == 0) { // Use relative path
-            var = CWD / value.substr(2);
-            if (isLogFile) createLogDirectoryIfMissing(var);
         } else if (value.starts_with('~')) { // Expand user home directory path
             var = path;
             if (isLogFile) createLogDirectoryIfMissing(var);
-        } else { // Try as absolute path
-            var = path;
-            if (isLogFile) createLogDirectoryIfMissing(var);
-
-            if (!std::filesystem::exists(var)) {
-                // Try as relative path (ex. "path" instead of "./path")
-                var = CWD / path;
-                if (isLogFile) createLogDirectoryIfMissing(var);
+        } else {
+            std::filesystem::path rel = path;
+            if (value.starts_with("./") || value.starts_with(".\\")) {
+                size_t start = 2;
+                while (start < value.size() && (value[start] == '/' || value[start] == '\\'))
+                    ++start;
+                rel = (start < value.size()) ? value.substr(start) : "";
             }
+
+            if (rel.empty()) {
+                var = previousCWD;
+                if (isLogFile) return CONF_FAILURE; // Cannot be a directory
+            } else if (!rel.is_absolute()) {
+                std::error_code ec;
+                if (isLogFile) {
+                    // For log files, prefer caller cwd and config dir before repo root
+                    if (std::filesystem::exists(previousCWD / rel, ec))
+                        var = previousCWD / rel;
+                    else if (!configDir.empty() && std::filesystem::exists(configDir / rel, ec))
+                        var = configDir / rel;
+                    else if (std::filesystem::exists((previousCWD / rel).parent_path(), ec))
+                        var = previousCWD / rel;
+                    else if (!configDir.empty() && std::filesystem::exists((configDir / rel).parent_path(), ec))
+                        var = configDir / rel;
+                    else if (previousCWD != CWD)
+                        var = previousCWD / rel;
+                    else
+                        var = CWD / rel;
+                } else {
+                    if (std::filesystem::exists(previousCWD / rel, ec))
+                        var = previousCWD / rel;
+                    else if (!configDir.empty() && std::filesystem::exists(configDir / rel, ec))
+                        var = configDir / rel;
+                    else if (std::filesystem::exists(CWD / rel, ec))
+                        var = CWD / rel;
+                    else
+                        var = previousCWD / rel;
+                }
+            } else {
+                var = rel;
+            }
+
+            if (isLogFile) createLogDirectoryIfMissing(var);
         }
 
-        // Skip exists check for log files (handled separately)
-        if (!isLogFile && !std::filesystem::exists(var)) {
+        // Validate path existence (reject unresolvable tilde paths even for log files)
+        std::error_code ecExists;
+        if ((!isLogFile || var.string().starts_with('~')) && !std::filesystem::exists(var, ecExists)) {
             std::cerr << "Failed to parse config file, path provided for " << nodeName << " could not be found." << std::endl;
             return CONF_FAILURE;
         }
@@ -1239,6 +1278,10 @@ namespace conf {
             std::error_code ec;
             if (std::filesystem::exists(previousCWD / target, ec))
                 target = previousCWD / target;
+            else if (!configDir.empty() && std::filesystem::exists(configDir / target, ec))
+                target = configDir / target;
+            else if (std::filesystem::exists(CWD / target, ec))
+                target = CWD / target;
         }
 
         if (canonicalizeDirectory(target, "DocumentRoot") == CONF_FAILURE)
