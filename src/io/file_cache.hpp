@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
@@ -29,6 +30,7 @@ namespace io {
         std::string lastModGMT; // Formatted RFC 7231 Last-Modified timestamp
         size_t fileSize = 0; // File payload size in bytes
         std::time_t lastModTime = 0; // POSIX modification timestamp in seconds
+        uint64_t lastModTimeNsec = 0; // Nanosecond component of modification timestamp
         uint32_t mode = 0; // File permission bitmask
         uint64_t inode = 0; // Filesystem inode or Windows file index
         bool exists = false; // Filesystem existence flag

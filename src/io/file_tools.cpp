@@ -119,8 +119,9 @@ bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
             winPath.pop_back();
         }
 
+        const std::wstring wPath = std::filesystem::path(winPath).wstring();
         struct _stat64 st;
-        if (_wstat64(std::filesystem::path(winPath).wstring().c_str(), &st) != 0) return false;
+        if (_wstat64(wPath.c_str(), &st) != 0) return false;
 
         // Update metadata
         outMeta.exists = true;
@@ -130,6 +131,16 @@ bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
         outMeta.lastModTime = st.st_mtime;
         outMeta.mode = static_cast<uint32_t>(st.st_mode);
         outMeta.inode = 0;
+
+        WIN32_FILE_ATTRIBUTE_DATA fileAttr{};
+        if (GetFileAttributesExW(wPath.c_str(), GetFileExInfoStandard, &fileAttr)) {
+            ULARGE_INTEGER ull;
+            ull.LowPart = fileAttr.ftLastWriteTime.dwLowDateTime;
+            ull.HighPart = fileAttr.ftLastWriteTime.dwHighDateTime;
+            outMeta.lastModTimeNsec = static_cast<uint64_t>((ull.QuadPart % 10000000ULL) * 100ULL);
+        } else {
+            outMeta.lastModTimeNsec = 0;
+        }
         return true;
     #else
         struct stat st;
@@ -141,6 +152,7 @@ bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
         outMeta.isRegularFile = S_ISREG(st.st_mode);
         outMeta.size = static_cast<size_t>(st.st_size);
         outMeta.lastModTime = st.st_mtime;
+        outMeta.lastModTimeNsec = static_cast<uint64_t>(st.st_mtim.tv_nsec);
         outMeta.mode = static_cast<uint32_t>(st.st_mode);
         outMeta.inode = static_cast<uint64_t>(st.st_ino);
         return true;
@@ -256,6 +268,7 @@ bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem:
                 ull.LowPart = fileInfo.ftLastWriteTime.dwLowDateTime;
                 ull.HighPart = fileInfo.ftLastWriteTime.dwHighDateTime;
                 pOutMeta->lastModTime = static_cast<std::time_t>((ull.QuadPart - 116444736000000000ULL) / 10000000ULL);
+                pOutMeta->lastModTimeNsec = static_cast<uint64_t>((ull.QuadPart % 10000000ULL) * 100ULL);
             }
         }
 

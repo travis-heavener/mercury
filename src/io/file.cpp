@@ -165,6 +165,7 @@ File::File(const http::RequestPath& paths) {
 
     this->hasModTime = true;
     this->lastModTime = meta.lastModTime;
+    this->lastModTimeNsec = meta.lastModTimeNsec;
     this->fileSize = meta.size;
 
     // Reject symlinks or hardlinks

@@ -51,6 +51,7 @@ namespace io {
                     !meta.exists ||
                     !meta.isRegularFile ||
                     meta.lastModTime != pEntry->lastModTime ||
+                    meta.lastModTimeNsec != pEntry->lastModTimeNsec ||
                     meta.size != pEntry->fileSize ||
                     meta.mode != pEntry->mode ||
                     (meta.inode != 0 && meta.inode != pEntry->inode)) {
@@ -88,6 +89,7 @@ namespace io {
         outFile.phpPathInfo = "";
         outFile.hasModTime = pEntry->hasModTime;
         outFile.lastModTime = pEntry->lastModTime;
+        outFile.lastModTimeNsec = pEntry->lastModTimeNsec;
         outFile.lastModGMT = pEntry->lastModGMT;
         outFile.pCachedContent = pEntry->pContent;
 
@@ -131,6 +133,7 @@ namespace io {
         pEntry->lastModGMT = file.getLastModifiedGMT();
         pEntry->fileSize = file.fileSize;
         pEntry->lastModTime = file.getLastModTime();
+        pEntry->lastModTimeNsec = file.getLastModTimeNsec();
         pEntry->mode = meta.mode;
         pEntry->inode = meta.inode;
         pEntry->exists = file.exists;
