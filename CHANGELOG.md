@@ -10,6 +10,7 @@
 - Fix: resolve relative DocumentRoot and configuration paths against caller working directory and config directory before falling back to Mercury directory
 - Fix: enforce cumulative request body deadline and minimum receive throughput to prevent worker monopolization from slow HTTP request bodies
 - Fix: handle Expect: 100-continue request headers by sending 100 Continue interim response to prevent body upload stalls
+- Fix: eliminate data races in file cache by making entry access counts and revalidation timestamps atomic
 
 ## [0.39.2] - 2026-11-08
 - Added: TLSCertFile and TLSKeyFile config directives to configure custom SSL/TLS certificate and private key paths

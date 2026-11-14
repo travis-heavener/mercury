@@ -1,6 +1,7 @@
 #ifndef __FILE_CACHE_HPP
 #define __FILE_CACHE_HPP
 
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <mutex>
@@ -36,8 +37,8 @@ namespace io {
         bool ioFailure = false; // File access or query failure flag
         bool hasModTime = false; // Modification timestamp availability flag
         std::shared_ptr<const std::string> pContent; // Immutable shared buffer for in-memory file payload
-        std::chrono::steady_clock::time_point lastValidated; // Monotonic clock timestamp of last stat check
-        uint32_t accessCount = 0; // Access frequency counter for LFU eviction
+        std::atomic<std::chrono::steady_clock::time_point> lastValidated{}; // Monotonic clock timestamp of last stat check
+        std::atomic<uint32_t> accessCount{0}; // Access frequency counter for LFU eviction
     };
 
     /**********************************************************/

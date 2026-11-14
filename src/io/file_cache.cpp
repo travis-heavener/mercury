@@ -34,36 +34,42 @@ namespace io {
 
         // Check entry age against revalidation interval
         const auto now = std::chrono::steady_clock::now();
-        const auto ageMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - pEntry->lastValidated).count();
+        const auto lastVal = pEntry->lastValidated.load(std::memory_order_relaxed);
+        const auto ageMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastVal).count();
 
         if (ageMs >= static_cast<int64_t>(conf::FILE_CACHE_REVALIDATION_INTERVAL)) {
             // Drop shared read lock before performing blocking filesystem stat check
             readLock.unlock();
 
-            // Query filesystem metadata for freshness verification
-            FileMetadata meta;
-            if (!queryFileMetadata(pEntry->absoluteResourcePath, meta) ||
-                !meta.exists ||
-                !meta.isRegularFile ||
-                meta.lastModTime != pEntry->lastModTime ||
-                meta.size != pEntry->fileSize ||
-                meta.mode != pEntry->mode ||
-                (meta.inode != 0 && meta.inode != pEntry->inode)) {
-                // Invalidate stale or modified cache entry under exclusive write lock
-                std::unique_lock<std::shared_mutex> writeLock(this->mutex);
-                const auto delIt = this->entries.find(uri);
-                if (delIt != this->entries.end() && delIt->second == pEntry) {
-                    if (pEntry->pContent) {
-                        const size_t sz = pEntry->pContent->size();
-                        this->totalContentBytes = (this->totalContentBytes >= sz) ? (this->totalContentBytes - sz) : 0;
+            // Recheck freshness in case another thread already revalidated entry
+            const auto recheckVal = pEntry->lastValidated.load(std::memory_order_relaxed);
+            const auto recheckAgeMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - recheckVal).count();
+            if (recheckAgeMs >= static_cast<int64_t>(conf::FILE_CACHE_REVALIDATION_INTERVAL)) {
+                // Query filesystem metadata for freshness verification
+                FileMetadata meta;
+                if (!queryFileMetadata(pEntry->absoluteResourcePath, meta) ||
+                    !meta.exists ||
+                    !meta.isRegularFile ||
+                    meta.lastModTime != pEntry->lastModTime ||
+                    meta.size != pEntry->fileSize ||
+                    meta.mode != pEntry->mode ||
+                    (meta.inode != 0 && meta.inode != pEntry->inode)) {
+                    // Invalidate stale or modified cache entry under exclusive write lock
+                    std::unique_lock<std::shared_mutex> writeLock(this->mutex);
+                    const auto delIt = this->entries.find(uri);
+                    if (delIt != this->entries.end() && delIt->second == pEntry) {
+                        if (pEntry->pContent) {
+                            const size_t sz = pEntry->pContent->size();
+                            this->totalContentBytes = (this->totalContentBytes >= sz) ? (this->totalContentBytes - sz) : 0;
+                        }
+                        this->entries.erase(delIt);
                     }
-                    this->entries.erase(delIt);
+                    return false;
                 }
-                return false;
-            }
 
-            // Update revalidation timestamp on verified fresh entry
-            pEntry->lastValidated = now;
+                // Update revalidation timestamp on verified fresh entry
+                pEntry->lastValidated.store(std::chrono::steady_clock::now(), std::memory_order_relaxed);
+            }
         }
 
         // Record cache hit for LFU tracking
@@ -133,8 +139,8 @@ namespace io {
         pEntry->ioFailure = file.ioFailure;
         pEntry->hasModTime = file.hasLastModTime();
         pEntry->pContent = pContent;
-        pEntry->lastValidated = std::chrono::steady_clock::now();
-        pEntry->accessCount = 1;
+        pEntry->lastValidated.store(std::chrono::steady_clock::now(), std::memory_order_relaxed);
+        pEntry->accessCount.store(1, std::memory_order_relaxed);
 
         // Bind shared buffer to caller file handle
         file.pCachedContent = pContent;
@@ -148,10 +154,11 @@ namespace io {
         while (!this->entries.empty() && (this->entries.size() >= conf::MAX_FILE_CACHE_ENTRIES ||
                (this->totalContentBytes + contentSize > conf::MAX_FILE_CACHE_TOTAL_SIZE))) {
             auto oldestIt = this->entries.begin();
-            uint32_t minAccess = oldestIt->second->accessCount;
+            uint32_t minAccess = oldestIt->second->accessCount.load(std::memory_order_relaxed);
             for (auto it = this->entries.begin(); it != this->entries.end(); ++it) {
-                if (it->second->accessCount < minAccess) {
-                    minAccess = it->second->accessCount;
+                const uint32_t count = it->second->accessCount.load(std::memory_order_relaxed);
+                if (count < minAccess) {
+                    minAccess = count;
                     oldestIt = it;
                 }
             }
