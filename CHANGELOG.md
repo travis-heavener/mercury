@@ -1,6 +1,7 @@
 # Changelog
 
 ## [0.41.0] - 2026-11-15
+- Added: NDJSON-compatible access & error logging support (via format="json" on AccessLogFile/ErrorLogFile)
 - Docs: tidy up contribution guidelines in CONTRIBUTING.md
 
 ## [0.40.0] - 2026-11-14

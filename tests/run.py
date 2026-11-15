@@ -375,9 +375,14 @@ if __name__ == "__main__":
         queue_script = os.path.join(TESTS_DIR, "test_connection_queue.py")
         queue_ok = subprocess.run([sys.executable, queue_script, "--mercury-output"]).returncode == 0
 
+        # Run structured JSON logging integration tests across all platforms
+        print("=" * 80, flush=True)
+        json_logging_script = os.path.join(TESTS_DIR, "test_json_logging.py")
+        json_logging_ok = subprocess.run([sys.executable, json_logging_script, "--mercury-output"]).returncode == 0
+
         # Print overall test suite summary
         print("=" * 80)
-        success = num_passing == num_total and ownership_ok and cgi_ok and ratelimit_ok and queue_ok
+        success = num_passing == num_total and ownership_ok and cgi_ok and ratelimit_ok and queue_ok and json_logging_ok
         print("✅ Success" if success else "❌ Failure")
         print(f"Passing: {num_passing}/{num_total}")
         sys.exit(0 if success else 1)

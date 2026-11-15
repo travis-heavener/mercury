@@ -144,8 +144,15 @@ namespace http {
             }
         }
 
-        if (!conf::DISABLE_LOGS)
-            ACCESS_LOG << "Listening on port " << this->port << " (" << *this << ")." << std::endl;
+        if (!conf::DISABLE_LOGS) {
+            if (conf::ACCESS_LOG_FORMAT == LOG_FORMAT_JSON) {
+                std::ostringstream message;
+                message << "Listening on port " << this->port << " (" << *this << ").";
+                logJsonListen(this->port, this->isIPv4(), this->useTLS, message.str());
+            } else {
+                ACCESS_LOG << "Listening on port " << this->port << " (" << *this << ")." << std::endl;
+            }
+        }
         return 0;
     }
 
@@ -441,12 +448,16 @@ namespace http {
             // Keep unread data across requests; one read may contain several requests
             std::vector<char> readBuffer(conf::REQUEST_BUFFER_SIZE);
             std::string pending;
+            std::chrono::steady_clock::time_point requestStartTime;
             unsigned int requestsLeft = conf::MAX_KEEP_ALIVE_REQUESTS;
             headers_map_t reqHeaders;
 
             // Pass socket writes to Response, which retries partial writes
+            size_t bytesSent = 0;
             std::function<ssize_t(const char*, const size_t)> sendFunc = [&](const char* data, size_t size) {
-                return writeClientSock(client, pSSL, data, size);
+                const ssize_t written = writeClientSock(client, pSSL, data, size);
+                if (written > 0) bytesSent += static_cast<size_t>(written);
+                return written;
             };
 
             // Send complete buffer, retrying partial socket writes
@@ -473,6 +484,8 @@ namespace http {
                     if (useTLS) {
                         const ssize_t n = SSL_read(pSSL, readBuffer.data(), conf::REQUEST_BUFFER_SIZE);
                         if (n > 0) {
+                            // Start latency clock when first request bytes arrive
+                            if (pending.empty()) requestStartTime = std::chrono::steady_clock::now();
                             ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
                             pending.append(readBuffer.data(), static_cast<size_t>(n));
                             return true;
@@ -508,6 +521,8 @@ namespace http {
 
                         const ssize_t n = recv(client, readBuffer.data(), conf::REQUEST_BUFFER_SIZE, 0);
                         if (n <= 0) return false;
+                        // Exclude idle time before first request bytes arrive
+                        if (pending.empty()) requestStartTime = std::chrono::steady_clock::now();
                         ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
                         pending.append(readBuffer.data(), static_cast<size_t>(n));
                         return true;
@@ -530,6 +545,9 @@ namespace http {
 
             // Process requests until the connection limit, shutdown, or an error
             while (requestsLeft > 0 && !isExiting) {
+                bytesSent = 0;
+                // Start buffered requests immediately without waiting for another read
+                requestStartTime = std::chrono::steady_clock::now();
                 size_t headerEnd;
                 bool lineTooLong = false, isSimpleRequest = false;
                 constexpr size_t maxHeaderBytes = 64 * 1024;
@@ -724,10 +742,16 @@ namespace http {
 
                 // Log the final status, including errors detected while preparing the body
                 if (!conf::DISABLE_LOGS) {
-                    ACCESS_LOG << request.getMethodStr() << ' '
-                        << formatClientIP(request.getIPStr(), request.isDNT()) << ' '
-                        << SanitizedLogPath{request.getPaths().rawPathFromRequest} << " -- (" << response->getStatus()
-                        << ") [" << request.getVersion() << ']' << std::endl;
+                    if (conf::ACCESS_LOG_FORMAT == LOG_FORMAT_JSON) {
+                        const auto requestEndTime = std::chrono::steady_clock::now();
+                        const double latencyMs = std::chrono::duration<double, std::milli>(requestEndTime - requestStartTime).count();
+                        logJsonAccess(request, response->getStatus(), latencyMs, bytesSent);
+                    } else {
+                        ACCESS_LOG << request.getMethodStr() << ' '
+                            << formatClientIP(request.getIPStr(), request.isDNT()) << ' '
+                            << SanitizedLogPath{request.getPaths().rawPathFromRequest} << " -- (" << response->getStatus()
+                            << ") [" << request.getVersion() << ']' << std::endl;
+                    }
                 }
 
                 // Do not process queued requests after a failed write or forced closure

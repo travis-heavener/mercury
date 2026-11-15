@@ -20,6 +20,9 @@
 #define CLIENT_SEC_MASKED     3
 #define CLIENT_SEC_HASHED     4
 
+#define LOG_FORMAT_TEXT       0
+#define LOG_FORMAT_JSON       1
+
 #define CONF_FILE "conf/mercury.conf"
 #define MIMES_FILE "conf/mimes.conf"
 #define VERSION_FILE "version.txt"
@@ -64,6 +67,8 @@ namespace conf {
 
     extern std::filesystem::path ACCESS_LOG_FILE;
     extern std::filesystem::path ERROR_LOG_FILE;
+    extern int ACCESS_LOG_FORMAT;
+    extern int ERROR_LOG_FORMAT;
     extern bool DISABLE_LOGS;
     extern int CLIENT_SECURITY_MODE;
     extern std::string IP_HASH_SALT;

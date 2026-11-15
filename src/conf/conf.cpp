@@ -1,6 +1,7 @@
 #include "conf.hpp"
 
 #include <cctype>
+#include <cstring>
 #include <iostream>
 #include <limits>
 #include <mutex>
@@ -58,6 +59,8 @@ namespace conf {
 
     std::filesystem::path ACCESS_LOG_FILE;
     std::filesystem::path ERROR_LOG_FILE;
+    int ACCESS_LOG_FORMAT = LOG_FORMAT_TEXT;
+    int ERROR_LOG_FORMAT = LOG_FORMAT_TEXT;
     bool DISABLE_LOGS = false;
     int CLIENT_SECURITY_MODE;
     std::string IP_HASH_SALT;
@@ -143,6 +146,7 @@ namespace conf {
     int loadClientSecurityIPSalt(const pugi::xml_node& root, std::string& var, const std::string& defaultSalt="fAhGD0OnCe4YhSyx");
     int loadFastCGIAddress(const pugi::xml_node& root, std::string& var);
     int loadRateLimit(const pugi::xml_node& root);
+    int loadLogConfig(const pugi::xml_node& root);
 
     // Loads the directory of the running executable to path
     // Returns true if successful or false otherwise
@@ -727,19 +731,8 @@ namespace conf {
 
         /************************** LOAD PATHS **************************/
 
-        if (!DISABLE_LOGS) {
-            if (loadPath(root, ACCESS_LOG_FILE, "AccessLogFile", true, "./logs/access.log") == CONF_FAILURE)
-                return CONF_FAILURE;
-
-            if (loadPath(root, ERROR_LOG_FILE, "ErrorLogFile", true, "./logs/error.log") == CONF_FAILURE)
-                return CONF_FAILURE;
-        } else {
-            // Assign paths without creating log directories
-            pugi::xml_node accessNode = root.child("AccessLogFile");
-            ACCESS_LOG_FILE = expandUserHomePath(accessNode ? accessNode.text().as_string() : "./logs/access.log");
-            pugi::xml_node errorNode = root.child("ErrorLogFile");
-            ERROR_LOG_FILE = expandUserHomePath(errorNode ? errorNode.text().as_string() : "./logs/error.log");
-        }
+        if (loadLogConfig(root) == CONF_FAILURE)
+            return CONF_FAILURE;
 
         #ifdef _WIN32
             if ((IS_PHP_ENABLED || IS_FASTCGI_ENABLED) && loadPath(root, PHP_CGI_EXE_PATH, "WinPHPCGIPath", false, "./php/php-cgi.exe") == CONF_FAILURE)
@@ -896,6 +889,8 @@ namespace conf {
 
         // Reset logging settings
         DISABLE_LOGS = false;
+        ACCESS_LOG_FORMAT = LOG_FORMAT_TEXT;
+        ERROR_LOG_FORMAT = LOG_FORMAT_TEXT;
 
         // Reset rate limiter settings
         IS_RATE_LIMIT_ENABLED = false;
@@ -1464,6 +1459,58 @@ namespace conf {
                     return CONF_FAILURE;
                 }
             }
+        }
+
+        return CONF_SUCCESS;
+    }
+
+    // Used to load AccessLogFile and ErrorLogFile configuration directives
+    int loadLogConfig(const pugi::xml_node& root) {
+        ACCESS_LOG_FORMAT = LOG_FORMAT_TEXT;
+        ERROR_LOG_FORMAT = LOG_FORMAT_TEXT;
+
+        pugi::xml_node accessNode = root.child("AccessLogFile");
+        if (accessNode) {
+            pugi::xml_attribute fmtAttr = accessNode.attribute("format");
+            if (fmtAttr) {
+                std::string fmtStr = fmtAttr.as_string();
+                trimString(fmtStr); strToLower(fmtStr);
+                if (fmtStr == "json") {
+                    ACCESS_LOG_FORMAT = LOG_FORMAT_JSON;
+                } else if (fmtStr == "text") {
+                    ACCESS_LOG_FORMAT = LOG_FORMAT_TEXT;
+                } else {
+                    std::cerr << "Failed to parse config file, invalid format attribute for AccessLogFile: " << fmtStr << std::endl;
+                    return CONF_FAILURE;
+                }
+            }
+        }
+
+        pugi::xml_node errorNode = root.child("ErrorLogFile");
+        if (errorNode) {
+            pugi::xml_attribute fmtAttr = errorNode.attribute("format");
+            if (fmtAttr) {
+                std::string fmtStr = fmtAttr.as_string();
+                trimString(fmtStr); strToLower(fmtStr);
+                if (fmtStr == "json") {
+                    ERROR_LOG_FORMAT = LOG_FORMAT_JSON;
+                } else if (fmtStr == "text") {
+                    ERROR_LOG_FORMAT = LOG_FORMAT_TEXT;
+                } else {
+                    std::cerr << "Failed to parse config file, invalid format attribute for ErrorLogFile: " << fmtStr << std::endl;
+                    return CONF_FAILURE;
+                }
+            }
+        }
+
+        if (!DISABLE_LOGS) {
+            if (loadPath(root, ACCESS_LOG_FILE, "AccessLogFile", true, "./logs/access.log") == CONF_FAILURE)
+                return CONF_FAILURE;
+            if (loadPath(root, ERROR_LOG_FILE, "ErrorLogFile", true, "./logs/error.log") == CONF_FAILURE)
+                return CONF_FAILURE;
+        } else {
+            ACCESS_LOG_FILE = expandUserHomePath(accessNode ? accessNode.text().as_string() : "./logs/access.log");
+            ERROR_LOG_FILE = expandUserHomePath(errorNode ? errorNode.text().as_string() : "./logs/error.log");
         }
 
         return CONF_SUCCESS;
