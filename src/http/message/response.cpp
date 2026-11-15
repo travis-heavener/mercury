@@ -39,6 +39,12 @@ namespace http {
         // Update header casing (ex. cOntENt-LeNGTh --> Content-Length)
         formatHeaderCasing(name);
 
+        if (name == "Set-Cookie") {
+            setCookies.clear();
+            setCookies.push_back(value);
+            return;
+        }
+
         // Check if header already exists
         auto itrMatch = headers.find(name);
         if (itrMatch != headers.end())
@@ -47,9 +53,32 @@ namespace http {
             this->headers.insert({name, value});
     }
 
+    void Response::addHeader(std::string name, const std::string& value) {
+        if (!isValidHeaderName(name) || !isValidHeaderValue(value))
+            throw std::invalid_argument("Invalid response header");
+
+        formatHeaderCasing(name);
+
+        if (name == "Set-Cookie") {
+            setCookies.push_back(value);
+            return;
+        }
+
+        auto itrMatch = headers.find(name);
+        if (itrMatch != headers.end())
+            itrMatch->second = value;
+        else
+            this->headers.insert({name, value});
+    }
+
     void Response::clearHeader(std::string name) {
         // Update header casing (ex. cOntENt-LeNGTh --> Content-Length)
         formatHeaderCasing(name);
+
+        if (name == "Set-Cookie") {
+            setCookies.clear();
+            return;
+        }
 
         // Check if header already exists
         auto itrMatch = headers.find(name);
@@ -471,6 +500,8 @@ namespace http {
         size_t estimatedSize = httpVersion.size() + 1 + statusCodeStr.size() + 1 + reason.size() + 2 + 2;
         for (const auto& [name, value] : this->headers)
             estimatedSize += name.size() + 2 + value.size() + 2;
+        for (const auto& cookie : this->setCookies)
+            estimatedSize += 12 + cookie.size() + 2;
 
         const bool combineBody = !omitBody && bodySize > 0 && bodySize <= conf::RESPONSE_BUFFER_SIZE;
         const size_t totalBufferSize = estimatedSize + (combineBody ? bodySize : 0);
@@ -493,6 +524,11 @@ namespace http {
             headersBlock.append(name);
             headersBlock.append(": ");
             headersBlock.append(value);
+            headersBlock.append(CRLF);
+        }
+        for (const auto& cookie : this->setCookies) {
+            headersBlock.append("Set-Cookie: ");
+            headersBlock.append(cookie);
             headersBlock.append(CRLF);
         }
         headersBlock.append(CRLF);

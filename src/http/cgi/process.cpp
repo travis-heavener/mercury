@@ -342,7 +342,7 @@ namespace http::cgi {
         if (hasWrittenHeaders) {
             res.setStatus(cgiStatus);
             for (const auto& [key, val] : parsedHeaders)
-                res.setHeader(key, val);
+                res.addHeader(key, val);
         }
 
         // Read remainder of the body to the body temp file

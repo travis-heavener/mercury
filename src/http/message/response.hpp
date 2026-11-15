@@ -28,8 +28,9 @@ namespace http {
             inline uint16_t getStatus() const { return httpVersion == "HTTP/0.9" ? 0 : statusCode; };
 
             void setHeader(std::string name, const std::string& value);
+            void addHeader(std::string name, const std::string& value);
             void clearHeader(std::string name);
-            inline void clearHeaders() { headers.clear(); };
+            inline void clearHeaders() { headers.clear(); setCookies.clear(); };
             void setCompressMethod(const int compressMethod);
 
             int loadBodyFromErrorDoc(const uint16_t statusCode);
@@ -58,6 +59,7 @@ namespace http {
             int compressMethod = NO_COMPRESS;
 
             std::unordered_map<std::string, std::string> headers;
+            std::vector<std::string> setCookies;
 
             // For precompressed bodies
             std::vector<byte_range_t> originalByteRanges;

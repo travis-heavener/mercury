@@ -52,6 +52,7 @@ class Connection:
             raise AssertionError("connection closed before response")
         status = int(line.split()[1])
         headers = {}
+        self.headers_list = []
         while True:
             line = self.reader.readline()
             if not line:
@@ -59,7 +60,10 @@ class Connection:
             if line == b"\r\n":
                 break
             key, value = line.split(b":", 1)
-            headers[key.lower()] = value.strip()
+            k = key.lower()
+            v = value.strip()
+            headers[k] = v
+            self.headers_list.append((k, v))
         body = b""
         if headers.get(b"transfer-encoding") == b"chunked":
             while True:
@@ -164,6 +168,17 @@ def php_bytes(connect):
         assert body == b'{"auth_type":"","remote_user":"","http_authorization":"Bearer admin"}', (
             f"authenticated identity forged: {body!r}"
         )
+
+
+def multiple_cookies(connect):
+    """Preserve multiple Set-Cookie headers without collapsing or overwriting (RFC 9110 Section 5.2)."""
+    with connect() as conn:
+        conn.send(request(b"/regression_cookies.php"))
+        status, headers, body = conn.response()
+        assert status == 200, f"regression_cookies.php status {status}"
+        assert body == b"cookies-ok", f"regression_cookies.php body {body!r}"
+        cookies = [val for key, val in conn.headers_list if key == b"set-cookie"]
+        assert cookies == [b"first=one", b"second=two"], f"Expected multiple cookies, got {cookies!r}"
 
 
 def authorization(connect):
@@ -318,9 +333,9 @@ def expect_100_continue(connect):
 
 WIRE_TESTS = (
     malformed_headers, malformed_ranges, pipelines, fragmented_body, php_bytes,
-    authorization, redirect_injection, directory_range, keep_alive_limit,
-    header_limit, concurrent_clients, connection_options, simple_request,
-    expect_100_continue,
+    multiple_cookies, authorization, redirect_injection, directory_range,
+    keep_alive_limit, header_limit, concurrent_clients, connection_options,
+    simple_request, expect_100_continue,
 )
 # Each group runs in four transport combinations, plus two mixed-source-IP groups.
 WIRE_TEST_COUNT = len(WIRE_TESTS) * 4 + 2

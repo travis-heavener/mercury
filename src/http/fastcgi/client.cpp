@@ -1117,7 +1117,7 @@ namespace http::fastcgi {
                         }
                     } else if (isValidHeaderName(key) && isValidHeaderValue(val)) {
                         try {
-                            res.setHeader(std::string(key), std::string(val));
+                            res.addHeader(std::string(key), std::string(val));
                         } catch (...) { /* Ignore invalid header from CGI script */ }
                     }
                 }
