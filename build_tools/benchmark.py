@@ -1282,8 +1282,11 @@ class OutputFormatter:
             header_cols.append(f"{s.capitalize()} ({summ.version})")
             align_cols.append("|---")
 
+        primary_comp = None
         if len(servers_present) > 1 and mercury:
-            header_cols.append("Comparison")
+            competitors = [s for s in servers_present if s != "mercury"]
+            primary_comp = "apache" if "apache" in competitors else competitors[0]
+            header_cols.append(f"Comparison (vs. {primary_comp.capitalize()})")
             align_cols.append("|:---:")
 
         lines.append("| " + " | ".join(header_cols) + " |")
@@ -1302,10 +1305,7 @@ class OutputFormatter:
                     formatted = f"**{formatted}**"
                 row.append(formatted)
 
-            if len(servers_present) > 1 and mercury:
-                # Compare against Apache baseline if present, else first available competitor
-                competitors = [s for s in servers_present if s != "mercury"]
-                primary_comp = "apache" if "apache" in competitors else competitors[0]
+            if len(servers_present) > 1 and mercury and primary_comp:
                 target_val = getattr(summaries[primary_comp], key)
                 base_val = getattr(mercury, key)
 

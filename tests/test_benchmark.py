@@ -562,6 +562,19 @@ class ArgumentAndReportTests(unittest.TestCase):
                 original.split("### Performance")[0], first.split("### Performance")[0]
             )
 
+    def test_markdown_comparison_header_reflects_selected_baseline(self):
+        results = bench.BenchmarkResults(
+            "now", "Linux", "test", "x86_64", 2, 1, 2, "1 KB", 1024, "python", trials=2
+        )
+        results.summaries["mercury"] = bench.ServerSummary("mercury", "v0.40.0", 2, rps=100)
+        results.summaries["nginx"] = bench.ServerSummary("nginx", "v1.24.0", 2, rps=80)
+        md_nginx = bench.OutputFormatter.to_markdown(results)
+        self.assertIn("Comparison (vs. Nginx)", md_nginx)
+
+        results.summaries["apache"] = bench.ServerSummary("apache", "v2.4.58", 2, rps=50)
+        md_apache = bench.OutputFormatter.to_markdown(results)
+        self.assertIn("Comparison (vs. Apache)", md_apache)
+
 
 if __name__ == "__main__":
     unittest.main()
