@@ -203,23 +203,37 @@ Example:
 ### AccessLogFile
 Specifies where server access logs are stored. Overridden if `DisableLogs` is set to `on`.
 
+Attributes:
+- `format`: Output format, either `text` or `json` (default: `text`). When set to `json`, access logs emit newline-delimited JSON (NDJSON) objects containing timestamps (ISO 8601 UTC), request metadata (`method`, `uri`, `status`, `http_version`), `latency_ms`, `bytes_sent`, `user_agent`, `referer`, and privacy-sanitized `client_ip`.
+
 Default: `./logs/access.log`
 
-Example:
+Examples:
 
 ```xml
+<!-- Standard text format (default) -->
 <AccessLogFile> ./logs/access.log </AccessLogFile>
+
+<!-- Structured NDJSON format -->
+<AccessLogFile format="json"> ./logs/access.json.log </AccessLogFile>
 ```
 
 ### ErrorLogFile
 Specifies where server error logs are stored. Overridden if `DisableLogs` is set to `on`.
 
+Attributes:
+- `format`: Output format, either `text` or `json` (default: `text`). When set to `json`, error logs emit newline-delimited JSON (NDJSON) objects containing timestamps (ISO 8601 UTC), log level (`error`), event type, and the escaped error message.
+
 Default: `./logs/error.log`
 
-Example:
+Examples:
 
 ```xml
+<!-- Standard text format (default) -->
 <ErrorLogFile> ./logs/error.log </ErrorLogFile>
+
+<!-- Structured NDJSON format -->
+<ErrorLogFile format="json"> ./logs/error.json.log </ErrorLogFile>
 ```
 
 ### ClientSecurityMode
