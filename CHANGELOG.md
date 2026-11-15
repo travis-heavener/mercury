@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.41.0] - 2026-11-15
+- Docs: tidy up contribution guidelines in CONTRIBUTING.md
+
 ## [0.40.0] - 2026-11-14
 - Added: implement IP-based privacy-preserving rate limiting with token bucket algorithm, sharded mutexes, CIDR whitelisting, and RFC 6585 429 response (#443)
 - Added: resolve tilde (~) to user home directory in DocumentRoot, log files, TLS certificate paths, and CLI path arguments
