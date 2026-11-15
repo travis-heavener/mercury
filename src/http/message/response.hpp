@@ -30,6 +30,7 @@ namespace http {
             void setHeader(std::string name, const std::string& value);
             void addHeader(std::string name, const std::string& value);
             void clearHeader(std::string name);
+            void addVary(std::string_view field);
             inline void clearHeaders() { headers.clear(); setCookies.clear(); hasCustomContentEncoding = false; identityAccepted = true; };
             inline void setIdentityAccepted(const bool accepted) { this->identityAccepted = accepted; };
             inline bool isIdentityAccepted() const { return identityAccepted; };

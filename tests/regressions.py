@@ -190,6 +190,7 @@ def php_bytes(connect):
         status, headers, _ = conn.response()
         assert status == 406, f"Expected 406 for refused backend gzip, got {status}"
         assert b"content-encoding" not in headers
+        assert b"accept-encoding" in headers.get(b"vary", b"").lower(), f"Expected Vary: Accept-Encoding on 406, got {headers.get(b'vary')}"
 
     # Accept backend coding allowed through wildcard
     with connect() as conn:
@@ -340,12 +341,22 @@ def connection_options(connect):
         status, headers, _ = conn.response()
         assert status == 200
         assert b"content-encoding" not in headers, f"Expected no Content-Encoding for q=0, got {headers.get(b'content-encoding')}"
+        assert headers.get(b"vary") == b"Accept-Encoding", f"Expected Vary: Accept-Encoding on uncompressed q=0 response, got {headers.get(b'vary')}"
+
+    # Verify uncompressed response without Accept-Encoding includes Vary: Accept-Encoding (Issue #14)
+    with connect() as conn:
+        conn.send(request(b"/index.html"))
+        status, headers, _ = conn.response()
+        assert status == 200
+        assert b"content-encoding" not in headers
+        assert headers.get(b"vary") == b"Accept-Encoding", f"Expected Vary: Accept-Encoding on default uncompressed response, got {headers.get(b'vary')}"
 
     with connect() as conn:
         conn.send(request(b"/index.html", headers=b"Accept-Encoding: gzip;q=0.5, deflate;q=0.8\r\n"))
         status, headers, _ = conn.response()
         assert status == 200
         assert headers.get(b"content-encoding") == b"deflate", f"Expected deflate for q=0.8 vs 0.5, got {headers.get(b'content-encoding')}"
+        assert headers.get(b"vary") == b"Accept-Encoding", f"Expected Vary: Accept-Encoding, got {headers.get(b'vary')}"
 
     # Verify identity rejection enforces compression even on small responses
     with connect() as conn:
@@ -353,8 +364,25 @@ def connection_options(connect):
         status, headers, body = conn.response()
         assert status == 200
         assert headers.get(b"content-encoding") == b"gzip", f"Expected gzip Content-Encoding, got {headers.get(b'content-encoding')}"
+        assert headers.get(b"vary") == b"Accept-Encoding", f"Expected Vary: Accept-Encoding, got {headers.get(b'vary')}"
         import gzip
         assert gzip.decompress(body) == b"HELLO WORLD"
+
+    # Verify negotiated compression includes Vary: Accept-Encoding (Issue #14)
+    with connect() as conn:
+        conn.send(request(b"/index.html", headers=b"Accept-Encoding: gzip\r\n"))
+        status, headers, _ = conn.response()
+        assert status == 200
+        assert headers.get(b"content-encoding") == b"gzip"
+        assert headers.get(b"vary") == b"Accept-Encoding", f"Expected Vary: Accept-Encoding on gzip response, got {headers.get(b'vary')}"
+
+    # Verify backend-compressed responses include Vary: Accept-Encoding
+    with connect() as conn:
+        conn.send(request(b"/regression_backend_compressed.php", headers=b"Accept-Encoding: gzip\r\n"))
+        status, headers, _ = conn.response()
+        assert status == 200
+        assert headers.get(b"content-encoding") == b"gzip"
+        assert headers.get(b"vary") == b"Accept-Encoding", f"Expected Vary: Accept-Encoding on backend gzip response, got {headers.get(b'vary')}"
 
     # Verify *;q=0 without explicit identity allowance returns 406 Not Acceptable
     with connect() as conn:

@@ -70,6 +70,11 @@ namespace http {
             return;
         }
 
+        if (name == "Vary") {
+            addVary(value);
+            return;
+        }
+
         auto itrMatch = headers.find(name);
         if (itrMatch != headers.end())
             itrMatch->second = value;
@@ -93,6 +98,64 @@ namespace http {
         auto itrMatch = headers.find(name);
         if (itrMatch != headers.end())
             headers.erase(itrMatch);
+    }
+
+    void Response::addVary(std::string_view value) {
+        auto itrMatch = headers.find("Vary");
+        if (itrMatch == headers.end()) {
+            headers.insert({"Vary", std::string(value)});
+            return;
+        }
+
+        if (itrMatch->second == "*") return;
+
+        // Parse incoming tokens
+        size_t start = 0;
+        while (start < value.size()) {
+            const size_t comma = value.find(',', start);
+            std::string_view token = (comma == std::string_view::npos)
+                ? value.substr(start)
+                : value.substr(start, comma - start);
+            start = (comma == std::string_view::npos) ? value.size() : comma + 1;
+
+            const size_t first = token.find_first_not_of(" \t");
+            if (first == std::string_view::npos) continue;
+            const size_t last = token.find_last_not_of(" \t");
+            token = token.substr(first, last - first + 1);
+            if (token.empty()) continue;
+
+            if (token == "*") { itrMatch->second = "*"; return; }
+
+            // Check if token already exists in current Vary header (case-insensitive)
+            bool found = false;
+            size_t curStart = 0;
+            while (curStart < itrMatch->second.size()) {
+                const size_t curComma = itrMatch->second.find(',', curStart);
+                std::string_view curToken = (curComma == std::string_view::npos)
+                    ? std::string_view(itrMatch->second).substr(curStart)
+                    : std::string_view(itrMatch->second).substr(curStart, curComma - curStart);
+                curStart = (curComma == std::string_view::npos) ? itrMatch->second.size() : curComma + 1;
+
+                const size_t cFirst = curToken.find_first_not_of(" \t");
+                if (cFirst == std::string_view::npos) continue;
+                const size_t cLast = curToken.find_last_not_of(" \t");
+                curToken = curToken.substr(cFirst, cLast - cFirst + 1);
+
+                if (curToken.size() == token.size() &&
+                    std::equal(curToken.begin(), curToken.end(), token.begin(), [](char a, char b) {
+                        return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
+                    })) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                if (!itrMatch->second.empty())
+                    itrMatch->second += ", ";
+                itrMatch->second.append(token);
+            }
+        }
     }
 
     void Response::setCompressMethod(const int compressMethod) {
@@ -501,6 +564,10 @@ namespace http {
         // Frame empty redirects/errors on persistent connections as well.
         if (bodySize == 0 && statusCode != 204 && statusCode != 304)
             setHeader("Content-Length", "0");
+
+        // Ensure representation selection includes Vary: Accept-Encoding (RFC 9110 Section 12.5.5)
+        if (headers.contains("Content-Encoding") || statusCode == 200 || statusCode == 206 || statusCode == 304 || statusCode == 406)
+            addVary("Accept-Encoding");
 
         // Load config headers last to overwrite any dupes that have been previously set
         static const std::string serverHeader = "Mercury/" + (conf::VERSION.size() > 9 ? conf::VERSION.substr(9) : conf::VERSION);
