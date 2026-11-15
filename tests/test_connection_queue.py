@@ -114,7 +114,7 @@ class ConnectionQueueTests(unittest.TestCase):
                 try:
                     data = socks[i].recv(1024)
                     self.assertEqual(data, b"", f"Socket {i} should be closed by server")
-                except (ConnectionResetError, BrokenPipeError):
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
                     pass
 
             # Complete requests on active workers and verify they remained occupied and finish normally
@@ -159,7 +159,7 @@ class ConnectionQueueTests(unittest.TestCase):
                 try:
                     data = s.recv(1024)
                     self.assertEqual(data, b"", "Excess connection should be closed immediately")
-                except (ConnectionResetError, BrokenPipeError):
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
                     pass
                 s.close()
         finally:
@@ -219,7 +219,7 @@ class ConnectionQueueTests(unittest.TestCase):
                 try:
                     data = socks[i].recv(1024)
                     self.assertEqual(data, b"", f"Queued socket {i} should be closed")
-                except (ConnectionResetError, BrokenPipeError):
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
                     pass
 
             # Verify active requests complete normally despite concurrent pruning
@@ -249,7 +249,7 @@ class ConnectionQueueTests(unittest.TestCase):
                 time.sleep(0.5)
                 try:
                     s.send(b"a")
-                except (ConnectionResetError, BrokenPipeError):
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
                     closed = True
                     break
 
@@ -258,7 +258,7 @@ class ConnectionQueueTests(unittest.TestCase):
                 try:
                     data = s.recv(1024)
                     closed = (data == b"")
-                except (ConnectionResetError, BrokenPipeError):
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
                     closed = True
                 except (TimeoutError, socket.timeout):
                     closed = False
@@ -294,7 +294,7 @@ class ConnectionQueueTests(unittest.TestCase):
                 time.sleep(0.5)
                 try:
                     s.send(b"x")
-                except (ConnectionResetError, BrokenPipeError):
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
                     closed = True
                     break
 
@@ -303,7 +303,7 @@ class ConnectionQueueTests(unittest.TestCase):
                 try:
                     data = s.recv(1024)
                     closed = (data == b"")
-                except (ConnectionResetError, BrokenPipeError):
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
                     closed = True
                 except (TimeoutError, socket.timeout):
                     closed = False
@@ -334,7 +334,7 @@ class ConnectionQueueTests(unittest.TestCase):
                 time.sleep(0.5)
                 try:
                     s.send(b"a")
-                except (ssl.SSLError, ConnectionResetError, BrokenPipeError):
+                except (ssl.SSLError, ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
                     closed = True
                     break
 
@@ -343,7 +343,7 @@ class ConnectionQueueTests(unittest.TestCase):
                 try:
                     data = s.recv(1024)
                     closed = (data == b"")
-                except (ssl.SSLError, ConnectionResetError, BrokenPipeError):
+                except (ssl.SSLError, ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
                     closed = True
                 except (TimeoutError, socket.timeout):
                     closed = False
@@ -417,7 +417,7 @@ class ConnectionQueueTests(unittest.TestCase):
                 time.sleep(0.6)
                 try:
                     raw.send(bytes([b]))
-                except (ConnectionResetError, BrokenPipeError):
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
                     closed = True
                     break
 
@@ -426,7 +426,7 @@ class ConnectionQueueTests(unittest.TestCase):
                 try:
                     data = raw.recv(1024)
                     closed = (data == b"")
-                except (ConnectionResetError, BrokenPipeError):
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
                     closed = True
                 except (TimeoutError, socket.timeout):
                     closed = False
@@ -440,7 +440,11 @@ class ConnectionQueueTests(unittest.TestCase):
 
 # Run compact test suite output when called from run.py
 def run_compact_suite():
-    suite = unittest.TestLoader().loadTestsFromTestCase(ConnectionQueueTests)
+    from test_queue_disconnect_errors import QueueDisconnectErrorTests
+
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite((loader.loadTestsFromTestCase(ConnectionQueueTests),
+                                loader.loadTestsFromTestCase(QueueDisconnectErrorTests)))
     total = suite.countTestCases()
     print("=" * 80)
     print(f"Starting run: Connection Queue Tests ({total} tests)")
