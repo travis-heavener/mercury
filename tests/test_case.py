@@ -16,7 +16,7 @@ def lprint(*args: list[any]):
         print(*args)
 
 class TestCase:
-    def __init__(self, method: str, path: str, expectedStatus: int, version: str,
+    def __init__(self, method: str, path: str, expectedStatus: int | list[int], version: str,
                  headers: dict=None, expected_headers: dict=None,
                  body: str="", body_match: str=None, body_contains_mode: bool=False, https_only=False):
         self.method = method
@@ -132,7 +132,8 @@ class TestCase:
             ### Evaluate ###
 
             # Check status code
-            if status_code != self.expected_status:
+            expected = self.expected_status if isinstance(self.expected_status, list) else [self.expected_status]
+            if status_code not in expected:
                 lprint(
                     f"Failed {test_desc}: Status mismatch - expected {self.expected_status}, got {status_code}\n",
                     self.inline_desc()

@@ -688,7 +688,7 @@
                 "desc": "Preserve gateway failure and static routing",
                 "versions": [ "1.1" ],
                 "cases": [
-                    { "method": "GET", "path": "/index.php", "expectedStatus": 502 },
+                    { "comments": "A reserved non-listening endpoint may refuse or time out depending on platform.", "method": "GET", "path": "/index.php", "expectedStatus": [502, 504] },
                     { "method": "GET", "path": "/small.txt", "expectedStatus": 200, "expectedBody": "HELLO WORLD" },
                     { "method": "GET", "path": "/missing.php", "expectedStatus": 404 }
                 ]
