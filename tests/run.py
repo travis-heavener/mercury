@@ -23,6 +23,7 @@ from fastcgi_backend import FastCGIBackend
 from regressions import run_wire_regressions, WIRE_TEST_COUNT
 from test_case import load_runs, TestCase
 
+TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 host = "127.0.0.1"
 host_v6 = "::1"
 port = 8080
@@ -276,7 +277,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Change working directory to tests directory
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir(TESTS_DIR)
 
     # Verify prerequisite certificates and binaries
     if not is_tls_set_up():
@@ -358,16 +359,25 @@ if __name__ == "__main__":
         # Use same interpreter and propagate failures into overall suite result
         if sys.platform == "linux":
             print("=" * 80, flush=True)
-            cgi_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_cgi_process.py")
+            cgi_script = os.path.join(TESTS_DIR, "test_cgi_process.py")
             cgi_ok = subprocess.run([sys.executable, cgi_script, "--mercury-output"]).returncode == 0
 
             print("=" * 80, flush=True)
-            ownership_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_fastcgi_backend.py")
+            ownership_script = os.path.join(TESTS_DIR, "test_fastcgi_backend.py")
             ownership_ok = subprocess.run([sys.executable, ownership_script, "--mercury-output"]).returncode == 0
+
+        # Run rate limiting integration tests across all platforms
+        print("=" * 80, flush=True)
+        ratelimit_script = os.path.join(TESTS_DIR, "test_ratelimit.py")
+        ratelimit_ok = subprocess.run([sys.executable, ratelimit_script, "--mercury-output"]).returncode == 0
+
+        # Run connection queue integration tests across all platforms
+        queue_script = os.path.join(TESTS_DIR, "test_connection_queue.py")
+        queue_ok = subprocess.run([sys.executable, queue_script, "--mercury-output"]).returncode == 0
 
         # Print overall test suite summary
         print("=" * 80)
-        success = num_passing == num_total and ownership_ok and cgi_ok
+        success = num_passing == num_total and ownership_ok and cgi_ok and ratelimit_ok and queue_ok
         print("✅ Success" if success else "❌ Failure")
         print(f"Passing: {num_passing}/{num_total}")
         sys.exit(0 if success else 1)

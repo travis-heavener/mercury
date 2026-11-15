@@ -4,9 +4,7 @@
 #include <memory>
 #include <string>
 
-#include <openssl/asn1.h>
 #include <openssl/bio.h>
-#include <openssl/pem.h>
 #include <openssl/x509.h>
 
 #include "../../conf/conf.hpp"

@@ -1,6 +1,7 @@
 #ifndef __FILE_HPP
 #define __FILE_HPP
 
+#include <cstdint>
 #include <ctime>
 #include <memory>
 
@@ -20,6 +21,7 @@ class File {
         int loadToBuffer(std::unique_ptr<http::IBodyStream>&);
         std::string getLastModifiedGMT() const;
         std::time_t getLastModTime() const { return lastModTime; }
+        uint64_t getLastModTimeNsec() const { return lastModTimeNsec; }
         bool hasLastModTime() const { return hasModTime; }
 
         bool exists = false;
@@ -50,6 +52,7 @@ class File {
 
         bool hasModTime = false;
         std::time_t lastModTime = 0;
+        uint64_t lastModTimeNsec = 0;
         mutable std::string lastModGMT;
 };
 

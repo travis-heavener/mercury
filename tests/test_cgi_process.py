@@ -75,6 +75,18 @@ output.write(b"Content-Type: application/octet-stream\r\n\r\n")
 if mode == "duplex":
     output.write(b"P" * 131072)
     output.flush()
+elif mode == "flood":
+    try:
+        while True:
+            output.write(b"F" * 65536)
+            output.flush()
+    except BrokenPipeError:
+        pass
+    sys.exit(0)
+elif mode == "oversized":
+    output.write(b"O" * 16384)
+    output.flush()
+    sys.exit(0)
 
 # Read full request payload from stdin
 body = sys.stdin.buffer.read()
@@ -162,6 +174,20 @@ class CGIProcessTests(unittest.TestCase):
         with mercury_process(self.config()):
             status, _, body = self.response("httpoxy", extra_headers=b"Proxy: http://attacker.local:8080\r\n")
             self.assertEqual((status, body), (200, b"no_proxy"))
+
+    # Verify directory links escape question marks and still reach named file
+    def test_directory_listing_encodes_question_mark(self):
+        (self.root / "odd?name.txt").write_text("question mark fixture")
+        with mercury_process(self.config()):
+            with Connection("127.0.0.1", 8080) as connection:
+                connection.send(request(b"/"))
+                status, _, body = connection.response()
+                self.assertEqual(status, 200)
+                self.assertIn(b'href="/odd%3Fname.txt"', body)
+            with Connection("127.0.0.1", 8080) as connection:
+                connection.send(request(b"/odd%3Fname.txt"))
+                status, _, body = connection.response()
+                self.assertEqual((status, body), (200, b"question mark fixture"))
 
     # Verify unauthenticated stalling TLS connection does not block other worker threads
     def test_stalled_tls_handshake_does_not_block_workers(self):
@@ -262,6 +288,22 @@ class CGIProcessTests(unittest.TestCase):
                     # Verify worker process was terminated
                     self.assertFalse(is_process_running(worker_pid))
 
+    # Verify worker timeout covers child closing stdout while request body remains unconsumed
+    def test_timeout_covers_closed_stdout_with_unconsumed_body(self):
+        with mercury_process(self.config(timeout=1)):
+            start = time.monotonic()
+            status = self.response("closed_hang", b"X" * 131072)[0]
+            elapsed = time.monotonic() - start
+            marker = self.root / "closed_hang.started"
+            deadline = time.monotonic() + 2
+            while not marker.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            worker_pid = int(marker.read_text())
+
+            self.assertEqual(status, 504)
+            self.assertLess(elapsed, 4)
+            self.assertFalse(is_process_running(worker_pid))
+
     # Verify server startup rejects invalid zero timeout configuration
     def test_zero_execution_timeout_is_rejected(self):
         result = subprocess.run([str(PROJECT_ROOT / "bin/mercury"), "-c", self.config(timeout=0)],
@@ -311,6 +353,90 @@ class CGIProcessTests(unittest.TestCase):
 
         # Confirm error log was not created
         self.assertFalse(self.error_log.exists())
+
+    # Verify CGI worker stdout flood terminates at response body ceiling and returns 413
+    def test_stdout_flood_terminates_worker_and_returns_payload_too_large(self):
+        text = self.config()
+        conf_path = Path(text)
+        conf_content = conf_path.read_text().replace(
+            "<Mercury>", "<Mercury><MaxResponseBody> 1024 </MaxResponseBody>"
+        )
+        conf_path.write_text(conf_content)
+
+        with mercury_process(str(conf_path)):
+            status, _, _ = self.response("flood")
+            self.assertEqual(status, 413)
+
+        # Confirm error log recorded body limit failure
+        self.assertIn("exceeded maximum response body limit (1024 bytes)", self.error_log.read_text())
+
+    # Verify CGI worker response exceeding MaxResponseBody returns 413
+    def test_oversized_cgi_response_returns_payload_too_large(self):
+        text = self.config()
+        conf_path = Path(text)
+        conf_content = conf_path.read_text().replace(
+            "<Mercury>", "<Mercury><MaxResponseBody> 1024 </MaxResponseBody>"
+        )
+        conf_path.write_text(conf_content)
+
+        with mercury_process(str(conf_path)):
+            status, _, _ = self.response("oversized")
+            self.assertEqual(status, 413)
+
+    # Verify static file exceeding MaxResponseBody returns 413
+    def test_static_file_exceeding_max_response_body_returns_payload_too_large(self):
+        text = self.config()
+        conf_path = Path(text)
+        conf_content = conf_path.read_text().replace(
+            "<Mercury>", "<Mercury><MaxResponseBody> 1024 </MaxResponseBody>"
+        )
+        conf_path.write_text(conf_content)
+        (self.root / "oversized.txt").write_text("X" * 4096)
+
+        with mercury_process(str(conf_path)):
+            with Connection("127.0.0.1", 8080) as connection:
+                connection.send(request(b"/oversized.txt"))
+                status, _, _ = connection.response()
+                self.assertEqual(status, 413)
+
+    # Verify CGI response where headers exceed MaxResponseBody but body is within limit returns 200
+    def test_cgi_headers_do_not_count_against_body_limit(self):
+        text = self.config()
+        conf_path = Path(text)
+        conf_content = conf_path.read_text().replace(
+            "<Mercury>", "<Mercury><MaxResponseBody> 32 </MaxResponseBody>"
+        )
+        conf_path.write_text(conf_content)
+
+        with mercury_process(str(conf_path)):
+            status, _, body = self.response("normal")
+            self.assertEqual((status, body), (200, b"ok"))
+
+    # Verify HTTP/0.9 request exceeding MaxResponseBody closes connection without sending body
+    def test_http09_exceeding_max_response_body_closes_connection_without_body(self):
+        text = self.config()
+        conf_path = Path(text)
+        conf_content = conf_path.read_text().replace(
+            "<Mercury>", "<Mercury><MaxResponseBody> 32 </MaxResponseBody>"
+        )
+        conf_path.write_text(conf_content)
+        (self.root / "large1024.txt").write_text("A" * 1024)
+
+        with mercury_process(str(conf_path)):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.connect(("127.0.0.1", 8080))
+                sock.sendall(b"GET /large1024.txt\r\n")
+                data = b""
+                sock.settimeout(2.0)
+                try:
+                    while True:
+                        chunk = sock.recv(4096)
+                        if not chunk:
+                            break
+                        data += chunk
+                except socket.timeout:
+                    pass
+                self.assertEqual(data, b"")
 
 
 class RunnerDiagnosticsTests(unittest.TestCase):

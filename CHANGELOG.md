@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.40.0] - 2026-11-14
+- Added: implement IP-based privacy-preserving rate limiting with token bucket algorithm, sharded mutexes, CIDR whitelisting, and RFC 6585 429 response (#443)
+- Added: resolve tilde (~) to user home directory in DocumentRoot, log files, TLS certificate paths, and CLI path arguments
+- Fix: enforce access control re-verification on canonical resource paths to prevent access-control bypass through resource aliases (PHP PATH_INFO, directory index, symlinks)
+- Fix: prevent forging CGI authenticated identity by not populating REMOTE_USER or AUTH_TYPE from unverified client Authorization headers
+- Fix: reject numeric configuration values that overflow integer bounds or contain trailing non-digits instead of silently truncating
+- Fix: enforce queue ceiling based on MaxRequestBacklog and expire idle queued connections after keep-alive timeout to prevent descriptor exhaustion
+- Fix: resolve relative DocumentRoot and configuration paths against caller working directory and config directory before falling back to Mercury directory
+- Fix: enforce cumulative request body deadline and minimum receive throughput to prevent worker monopolization from slow HTTP request bodies
+- Fix: handle Expect: 100-continue request headers by sending 100 Continue interim response to prevent body upload stalls
+- Fix: eliminate data races in file cache by making entry access counts and revalidation timestamps atomic
+- Fix: track nanosecond file modification timestamps to detect subsecond file edits during cache revalidation
+- Fix: enforce MaxResponseBody across all body stream representations and cap legacy CGI stdout capture to prevent disk exhaustion
+- Fix: enforce timeout during FastCGI connection establishment to prevent worker stalls on full listen backlogs
+- Fix: enforce CGI deadline across request body transmission and stream stdin concurrently on Windows to prevent worker stalls
+- Fix: enforce TLS peer certificate and hostname verification, response size cap, and deadline on startup update check
+- Fix: restore all release assets and status templates during updater rollback to prevent mixed-version installations
+- Fix: clamp oversized byte ranges to representation length instead of rejecting with 416
+- Fix: percent-encode directory listing hyperlinks to prevent URI fragment and query parameter misinterpretation
+- Fix: preserve multiple Set-Cookie response headers without collapsing or overwriting
+- Fix: preserve full request URI including PATH_INFO and query string in CGI and FastCGI REQUEST_URI
+- Fix: preserve backend Content-Encoding declarations and skip small-body compression bypass on pre-encoded responses
+- Fix: parse Accept-Encoding quality values, honor unencoded representation rejection, and support weight-based coding negotiation
+- Fix: include Vary: Accept-Encoding on compressed representations and preserve combined Vary tokens
+- Fix: handle Connection: close and stale keep-alive sockets in Python benchmark load generator without counting legitimate closures as errors
+
 ## [0.39.2] - 2026-11-08
 - Added: TLSCertFile and TLSKeyFile config directives to configure custom SSL/TLS certificate and private key paths
 - Fix: prevent HTTPoxy vulnerability by filtering Proxy / HTTP_PROXY header forwarding in CGI and FastCGI parameter encoders (#518)

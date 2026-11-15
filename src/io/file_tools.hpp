@@ -1,6 +1,7 @@
 #ifndef __FILE_TOOLS_HPP
 #define __FILE_TOOLS_HPP
 
+#include <cstdint>
 #include <ctime>
 #include <filesystem>
 #include <shared_mutex>
@@ -18,6 +19,7 @@ struct FileMetadata {
     bool isRegularFile = false;
     size_t size = 0;
     std::time_t lastModTime = 0;
+    uint64_t lastModTimeNsec = 0;
     uint32_t mode = 0;
     uint64_t inode = 0;
 };
@@ -37,6 +39,9 @@ inline bool isUNCPath(const std::filesystem::path& path) {
 }
 
 void normalizeBackslashes(std::string& path);
+
+// Expand leading tilde to user home directory
+std::filesystem::path expandUserHomePath(const std::filesystem::path& path);
 
 int isSymlinked(const std::filesystem::path&, const bool = false);
 

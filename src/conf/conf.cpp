@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <iostream>
+#include <limits>
 #include <mutex>
 #include <utility>
 
@@ -14,6 +15,7 @@
 #include "../http/fastcgi/client.hpp"
 #include "../io/file_tools.hpp"
 #include "../util/privilege.hpp"
+#include "../util/ratelimit.hpp"
 #include "../util/string_tools.hpp"
 
 #define LOAD_UINT_FORBID_ZERO false
@@ -60,6 +62,10 @@ namespace conf {
     int CLIENT_SECURITY_MODE;
     std::string IP_HASH_SALT;
 
+    bool IS_RATE_LIMIT_ENABLED = false;
+    double RATE_LIMIT_RATE = 100.0;
+    double RATE_LIMIT_BURST = 20.0;
+
     bool USE_TLS;
     port_t TLS_PORT;
     std::filesystem::path TLS_CERT_FILE;
@@ -87,6 +93,7 @@ namespace conf {
 
     // CWD in root directory of repo
     std::filesystem::path CWD, previousCWD = std::filesystem::current_path();
+    std::filesystem::path configDir;
 
     /**********************************************************/
     /********************* STATIC METHODS *********************/
@@ -94,6 +101,7 @@ namespace conf {
 
     const std::vector<std::string> mercuryNodeNames = {
         "DocumentRoot", "BindAddressIPv4", "BindAddressIPv6", "Port", "TLSPort", "TLSCertFile", "TLSKeyFile", "TLSCertificateFile", "TLSPrivateKeyFile", "Redirect", "Rewrite",
+        "RateLimit",
         "AccessLogFile", "ErrorLogFile", "DisableLogs", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "CGITimeout", "WinPHPCGIPath", "EnableFastCGI", "FastCGIAddress", "FastCGITimeout", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
@@ -134,6 +142,7 @@ namespace conf {
     int loadClientSecurityMode(const pugi::xml_node& root, int& var, const int defaultMode=CLIENT_SEC_GPC_MASKED);
     int loadClientSecurityIPSalt(const pugi::xml_node& root, std::string& var, const std::string& defaultSalt="fAhGD0OnCe4YhSyx");
     int loadFastCGIAddress(const pugi::xml_node& root, std::string& var);
+    int loadRateLimit(const pugi::xml_node& root);
 
     // Loads the directory of the running executable to path
     // Returns true if successful or false otherwise
@@ -477,11 +486,16 @@ namespace conf {
         }
 
         // Resolve configuration file path relative to invocation directory if necessary
-        std::filesystem::path resolvedConfigPath = configPath;
+        std::filesystem::path resolvedConfigPath = expandUserHomePath(configPath);
         std::error_code ecConf;
-        if (!resolvedConfigPath.is_absolute() && std::filesystem::exists(previousCWD / resolvedConfigPath, ecConf)) {
-            resolvedConfigPath = previousCWD / resolvedConfigPath;
+        if (!resolvedConfigPath.is_absolute()) {
+            if (std::filesystem::exists(previousCWD / resolvedConfigPath, ecConf))
+                resolvedConfigPath = previousCWD / resolvedConfigPath;
+            else if (std::filesystem::exists(CWD / resolvedConfigPath, ecConf))
+                resolvedConfigPath = CWD / resolvedConfigPath;
         }
+
+        configDir = resolvedConfigPath.parent_path();
 
         // Read XML config file
         pugi::xml_document doc;
@@ -573,6 +587,11 @@ namespace conf {
             return CONF_FAILURE;
 
         if (loadClientSecurityIPSalt(root, IP_HASH_SALT) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        /************ LOAD RATE LIMIT ************/
+
+        if (loadRateLimit(root) == CONF_FAILURE)
             return CONF_FAILURE;
 
         /************ LOAD BOOLEANS ************/
@@ -717,9 +736,9 @@ namespace conf {
         } else {
             // Assign paths without creating log directories
             pugi::xml_node accessNode = root.child("AccessLogFile");
-            ACCESS_LOG_FILE = accessNode ? accessNode.text().as_string() : "./logs/access.log";
+            ACCESS_LOG_FILE = expandUserHomePath(accessNode ? accessNode.text().as_string() : "./logs/access.log");
             pugi::xml_node errorNode = root.child("ErrorLogFile");
-            ERROR_LOG_FILE = errorNode ? errorNode.text().as_string() : "./logs/error.log";
+            ERROR_LOG_FILE = expandUserHomePath(errorNode ? errorNode.text().as_string() : "./logs/error.log");
         }
 
         #ifdef _WIN32
@@ -769,12 +788,14 @@ namespace conf {
         USE_TLS = tlsPortRaw != "off";
         try {
             // Prevent negatives
-            if (tlsPortRaw.size() == 0) throw std::invalid_argument("");
+            if (tlsPortRaw.empty()) throw std::invalid_argument("");
             if (USE_TLS && tlsPortRaw[0] == '-') throw std::invalid_argument("");
-            unsigned long val = USE_TLS ? std::stoul(tlsPortRaw) : 0;
+            size_t idx = 0;
+            const unsigned long long val = USE_TLS ? std::stoull(tlsPortRaw, &idx) : 0;
+            if (USE_TLS && idx != tlsPortRaw.size()) throw std::invalid_argument("");
             if (USE_TLS && (val == 0 || val > 65535)) throw std::invalid_argument("");
             TLS_PORT = USE_TLS ? static_cast<port_t>(val) : 0;
-        } catch (std::invalid_argument&) {
+        } catch (...) {
             std::cerr << "Failed to parse config file, invalid value for TLSPort." << std::endl;
             return CONF_FAILURE;
         }
@@ -800,8 +821,8 @@ namespace conf {
                 return CONF_FAILURE;
         } else {
             // Assign paths without requiring files to exist when TLS is disabled
-            TLS_CERT_FILE = certNode ? certNode.text().as_string() : defaultCert;
-            TLS_KEY_FILE = keyNode ? keyNode.text().as_string() : defaultKey;
+            TLS_CERT_FILE = expandUserHomePath(certNode ? certNode.text().as_string() : defaultCert);
+            TLS_KEY_FILE = expandUserHomePath(keyNode ? keyNode.text().as_string() : defaultKey);
         }
 
         /************************** Open log files **************************/
@@ -876,9 +897,16 @@ namespace conf {
         // Reset logging settings
         DISABLE_LOGS = false;
 
+        // Reset rate limiter settings
+        IS_RATE_LIMIT_ENABLED = false;
+        RATE_LIMIT_RATE = 100.0;
+        RATE_LIMIT_BURST = 20.0;
+        util::RateLimiter::getInstance().clear();
+
         // Reset TLS paths
         TLS_CERT_FILE.clear();
         TLS_KEY_FILE.clear();
+        configDir.clear();
 
         // Reset file cache settings
         MAX_FILE_CACHE_ENTRIES = 1024;
@@ -995,12 +1023,16 @@ namespace conf {
 
         try {
             // Prevent negatives
-            if (valueStr.size() == 0) throw std::invalid_argument("");
-            if (valueStr[0] == '-') throw std::invalid_argument("");
+            if (valueStr.empty() || valueStr[0] == '-') throw std::invalid_argument("");
 
-            var = std::stoull(valueStr);
-            if (!allowZero && var == 0) throw std::invalid_argument("");
-        } catch (std::invalid_argument&) {
+            size_t idx = 0;
+            const unsigned long long val = std::stoull(valueStr, &idx);
+            if (idx != valueStr.size()) throw std::invalid_argument("");
+            if (val > std::numeric_limits<unsigned int>::max()) throw std::out_of_range("");
+            if (!allowZero && val == 0) throw std::invalid_argument("");
+
+            var = static_cast<unsigned int>(val);
+        } catch (...) {
             std::cerr << "Failed to parse config file, invalid unsigned integer value for " << nodeName << '.' << std::endl;
             return CONF_FAILURE;
         }
@@ -1021,14 +1053,16 @@ namespace conf {
 
         try {
             // Prevent negatives
-            if (valueStr.size() == 0) throw std::invalid_argument("");
-            if (valueStr[0] == '-') throw std::invalid_argument("");
+            if (valueStr.empty() || valueStr[0] == '-') throw std::invalid_argument("");
 
-            unsigned long val = std::stoul(valueStr);
+            size_t idx = 0;
+            const unsigned long long val = std::stoull(valueStr, &idx);
+            if (idx != valueStr.size()) throw std::invalid_argument("");
+            if (val > std::numeric_limits<unsigned short>::max()) throw std::out_of_range("");
             if (!allowZero && val == 0) throw std::invalid_argument("");
-            if (val > 65535) throw std::invalid_argument("");
+
             var = static_cast<unsigned short>(val);
-        } catch (std::invalid_argument&) {
+        } catch (...) {
             std::cerr << "Failed to parse config file, invalid unsigned integer value for " << nodeName << '.' << std::endl;
             return CONF_FAILURE;
         }
@@ -1116,31 +1150,68 @@ namespace conf {
         std::string value = rawValue;
         trimString(value);
 
-        if (value.size() == 0) {
+        if (value.empty()) {
             std::cerr << "Failed to parse config file, invalid path provided for " << nodeName << '.' << std::endl;
             return CONF_FAILURE;
         }
 
-        // Format string
-        if (value == ".") { // Use relative path
-            var = CWD;
-            if (isLogFile) return CONF_FAILURE; // Cannot be a directory
-        } else if (value.find("./") == 0) { // Use relative path
-            var = CWD / value.substr(2);
-            if (isLogFile) createLogDirectoryIfMissing(var);
-        } else { // Try as absolute path
-            var = std::filesystem::path(value);
-            if (isLogFile) createLogDirectoryIfMissing(var);
+        const std::filesystem::path path = expandUserHomePath(value);
 
-            if (!std::filesystem::exists(var)) {
-                // Try as relative path (ex. "path" instead of "./path")
-                var = CWD / value;
-                if (isLogFile) createLogDirectoryIfMissing(var);
+        // Format string
+        if (value == "." || value == "./" || value == ".\\") { // Use relative path
+            var = previousCWD;
+            if (isLogFile) return CONF_FAILURE; // Cannot be a directory
+        } else if (value.starts_with('~')) { // Expand user home directory path
+            var = path;
+            if (isLogFile) createLogDirectoryIfMissing(var);
+        } else {
+            std::filesystem::path rel = path;
+            if (value.starts_with("./") || value.starts_with(".\\")) {
+                size_t start = 2;
+                while (start < value.size() && (value[start] == '/' || value[start] == '\\'))
+                    ++start;
+                rel = (start < value.size()) ? value.substr(start) : "";
             }
+
+            if (rel.empty()) {
+                var = previousCWD;
+                if (isLogFile) return CONF_FAILURE; // Cannot be a directory
+            } else if (!rel.is_absolute()) {
+                std::error_code ec;
+                if (isLogFile) {
+                    // For log files, prefer caller cwd and config dir before repo root
+                    if (std::filesystem::exists(previousCWD / rel, ec))
+                        var = previousCWD / rel;
+                    else if (!configDir.empty() && std::filesystem::exists(configDir / rel, ec))
+                        var = configDir / rel;
+                    else if (std::filesystem::exists((previousCWD / rel).parent_path(), ec))
+                        var = previousCWD / rel;
+                    else if (!configDir.empty() && std::filesystem::exists((configDir / rel).parent_path(), ec))
+                        var = configDir / rel;
+                    else if (previousCWD != CWD)
+                        var = previousCWD / rel;
+                    else
+                        var = CWD / rel;
+                } else {
+                    if (std::filesystem::exists(previousCWD / rel, ec))
+                        var = previousCWD / rel;
+                    else if (!configDir.empty() && std::filesystem::exists(configDir / rel, ec))
+                        var = configDir / rel;
+                    else if (std::filesystem::exists(CWD / rel, ec))
+                        var = CWD / rel;
+                    else
+                        var = previousCWD / rel;
+                }
+            } else {
+                var = rel;
+            }
+
+            if (isLogFile) createLogDirectoryIfMissing(var);
         }
 
-        // Skip exists check for log files (handled separately)
-        if (!isLogFile && !std::filesystem::exists(var)) {
+        // Validate path existence (reject unresolvable tilde paths even for log files)
+        std::error_code ecExists;
+        if ((!isLogFile || var.string().starts_with('~')) && !std::filesystem::exists(var, ecExists)) {
             std::cerr << "Failed to parse config file, path provided for " << nodeName << " could not be found." << std::endl;
             return CONF_FAILURE;
         }
@@ -1202,11 +1273,15 @@ namespace conf {
 
     // Canonicalize and set document root directory
     int setDocumentRoot(const std::filesystem::path& path) {
-        std::filesystem::path target = path;
+        std::filesystem::path target = expandUserHomePath(path);
         if (!target.is_absolute()) {
             std::error_code ec;
             if (std::filesystem::exists(previousCWD / target, ec))
                 target = previousCWD / target;
+            else if (!configDir.empty() && std::filesystem::exists(configDir / target, ec))
+                target = configDir / target;
+            else if (std::filesystem::exists(CWD / target, ec))
+                target = CWD / target;
         }
 
         if (canonicalizeDirectory(target, "DocumentRoot") == CONF_FAILURE)
@@ -1314,6 +1389,83 @@ namespace conf {
         }
 
         var = valueStr;
+        return CONF_SUCCESS;
+    }
+
+    // Used to load RateLimit configuration settings and whitelisted CIDRs
+    int loadRateLimit(const pugi::xml_node& root) {
+        const pugi::xml_node node = root.child("RateLimit");
+        if (!node) {
+            IS_RATE_LIMIT_ENABLED = false;
+            RATE_LIMIT_RATE = 100.0;
+            RATE_LIMIT_BURST = 20.0;
+            util::RateLimiter::getInstance().configure(false, 100.0, 20.0);
+            return CONF_SUCCESS;
+        }
+
+        // Parse enabled attribute
+        std::string enabledStr = "on";
+        if (node.attribute("enabled")) {
+            enabledStr = node.attribute("enabled").as_string();
+        }
+        trimString(enabledStr);
+        strToLower(enabledStr);
+        if (enabledStr == "on") {
+            IS_RATE_LIMIT_ENABLED = true;
+        } else if (enabledStr == "off") {
+            IS_RATE_LIMIT_ENABLED = false;
+        } else {
+            std::cerr << "Failed to parse config file, invalid enabled attribute for RateLimit." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Parse rate (requests per second) attribute
+        std::string rateStr = "100";
+        if (node.attribute("rate")) rateStr = node.attribute("rate").as_string();
+        trimString(rateStr);
+
+        try {
+            if (rateStr.empty() || rateStr[0] == '-') throw std::invalid_argument("");
+            size_t idx = 0;
+            RATE_LIMIT_RATE = std::stod(rateStr, &idx);
+            if (idx != rateStr.size() || RATE_LIMIT_RATE <= 0.0) throw std::invalid_argument("");
+        } catch (...) {
+            std::cerr << "Failed to parse config file, invalid rate attribute for RateLimit." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Parse burst capacity attribute
+        std::string burstStr = "20";
+        if (node.attribute("burst")) burstStr = node.attribute("burst").as_string();
+        trimString(burstStr);
+
+        try {
+            if (burstStr.empty() || burstStr[0] == '-') throw std::invalid_argument("");
+            size_t idx = 0;
+            RATE_LIMIT_BURST = std::stod(burstStr, &idx);
+            if (idx != burstStr.size() || RATE_LIMIT_BURST < 1.0) throw std::invalid_argument("");
+        } catch (...) {
+            std::cerr << "Failed to parse config file, invalid burst attribute for RateLimit." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        util::RateLimiter::getInstance().configure(IS_RATE_LIMIT_ENABLED, RATE_LIMIT_RATE, RATE_LIMIT_BURST);
+
+        // Parse whitelist entries
+        for (const pugi::xml_node& child : node.children()) {
+            const std::string name = child.name();
+            if (name == "Whitelist") {
+                try {
+                    SanitizedIP sip = parseSanitizedIP(child);
+                    util::RateLimiter::getInstance().addWhitelist(sip);
+                } catch (std::exception&) {
+                    std::cerr << "Failed to parse config file, invalid IP/CIDR in RateLimit whitelist: "
+                              << child.text().as_string() << std::endl;
+                    return CONF_FAILURE;
+                }
+            }
+        }
+
         return CONF_SUCCESS;
     }
 }

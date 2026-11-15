@@ -81,7 +81,7 @@ Use ordinary JSON: quoted keys, no trailing commas, and no `//` comments.
 | --- | --- | --- |
 | `method` | Required string | Request method, e.g. `GET`, `HEAD`, or `POST`; also used to skip reading a HEAD body. Use uppercase for normal requests. |
 | `path` | Required string | Request target including optional query, e.g. `/index.html?x=1`. Sent as supplied, without URL encoding or path normalization by the runner. |
-| `expectedStatus` | Required integer | Exact HTTP/1.x status. Ignored for HTTP/0.9, which has no status line; existing cases use `-1`. |
+| `expectedStatus` | Required integer or list of integers | Accepted HTTP/1.x status codes. Ignored for HTTP/0.9, which has no status line; existing cases use `-1`. |
 | `headers` | Optional object, `{}` | Request header names and string values. Used for negotiation, ranges, conditionals, filters, framing, and malformed-header cases. See transformations below. |
 | `expectedHeaders` | Optional object, `{}` | Response header assertions: a string means exact value, `true` means present with any value, `false` means absent. Names are case-insensitive; string values are case-sensitive. Do not use numbers or `null`. |
 | `body` | Optional string, `""` | UTF-8 request payload, useful for CGI and body-limit tests. Nonempty bodies automatically get their UTF-8 byte count as Content-Length. |

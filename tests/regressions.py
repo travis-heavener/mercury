@@ -6,6 +6,8 @@ These groups run as part of the existing Python suite; no separate executable is
 Counts below are test groups, not individual requests or assertions.
 """
 from concurrent.futures import ThreadPoolExecutor
+import gzip
+import os
 import socket
 import ssl
 import sys
@@ -14,6 +16,8 @@ import sys
 # Assertions implement test failures; optimized Python would silently remove them.
 if not __debug__:
     raise RuntimeError("Run the regression suite without Python -O/PYTHONOPTIMIZE")
+
+HAS_SYMLINK_FIXTURE = False
 
 
 class Connection:
@@ -49,6 +53,7 @@ class Connection:
             raise AssertionError("connection closed before response")
         status = int(line.split()[1])
         headers = {}
+        self.headers_list = []
         while True:
             line = self.reader.readline()
             if not line:
@@ -56,7 +61,10 @@ class Connection:
             if line == b"\r\n":
                 break
             key, value = line.split(b":", 1)
-            headers[key.lower()] = value.strip()
+            k = key.lower()
+            v = value.strip()
+            headers[k] = v
+            self.headers_list.append((k, v))
         body = b""
         if headers.get(b"transfer-encoding") == b"chunked":
             while True:
@@ -72,7 +80,7 @@ class Connection:
             size = int(headers[b"content-length"])
             body = self.reader.read(size)
             assert len(body) == size, "truncated body"
-        elif status not in (204, 304):
+        elif status not in (100, 204, 304):
             raise AssertionError("unframed persistent response")
         return status, headers, body
 
@@ -105,6 +113,19 @@ def malformed_ranges(connect):
         with connect() as conn:
             conn.send(request(headers=b"Range: " + value + b"\r\n"))
             assert conn.response()[0] == 200
+
+    # Satisfiable oversized and mixed byte ranges return 206 with available bytes (RFC 9110 Section 14.1.2)
+    for value in (b"bytes=0-99999", b"bytes=-99999", b"bytes=0-4,99999-"):
+        with connect() as conn:
+            conn.send(request(b"/small.txt", headers=b"Range: " + value + b"\r\n"))
+            status, headers, body = conn.response()
+            assert status == 206, f"Expected 206 for {value}, got {status}"
+            if value == b"bytes=0-4,99999-":
+                assert body == b"HELLO", f"Expected HELLO for {value}, got {body}"
+                assert b"bytes 0-4/11" in headers.get(b"content-range", b""), f"Expected Content-Range bytes 0-4/11, got {headers.get(b'content-range')}"
+            else:
+                assert body == b"HELLO WORLD", f"Expected full body for {value}, got {body}"
+                assert b"bytes 0-10/11" in headers.get(b"content-range", b""), f"Expected Content-Range bytes 0-10/11, got {headers.get(b'content-range')}"
 
 
 def pipelines(connect):
@@ -140,6 +161,54 @@ def php_bytes(connect):
     with connect() as conn:
         conn.send(request(b"/regression_query.php?name=a%26b&encoded=%2520&url=https://example.test/a//b"))
         assert conn.response()[2] == b'{"name":"a&b","encoded":"%20","url":"https://example.test/a//b"}'
+    # Verify unverified client Authorization header does not forge REMOTE_USER or AUTH_TYPE
+    with connect() as conn:
+        conn.send(request(b"/regression_auth.php", headers=b"Authorization: Bearer admin\r\n"))
+        status, _, body = conn.response()
+        assert status == 200, f"regression_auth.php status {status}"
+        assert body == b'{"auth_type":"","remote_user":"","http_authorization":"Bearer admin"}', (
+            f"authenticated identity forged: {body!r}"
+        )
+    # Verify REQUEST_URI preserves original request URI including PATH_INFO and query string
+    with connect() as conn:
+        conn.send(request(b"/regression_request_uri.php/path?x=1"))
+        status, _, body = conn.response()
+        assert status == 200 and body == b"/regression_request_uri.php/path?x=1", (
+            f"REQUEST_URI mismatch: {body!r}"
+        )
+    # Verify small backend-compressed responses retain Content-Encoding without decoding
+    with connect() as conn:
+        conn.send(request(b"/regression_backend_compressed.php"))
+        status, headers, body = conn.response()
+        assert status == 200, f"regression_backend_compressed.php status {status}"
+        assert headers.get(b"content-encoding") == b"gzip", f"Expected Content-Encoding: gzip, got {headers.get(b'content-encoding')!r}"
+        assert gzip.decompress(body) == b"small gzip content", f"Decompressed body mismatch: {body!r}"
+
+    # Reject backend coding explicitly refused by client
+    with connect() as conn:
+        conn.send(request(b"/regression_backend_compressed.php", headers=b"Accept-Encoding: gzip;q=0, identity;q=0\r\n"))
+        status, headers, _ = conn.response()
+        assert status == 406, f"Expected 406 for refused backend gzip, got {status}"
+        assert b"content-encoding" not in headers
+        assert b"accept-encoding" in headers.get(b"vary", b"").lower(), f"Expected Vary: Accept-Encoding on 406, got {headers.get(b'vary')}"
+
+    # Accept backend coding allowed through wildcard
+    with connect() as conn:
+        conn.send(request(b"/regression_backend_compressed.php", headers=b"Accept-Encoding: *;q=0.5\r\n"))
+        status, headers, body = conn.response()
+        assert status == 200 and headers.get(b"content-encoding") == b"gzip"
+        assert gzip.decompress(body) == b"small gzip content"
+
+
+def multiple_cookies(connect):
+    """Preserve multiple Set-Cookie headers without collapsing or overwriting (RFC 9110 Section 5.2)."""
+    with connect() as conn:
+        conn.send(request(b"/regression_cookies.php"))
+        status, headers, body = conn.response()
+        assert status == 200, f"regression_cookies.php status {status}"
+        assert body == b"cookies-ok", f"regression_cookies.php body {body!r}"
+        cookies = [val for key, val in conn.headers_list if key == b"set-cookie"]
+        assert cookies == [b"first=one", b"second=two"], f"Expected multiple cookies, got {cookies!r}"
 
 
 def authorization(connect):
@@ -156,6 +225,35 @@ def authorization(connect):
         with connect() as conn:
             conn.send(request(b"/private/FILE~1.TXT"))
             assert conn.response()[0] == 400
+
+    # Verify access denial cannot be bypassed through resource aliases
+    with connect() as conn:
+        conn.send(request(b"/path_info_denied.php"))
+        assert conn.response()[0] == 403, "direct PHP access not denied"
+    with connect() as conn:
+        conn.send(request(b"/path_info_denied.php/extra"))
+        assert conn.response()[0] == 403, "PHP PATH_INFO alias bypassed access denial"
+
+    with connect() as conn:
+        conn.send(request(b"/indexed_denied/index.html"))
+        assert conn.response()[0] == 403, "direct index.html access not denied"
+    with connect() as conn:
+        conn.send(request(b"/indexed_denied/"))
+        assert conn.response()[0] == 403, "directory index alias bypassed access denial"
+
+    # Verify directory listing restrictions apply to unslashed directory URLs
+    with connect() as conn:
+        conn.send(request(b"/range_directory"))
+        assert conn.response()[0] == 403, "unslashed directory URL bypassed directory index restriction"
+
+    # Verify symlink aliases to denied resources and restricted listings
+    if HAS_SYMLINK_FIXTURE:
+        with connect() as conn:
+            conn.send(request(b"/private_alias/file.txt"))
+            assert conn.response()[0] == 403, "symlink alias bypassed access denial"
+        with connect() as conn:
+            conn.send(request(b"/range_alias/"))
+            assert conn.response()[0] == 403, "symlink alias bypassed directory index restriction"
 
 
 def redirect_injection(connect):
@@ -237,6 +335,69 @@ def connection_options(connect):
         assert conn.response()[1][b"connection"] == b"keep-alive"
         assert conn.response()[2] == b"HELLO WORLD"
 
+    # Verify Accept-Encoding quality values (q=0 rejects encoding, higher q takes precedence)
+    with connect() as conn:
+        conn.send(request(b"/index.html", headers=b"Accept-Encoding: gzip;q=0\r\n"))
+        status, headers, _ = conn.response()
+        assert status == 200
+        assert b"content-encoding" not in headers, f"Expected no Content-Encoding for q=0, got {headers.get(b'content-encoding')}"
+        assert headers.get(b"vary") == b"Accept-Encoding", f"Expected Vary: Accept-Encoding on uncompressed q=0 response, got {headers.get(b'vary')}"
+
+    # Verify uncompressed response without Accept-Encoding includes Vary: Accept-Encoding (Issue #14)
+    with connect() as conn:
+        conn.send(request(b"/index.html"))
+        status, headers, _ = conn.response()
+        assert status == 200
+        assert b"content-encoding" not in headers
+        assert headers.get(b"vary") == b"Accept-Encoding", f"Expected Vary: Accept-Encoding on default uncompressed response, got {headers.get(b'vary')}"
+
+    with connect() as conn:
+        conn.send(request(b"/index.html", headers=b"Accept-Encoding: gzip;q=0.5, deflate;q=0.8\r\n"))
+        status, headers, _ = conn.response()
+        assert status == 200
+        assert headers.get(b"content-encoding") == b"deflate", f"Expected deflate for q=0.8 vs 0.5, got {headers.get(b'content-encoding')}"
+        assert headers.get(b"vary") == b"Accept-Encoding", f"Expected Vary: Accept-Encoding, got {headers.get(b'vary')}"
+
+    # Verify identity rejection enforces compression even on small responses
+    with connect() as conn:
+        conn.send(request(b"/small.txt", headers=b"Accept-Encoding: gzip, identity;q=0\r\n"))
+        status, headers, body = conn.response()
+        assert status == 200
+        assert headers.get(b"content-encoding") == b"gzip", f"Expected gzip Content-Encoding, got {headers.get(b'content-encoding')}"
+        assert headers.get(b"vary") == b"Accept-Encoding", f"Expected Vary: Accept-Encoding, got {headers.get(b'vary')}"
+        import gzip
+        assert gzip.decompress(body) == b"HELLO WORLD"
+
+    # Verify negotiated compression includes Vary: Accept-Encoding (Issue #14)
+    with connect() as conn:
+        conn.send(request(b"/index.html", headers=b"Accept-Encoding: gzip\r\n"))
+        status, headers, _ = conn.response()
+        assert status == 200
+        assert headers.get(b"content-encoding") == b"gzip"
+        assert headers.get(b"vary") == b"Accept-Encoding", f"Expected Vary: Accept-Encoding on gzip response, got {headers.get(b'vary')}"
+
+    # Verify backend-compressed responses include Vary: Accept-Encoding
+    with connect() as conn:
+        conn.send(request(b"/regression_backend_compressed.php", headers=b"Accept-Encoding: gzip\r\n"))
+        status, headers, _ = conn.response()
+        assert status == 200
+        assert headers.get(b"content-encoding") == b"gzip"
+        assert headers.get(b"vary") == b"Accept-Encoding", f"Expected Vary: Accept-Encoding on backend gzip response, got {headers.get(b'vary')}"
+
+    # Verify *;q=0 without explicit identity allowance returns 406 Not Acceptable
+    with connect() as conn:
+        conn.send(request(b"/small.txt", headers=b"Accept-Encoding: *;q=0\r\n"))
+        status, headers, _ = conn.response()
+        assert status == 406, f"Expected 406 for *;q=0, got {status}"
+
+    # Verify *;q=0 with explicit identity allowance returns 200 unencoded
+    with connect() as conn:
+        conn.send(request(b"/small.txt", headers=b"Accept-Encoding: *;q=0, identity;q=0.5\r\n"))
+        status, headers, body = conn.response()
+        assert status == 200
+        assert b"content-encoding" not in headers
+        assert body == b"HELLO WORLD"
+
 
 def simple_request(connect):
     """HTTP/0.9 ends after one CRLF and returns only a body before closing."""
@@ -245,10 +406,29 @@ def simple_request(connect):
         assert conn.reader.read() == b"HELLO WORLD", "simple request waited for headers"
 
 
+def expect_100_continue(connect):
+    """Send 100 Continue interim response before consuming request body."""
+    # Test valid 100-continue expectation
+    with connect() as conn:
+        conn.send(b"POST /body_tests/raw.php HTTP/1.1\r\nHost: localhost\r\nExpect: 100-continue\r\nContent-Length: 5\r\n\r\n")
+        status, _, _ = conn.response()
+        assert status == 100, f"Expected 100 Continue, got {status}"
+        conn.send(b"hello")
+        status, _, body = conn.response()
+        assert status == 200 and body == b"hello", f"Expected 200 hello, got {status} {body}"
+
+    # Test unsupported expectation returns 417 Expectation Failed
+    with connect() as conn:
+        conn.send(b"POST /body_tests/raw.php HTTP/1.1\r\nHost: localhost\r\nExpect: unsupported-expectation\r\nContent-Length: 5\r\n\r\n")
+        status, _, _ = conn.response()
+        assert status == 417, f"Expected 417 Expectation Failed, got {status}"
+
+
 WIRE_TESTS = (
     malformed_headers, malformed_ranges, pipelines, fragmented_body, php_bytes,
-    authorization, redirect_injection, directory_range, keep_alive_limit,
-    header_limit, concurrent_clients, connection_options, simple_request,
+    multiple_cookies, authorization, redirect_injection, directory_range,
+    keep_alive_limit, header_limit, concurrent_clients, connection_options,
+    simple_request, expect_100_continue,
 )
 # Each group runs in four transport combinations, plus two mixed-source-IP groups.
 WIRE_TEST_COUNT = len(WIRE_TESTS) * 4 + 2
@@ -256,37 +436,60 @@ WIRE_TEST_COUNT = len(WIRE_TESTS) * 4 + 2
 
 def run_wire_regressions(host, host_v6, port, tls_port):
     """Run each group over IPv4/IPv6 and HTTP/HTTPS; return groups passed."""
-    def run_transport(item):
-        address, tls = item
-        passed_in_transport = 0
-        connect = lambda source=None: Connection(address, tls_port if tls else port, tls, source)
-        for test in WIRE_TESTS:
-            try:
-                test(connect)
-                passed_in_transport += 1
-            except Exception as error:
-                print(f"[Regression failure] {test.__name__} {address} TLS={tls}: {error}")
-        return passed_in_transport
+    global HAS_SYMLINK_FIXTURE
+    symlink_private = os.path.join(os.path.dirname(__file__), "root", "private_alias")
+    symlink_range = os.path.join(os.path.dirname(__file__), "root", "range_alias")
+    created_symlinks = []
+    try:
+        for alias_path, target in ((symlink_private, "private"), (symlink_range, "range_directory")):
+            if os.path.islink(alias_path) or os.path.exists(alias_path):
+                os.remove(alias_path)
+            os.symlink(target, alias_path)
+            created_symlinks.append(alias_path)
+        HAS_SYMLINK_FIXTURE = True
+    except (OSError, NotImplementedError):
+        HAS_SYMLINK_FIXTURE = False
 
-    passed = 0
-    combos = [(host, False), (host, True), (host_v6, False), (host_v6, True)]
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        passed += sum(pool.map(run_transport, combos))
+    try:
+        def run_transport(item):
+            address, tls = item
+            passed_in_transport = 0
+            connect = lambda source=None: Connection(address, tls_port if tls else port, tls, source)
+            for test in WIRE_TESTS:
+                try:
+                    test(connect)
+                    passed_in_transport += 1
+                except Exception as error:
+                    print(f"[Regression failure] {test.__name__} {address} TLS={tls}: {error}")
+            return passed_in_transport
 
-    # Different source addresses expose queued tasks accidentally sharing one IP buffer.
-    # 127.0.0.2 is usable without additional interface setup on Linux and Windows.
-    def check_ip_ownership(tls):
-        def one(index):
-            source = "127.0.0.1" if index % 2 == 0 else "127.0.0.2"
-            with Connection(host, tls_port if tls else port, tls, (source, 0)) as conn:
-                conn.send(request(b"/regression_ip.php"))
-                status, _, body = conn.response()
-                assert status == 200 and body == source.encode(), (source, status, body)
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            list(pool.map(one, range(12)))
-        return 1
+        passed = 0
+        combos = [(host, False), (host, True), (host_v6, False), (host_v6, True)]
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            passed += sum(pool.map(run_transport, combos))
 
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        for ok in pool.map(check_ip_ownership, (False, True)):
-            passed += ok
-    return passed
+        # Different source addresses expose queued tasks accidentally sharing one IP buffer.
+        # 127.0.0.2 is usable without additional interface setup on Linux and Windows.
+        def check_ip_ownership(tls):
+            def one(index):
+                source = "127.0.0.1" if index % 2 == 0 else "127.0.0.2"
+                with Connection(host, tls_port if tls else port, tls, (source, 0)) as conn:
+                    conn.send(request(b"/regression_ip.php"))
+                    status, _, body = conn.response()
+                    assert status == 200 and body == source.encode(), (source, status, body)
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                list(pool.map(one, range(12)))
+            return 1
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            for ok in pool.map(check_ip_ownership, (False, True)):
+                passed += ok
+        return passed
+    finally:
+        for alias_path in created_symlinks:
+            if os.path.islink(alias_path):
+                try:
+                    os.remove(alias_path)
+                except OSError:
+                    pass
+        HAS_SYMLINK_FIXTURE = False

@@ -4,7 +4,6 @@
 
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
-#include "../../util/string_tools.hpp"
 #include "../../util/toolbox.hpp"
 
 #define ALLOWED_STATIC_METHODS "GET, HEAD"
@@ -124,6 +123,12 @@ namespace http::version::handler_1_0 {
             case METHOD::GET: {
                 // Check accepted MIMES
                 if (!request.isMIMEAccepted(file.MIME)) {
+                    setStatusMaybeErrorDoc(request, *pResponse, 406);
+                    break;
+                }
+
+                // Check accepted encodings
+                if (!request.isIdentityAccepted() && request.getCompressMethod(file.MIME) == NO_COMPRESS) {
                     setStatusMaybeErrorDoc(request, *pResponse, 406);
                     break;
                 }

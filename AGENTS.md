@@ -2,7 +2,24 @@
 
 ## Project Overview
 
-Mercury is a lightweight, high-performance, configurable HTTP server implemented in C++20 for Linux and Windows. It provides full HTTP/1.1 support (with backward-compatible HTTP/1.0 and HTTP/0.9 handlers), TLS 1.3 encryption via OpenSSL, fast CGI execution for PHP, streaming compression (Brotli, Zstandard, Gzip, Deflate), access control, URL rewriting, and HTTP redirects.
+Mercury is a high-performance HTTP server in C++20 for Linux and Windows. It supports HTTP/1.1 (with HTTP/1.0 and HTTP/0.9 fallback), TLS 1.3 via OpenSSL, CGI and FastCGI (PHP-FPM), streaming compression (Brotli, Zstandard, Gzip, Deflate), access control, rate limiting, URL rewriting, and redirects.
+
+---
+
+## Agent Operational Rules & Constraints
+
+1. **Concise Communication**:
+   - Provide direct, helpful responses; eliminate wordy explanations, restatements, and filler.
+
+2. **Strict Git Boundaries**:
+   - **Never stage (`git add`), commit (`git commit`), or push changes** unless explicitly instructed by the user.
+   - Only execute read-only git queries (`git status`, `git diff`, `git log`). Keep all changes unstaged.
+
+3. **Protected Files & Secrets**:
+   - **Do not modify local `.conf` files** (`conf/mercury.conf`), test certificates (`conf/ssl/`), or repository credentials/secrets. Use temporary configs or harnesses for tests.
+
+4. **Up-to-Date Documentation**:
+   - Consult latest official documentation via web search for external APIs, standards, and OS behaviors (OpenSSL 3/4, POSIX, Win32, RFCs).
 
 ---
 
@@ -11,15 +28,15 @@ Mercury is a lightweight, high-performance, configurable HTTP server implemented
 | Task | Command | Notes |
 |---|---|---|
 | **Build Linux** | `make linux` | Produces `bin/mercury` |
-| **Build Windows** | `make windows` | Cross-compiles `bin/mercury.exe` using MinGW-w64 |
-| **Build All** | `make all` | Builds both Linux and Windows binaries |
-| **Debug Build** | `DEBUG=1 make -j -B` | Enables `-g -O0` for debugging |
-| **Run Server** | `./bin/mercury [-c conf-file]` | Defaults to `conf/mercury.conf` (`--help` for options) |
+| **Build Windows** | `make windows` | Cross-compiles `bin/mercury.exe` (MinGW-w64) |
+| **Build All** | `make all` | Builds Linux and Windows binaries |
+| **Debug Build** | `DEBUG=1 make -j -B` | Enables `-g -O0` symbols |
+| **Run Server** | `./bin/mercury [-c conf-file]` | Defaults to `conf/mercury.conf` |
 | **Create TLS Certs** | `make cert` | Generates self-signed test keypair in `conf/ssl/` |
-| **Run Test Suite** | `python3 tests/run.py` | Runs JSON cases and socket wire regressions |
-| **Run Benchmarks** | `python3 build_tools/benchmark.py` | Evaluates Mercury vs. Apache & Nginx performance |
-| **Multi-Distro Tests** | `make docker_tests` | Tests across Ubuntu, Debian, Alpine, Fedora, Arch |
-| **Clean Build** | `make clean` | Removes binaries, object files, and logs |
+| **Run Test Suite** | `python3 tests/run.py` | Full test suite and wire regressions |
+| **Run Benchmarks** | `python3 build_tools/benchmark.py` | Benchmarks vs. Apache & Nginx |
+| **Multi-Distro Tests** | `make docker_tests` | Runs container tests across distros |
+| **Clean Build** | `make clean` | Removes build outputs, objects, and logs |
 
 ---
 
@@ -27,25 +44,27 @@ Mercury is a lightweight, high-performance, configurable HTTP server implemented
 
 ```
 Mercury/
-├── AGENTS.md                 # Agent entry point and operational summary (this file)
-├── agents/                   # Detailed agent guidelines and references
-│   ├── CONVENTIONS.md        # Codebase conventions and engineering standards
-│   ├── ARCHITECTURE.md       # Deep architectural breakdown and concurrency model
+├── AGENTS.md                 # Agent guidelines and operational tenets (this file)
+├── agents/                   # Detailed agent guidelines and specifications
+│   ├── CONVENTIONS.md        # Codebase style, naming, and engineering rules
+│   ├── ARCHITECTURE.md       # Architectural breakdown, threading, and protocols
 │   ├── WORKFLOWS.md          # Build, run, debug, and release runbooks
-│   └── TESTING.md            # Complete test suite guide and wire regression specs
+│   └── TESTING.md            # Test runner guide and wire regression specs
 ├── src/                      # C++ source code
 │   ├── main.cpp              # Entry point, signals, listener dispatch, CLI loop
-│   ├── winheader.hpp         # Windows Winsock and platform wrappers
-│   ├── conf/                 # XML config loader (pugixml), match rules, access ACLs
-│   ├── http/                 # Connection engine, parser, response, TLS, codecs
-│   │   ├── version/          # Protocol handlers for HTTP/1.1, 1.0, and 0.9
-│   │   └── cgi/              # RFC 3875 CGI execution engine (php-cgi)
-│   ├── io/                   # File abstraction, path normalization, directory index
-│   ├── logs/                 # Thread-safe access/error logging and IP anonymization
-│   └── util/                 # ThreadPool, CLI parser, string manipulation, toolbox
+│   ├── winheader.hpp         # Windows Winsock and platform compatibility layer
+│   ├── conf/                 # XML config loader (pugixml), routing rules, ACLs
+│   ├── http/                 # Protocol engine, parser, response, TLS, streams
+│   │   ├── cgi/              # RFC 3875 legacy CGI execution engine
+│   │   ├── fastcgi/          # FastCGI client and PHP-FPM process manager
+│   │   ├── telemetry/        # Version check, release telemetry, metrics
+│   │   └── version/          # HTTP/1.1, 1.0, and 0.9 protocol handlers
+│   ├── io/                   # File abstraction, path normalization, file cache
+│   ├── logs/                 # Thread-safe access/error logger, IP anonymization
+│   └── util/                 # ThreadPool, rate limiter, string tools, CLI parser
 ├── conf/                     # Default and runtime configuration files
-├── tests/                    # Python test runner, JSON test cases, wire regressions
-├── build_tools/              # Library builders, dependency checkers, release tools
+├── tests/                    # Test runner, JSON cases, fixtures, regressions
+├── build_tools/              # Dependency installers, benchmarks, release tools
 ├── libs/                     # Static third-party libraries (OpenSSL, Brotli, Zstd, etc.)
 └── Makefile                  # Primary build automation file
 ```
@@ -54,39 +73,35 @@ Mercury/
 
 ## Core Engineering & Architectural Tenets
 
-All agents modifying this codebase must adhere to the following principles:
-
 ### 1. Code & Formatting Conventions
 Adhere strictly to [`agents/CONVENTIONS.md`](agents/CONVENTIONS.md):
-- **Comments**: Start with uppercase, omit terminal periods on single-line comments, use telegraphic style (drop articles *a*, *an*, *the*), and lead with imperative action verbs (`// Bind socket`, `# Parse headers`).
-- **Formatting**: 4-space indentation across C++, Python, HTML, and CSS (tabs strictly for Makefile recipes). 1TBS / K&R brace placement.
-- **Naming**: `snake_case` for C/Python, `PascalCase` for classes/structs, `camelCase` for C++ methods/functions. Prefix pointers with `p` (`pSSL`, `pResponse`, `pServer`). Pre-increment (`++i`) in loops.
-- **Compiler Compliance**: C++20 standard (`-std=c++20`), compiling cleanly with `-Wall -Wextra -Werror`.
+- **C++ Standard**: C++20 (`-std=c++20`), compiling cleanly with `-Wall -Wextra -Werror`.
+- **Formatting**: 4-space indentation; 1TBS / K&R brace placement; tabs strictly for Makefile recipes.
+- **Naming**: `snake_case` (C/Python), `PascalCase` (classes/structs), `camelCase` (C++ methods/functions). Prefix pointers with `p` (`pSSL`, `pServer`). Pre-increment (`++i`) in loops.
+- **Comments**: Telegraphic style (drop articles *a*, *an*, *the*), leading with imperative verbs (`// Bind socket`). Start with uppercase; omit terminal periods on single-line comments. Never reference audit issue numbers in code or changelog.
 
 ### 2. Socket Management & Concurrency
-- **Connection Registration**: Track every client descriptor under `clientsMutex` (`trackClient`) before enqueuing to the `ThreadPool`. Always untrack (`untrackClient`) prior to socket closure.
-- **Graceful Shutdown**: On shutdown, wake blocked readers using `shutdown()` before joining worker threads.
-- **Loopback Cooldowns**: Rapidly binding and rebinding server sockets over loopback (especially IPv6) may encounter `EADDRINUSE` (`errno: 98`) due to kernel TCP `TIME_WAIT`.
+- **Client Tracking**: Register every client descriptor under `clientsMutex` (`trackClient`) before enqueuing to `ThreadPool`; always untrack (`untrackClient`) before closing.
+- **Shutdown**: On server stop, wake blocked readers with `shutdown()` before joining worker threads.
+- **Loopback Cooldown**: Rapid loopback rebinds may hit kernel `TIME_WAIT` (`EADDRINUSE`).
 
 ### 3. Memory Safety & RAII
-- Never leak dynamic resources. Favor modern C++ RAII wrappers (`std::unique_ptr`, `std::shared_ptr`, `std::vector`, `std::string`).
-- Ensure every OpenSSL context and session structure (`SSL*`, `SSL_CTX*`) is properly paired with its corresponding cleanup call (`SSL_free`, `SSL_CTX_free`).
+- Zero resource leaks. Use RAII wrappers (`std::unique_ptr`, `std::shared_ptr`, `std::vector`, `std::string`).
+- Ensure every OpenSSL allocation (`SSL*`, `SSL_CTX*`) is paired with its cleanup call (`SSL_free`, `SSL_CTX_free`).
 
 ### 4. Binary Data & Protocol Safety
-- Never assume incoming HTTP bodies or CGI payloads are null-terminated ASCII. Preserve raw byte arrays and binary payloads containing `\0`.
-- Retain surplus pipelined bytes in the connection buffer across keep-alive requests.
-- Header lines are limited to 64 KiB (returning 431 on overflow), and malformed or duplicate framing headers (`Content-Length`, `Transfer-Encoding`) must return 400.
+- Never assume incoming HTTP bodies or CGI payloads are null-terminated ASCII. Preserve raw byte arrays containing `\0`.
+- Retain surplus pipelined bytes in connection buffers across keep-alive requests.
+- Limit header lines to 64 KiB (return 431 on overflow); return 400 on malformed or duplicate framing headers (`Content-Length`, `Transfer-Encoding`).
 
 ### 5. Version Synchronization
-- Any version change must update both `version.txt` (`Mercury vX.Y.Z`) and `CHANGELOG.md` (`## [X.Y.Z] - YYYY-MM-DD`). The CI workflow will fail if these diverge.
+- Keep `version.txt` (`Mercury vX.Y.Z`) and `CHANGELOG.md` (`## [X.Y.Z] - YYYY-MM-DD`) strictly in sync.
 
 ---
 
-## Detailed Agent Documentation
+## Detailed References
 
-For in-depth explanations and specialized procedures, refer to:
-- [`agents/CONVENTIONS.md`](agents/CONVENTIONS.md): Complete style, commenting, indentation, and architectural idiom rules.
-- [`agents/ARCHITECTURE.md`](agents/ARCHITECTURE.md): Deep dive into server internals, protocol framing, compression pipeline, CGI, and security boundaries.
-- [`agents/WORKFLOWS.md`](agents/WORKFLOWS.md): Comprehensive instructions for building, running, debugging with GDB, profiling, and cutting releases.
-- [`agents/TESTING.md`](agents/TESTING.md): Detailed documentation of the 4-way transport test harness, JSON test schema, and wire regression tests.
-
+- [`agents/CONVENTIONS.md`](agents/CONVENTIONS.md): Formatting, naming, commenting, and code idioms.
+- [`agents/ARCHITECTURE.md`](agents/ARCHITECTURE.md): Concurrency model, protocol framing, CGI/FastCGI, and security boundaries.
+- [`agents/WORKFLOWS.md`](agents/WORKFLOWS.md): Build recipes, debugging with GDB, profiling, and releases.
+- [`agents/TESTING.md`](agents/TESTING.md): Test harness, JSON test schema, and wire regressions.

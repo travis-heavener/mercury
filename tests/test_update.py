@@ -11,6 +11,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "conf"))
@@ -262,6 +263,48 @@ class TestUpdateUtility(unittest.TestCase):
             self.assertFalse(is_ok)
             self.assertTrue(len(msg) > 0)
 
+    def test_validate_config_rejects_numeric_overflow(self):
+        if not self.binary_path.exists():
+            self.skipTest("Mercury binary not present in bin/")
+
+        with tempfile.TemporaryDirectory() as tmp_dir_str:
+            tmp_dir = Path(tmp_dir_str)
+
+            # Test integer overflow exceeding 32-bit unsigned bounds
+            overflow_conf = tmp_dir / "overflow.conf"
+            overflow_conf.write_text("<Mercury><MaxRequestBody>4294967296</MaxRequestBody></Mercury>")
+            is_ok, msg = update.validate_config(self.binary_path, overflow_conf, self.repo_root)
+            self.assertFalse(is_ok)
+            self.assertIn("MaxRequestBody", msg)
+
+            # Test 16-bit integer overflow
+            backlog_conf = tmp_dir / "backlog.conf"
+            backlog_conf.write_text("<Mercury><MaxRequestBacklog>65536</MaxRequestBacklog></Mercury>")
+            is_ok, msg = update.validate_config(self.binary_path, backlog_conf, self.repo_root)
+            self.assertFalse(is_ok)
+            self.assertIn("MaxRequestBacklog", msg)
+
+            # Test trailing non-digit characters
+            invalid_str_conf = tmp_dir / "invalid_str.conf"
+            invalid_str_conf.write_text("<Mercury><MaxRequestBody>123abc</MaxRequestBody></Mercury>")
+            is_ok, msg = update.validate_config(self.binary_path, invalid_str_conf, self.repo_root)
+            self.assertFalse(is_ok)
+            self.assertIn("MaxRequestBody", msg)
+
+            # Test negative CIDR prefix length wrapping to positive value
+            cidr_conf = tmp_dir / "cidr.conf"
+            cidr_conf.write_text('<Mercury><Match pattern=".*"><Access mode="allow all"><Deny>127.0.0.1/-18446744073709551615</Deny></Access></Match></Mercury>')
+            is_ok, msg = update.validate_config(self.binary_path, cidr_conf, self.repo_root)
+            self.assertFalse(is_ok)
+            self.assertIn("Deny", msg)
+
+            # Test negative redirect status code wrapping to positive value
+            redirect_conf = tmp_dir / "redirect.conf"
+            redirect_conf.write_text('<Mercury><Redirect pattern="^/a$" to="/b">-18446744073709551315</Redirect></Mercury>')
+            is_ok, msg = update.validate_config(self.binary_path, redirect_conf, self.repo_root)
+            self.assertFalse(is_ok)
+            self.assertIn("Redirect", msg)
+
     def test_validate_config_accepts_minimal_and_optional_nodes(self):
         if not self.binary_path.exists():
             self.skipTest("Mercury binary not present in bin/")
@@ -306,15 +349,24 @@ class TestUpdateUtility(unittest.TestCase):
             shutil.copy2(self.default_conf_path, root / "conf" / "default" / "mercury.conf")
             shutil.copy2(self.repo_root / "conf" / "mimes.conf", root / "conf" / "mimes.conf")
             (root / "version.txt").write_text("Mercury v0.35.0\n")
+            (root / "version.txt").chmod(0o600)
 
             orig_conf_bytes = (root / "conf" / "mercury.conf").read_bytes()
             orig_bin_bytes = (root / "bin" / self.binary_path.name).read_bytes()
+            orig_version_text = (root / "version.txt").read_text()
+            (root / "conf" / "html").mkdir(parents=True, exist_ok=True)
+            (root / "conf" / "html" / "404.html").write_text("Old 404")
+            orig_html_text = (root / "conf" / "html" / "404.html").read_text()
 
             # Construct mock payload
             payload = root / "payload"
             (payload / "bin").mkdir(parents=True)
+            (payload / "conf" / "html").mkdir(parents=True)
             shutil.copy2(self.binary_path, payload / "bin" / self.binary_path.name)
             (payload / "version.txt").write_text("Mercury v0.36.0\n")
+            (payload / "version.txt").chmod(0o644)
+            (payload / "conf" / "html" / "404.html").write_text("New 404")
+            (payload / "conf" / "html" / "500.html").write_text("New 500")
 
             reconciled_text = (root / "conf" / "mercury.conf").read_text()
 
@@ -338,6 +390,11 @@ class TestUpdateUtility(unittest.TestCase):
             # Verify files were restored to original state
             self.assertEqual((root / "conf" / "mercury.conf").read_bytes(), orig_conf_bytes)
             self.assertEqual((root / "bin" / self.binary_path.name).read_bytes(), orig_bin_bytes)
+            self.assertEqual((root / "version.txt").read_text(), orig_version_text)
+            if sys.platform not in ("win32", "cygwin"):
+                self.assertEqual((root / "version.txt").stat().st_mode & 0o777, 0o600)
+            self.assertEqual((root / "conf" / "html" / "404.html").read_text(), orig_html_text)
+            self.assertFalse((root / "conf" / "html" / "500.html").exists())
 
             # Verify temporary binary backup was deleted
             binary_backups = list((root / "bin").glob("*.bak.*"))
@@ -346,6 +403,61 @@ class TestUpdateUtility(unittest.TestCase):
             # Verify config backup remains available for user
             conf_backups = list((root / "conf").glob("mercury.conf.bak.*"))
             self.assertEqual(len(conf_backups), 1)
+
+    def test_rollback_removes_new_binary_and_preserves_unbacked_asset(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "conf").mkdir()
+            conf = root / "conf" / "mercury.conf"
+            conf.write_text("old config")
+            version = root / "version.txt"
+            version.write_text("old version")
+            payload = root / "payload"
+            (payload / "bin").mkdir(parents=True)
+            binary_name = "mercury.exe" if sys.platform in ("win32", "cygwin") else "mercury"
+            (payload / "bin" / binary_name).write_text("new binary")
+            (payload / "version.txt").write_text("new version")
+            original_copy = shutil.copy2
+
+            def fail_backup(src, dst, *args, **kwargs):
+                if Path(src) == version and Path(dst).parent.name.startswith("mercury-update-backup-"):
+                    raise OSError("simulated backup failure")
+                return original_copy(src, dst, *args, **kwargs)
+
+            with patch.object(update.shutil, "copy2", side_effect=fail_backup):
+                with self.assertRaisesRegex(OSError, "simulated backup failure"):
+                    update.apply_update(root, conf, payload, "new config", "new")
+            self.assertEqual(version.read_text(), "old version")
+            self.assertEqual(conf.read_text(), "old config")
+            self.assertFalse((root / "bin" / binary_name).exists())
+
+    def test_rollback_failure_reports_retained_backup(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "conf").mkdir()
+            conf = root / "conf" / "mercury.conf"
+            conf.write_text("old config")
+            version = root / "version.txt"
+            version.write_text("old version")
+            payload = root / "payload"
+            (payload / "bin").mkdir(parents=True)
+            binary_name = "mercury.exe" if sys.platform in ("win32", "cygwin") else "mercury"
+            (payload / "bin" / binary_name).write_text("new binary")
+            (payload / "version.txt").write_text("new version")
+            original_copy = shutil.copy2
+
+            def fail_restore(src, dst, *args, **kwargs):
+                if Path(dst) == version and Path(src).parent.name.startswith("mercury-update-backup-"):
+                    raise OSError("simulated restore failure")
+                return original_copy(src, dst, *args, **kwargs)
+
+            with patch.object(update.shutil, "copy2", side_effect=fail_restore), \
+                    patch.object(update, "validate_config", return_value=(False, "simulated validation failure")):
+                with self.assertRaisesRegex(RuntimeError, "Rollback incomplete.*simulated restore failure"):
+                    update.apply_update(root, conf, payload, "new config", "new")
+            backups = list(root.glob("mercury-update-backup-*"))
+            self.assertEqual(len(backups), 1)
+            self.assertIn(b"old version", [item.read_bytes() for item in backups[0].iterdir()])
 
 if __name__ == "__main__":
     unittest.main()

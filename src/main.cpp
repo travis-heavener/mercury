@@ -11,6 +11,7 @@
 
 #include "conf/conf.hpp"
 #include "http/fastcgi/backend.hpp"
+#include "http/fastcgi/client.hpp"
 #include "http/server.hpp"
 #include "http/server-ipv6.hpp"
 #include "http/telemetry/version_checker.hpp"
@@ -27,7 +28,6 @@ std::vector<std::shared_ptr<http::Server>> serversVec;
 /******************** SIGNAL HANDLERS & CLEANUP ********************/
 
 void catchSig(int) {
-    std::cout << std::endl;
     isExiting.store(true);
 }
 
@@ -69,6 +69,9 @@ void cleanExit() {
     #ifdef _WIN32
         WSACleanup();
     #endif
+
+    // Notify any pending FastCGI resolver lookups
+    http::fastcgi::notifyResolverShutdown();
 
     // Clear static file cache
     io::FileCache::getInstance().clear();

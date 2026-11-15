@@ -39,6 +39,15 @@ namespace http {
         // Update header casing (ex. cOntENt-LeNGTh --> Content-Length)
         formatHeaderCasing(name);
 
+        if (name == "Content-Encoding")
+            this->hasCustomContentEncoding = true;
+
+        if (name == "Set-Cookie") {
+            setCookies.clear();
+            setCookies.push_back(value);
+            return;
+        }
+
         // Check if header already exists
         auto itrMatch = headers.find(name);
         if (itrMatch != headers.end())
@@ -47,9 +56,43 @@ namespace http {
             this->headers.insert({name, value});
     }
 
+    void Response::addHeader(std::string name, const std::string& value) {
+        if (!isValidHeaderName(name) || !isValidHeaderValue(value))
+            throw std::invalid_argument("Invalid response header");
+
+        formatHeaderCasing(name);
+
+        if (name == "Content-Encoding")
+            this->hasCustomContentEncoding = true;
+
+        if (name == "Set-Cookie") {
+            setCookies.push_back(value);
+            return;
+        }
+
+        if (name == "Vary") {
+            addVary(value);
+            return;
+        }
+
+        auto itrMatch = headers.find(name);
+        if (itrMatch != headers.end())
+            itrMatch->second = value;
+        else
+            this->headers.insert({name, value});
+    }
+
     void Response::clearHeader(std::string name) {
         // Update header casing (ex. cOntENt-LeNGTh --> Content-Length)
         formatHeaderCasing(name);
+
+        if (name == "Content-Encoding")
+            this->hasCustomContentEncoding = false;
+
+        if (name == "Set-Cookie") {
+            setCookies.clear();
+            return;
+        }
 
         // Check if header already exists
         auto itrMatch = headers.find(name);
@@ -57,13 +100,75 @@ namespace http {
             headers.erase(itrMatch);
     }
 
+    void Response::addVary(std::string_view value) {
+        auto itrMatch = headers.find("Vary");
+        if (itrMatch == headers.end()) {
+            headers.insert({"Vary", std::string(value)});
+            return;
+        }
+
+        if (itrMatch->second == "*") return;
+
+        // Parse incoming tokens
+        size_t start = 0;
+        while (start < value.size()) {
+            const size_t comma = value.find(',', start);
+            std::string_view token = (comma == std::string_view::npos)
+                ? value.substr(start)
+                : value.substr(start, comma - start);
+            start = (comma == std::string_view::npos) ? value.size() : comma + 1;
+
+            const size_t first = token.find_first_not_of(" \t");
+            if (first == std::string_view::npos) continue;
+            const size_t last = token.find_last_not_of(" \t");
+            token = token.substr(first, last - first + 1);
+            if (token.empty()) continue;
+
+            if (token == "*") { itrMatch->second = "*"; return; }
+
+            // Check if token already exists in current Vary header (case-insensitive)
+            bool found = false;
+            size_t curStart = 0;
+            while (curStart < itrMatch->second.size()) {
+                const size_t curComma = itrMatch->second.find(',', curStart);
+                std::string_view curToken = (curComma == std::string_view::npos)
+                    ? std::string_view(itrMatch->second).substr(curStart)
+                    : std::string_view(itrMatch->second).substr(curStart, curComma - curStart);
+                curStart = (curComma == std::string_view::npos) ? itrMatch->second.size() : curComma + 1;
+
+                const size_t cFirst = curToken.find_first_not_of(" \t");
+                if (cFirst == std::string_view::npos) continue;
+                const size_t cLast = curToken.find_last_not_of(" \t");
+                curToken = curToken.substr(cFirst, cLast - cFirst + 1);
+
+                if (curToken.size() == token.size() &&
+                    std::equal(curToken.begin(), curToken.end(), token.begin(), [](char a, char b) {
+                        return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
+                    })) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                if (!itrMatch->second.empty())
+                    itrMatch->second += ", ";
+                itrMatch->second.append(token);
+            }
+        }
+    }
+
     void Response::setCompressMethod(const int compressMethod) {
+        // Retain backend-provided content encoding without recompression
+        if (this->hasCustomContentEncoding) return;
+
         // Determine compression method
         switch ( this->compressMethod = compressMethod ) {
-            case COMPRESS_ZSTD:    setHeader("Content-Encoding", "zstd");    break;
-            case COMPRESS_BROTLI:  setHeader("Content-Encoding", "br");      break;
-            case COMPRESS_GZIP:    setHeader("Content-Encoding", "gzip");    break;
-            case COMPRESS_DEFLATE: setHeader("Content-Encoding", "deflate"); break;
+            case COMPRESS_ZSTD:    headers["Content-Encoding"] = "zstd";    break;
+            case COMPRESS_BROTLI:  headers["Content-Encoding"] = "br";      break;
+            case COMPRESS_GZIP:    headers["Content-Encoding"] = "gzip";    break;
+            case COMPRESS_DEFLATE: headers["Content-Encoding"] = "deflate"; break;
+            default:               clearHeader("Content-Encoding");          break;
         }
     }
 
@@ -133,22 +238,33 @@ namespace http {
     }
 
     bool Response::extendByteRanges(const std::vector<byte_range_t>& byteRanges) {
-        // Validate each byte range
+        if (byteRanges.empty()) return true;
         const size_t streamSize = pBodyStream->size();
+        if (streamSize == 0) return false;
+
+        // Filter satisfiable byte ranges (RFC 9110 Section 14.1.2)
         const size_t npos = std::string::npos;
+        std::vector<byte_range_t> satisfiableRanges;
         for (const byte_range_t& byteRange : byteRanges) {
             const size_t first = byteRange.first, second = byteRange.second;
-            if ((first == npos && (second > streamSize || second == 0)) || // Ex. bytes=-500
-                (second == npos && (first >= streamSize)) || // Ex. bytes=0-
-                (first != npos && second != npos && (first > second || first >= streamSize || second >= streamSize)) // Ex. bytes=200-300
-            ) {
-                return false;
+            if (first == npos) {
+                // Suffix range: bytes=-N (N must be > 0)
+                if (second == 0) return false;
+                satisfiableRanges.push_back(byteRange);
+            } else if (second == npos) {
+                // Open range: bytes=N- (N must be < streamSize)
+                if (first < streamSize) satisfiableRanges.push_back(byteRange);
+            } else {
+                // Explicit range: bytes=N-M (first must be <= second)
+                if (first > second) return false;
+                if (first < streamSize) satisfiableRanges.push_back(byteRange);
             }
         }
+        if (satisfiableRanges.empty()) return false;
 
         // Sort and coalesce byte ranges
         std::vector<byte_range_t> sortedByteRanges;
-        intervalMergeByteRanges(byteRanges, sortedByteRanges, streamSize);
+        intervalMergeByteRanges(satisfiableRanges, sortedByteRanges, streamSize);
 
         // Verify only one byte range is present
         if (sortedByteRanges.size() > 1) return false;
@@ -300,6 +416,45 @@ namespace http {
             return static_cast<ssize_t>(sent);
         };
 
+        // Lambda to reset Content-Length, close the connection, and wipe the stream
+        auto clearBodyAndResetStream = [&]() {
+            clearByteRanges();
+            compressMethod = NO_COMPRESS;
+            clearHeader("Content-Encoding");
+            this->clearHeader("Content-Type");
+            this->clearHeader("Keep-Alive");
+            this->clearHeader("Accept-Ranges");
+            this->clearHeader("Last-Modified");
+            this->clearHeader("ETag");
+            this->setHeader("Content-Length", "0");
+            this->setHeader("Connection", "close");
+            setBodyStream( std::unique_ptr<IBodyStream>( new MemoryStream("") ) );
+        };
+
+        // Reject responses exceeding configured body limit
+        if (!omitBody && pBodyStream != nullptr &&
+            ((!originalByteRanges.empty() && totalByteRangeSize > conf::MAX_RESPONSE_BODY) ||
+            (originalByteRanges.empty() && pBodyStream->size() > conf::MAX_RESPONSE_BODY)))
+        {
+            this->setStatus(413);
+            this->clearHeader("Keep-Alive");
+            this->clearHeader("Accept-Ranges");
+            this->clearHeader("Content-Encoding");
+            this->clearHeader("Last-Modified");
+            this->clearHeader("ETag");
+            this->setHeader("Connection", "close");
+            compressMethod = NO_COMPRESS;
+            if (isHTMLAccepted) { // Replace body
+                this->loadBodyFromErrorDoc(413);
+
+                // Verify the error doc ALSO isn't too large
+                if (pBodyStream->size() > conf::MAX_RESPONSE_BODY)
+                    clearBodyAndResetStream();
+            } else { // Remove body
+                clearBodyAndResetStream();
+            }
+        }
+
         // Handle HTTP/0.9 unique format
         if (this->httpVersion == "HTTP/0.9") {
             // Verify status is unset (only set by errors)
@@ -320,49 +475,18 @@ namespace http {
             return 0;
         }
 
-        // Lambda to reset Content-Length, close the connection, and wipe the stream
-        auto clearBodyAndResetStream = [&]() {
-            clearByteRanges();
-            compressMethod = NO_COMPRESS;
-            clearHeader("Content-Encoding");
-            this->clearHeader("Content-Type");
-            this->clearHeader("Keep-Alive");
-            this->setHeader("Content-Length", "0");
-            this->setHeader("Connection", "close");
-            setBodyStream( std::unique_ptr<IBodyStream>( new MemoryStream("") ) );
-        };
-
         // Advertise byte ranges for FileStreams or range-capable static bodies
         if (dynamic_cast<FileStream*>(pBodyStream.get()) != nullptr ||
             dynamic_cast<CachedFileStream*>(pBodyStream.get()) != nullptr ||
             this->headers.contains("Accept-Ranges"))
             this->setHeader("Accept-Ranges", "bytes");
 
-        // Verify the content isn't too large as a MemoryStream
-        if (dynamic_cast<MemoryStream*>(pBodyStream.get()) != nullptr &&
-            ((!originalByteRanges.empty() && totalByteRangeSize > conf::MAX_RESPONSE_BODY) ||
-            (originalByteRanges.empty() && pBodyStream->size() > conf::MAX_RESPONSE_BODY)))
-        {
-            this->setStatus(413);
-            this->clearHeader("Keep-Alive");
-            this->setHeader("Connection", "close");
-            if (isHTMLAccepted) { // Replace body
-                this->loadBodyFromErrorDoc(413);
-
-                // Verify the error doc ALSO isn't too large
-                if (pBodyStream->size() > conf::MAX_RESPONSE_BODY)
-                    clearBodyAndResetStream();
-            } else { // Remove body
-                clearBodyAndResetStream();
-            }
-        }
-
         // Check if the body needs to be pre-compressed (HTTP/1.0 or HTTP/1.1+ w/ small bodies)
         bool wasPrecompressed = false;
-        if (originalByteRanges.size() <= 1 &&
+        if (!hasCustomContentEncoding && pBodyStream->size() > 0 && originalByteRanges.size() <= 1 &&
             (
-                (httpVersion == "HTTP/1.0" && pBodyStream->size() > conf::MIN_COMPRESSION_SIZE) ||
-                (pBodyStream->size() <= conf::RESPONSE_BUFFER_SIZE && pBodyStream->size() > conf::MIN_COMPRESSION_SIZE)
+                (httpVersion == "HTTP/1.0" && (pBodyStream->size() > conf::MIN_COMPRESSION_SIZE || (!identityAccepted && compressMethod != NO_COMPRESS))) ||
+                (pBodyStream->size() <= conf::RESPONSE_BUFFER_SIZE && (pBodyStream->size() > conf::MIN_COMPRESSION_SIZE || (!identityAccepted && compressMethod != NO_COMPRESS)))
             )
         ) {
             if (!this->precompressBody()) { // Failed to compress body
@@ -396,11 +520,11 @@ namespace http {
 
         // Create a streamable, buffered compressor
         std::unique_ptr<ICompressor> pCompressor(
-            (wasPrecompressed || pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE) ? nullptr : createCompressorStream(this->compressMethod)
+            (hasCustomContentEncoding || wasPrecompressed || pBodyStream->size() == 0 || (identityAccepted && pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE)) ? nullptr : createCompressorStream(this->compressMethod)
         );
 
         // Skip compression for small bodies
-        if (!wasPrecompressed && pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE)
+        if (!hasCustomContentEncoding && !wasPrecompressed && (pBodyStream->size() == 0 || (identityAccepted && pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE)))
             clearHeader("Content-Encoding");
 
         // Update transfer encoding
@@ -441,6 +565,10 @@ namespace http {
         if (bodySize == 0 && statusCode != 204 && statusCode != 304)
             setHeader("Content-Length", "0");
 
+        // Ensure representation selection includes Vary: Accept-Encoding (RFC 9110 Section 12.5.5)
+        if (headers.contains("Content-Encoding") || statusCode == 200 || statusCode == 206 || statusCode == 304 || statusCode == 406)
+            addVary("Accept-Encoding");
+
         // Load config headers last to overwrite any dupes that have been previously set
         static const std::string serverHeader = "Mercury/" + (conf::VERSION.size() > 9 ? conf::VERSION.substr(9) : conf::VERSION);
         setHeader("Server", serverHeader);
@@ -452,6 +580,8 @@ namespace http {
         size_t estimatedSize = httpVersion.size() + 1 + statusCodeStr.size() + 1 + reason.size() + 2 + 2;
         for (const auto& [name, value] : this->headers)
             estimatedSize += name.size() + 2 + value.size() + 2;
+        for (const auto& cookie : this->setCookies)
+            estimatedSize += 12 + cookie.size() + 2;
 
         const bool combineBody = !omitBody && bodySize > 0 && bodySize <= conf::RESPONSE_BUFFER_SIZE;
         const size_t totalBufferSize = estimatedSize + (combineBody ? bodySize : 0);
@@ -474,6 +604,11 @@ namespace http {
             headersBlock.append(name);
             headersBlock.append(": ");
             headersBlock.append(value);
+            headersBlock.append(CRLF);
+        }
+        for (const auto& cookie : this->setCookies) {
+            headersBlock.append("Set-Cookie: ");
+            headersBlock.append(cookie);
             headersBlock.append(CRLF);
         }
         headersBlock.append(CRLF);

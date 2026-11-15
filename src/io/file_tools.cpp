@@ -4,10 +4,13 @@
     #include "../winheader.hpp"
 #else
     #include <fcntl.h>
+    #include <pwd.h>
+    #include <sys/types.h>
     #include <unistd.h>
 #endif
 
 #include <algorithm>
+#include <cstdlib>
 #include <random>
 #include <sys/stat.h>
 
@@ -25,6 +28,84 @@ void normalizeBackslashes(std::string& path) {
         std::replace( path.begin(), path.end(), '\\', '/' );
 }
 
+// Expand leading tilde to user home directory
+std::filesystem::path expandUserHomePath(const std::filesystem::path& path) {
+    const std::string pathStr = path.string();
+    if (pathStr.empty() || pathStr[0] != '~')
+        return path;
+
+    std::string homeDir;
+    std::string remainder;
+
+    // Determine remainder
+    if (pathStr == "~") {
+        remainder = "";
+    } else if (pathStr[1] == '/' || pathStr[1] == '\\') {
+        size_t start = 2;
+        while (start < pathStr.size() && (pathStr[start] == '/' || pathStr[start] == '\\'))
+            ++start;
+        remainder = pathStr.substr(start);
+    } else {
+        #ifndef _WIN32
+            // Ex. ~travis, ~user
+            const size_t sep = pathStr.find_first_of("/\\");
+            const std::string user = (sep == std::string::npos) ? pathStr.substr(1) : pathStr.substr(1, sep - 1);
+            if (sep != std::string::npos) {
+                size_t start = sep + 1;
+                while (start < pathStr.size() && (pathStr[start] == '/' || pathStr[start] == '\\'))
+                    ++start;
+                remainder = pathStr.substr(start);
+            }
+
+            // Resolve home directory of user
+            struct passwd* pPw = getpwnam(user.c_str());
+            if (pPw && pPw->pw_dir && pPw->pw_dir[0] != '\0')
+                homeDir = pPw->pw_dir;
+            else
+                return path;
+        #else
+            return path;
+        #endif
+    }
+
+    // Determine home directory if currently empty
+    if (homeDir.empty()) {
+        #ifndef _WIN32
+            const char* pHome = std::getenv("HOME");
+            if (pHome && *pHome != '\0') {
+                homeDir = pHome;
+            } else {
+                struct passwd* pPw = getpwuid(getuid());
+                if (pPw && pPw->pw_dir && pPw->pw_dir[0] != '\0')
+                    homeDir = pPw->pw_dir;
+            }
+        #else
+            const char* pProfile = std::getenv("USERPROFILE");
+            if (pProfile && *pProfile != '\0') {
+                homeDir = pProfile;
+            } else {
+                const char* pDrive = std::getenv("HOMEDRIVE");
+                const char* pPath = std::getenv("HOMEPATH");
+                if (pDrive && pPath && *pDrive != '\0' && *pPath != '\0') {
+                    homeDir = std::string(pDrive) + pPath;
+                } else {
+                    const char* pHome = std::getenv("HOME");
+                    if (pHome && *pHome != '\0')
+                        homeDir = pHome;
+                }
+            }
+        #endif
+    }
+
+    if (homeDir.empty())
+        return path;
+
+    if (remainder.empty())
+        return std::filesystem::path(homeDir);
+
+    return std::filesystem::path(homeDir) / remainder;
+}
+
 bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
     if (path.empty()) return false;
 
@@ -38,8 +119,9 @@ bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
             winPath.pop_back();
         }
 
+        const std::wstring wPath = std::filesystem::path(winPath).wstring();
         struct _stat64 st;
-        if (_wstat64(std::filesystem::path(winPath).wstring().c_str(), &st) != 0) return false;
+        if (_wstat64(wPath.c_str(), &st) != 0) return false;
 
         // Update metadata
         outMeta.exists = true;
@@ -49,6 +131,16 @@ bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
         outMeta.lastModTime = st.st_mtime;
         outMeta.mode = static_cast<uint32_t>(st.st_mode);
         outMeta.inode = 0;
+
+        WIN32_FILE_ATTRIBUTE_DATA fileAttr{};
+        if (GetFileAttributesExW(wPath.c_str(), GetFileExInfoStandard, &fileAttr)) {
+            ULARGE_INTEGER ull;
+            ull.LowPart = fileAttr.ftLastWriteTime.dwLowDateTime;
+            ull.HighPart = fileAttr.ftLastWriteTime.dwHighDateTime;
+            outMeta.lastModTimeNsec = static_cast<uint64_t>((ull.QuadPart % 10000000ULL) * 100ULL);
+        } else {
+            outMeta.lastModTimeNsec = 0;
+        }
         return true;
     #else
         struct stat st;
@@ -60,6 +152,7 @@ bool queryFileMetadata(const std::string& path, FileMetadata& outMeta) {
         outMeta.isRegularFile = S_ISREG(st.st_mode);
         outMeta.size = static_cast<size_t>(st.st_size);
         outMeta.lastModTime = st.st_mtime;
+        outMeta.lastModTimeNsec = static_cast<uint64_t>(st.st_mtim.tv_nsec);
         outMeta.mode = static_cast<uint32_t>(st.st_mode);
         outMeta.inode = static_cast<uint64_t>(st.st_ino);
         return true;
@@ -175,6 +268,7 @@ bool tryResolveCanonicalPath(const std::filesystem::path& path, std::filesystem:
                 ull.LowPart = fileInfo.ftLastWriteTime.dwLowDateTime;
                 ull.HighPart = fileInfo.ftLastWriteTime.dwHighDateTime;
                 pOutMeta->lastModTime = static_cast<std::time_t>((ull.QuadPart - 116444736000000000ULL) / 10000000ULL);
+                pOutMeta->lastModTimeNsec = static_cast<uint64_t>((ull.QuadPart % 10000000ULL) * 100ULL);
             }
         }
 

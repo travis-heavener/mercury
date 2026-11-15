@@ -108,6 +108,9 @@ namespace http::fastcgi {
     // Used to infer Content-Type from memory buffer
     void inferContentType(std::string_view body, Response& res);
 
+    // Notify and wake pending FastCGI resolver waiters during server shutdown
+    void notifyResolverShutdown();
+
 }
 
 #endif

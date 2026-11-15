@@ -1,7 +1,6 @@
 #include "params.hpp"
 
 #include <algorithm>
-#include <cstring>
 
 #include "protocol.hpp"
 

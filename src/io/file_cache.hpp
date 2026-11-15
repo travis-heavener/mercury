@@ -1,7 +1,9 @@
 #ifndef __FILE_CACHE_HPP
 #define __FILE_CACHE_HPP
 
+#include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
@@ -28,6 +30,7 @@ namespace io {
         std::string lastModGMT; // Formatted RFC 7231 Last-Modified timestamp
         size_t fileSize = 0; // File payload size in bytes
         std::time_t lastModTime = 0; // POSIX modification timestamp in seconds
+        uint64_t lastModTimeNsec = 0; // Nanosecond component of modification timestamp
         uint32_t mode = 0; // File permission bitmask
         uint64_t inode = 0; // Filesystem inode or Windows file index
         bool exists = false; // Filesystem existence flag
@@ -36,8 +39,8 @@ namespace io {
         bool ioFailure = false; // File access or query failure flag
         bool hasModTime = false; // Modification timestamp availability flag
         std::shared_ptr<const std::string> pContent; // Immutable shared buffer for in-memory file payload
-        std::chrono::steady_clock::time_point lastValidated; // Monotonic clock timestamp of last stat check
-        uint32_t accessCount = 0; // Access frequency counter for LFU eviction
+        std::atomic<std::chrono::steady_clock::time_point> lastValidated{}; // Monotonic clock timestamp of last stat check
+        std::atomic<uint32_t> accessCount{0}; // Access frequency counter for LFU eviction
     };
 
     /**********************************************************/

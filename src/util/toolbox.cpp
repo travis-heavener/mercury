@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
-#include <iomanip>
 #include <string>
 
 #ifdef _WIN32
@@ -12,7 +11,6 @@
 
 #include "string_tools.hpp"
 #include "../conf/conf.hpp"
-#include "../io/file_tools.hpp"
 
 static void formatFileSize(size_t fileSize, std::string& buffer) {
     long double truncatedSize;
@@ -168,12 +166,13 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std:
                 // Format href
                 hrefBuf = std::filesystem::path(rawPathBuf).parent_path().generic_string();
                 hrefBuf += hrefBuf.back() != '/' ? "/" : ""; // Affix trailing fwd slash
+                std::string hrefEncoded = encodeURIPath(hrefBuf);
 
                 // Format timestamp
                 modTsBufStr.clear();
                 std::error_code timeEc;
                 formatDate(std::filesystem::last_write_time(std::filesystem::path(path).parent_path(), timeEc), modTsBufStr);
-                out << "<tr> <td><a href=\"" << HtmlEscaped{hrefBuf} << "\">..</a></td> <td></td> <td>" << modTsBufStr << "</td> </tr>\n";
+                out << "<tr> <td><a href=\"" << HtmlEscaped{hrefEncoded} << "\">..</a></td> <td></td> <td>" << modTsBufStr << "</td> </tr>\n";
             }
         }
 
@@ -194,9 +193,10 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std:
             std::error_code fileEc;
             formatDate(file.last_write_time(fileEc), modTsBufStr);
             hrefBuf = (std::filesystem::path(rawPath) / fnameBuf).generic_string();
+            std::string hrefEncoded = encodeURIPath(hrefBuf);
 
             // Append to document
-            out << "<tr> <td><a href=\"" << HtmlEscaped{hrefBuf} << "\">" << HtmlEscaped{fnameBuf} << "</a></td> <td>" << fsizeBufStr << "</td> <td>" << modTsBufStr << "</td> </tr>\n";
+            out << "<tr> <td><a href=\"" << HtmlEscaped{hrefEncoded} << "\">" << HtmlEscaped{fnameBuf} << "</a></td> <td>" << fsizeBufStr << "</td> <td>" << modTsBufStr << "</td> </tr>\n";
         }
 
         // Add other file contents
@@ -216,9 +216,10 @@ int loadDirectoryListing(std::unique_ptr<http::IBodyStream>& pStream, const std:
             std::error_code fileEc;
             formatDate(file.last_write_time(fileEc), modTsBufStr);
             hrefBuf = (std::filesystem::path(rawPath) / fnameBuf).generic_string();
+            std::string hrefEncoded = encodeURIPath(hrefBuf);
 
             // Append to document
-            out << "<tr> <td><a href=\"" << HtmlEscaped{hrefBuf} << "\">" << HtmlEscaped{fnameBuf} << "</a></td> <td>" << fsizeBufStr << "</td> <td>" << modTsBufStr << "</td> </tr>\n";
+            out << "<tr> <td><a href=\"" << HtmlEscaped{hrefEncoded} << "\">" << HtmlEscaped{fnameBuf} << "</a></td> <td>" << fsizeBufStr << "</td> <td>" << modTsBufStr << "</td> </tr>\n";
         }
     };
 

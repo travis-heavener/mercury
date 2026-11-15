@@ -84,6 +84,113 @@ class LoadTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "failed requests"):
                 bench.LoadGenerator._run_python("127.0.0.1", port, "/", 1, 0.05)
 
+    def test_connection_close_responses_handled_without_failures(self):
+        class CloseHandler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def do_GET(self):
+                self.close_connection = True
+                payload = b"benchmark"
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(payload)))
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def log_message(self, *args):
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), CloseHandler)
+        server.daemon_threads = True
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            port = server.server_port
+            rps, mean_ms, p50_ms, p99_ms = bench.LoadGenerator._run_python(
+                "127.0.0.1", port, "/", concurrency=4, duration=1
+            )
+            self.assertGreater(rps, 0)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+    def test_truncated_headers_on_reused_connection_fails_trial(self):
+        # Server sends complete response on initial connection, but truncated headers on reused connection
+        request_count = 0
+        lock = threading.Lock()
+
+        class TruncatingHandler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def do_GET(self):
+                nonlocal request_count
+                with lock:
+                    request_count += 1
+                    current = request_count
+                if current == 1:
+                    payload = b"benchmark"
+                    self.send_response(200)
+                    self.send_header("Content-Length", str(len(payload)))
+                    self.send_header("Connection", "keep-alive")
+                    self.end_headers()
+                    self.wfile.write(payload)
+                else:
+                    # Send partial header and terminate connection abruptly
+                    self.wfile.write(b"HTTP/1.1 200 OK\r\nContent-")
+                    self.wfile.flush()
+                    self.close_connection = True
+
+            def log_message(self, *args):
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), TruncatingHandler)
+        server.daemon_threads = True
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            port = server.server_port
+            with self.assertRaisesRegex(RuntimeError, "failed requests"):
+                bench.LoadGenerator._run_python(
+                    "127.0.0.1", port, "/", concurrency=1, duration=0.2
+                )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+    def test_x_connection_close_header_does_not_disable_keep_alive(self):
+        # Server sends X-Connection: close which must not be mistaken for Connection: close
+        class XConnectionHandler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def do_GET(self):
+                payload = b"benchmark"
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(payload)))
+                self.send_header("X-Connection", "close")
+                self.send_header("Connection", "keep-alive")
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def log_message(self, *args):
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), XConnectionHandler)
+        server.daemon_threads = True
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            port = server.server_port
+            rps, _, _, _ = bench.LoadGenerator._run_python(
+                "127.0.0.1", port, "/", concurrency=2, duration=0.5
+            )
+            self.assertGreater(rps, 0)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
     def test_payload_validation_checks_bytes(self):
         with http_fixture() as port:
             bench.LoadGenerator.validate_payload("127.0.0.1", port, "/", b"benchmark")

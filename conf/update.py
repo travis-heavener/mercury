@@ -466,6 +466,20 @@ def apply_update(
     if installed_binary.exists():
         shutil.copy2(installed_binary, backup_binary)
 
+    # Track assets replaced or created during update for rollback
+    backup_dir = Path(tempfile.mkdtemp(prefix="mercury-update-backup-", dir=root_dir))
+    backed_up_assets: dict[Path, Path] = {}
+    created_assets: list[Path] = []
+
+    def backup_asset(target_path: Path) -> None:
+        if target_path.exists():
+            if target_path not in backed_up_assets:
+                backup_path = backup_dir / str(len(backed_up_assets))
+                shutil.copy2(target_path, backup_path)
+                backed_up_assets[target_path] = backup_path
+        elif target_path not in created_assets:
+            created_assets.append(target_path)
+
     rollback_needed = True
 
     try:
@@ -475,6 +489,7 @@ def apply_update(
 
         # Replace binary
         (root_dir / "bin").mkdir(parents=True, exist_ok=True)
+        backup_asset(installed_binary)
         shutil.copy2(payload_binary, installed_binary)
         if sys.platform != "win32":
             os.chmod(installed_binary, 0o755)
@@ -482,7 +497,9 @@ def apply_update(
         # Sync version.txt
         payload_version_file = payload_dir / "version.txt"
         if payload_version_file.exists():
-            shutil.copy2(payload_version_file, root_dir / "version.txt")
+            target_version_file = root_dir / "version.txt"
+            backup_asset(target_version_file)
+            shutil.copy2(payload_version_file, target_version_file)
 
         # Sync default templates
         payload_default_conf = payload_dir / "conf" / "default"
@@ -491,7 +508,9 @@ def apply_update(
             target_default.mkdir(parents=True, exist_ok=True)
             for item in payload_default_conf.iterdir():
                 if item.is_file():
-                    shutil.copy2(item, target_default / item.name)
+                    target_item = target_default / item.name
+                    backup_asset(target_item)
+                    shutil.copy2(item, target_item)
 
         # Sync status docs
         payload_html = payload_dir / "conf" / "html"
@@ -500,29 +519,39 @@ def apply_update(
             target_html.mkdir(parents=True, exist_ok=True)
             for item in payload_html.iterdir():
                 if item.is_file():
-                    shutil.copy2(item, target_html / item.name)
+                    target_item = target_html / item.name
+                    backup_asset(target_item)
+                    shutil.copy2(item, target_item)
 
         # Sync MIME types
         payload_mimes = payload_dir / "conf" / "mimes.conf"
         if payload_mimes.exists():
-            shutil.copy2(payload_mimes, root_dir / "conf" / "mimes.conf")
+            target_mimes = root_dir / "conf" / "mimes.conf"
+            backup_asset(target_mimes)
+            shutil.copy2(payload_mimes, target_mimes)
 
         # Sync helper scripts
         for script_name in ("makecert.sh", "makecert.ps1"):
             script_src = payload_dir / "conf" / "ssl" / script_name
             if script_src.exists():
                 (root_dir / "conf" / "ssl").mkdir(parents=True, exist_ok=True)
-                shutil.copy2(script_src, root_dir / "conf" / "ssl" / script_name)
+                target_script = root_dir / "conf" / "ssl" / script_name
+                backup_asset(target_script)
+                shutil.copy2(script_src, target_script)
 
         payload_php_ps1 = payload_dir / "conf" / "setup_php.ps1"
         if payload_php_ps1.exists():
-            shutil.copy2(payload_php_ps1, root_dir / "conf" / "setup_php.ps1")
+            target_php_ps1 = root_dir / "conf" / "setup_php.ps1"
+            backup_asset(target_php_ps1)
+            shutil.copy2(payload_php_ps1, target_php_ps1)
 
         # Sync documentation files
         for doc_name in ("README.md", "README.txt", "CHANGELOG.md", "CONFIG.md", "SECURITY.md", "CREDITS.md", "LICENSE.txt"):
             doc_src = payload_dir / doc_name
             if doc_src.exists():
-                shutil.copy2(doc_src, root_dir / doc_name)
+                target_doc = root_dir / doc_name
+                backup_asset(target_doc)
+                shutil.copy2(doc_src, target_doc)
 
         # Run post-install verification
         is_ok, err_msg = validate_config(installed_binary, conf_path, root_dir)
@@ -535,16 +564,45 @@ def apply_update(
     finally:
         if rollback_needed:
             print("\n❌ Installation failed validation. Performing immediate rollback...")
+            errors = []
+
+            def restore_copy(source: Path, target: Path) -> None:
+                try:
+                    shutil.copy2(source, target)
+                except OSError as exc:
+                    errors.append(f"{target}: {exc}")
+
             if backup_conf.exists():
-                shutil.copy2(backup_conf, conf_path)
+                restore_copy(backup_conf, conf_path)
             if backup_binary.exists():
-                shutil.copy2(backup_binary, installed_binary)
-                backup_binary.unlink(missing_ok=True)
+                restore_copy(backup_binary, installed_binary)
+
+            # Restore original state of all modified assets
+            for path, backup_path in backed_up_assets.items():
+                if path != installed_binary and path != conf_path:
+                    restore_copy(backup_path, path)
+
+            # Remove newly created assets that did not exist before update
+            for path in created_assets:
+                if path != conf_path and path.exists():
+                    try:
+                        path.unlink()
+                    except OSError as exc:
+                        errors.append(f"{path}: {exc}")
+
+            if errors:
+                backup_map = ", ".join(f"{saved} -> {target}" for target, saved in backed_up_assets.items())
+                raise RuntimeError(f"Rollback incomplete; backups retained at {backup_dir}: " + "; ".join(errors)
+                                   + f"; asset backups: {backup_map}; binary backup: {backup_binary}; config backup: {backup_conf}")
+
+            backup_binary.unlink(missing_ok=True)
+            shutil.rmtree(backup_dir)
             print("Rollback complete. System returned to previous state.")
         else:
             # Clean temporary binary backup on success
             if backup_binary.exists():
                 backup_binary.unlink(missing_ok=True)
+            shutil.rmtree(backup_dir)
 
     print(f"\n✅ Successfully updated Mercury to {target_version}!")
     print(f"Configuration backup preserved at: {backup_conf}")

@@ -15,14 +15,6 @@ on:
       - ".github/workflows/**"
   pull_request:
     branches: ["main"]
-    paths:
-      - "src/**"
-      - "build_tools/**"
-      - "tests/**"
-      - "conf/**"
-      - "Makefile"
-      - "version.txt"
-      - ".github/workflows/**"
 
 jobs:
   Build:

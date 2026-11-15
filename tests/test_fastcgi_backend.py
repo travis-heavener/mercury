@@ -38,10 +38,10 @@ class ManagedBackendTests(unittest.TestCase):
                                           "<EnablePHPCGI> off </EnablePHPCGI>")
 
     # Used to write per-test Mercury configuration without editing checked-in files
-    def write_config(self, address=None, enabled=True):
+    def write_config(self, address=None, enabled=True, timeout=2):
         address_node = f"<FastCGIAddress> {address} </FastCGIAddress>" if address is not None else ""
         text = self.config.replace("<Mercury>", f"<Mercury><EnableFastCGI> {'on' if enabled else 'off'} </EnableFastCGI>"
-                                   f"{address_node}<FastCGITimeout> 2 </FastCGITimeout>")
+                                   f"{address_node}<FastCGITimeout> {timeout} </FastCGITimeout>")
         path = self.document_root / "mercury.conf"
         path.write_text(text)
         return str(path)
@@ -121,6 +121,65 @@ class ManagedBackendTests(unittest.TestCase):
                 with Connection("127.0.0.1", 8080) as connection:
                     connection.send(request(b"/index.php"))
                     self.assertEqual(connection.response()[0], 502)
+
+    def test_unix_socket_connect_timeout_on_full_backlog(self):
+        # Create UDS with backlog of 0 and fill queue
+        sock_path = str(self.document_root / "uds_backlog.sock")
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
+            listener.bind(sock_path)
+            listener.listen(0)
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as filler:
+                filler.setblocking(False)
+                try:
+                    filler.connect(sock_path)
+                except BlockingIOError:
+                    pass
+                t0 = time.monotonic()
+                with mercury_process(self.write_config(f"unix:{sock_path}", timeout=1)):
+                    t_started = time.monotonic()
+                    # Ensure startup probe does not hang past timeout limit
+                    self.assertLess(t_started - t0, 2.0)
+                    with Connection("127.0.0.1", 8080) as connection:
+                        t_req = time.monotonic()
+                        connection.send(request(b"/index.php"))
+                        status, _, _ = connection.response()
+                        t_res = time.monotonic()
+                        self.assertEqual(status, 504)
+                        self.assertGreaterEqual(t_res - t_req, 0.9)
+                        self.assertLess(t_res - t_req, 2.0)
+
+    def test_tcp_socket_connect_timeout_on_full_backlog(self):
+        # Create TCP listener with backlog of 1 and fill queue
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+            listener.bind(("127.0.0.1", 0))
+            port = listener.getsockname()[1]
+            listener.listen(1)
+            fillers = []
+            try:
+                for _ in range(10):
+                    c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    c.setblocking(False)
+                    try:
+                        c.connect(("127.0.0.1", port))
+                    except BlockingIOError:
+                        pass
+                    fillers.append(c)
+                t0 = time.monotonic()
+                with mercury_process(self.write_config(f"127.0.0.1:{port}", timeout=1)):
+                    t_started = time.monotonic()
+                    # Ensure startup probe does not hang past timeout limit
+                    self.assertLess(t_started - t0, 2.0)
+                    with Connection("127.0.0.1", 8080) as connection:
+                        t_req = time.monotonic()
+                        connection.send(request(b"/index.php"))
+                        status, _, _ = connection.response()
+                        t_res = time.monotonic()
+                        self.assertEqual(status, 504)
+                        self.assertGreaterEqual(t_res - t_req, 0.9)
+                        self.assertLess(t_res - t_req, 2.0)
+            finally:
+                for c in fillers:
+                    c.close()
 
     @unittest.skipUnless(IS_ROOT, "Exercise direct-root startup policy only as root")
     def test_direct_root_does_not_start_privileged_pool(self):

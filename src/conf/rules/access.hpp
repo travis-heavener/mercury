@@ -36,6 +36,7 @@ namespace conf {
             std::vector<SanitizedIP> exceptions;
     };
 
+    bool doesAddressFitCIDR(const SanitizedIP& cidr, const SanitizedIP& candidate);
     SanitizedIP parseSanitizedClientIP(const std::string& clientIP);
     SanitizedIP parseSanitizedIP(const pugi::xml_node& childNode);
 
