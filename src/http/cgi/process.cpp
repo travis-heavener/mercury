@@ -103,7 +103,7 @@ namespace http::cgi {
         envsMap["REMOTE_IDENT"] = "";
 
         envsMap["REQUEST_METHOD"] = req.getMethodStr() == "HEAD" ? "GET" : req.getMethodStr(); // Map HEAD to GET
-        envsMap["REQUEST_URI"] = file.decodedURIWithoutPathInfo;
+        envsMap["REQUEST_URI"] = req.getPaths().rawPathFromRequest.empty() ? file.decodedURIWithoutPathInfo : req.getPaths().rawPathFromRequest;
 
         envsMap["SCRIPT_FILENAME"] = file.absoluteResourcePath;
         envsMap["SCRIPT_NAME"] = file.decodedURIWithoutPathInfo; // File.decodedURIWithoutPathInfo ignores query string

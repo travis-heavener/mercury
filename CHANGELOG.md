@@ -20,6 +20,7 @@
 - Fix: clamp oversized byte ranges to representation length instead of rejecting with 416
 - Fix: percent-encode directory listing hyperlinks to prevent URI fragment and query parameter misinterpretation
 - Fix: preserve multiple Set-Cookie response headers without collapsing or overwriting
+- Fix: preserve full request URI including PATH_INFO and query string in CGI and FastCGI REQUEST_URI
 
 ## [0.39.2] - 2026-11-08
 - Added: TLSCertFile and TLSKeyFile config directives to configure custom SSL/TLS certificate and private key paths

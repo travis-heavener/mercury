@@ -18,6 +18,7 @@
 
                     { "method": "GET", "path": "/path_info_test.php/foo/bar", "expectedStatus": 200, "expectedBody": "/foo/bar" },
                     { "method": "GET", "path": "/path_info_test.php/foo/bar?q=1", "expectedStatus": 200, "expectedBody": "/foo/bar" },
+                    { "method": "GET", "path": "/regression_request_uri.php/foo/bar?q=1", "expectedStatus": 200, "expectedBody": "/regression_request_uri.php/foo/bar?q=1" },
                     { "method": "GET", "path": "/index.html/foo/bar", "expectedStatus": 404 },
                     { "method": "GET", "path": "/index.html/foo/bar?q=1", "expectedStatus": 404 },
 

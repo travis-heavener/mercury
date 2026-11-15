@@ -168,6 +168,13 @@ def php_bytes(connect):
         assert body == b'{"auth_type":"","remote_user":"","http_authorization":"Bearer admin"}', (
             f"authenticated identity forged: {body!r}"
         )
+    # Verify REQUEST_URI preserves original request URI including PATH_INFO and query string
+    with connect() as conn:
+        conn.send(request(b"/regression_request_uri.php/path?x=1"))
+        status, _, body = conn.response()
+        assert status == 200 and body == b"/regression_request_uri.php/path?x=1", (
+            f"REQUEST_URI mismatch: {body!r}"
+        )
 
 
 def multiple_cookies(connect):

@@ -254,7 +254,7 @@ namespace http::fastcgi {
 
         // Map HTTP method (remap HEAD to GET for CGI execution)
         encoder.add("REQUEST_METHOD", req.getMethodStr() == "HEAD" ? "GET" : req.getMethodStr());
-        encoder.add("REQUEST_URI", file.decodedURIWithoutPathInfo);
+        encoder.add("REQUEST_URI", req.getPaths().rawPathFromRequest.empty() ? file.decodedURIWithoutPathInfo : req.getPaths().rawPathFromRequest);
 
         // Map target script paths
         encoder.add("SCRIPT_FILENAME", file.absoluteResourcePath);
