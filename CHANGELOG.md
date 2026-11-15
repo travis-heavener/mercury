@@ -24,6 +24,7 @@
 - Fix: preserve backend Content-Encoding declarations and skip small-body compression bypass on pre-encoded responses
 - Fix: parse Accept-Encoding quality values, honor unencoded representation rejection, and support weight-based coding negotiation
 - Fix: include Vary: Accept-Encoding on compressed representations and preserve combined Vary tokens
+- Fix: handle Connection: close and stale keep-alive sockets in Python benchmark load generator without counting legitimate closures as errors
 
 ## [0.39.2] - 2026-11-08
 - Added: TLSCertFile and TLSKeyFile config directives to configure custom SSL/TLS certificate and private key paths

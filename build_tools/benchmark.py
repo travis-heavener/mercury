@@ -446,18 +446,33 @@ class LoadGenerator:
             while time.perf_counter() < stop_time:
                 t0 = time.perf_counter()
                 try:
+                    is_reused = sock is not None
                     if sock is None:
                         sock = get_conn()
                         buf.clear()
 
-                    # Transmit full request buffer in single write
-                    sock.sendall(request_bytes)
+                    # Transmit full request buffer in single write, retrying once on stale socket
+                    try:
+                        sock.sendall(request_bytes)
+                    except OSError:
+                        if is_reused:
+                            try:
+                                sock.close()
+                            except Exception:
+                                pass
+                            sock = get_conn()
+                            buf.clear()
+                            sock.sendall(request_bytes)
+                            is_reused = False
+                        else:
+                            raise
 
                     # Read full response w/ header and body framing
                     header_end = -1
                     content_length = -1
                     is_chunked = False
                     status_code = 0
+                    is_close = False
 
                     while True:
                         if header_end < 0:
@@ -465,24 +480,37 @@ class LoadGenerator:
                             if header_end >= 0:
                                 # Extract status line and verify HTTP 200
                                 header_bytes = bytes(buf[:header_end])
-                                first_line_end = header_bytes.find(b"\r\n")
-                                status_line = header_bytes if first_line_end < 0 else header_bytes[:first_line_end]
+                                lines = header_bytes.split(b"\r\n")
+                                status_line = lines[0] if lines else b""
                                 parts = status_line.split(b" ", 2)
                                 status_code = int(parts[1]) if len(parts) >= 2 and parts[1].isdigit() else 0
 
-                                # Parse Content-Length and Transfer-Encoding headers
-                                header_lower = header_bytes.lower()
-                                cl_idx = header_lower.find(b"content-length:")
-                                if cl_idx >= 0:
-                                    val_start = cl_idx + 15
-                                    eol = header_lower.find(b"\r\n", val_start)
-                                    val = header_lower[val_start:eol if eol >= 0 else len(header_lower)].strip()
-                                    try:
-                                        content_length = int(val)
-                                    except ValueError:
-                                        content_length = 0
-                                if b"transfer-encoding:" in header_lower and b"chunked" in header_lower:
-                                    is_chunked = True
+                                # Parse headers line-by-line to avoid prefix matching confusion
+                                has_keep_alive = False
+                                for line in lines[1:]:
+                                    colon = line.find(b":")
+                                    if colon < 0:
+                                        continue
+                                    h_name = line[:colon].strip().lower()
+                                    h_val = line[colon + 1:].strip()
+                                    if h_name == b"content-length":
+                                        try:
+                                            content_length = int(h_val)
+                                        except ValueError:
+                                            content_length = 0
+                                    elif h_name == b"transfer-encoding":
+                                        te_tokens = [t.strip().lower() for t in h_val.split(b",")]
+                                        if b"chunked" in te_tokens:
+                                            is_chunked = True
+                                    elif h_name == b"connection":
+                                        c_tokens = [t.strip().lower() for t in h_val.split(b",")]
+                                        if b"close" in c_tokens:
+                                            is_close = True
+                                        if b"keep-alive" in c_tokens:
+                                            has_keep_alive = True
+
+                                if status_line.lower().startswith(b"http/1.0") and not has_keep_alive:
+                                    is_close = True
 
                         if header_end >= 0:
                             if status_code != 200 and status_code != 204 and status_code != 304:
@@ -507,20 +535,42 @@ class LoadGenerator:
                                 del buf[:header_end + 4]
                                 break
                             else:
-                                if b"connection: close" in header_lower:
+                                if is_close:
                                     while True:
                                         chunk = sock.recv(65536)
                                         if not chunk:
                                             break
                                     del buf[:]
-                                    sock.close()
-                                    sock = None
                                     break
                                 del buf[:header_end + 4]
                                 break
 
-                        chunk = sock.recv(65536)
+                        try:
+                            chunk = sock.recv(65536)
+                        except (ConnectionResetError, ConnectionAbortedError):
+                            if is_reused and len(buf) == 0:
+                                try:
+                                    sock.close()
+                                except Exception:
+                                    pass
+                                sock = get_conn()
+                                buf.clear()
+                                sock.sendall(request_bytes)
+                                is_reused = False
+                                continue
+                            raise
+
                         if not chunk:
+                            if is_reused and len(buf) == 0:
+                                try:
+                                    sock.close()
+                                except Exception:
+                                    pass
+                                sock = get_conn()
+                                buf.clear()
+                                sock.sendall(request_bytes)
+                                is_reused = False
+                                continue
                             raise ConnectionResetError("Server closed connection")
                         buf.extend(chunk)
 
@@ -531,6 +581,14 @@ class LoadGenerator:
 
                     # Reset consecutive error counter on successful exchange
                     consecutive_errors = 0
+
+                    # Close socket when server signals connection closure
+                    if is_close:
+                        try:
+                            sock.close()
+                        except Exception:
+                            pass
+                        sock = None
                 except (OSError, RuntimeError) as exc:
                     # Close socket and clear buffer on failure
                     if sock:
