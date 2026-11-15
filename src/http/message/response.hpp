@@ -30,7 +30,14 @@ namespace http {
             void setHeader(std::string name, const std::string& value);
             void addHeader(std::string name, const std::string& value);
             void clearHeader(std::string name);
-            inline void clearHeaders() { headers.clear(); setCookies.clear(); hasCustomContentEncoding = false; };
+            inline void clearHeaders() { headers.clear(); setCookies.clear(); hasCustomContentEncoding = false; identityAccepted = true; };
+            inline void setIdentityAccepted(const bool accepted) { this->identityAccepted = accepted; };
+            inline bool isIdentityAccepted() const { return identityAccepted; };
+            inline bool hasCustomContentEncodingHeader() const { return hasCustomContentEncoding; };
+            inline std::string getContentEncoding() const {
+                auto it = headers.find("Content-Encoding");
+                return it == headers.end() ? "" : it->second;
+            }
             void setCompressMethod(const int compressMethod);
 
             int loadBodyFromErrorDoc(const uint16_t statusCode);
@@ -61,6 +68,7 @@ namespace http {
             std::unordered_map<std::string, std::string> headers;
             std::vector<std::string> setCookies;
             bool hasCustomContentEncoding = false;
+            bool identityAccepted = true;
 
             // For precompressed bodies
             std::vector<byte_range_t> originalByteRanges;

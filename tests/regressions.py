@@ -184,6 +184,20 @@ def php_bytes(connect):
         assert headers.get(b"content-encoding") == b"gzip", f"Expected Content-Encoding: gzip, got {headers.get(b'content-encoding')!r}"
         assert gzip.decompress(body) == b"small gzip content", f"Decompressed body mismatch: {body!r}"
 
+    # Reject backend coding explicitly refused by client
+    with connect() as conn:
+        conn.send(request(b"/regression_backend_compressed.php", headers=b"Accept-Encoding: gzip;q=0, identity;q=0\r\n"))
+        status, headers, _ = conn.response()
+        assert status == 406, f"Expected 406 for refused backend gzip, got {status}"
+        assert b"content-encoding" not in headers
+
+    # Accept backend coding allowed through wildcard
+    with connect() as conn:
+        conn.send(request(b"/regression_backend_compressed.php", headers=b"Accept-Encoding: *;q=0.5\r\n"))
+        status, headers, body = conn.response()
+        assert status == 200 and headers.get(b"content-encoding") == b"gzip"
+        assert gzip.decompress(body) == b"small gzip content"
+
 
 def multiple_cookies(connect):
     """Preserve multiple Set-Cookie headers without collapsing or overwriting (RFC 9110 Section 5.2)."""
@@ -319,6 +333,42 @@ def connection_options(connect):
         conn.send(first.replace(b"HTTP/1.1", b"HTTP/1.0") + request())
         assert conn.response()[1][b"connection"] == b"keep-alive"
         assert conn.response()[2] == b"HELLO WORLD"
+
+    # Verify Accept-Encoding quality values (q=0 rejects encoding, higher q takes precedence)
+    with connect() as conn:
+        conn.send(request(b"/index.html", headers=b"Accept-Encoding: gzip;q=0\r\n"))
+        status, headers, _ = conn.response()
+        assert status == 200
+        assert b"content-encoding" not in headers, f"Expected no Content-Encoding for q=0, got {headers.get(b'content-encoding')}"
+
+    with connect() as conn:
+        conn.send(request(b"/index.html", headers=b"Accept-Encoding: gzip;q=0.5, deflate;q=0.8\r\n"))
+        status, headers, _ = conn.response()
+        assert status == 200
+        assert headers.get(b"content-encoding") == b"deflate", f"Expected deflate for q=0.8 vs 0.5, got {headers.get(b'content-encoding')}"
+
+    # Verify identity rejection enforces compression even on small responses
+    with connect() as conn:
+        conn.send(request(b"/small.txt", headers=b"Accept-Encoding: gzip, identity;q=0\r\n"))
+        status, headers, body = conn.response()
+        assert status == 200
+        assert headers.get(b"content-encoding") == b"gzip", f"Expected gzip Content-Encoding, got {headers.get(b'content-encoding')}"
+        import gzip
+        assert gzip.decompress(body) == b"HELLO WORLD"
+
+    # Verify *;q=0 without explicit identity allowance returns 406 Not Acceptable
+    with connect() as conn:
+        conn.send(request(b"/small.txt", headers=b"Accept-Encoding: *;q=0\r\n"))
+        status, headers, _ = conn.response()
+        assert status == 406, f"Expected 406 for *;q=0, got {status}"
+
+    # Verify *;q=0 with explicit identity allowance returns 200 unencoded
+    with connect() as conn:
+        conn.send(request(b"/small.txt", headers=b"Accept-Encoding: *;q=0, identity;q=0.5\r\n"))
+        status, headers, body = conn.response()
+        assert status == 200
+        assert b"content-encoding" not in headers
+        assert body == b"HELLO WORLD"
 
 
 def simple_request(connect):

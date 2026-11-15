@@ -161,6 +161,12 @@ namespace http::version::handler_1_1 {
                     break;
                 }
 
+                // Check accepted encodings
+                if (!request.isIdentityAccepted() && request.getCompressMethod(file.MIME) == NO_COMPRESS) {
+                    setStatusMaybeErrorDoc(request, *pResponse, 406);
+                    break;
+                }
+
                 // Check if previously cached
                 const auto pLastModTS = request.getHeader("IF-MODIFIED-SINCE");
                 if (pLastModTS.has_value()) {

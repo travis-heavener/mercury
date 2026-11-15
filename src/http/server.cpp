@@ -766,7 +766,34 @@ namespace http {
         }
 
         // Pass the compression method
-        pResponse->setCompressMethod(request.getCompressMethod(pResponse->getContentType()));
+        pResponse->setIdentityAccepted(request.isIdentityAccepted());
+        const int compressMethod = request.getCompressMethod(pResponse->getContentType());
+        pResponse->setCompressMethod(compressMethod);
+
+        bool unacceptableBackendEncoding = false;
+        if (pResponse->hasCustomContentEncodingHeader()) {
+            const std::string encoding = pResponse->getContentEncoding();
+            size_t start = 0;
+            do {
+                const size_t end = encoding.find(',', start);
+                if (!request.acceptsContentCoding(std::string_view(encoding).substr(start, end - start)))
+                    unacceptableBackendEncoding = true;
+                if (end == std::string::npos) break;
+                start = end + 1;
+            } while (true);
+        }
+
+        if ((unacceptableBackendEncoding || (!request.isIdentityAccepted() && compressMethod == NO_COMPRESS &&
+            !pResponse->hasCustomContentEncodingHeader())) &&
+            (pResponse->getStatus() == 200 || pResponse->getStatus() == 206)) {
+            pResponse->setStatus(406);
+            pResponse->clearHeader("Content-Encoding");
+            pResponse->setCompressMethod(NO_COMPRESS);
+            pResponse->clearHeader("Content-Range");
+            pResponse->loadBodyFromErrorDoc(406);
+            if (!request.isMIMEAccepted("text/html"))
+                pResponse->setBodyStream(std::make_unique<MemoryStream>(""));
+        }
 
         return pResponse;
     }

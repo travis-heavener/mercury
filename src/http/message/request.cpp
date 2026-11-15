@@ -6,6 +6,63 @@
 
 namespace http {
 
+    // Parse RFC 9110 qvalue as integer milliquality (0 to 1000)
+    static int parseQValue(std::string_view qstr) {
+        while (!qstr.empty() && (qstr.front() == ' ' || qstr.front() == '\t'))
+            qstr.remove_prefix(1);
+        while (!qstr.empty() && (qstr.back() == ' ' || qstr.back() == '\t'))
+            qstr.remove_suffix(1);
+
+        if (qstr.empty()) return 1000;
+
+        if (qstr[0] == '0') {
+            if (qstr.size() == 1 || qstr[1] != '.') return 0;
+            int val = 0;
+            int multiplier = 100;
+            for (size_t i = 2; i < qstr.size() && i < 5; ++i) {
+                if (!std::isdigit(static_cast<unsigned char>(qstr[i]))) break;
+                val += (qstr[i] - '0') * multiplier;
+                multiplier /= 10;
+            }
+            return val;
+        } else if (qstr[0] == '1') {
+            if (qstr.size() == 1 || qstr[1] != '.') return 1000;
+            for (size_t i = 2; i < qstr.size() && i < 5; ++i) {
+                if (qstr[i] != '0') return 1000;
+            }
+            return 1000;
+        }
+        return 1000;
+    }
+
+    // Extract qvalue weight parameter from token parameters
+    static int extractQValue(std::string_view params) {
+        size_t pos = 0;
+        while (pos < params.size()) {
+            const size_t nextSemi = params.find(';', pos);
+            std::string_view param = (nextSemi == std::string_view::npos)
+                ? params.substr(pos)
+                : params.substr(pos, nextSemi - pos);
+            pos = (nextSemi == std::string_view::npos) ? params.size() : nextSemi + 1;
+
+            while (!param.empty() && (param.front() == ' ' || param.front() == '\t'))
+                param.remove_prefix(1);
+            while (!param.empty() && (param.back() == ' ' || param.back() == '\t'))
+                param.remove_suffix(1);
+
+            if (param.size() >= 2 && (param[0] == 'q' || param[0] == 'Q')) {
+                std::string_view rest = param.substr(1);
+                while (!rest.empty() && (rest.front() == ' ' || rest.front() == '\t'))
+                    rest.remove_prefix(1);
+                if (!rest.empty() && rest.front() == '=') {
+                    rest.remove_prefix(1);
+                    return parseQValue(rest);
+                }
+            }
+        }
+        return 1000;
+    }
+
     Request::Request(headers_map_t& headers, std::string_view raw, const std::string& clientIP, const bool isHTTPS, const RequestFlags& reqFlags)
         : headers(headers), ipStr(clientIP), isHTTPS(isHTTPS), reqFlags(reqFlags) {
         // Read verb, path, & protocol version
@@ -59,9 +116,17 @@ namespace http {
         if (itAccept != this->headers.end())
             parseAcceptHeader(acceptedMIMETypes, itAccept->second);
 
-        // Extract accepted encodings
+        // Extract accepted encodings with quality values (RFC 9110 Section 12.5.3)
         const auto itEncoding = this->headers.find("ACCEPT-ENCODING");
         if (itEncoding != this->headers.end()) {
+            this->hasAcceptEncoding = true;
+            int qStar = -1;
+            int explicitZstd = -1;
+            int explicitBrotli = -1;
+            int explicitGzip = -1;
+            int explicitDeflate = -1;
+            int explicitIdentity = -1;
+
             std::string_view encView = itEncoding->second;
             size_t startIndex = 0;
             while (startIndex < encView.size()) {
@@ -76,12 +141,74 @@ namespace http {
                     const size_t lastNotSpace = token.find_last_not_of(" \t");
                     token = token.substr(firstNotSpace, lastNotSpace - firstNotSpace + 1);
 
+                    std::string_view coding = token;
+                    int q = 1000;
                     const size_t semi = token.find(';');
-                    if (semi != std::string_view::npos)
-                        token = token.substr(0, semi);
-                    if (!token.empty())
-                        this->acceptedEncodings.emplace(token);
+                    if (semi != std::string_view::npos) {
+                        coding = token.substr(0, semi);
+                        const size_t codingEnd = coding.find_last_not_of(" \t");
+                        if (codingEnd != std::string_view::npos)
+                            coding = coding.substr(0, codingEnd + 1);
+                        q = extractQValue(token.substr(semi + 1));
+                    }
+
+                    if (!coding.empty()) {
+                        std::string lowerCoding;
+                        lowerCoding.reserve(coding.size());
+                        for (char c : coding)
+                            lowerCoding.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+
+                        this->encodingQualities[lowerCoding] = q;
+
+                        if (lowerCoding == "*") {
+                            qStar = q;
+                        } else if (lowerCoding == "zstd") {
+                            explicitZstd = q;
+                        } else if (lowerCoding == "br") {
+                            explicitBrotli = q;
+                        } else if (lowerCoding == "gzip" || lowerCoding == "x-gzip") {
+                            explicitGzip = q;
+                        } else if (lowerCoding == "deflate") {
+                            explicitDeflate = q;
+                        } else if (lowerCoding == "identity") {
+                            explicitIdentity = q;
+                        }
+
+                        if (q > 0)
+                            this->acceptedEncodings.emplace(std::move(lowerCoding));
+                    }
                 }
+            }
+
+            this->qZstd = (explicitZstd != -1) ? explicitZstd : (qStar != -1 ? qStar : 0);
+            this->qBrotli = (this->isHTTPS && explicitBrotli != -1) ? explicitBrotli : (this->isHTTPS && qStar != -1 ? qStar : 0);
+            this->qGzip = (explicitGzip != -1) ? explicitGzip : (qStar != -1 ? qStar : 0);
+            this->qDeflate = (explicitDeflate != -1) ? explicitDeflate : (qStar != -1 ? qStar : 0);
+
+            // RFC 9110 Section 12.5.3: identity is acceptable unless explicitly refused (identity;q=0)
+            // or refused by wildcard (*;q=0) without explicit non-zero identity
+            if (explicitIdentity != -1)
+                this->qIdentity = explicitIdentity;
+            else if (qStar != -1)
+                this->qIdentity = qStar;
+            else
+                this->qIdentity = 1000;
+
+            if (this->qZstd > 0) {
+                this->compressMethods |= COMPRESS_ZSTD;
+                this->acceptedEncodings.emplace("zstd");
+            }
+            if (this->qBrotli > 0) {
+                this->compressMethods |= COMPRESS_BROTLI;
+                this->acceptedEncodings.emplace("br");
+            }
+            if (this->qGzip > 0) {
+                this->compressMethods |= COMPRESS_GZIP;
+                this->acceptedEncodings.emplace("gzip");
+            }
+            if (this->qDeflate > 0) {
+                this->compressMethods |= COMPRESS_DEFLATE;
+                this->acceptedEncodings.emplace("deflate");
             }
         }
 
@@ -89,16 +216,6 @@ namespace http {
         const auto itRange = this->headers.find("RANGE");
         if (itRange != this->headers.end())
             parseRangeHeader(byteRanges, itRange->second);
-
-        // Determine compression method
-        if (this->isEncodingAccepted("zstd"))
-            this->compressMethods |= COMPRESS_ZSTD;
-        if (this->isHTTPS && this->isEncodingAccepted("br"))
-            this->compressMethods |= COMPRESS_BROTLI;
-        if (this->isEncodingAccepted("gzip"))
-            this->compressMethods |= COMPRESS_GZIP;
-        if (this->isEncodingAccepted("deflate"))
-            this->compressMethods |= COMPRESS_DEFLATE;
 
         // Verify Host header is present for HTTP/1.1+ (RFC 2616)
         if (this->httpVersionStr != "HTTP/0.9" && this->httpVersionStr != "HTTP/1.0"
@@ -117,30 +234,41 @@ namespace http {
     }
 
     int Request::getCompressMethod(const std::string& MIME) const {
-        // Decide what compression type to use of what's available
-        if ((this->compressMethods & (COMPRESS_ZSTD | COMPRESS_BROTLI)) == (COMPRESS_ZSTD | COMPRESS_BROTLI)) {
-            // Pick Zstandard or Brotli based on MIME
-            const std::string mediaType = MIME.substr(0, MIME.find(';'));
-            if (mediaType == "text/javascript" || mediaType == "application/json" || mediaType == "text/html" ||
-                mediaType == "text/css" || mediaType == "image/svg+xml" || mediaType == "text/plain" ||
-                mediaType == "application/wasm" || mediaType == "application/xml" || mediaType == "application/xhtml+xml" ||
-                mediaType == "application/ld+json")
-                return COMPRESS_BROTLI;
+        if (this->compressMethods == NO_COMPRESS)
+            return NO_COMPRESS;
 
-            // Base case, use ZSTD
-            return COMPRESS_ZSTD;
-        } else if (this->compressMethods & COMPRESS_ZSTD) {
-            return COMPRESS_ZSTD;
-        } else if (this->compressMethods & COMPRESS_BROTLI) {
-            return COMPRESS_BROTLI;
-        } else if (this->compressMethods & COMPRESS_GZIP) {
-            return COMPRESS_GZIP;
-        } else if (this->compressMethods & COMPRESS_DEFLATE) {
-            return COMPRESS_DEFLATE;
+        // Determine MIME preference between Brotli and Zstandard
+        const std::string mediaType = MIME.substr(0, MIME.find(';'));
+        const bool preferBrotli = (mediaType == "text/javascript" || mediaType == "application/json" || mediaType == "text/html" ||
+            mediaType == "text/css" || mediaType == "image/svg+xml" || mediaType == "text/plain" ||
+            mediaType == "application/wasm" || mediaType == "application/xml" || mediaType == "application/xhtml+xml" ||
+            mediaType == "application/ld+json");
+
+        // Rank candidate compression algorithms by quality weight and server preference
+        struct Candidate {
+            int method;
+            int q;
+            int serverPriority;
+        };
+
+        const Candidate candidates[] = {
+            { COMPRESS_BROTLI, this->qBrotli, preferBrotli ? 4 : 3 },
+            { COMPRESS_ZSTD,   this->qZstd,   preferBrotli ? 3 : 4 },
+            { COMPRESS_GZIP,   this->qGzip,   2 },
+            { COMPRESS_DEFLATE,this->qDeflate,1 }
+        };
+
+        const Candidate* best = nullptr;
+        for (const auto& candidate : candidates) {
+            if (candidate.q <= 0) continue;
+            if (best == nullptr ||
+                candidate.q > best->q ||
+                (candidate.q == best->q && candidate.serverPriority > best->serverPriority)) {
+                best = &candidate;
+            }
         }
 
-        // Base case, no compression
-        return NO_COMPRESS;
+        return best ? best->method : NO_COMPRESS;
     }
 
     bool Request::isDNT() const {
@@ -257,6 +385,30 @@ namespace http {
 
     bool Request::isEncodingAccepted(const std::string& encoding) const {
         return acceptedEncodings.find(encoding) != acceptedEncodings.end();
+    }
+
+    // Check backend coding against explicit and wildcard preferences
+    bool Request::acceptsContentCoding(std::string_view coding) const {
+        // Accept all codings when header absent
+        if (!hasAcceptEncoding) return true;
+
+        // Normalize coding token
+        const size_t first = coding.find_first_not_of(" \t");
+        if (first == std::string_view::npos) return false;
+
+        const size_t last = coding.find_last_not_of(" \t");
+        std::string name(coding.substr(first, last - first + 1));
+        for (char& c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (name == "identity") return isIdentityAccepted();
+
+        // Prefer explicit coding or gzip alias over wildcard
+        auto it = encodingQualities.find(name);
+        if (it == encodingQualities.end() && name == "gzip") it = encodingQualities.find("x-gzip");
+        if (it == encodingQualities.end() && name == "x-gzip") it = encodingQualities.find("gzip");
+        if (it != encodingQualities.end()) return it->second > 0;
+        it = encodingQualities.find("*");
+
+        return it != encodingQualities.end() && it->second > 0;
     }
 
     const std::vector<const conf::Match*>& Request::getMatchedRules() const {

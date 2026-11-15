@@ -36,6 +36,8 @@ namespace http {
 
             bool isMIMEAccepted(const std::string&) const;
             bool isEncodingAccepted(const std::string&) const;
+            bool acceptsContentCoding(std::string_view coding) const;
+            inline bool isIdentityAccepted() const { return qIdentity > 0; };
             inline bool usesHTTPS() const { return isHTTPS; };
             inline bool isContentTooLarge() const { return reqFlags.isContentTooLarge; };
             inline bool isURITooLong() const { return reqFlags.isURITooLong; };
@@ -51,6 +53,8 @@ namespace http {
 
             std::unordered_set<std::string> acceptedMIMETypes;
             std::unordered_set<std::string> acceptedEncodings;
+            std::unordered_map<std::string, int> encodingQualities;
+            bool hasAcceptEncoding = false;
             std::vector<byte_range_t> byteRanges;
 
             std::string ipStr;
@@ -69,6 +73,11 @@ namespace http {
 
             std::string body;
             int compressMethods = NO_COMPRESS;
+            int qZstd = 0;
+            int qBrotli = 0;
+            int qGzip = 0;
+            int qDeflate = 0;
+            int qIdentity = 1000;
 
             mutable std::vector<const conf::Match*> matchedRules;
             mutable bool matchedRulesEvaluated = false;

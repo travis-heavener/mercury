@@ -420,10 +420,10 @@ namespace http {
 
         // Check if the body needs to be pre-compressed (HTTP/1.0 or HTTP/1.1+ w/ small bodies)
         bool wasPrecompressed = false;
-        if (!hasCustomContentEncoding && originalByteRanges.size() <= 1 &&
+        if (!hasCustomContentEncoding && pBodyStream->size() > 0 && originalByteRanges.size() <= 1 &&
             (
-                (httpVersion == "HTTP/1.0" && pBodyStream->size() > conf::MIN_COMPRESSION_SIZE) ||
-                (pBodyStream->size() <= conf::RESPONSE_BUFFER_SIZE && pBodyStream->size() > conf::MIN_COMPRESSION_SIZE)
+                (httpVersion == "HTTP/1.0" && (pBodyStream->size() > conf::MIN_COMPRESSION_SIZE || (!identityAccepted && compressMethod != NO_COMPRESS))) ||
+                (pBodyStream->size() <= conf::RESPONSE_BUFFER_SIZE && (pBodyStream->size() > conf::MIN_COMPRESSION_SIZE || (!identityAccepted && compressMethod != NO_COMPRESS)))
             )
         ) {
             if (!this->precompressBody()) { // Failed to compress body
@@ -457,11 +457,11 @@ namespace http {
 
         // Create a streamable, buffered compressor
         std::unique_ptr<ICompressor> pCompressor(
-            (hasCustomContentEncoding || wasPrecompressed || pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE) ? nullptr : createCompressorStream(this->compressMethod)
+            (hasCustomContentEncoding || wasPrecompressed || pBodyStream->size() == 0 || (identityAccepted && pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE)) ? nullptr : createCompressorStream(this->compressMethod)
         );
 
         // Skip compression for small bodies
-        if (!hasCustomContentEncoding && !wasPrecompressed && pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE)
+        if (!hasCustomContentEncoding && !wasPrecompressed && (pBodyStream->size() == 0 || (identityAccepted && pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE)))
             clearHeader("Content-Encoding");
 
         // Update transfer encoding
