@@ -39,6 +39,9 @@ namespace http {
         // Update header casing (ex. cOntENt-LeNGTh --> Content-Length)
         formatHeaderCasing(name);
 
+        if (name == "Content-Encoding")
+            this->hasCustomContentEncoding = true;
+
         if (name == "Set-Cookie") {
             setCookies.clear();
             setCookies.push_back(value);
@@ -59,6 +62,9 @@ namespace http {
 
         formatHeaderCasing(name);
 
+        if (name == "Content-Encoding")
+            this->hasCustomContentEncoding = true;
+
         if (name == "Set-Cookie") {
             setCookies.push_back(value);
             return;
@@ -75,6 +81,9 @@ namespace http {
         // Update header casing (ex. cOntENt-LeNGTh --> Content-Length)
         formatHeaderCasing(name);
 
+        if (name == "Content-Encoding")
+            this->hasCustomContentEncoding = false;
+
         if (name == "Set-Cookie") {
             setCookies.clear();
             return;
@@ -87,12 +96,16 @@ namespace http {
     }
 
     void Response::setCompressMethod(const int compressMethod) {
+        // Retain backend-provided content encoding without recompression
+        if (this->hasCustomContentEncoding) return;
+
         // Determine compression method
         switch ( this->compressMethod = compressMethod ) {
-            case COMPRESS_ZSTD:    setHeader("Content-Encoding", "zstd");    break;
-            case COMPRESS_BROTLI:  setHeader("Content-Encoding", "br");      break;
-            case COMPRESS_GZIP:    setHeader("Content-Encoding", "gzip");    break;
-            case COMPRESS_DEFLATE: setHeader("Content-Encoding", "deflate"); break;
+            case COMPRESS_ZSTD:    headers["Content-Encoding"] = "zstd";    break;
+            case COMPRESS_BROTLI:  headers["Content-Encoding"] = "br";      break;
+            case COMPRESS_GZIP:    headers["Content-Encoding"] = "gzip";    break;
+            case COMPRESS_DEFLATE: headers["Content-Encoding"] = "deflate"; break;
+            default:               clearHeader("Content-Encoding");          break;
         }
     }
 
@@ -407,7 +420,7 @@ namespace http {
 
         // Check if the body needs to be pre-compressed (HTTP/1.0 or HTTP/1.1+ w/ small bodies)
         bool wasPrecompressed = false;
-        if (originalByteRanges.size() <= 1 &&
+        if (!hasCustomContentEncoding && originalByteRanges.size() <= 1 &&
             (
                 (httpVersion == "HTTP/1.0" && pBodyStream->size() > conf::MIN_COMPRESSION_SIZE) ||
                 (pBodyStream->size() <= conf::RESPONSE_BUFFER_SIZE && pBodyStream->size() > conf::MIN_COMPRESSION_SIZE)
@@ -444,11 +457,11 @@ namespace http {
 
         // Create a streamable, buffered compressor
         std::unique_ptr<ICompressor> pCompressor(
-            (wasPrecompressed || pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE) ? nullptr : createCompressorStream(this->compressMethod)
+            (hasCustomContentEncoding || wasPrecompressed || pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE) ? nullptr : createCompressorStream(this->compressMethod)
         );
 
         // Skip compression for small bodies
-        if (!wasPrecompressed && pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE)
+        if (!hasCustomContentEncoding && !wasPrecompressed && pBodyStream->size() <= conf::MIN_COMPRESSION_SIZE)
             clearHeader("Content-Encoding");
 
         // Update transfer encoding

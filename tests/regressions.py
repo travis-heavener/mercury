@@ -6,6 +6,7 @@ These groups run as part of the existing Python suite; no separate executable is
 Counts below are test groups, not individual requests or assertions.
 """
 from concurrent.futures import ThreadPoolExecutor
+import gzip
 import os
 import socket
 import ssl
@@ -175,6 +176,13 @@ def php_bytes(connect):
         assert status == 200 and body == b"/regression_request_uri.php/path?x=1", (
             f"REQUEST_URI mismatch: {body!r}"
         )
+    # Verify small backend-compressed responses retain Content-Encoding without decoding
+    with connect() as conn:
+        conn.send(request(b"/regression_backend_compressed.php"))
+        status, headers, body = conn.response()
+        assert status == 200, f"regression_backend_compressed.php status {status}"
+        assert headers.get(b"content-encoding") == b"gzip", f"Expected Content-Encoding: gzip, got {headers.get(b'content-encoding')!r}"
+        assert gzip.decompress(body) == b"small gzip content", f"Decompressed body mismatch: {body!r}"
 
 
 def multiple_cookies(connect):

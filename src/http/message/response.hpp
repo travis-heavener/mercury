@@ -30,7 +30,7 @@ namespace http {
             void setHeader(std::string name, const std::string& value);
             void addHeader(std::string name, const std::string& value);
             void clearHeader(std::string name);
-            inline void clearHeaders() { headers.clear(); setCookies.clear(); };
+            inline void clearHeaders() { headers.clear(); setCookies.clear(); hasCustomContentEncoding = false; };
             void setCompressMethod(const int compressMethod);
 
             int loadBodyFromErrorDoc(const uint16_t statusCode);
@@ -60,6 +60,7 @@ namespace http {
 
             std::unordered_map<std::string, std::string> headers;
             std::vector<std::string> setCookies;
+            bool hasCustomContentEncoding = false;
 
             // For precompressed bodies
             std::vector<byte_range_t> originalByteRanges;
