@@ -40,7 +40,7 @@ class JsonLoggingTests(unittest.TestCase):
 
     # Used to write temporary configuration for JSON logging tests
     def write_conf(self, access_log, error_log, access_format="json", error_format="json",
-                   sec_mode="Minimal"):
+                   sec_mode="Minimal", extra_directives=""):
         # Assemble minimal configuration lines
         conf_lines = [
             "<Mercury>",
@@ -65,6 +65,9 @@ class JsonLoggingTests(unittest.TestCase):
             conf_lines.append(f'    <ErrorLogFile format="{error_format}"> {error_log} </ErrorLogFile>')
         else:
             conf_lines.append(f'    <ErrorLogFile> {error_log} </ErrorLogFile>')
+
+        if extra_directives:
+            conf_lines.append(f'    {extra_directives}')
 
         # Append default permissive routing rule
         conf_lines.extend([
@@ -711,6 +714,405 @@ class JsonLoggingTests(unittest.TestCase):
         req_lines = [l for l in lines if "GET" in l]
         self.assertGreater(len(req_lines), 0)
         self.assertTrue(req_lines[-1].startswith("["))
+
+    # Comprehensive schema compliance test for all JSON log record variants
+    def test_json_schema_validation_across_all_event_types(self):
+        with tempfile.TemporaryDirectory() as directory:
+            acc_path = Path(directory) / "access.json.log"
+            err_path = Path(directory) / "error.json.log"
+            redirect_directive = '<Redirect pattern="/redirect_fallback" to="/index.html"> 307 </Redirect>'
+            conf = self.write_conf(str(acc_path), str(err_path), access_format="json", error_format="json",
+                                   extra_directives=redirect_directive)
+            proc = self.start_server(conf)
+
+            try:
+                # 1. Successful GET request with headers (status 200, level "info", event "request")
+                self.send_raw_request(
+                    f"GET /index.html HTTP/1.1\r\nHost: {HOST}:{self.port}\r\n"
+                    "User-Agent: SchemaTester/2.0\r\nReferer: https://test.local/\r\nConnection: close\r\n\r\n")
+
+                # 2. 404 Not Found request (status 404, level "warn", event "request")
+                self.send_raw_request(
+                    f"GET /missing_document.html HTTP/1.1\r\nHost: {HOST}:{self.port}\r\nConnection: close\r\n\r\n")
+
+                # 3. Request without User-Agent or Referer headers
+                self.send_raw_request(
+                    f"HEAD /index.html HTTP/1.1\r\nHost: {HOST}:{self.port}\r\nConnection: close\r\n\r\n")
+
+                # 4. HTTP/1.0 request triggering redirect fallback to provoke error log output
+                self.send_raw_request(
+                    f"GET /redirect_fallback HTTP/1.0\r\nHost: {HOST}:{self.port}\r\nConnection: close\r\n\r\n")
+
+                time.sleep(0.3)
+            finally:
+                self.stop_server(proc)
+
+            iso_regex = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$")
+
+            # Validate access log lines
+            acc_lines = acc_path.read_text(encoding="utf-8").splitlines()
+            self.assertGreater(len(acc_lines), 0)
+
+            seen_events = set()
+            seen_request_levels = set()
+            for raw_line in acc_lines:
+                raw_line = raw_line.strip()
+                if not raw_line:
+                    continue
+                record = json.loads(raw_line)
+                self.assertIn("timestamp", record)
+                self.assertTrue(iso_regex.match(record["timestamp"]), f"Malformed timestamp: {record['timestamp']}")
+                self.assertIn("level", record)
+
+                event = record.get("event")
+                self.assertIn(event, ("request", "startup", "listen", "shutdown"), f"Unknown or missing event type: {event}")
+                seen_events.add(event)
+                if event == "request":
+                    expected_keys = {
+                        "timestamp", "level", "event", "client_ip", "method", "uri", "status",
+                        "http_version", "bytes_sent", "latency_ms", "user_agent", "referer"
+                    }
+                    self.assertEqual(set(record.keys()), expected_keys)
+                    if record["status"] >= 500:
+                        self.assertEqual(record["level"], "error")
+                    elif record["status"] >= 400:
+                        self.assertEqual(record["level"], "warn")
+                    else:
+                        self.assertEqual(record["level"], "info")
+                    seen_request_levels.add(record["level"])
+                    self.assertIn(record["method"], ("GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS", "TRACE", "PATCH"))
+                    self.assertIsInstance(record["uri"], str)
+                    self.assertTrue(record["uri"].startswith("/"))
+                    self.assertIsInstance(record["status"], int)
+                    self.assertTrue(100 <= record["status"] <= 599)
+                    self.assertIn(record["http_version"], ("HTTP/1.1", "HTTP/1.0", "HTTP/0.9"))
+                    self.assertIsInstance(record["bytes_sent"], int)
+                    self.assertGreaterEqual(record["bytes_sent"], 0)
+                    self.assertIsInstance(record["latency_ms"], (int, float))
+                    self.assertGreaterEqual(record["latency_ms"], 0.0)
+                    self.assertIsInstance(record["user_agent"], str)
+                    self.assertIsInstance(record["referer"], str)
+                elif event == "startup":
+                    self.assertEqual(record["level"], "info")
+                    self.assertEqual(set(record.keys()), {"timestamp", "level", "event", "version", "message"})
+                    self.assertIsInstance(record["version"], str)
+                    self.assertIsInstance(record["message"], str)
+                elif event == "listen":
+                    self.assertEqual(record["level"], "info")
+                    self.assertEqual(set(record.keys()), {"timestamp", "level", "event", "protocol", "port", "tls", "message"})
+                    self.assertIn(record["protocol"], ("tcp4", "tcp6"))
+                    self.assertIsInstance(record["port"], int)
+                    self.assertIsInstance(record["tls"], bool)
+                    self.assertIsInstance(record["message"], str)
+                elif event == "shutdown":
+                    self.assertEqual(record["level"], "info")
+                    self.assertEqual(set(record.keys()), {"timestamp", "level", "event", "message"})
+                    self.assertIsInstance(record["message"], str)
+
+            self.assertIn("startup", seen_events)
+            self.assertIn("listen", seen_events)
+            self.assertIn("request", seen_events)
+            self.assertIn("shutdown", seen_events)
+            self.assertIn("info", seen_request_levels)
+            self.assertIn("warn", seen_request_levels)
+
+            # Validate error log lines
+            self.assertTrue(err_path.exists())
+            err_lines = err_path.read_text(encoding="utf-8").splitlines()
+            self.assertGreater(len(err_lines), 0, "Error log was unexpectedly empty")
+
+            seen_error_events = set()
+            for raw_line in err_lines:
+                raw_line = raw_line.strip()
+                if not raw_line:
+                    continue
+                record = json.loads(raw_line)
+                self.assertEqual(set(record.keys()), {"timestamp", "level", "event", "message"})
+                self.assertTrue(iso_regex.match(record["timestamp"]), f"Malformed timestamp in error log: {record['timestamp']}")
+                self.assertEqual(record["level"], "error")
+                self.assertEqual(record["event"], "error")
+                self.assertIsInstance(record["message"], str)
+                self.assertGreater(len(record["message"]), 0)
+                seen_error_events.add(record["event"])
+
+            self.assertIn("error", seen_error_events)
+
+    # Formal Prometheus 0.0.4 exposition format parser and specification compliance test
+    def test_prometheus_exposition_format_parser(self):
+        with tempfile.TemporaryDirectory() as directory:
+            access = Path(directory) / "access.log"
+            error = Path(directory) / "error.log"
+            conf = Path(self.write_conf(access, error))
+            conf.write_text(conf.read_text().replace(
+                "</Mercury>", '<Metrics enabled="true" path="/metrics"><AllowCIDR>127.0.0.1/32</AllowCIDR><TrackLatency enabled="true" /></Metrics></Mercury>'))
+            proc = self.start_server(str(conf))
+
+            try:
+                # Transmit a variety of HTTP requests to populate metric counters
+                conn = http.client.HTTPConnection(HOST, self.port, timeout=3)
+                conn.request("GET", "/index.html")
+                res = conn.getresponse()
+                res.read()
+
+                conn.request("HEAD", "/index.html")
+                res = conn.getresponse()
+                res.read()
+
+                conn.request("GET", "/nonexistent.html")
+                res = conn.getresponse()
+                res.read()
+
+                # Scrape Prometheus exposition endpoint
+                conn.request("GET", "/metrics")
+                res = conn.getresponse()
+                self.assertEqual(res.status, 200)
+                content_type = res.headers.get("Content-Type", "")
+                self.assertIn("text/plain", content_type)
+                self.assertIn("version=0.0.4", content_type)
+                payload = res.read().decode("utf-8")
+                conn.close()
+
+                # Parse and validate Prometheus format per OpenMetrics / 0.0.4 spec
+                families = self._parse_prometheus_exposition(payload)
+
+                expected_families = [
+                    ("mercury_http_requests_total", "counter"),
+                    ("mercury_http_request_duration_seconds", "histogram"),
+                    ("mercury_http_bytes_received_total", "counter"),
+                    ("mercury_http_bytes_sent_total", "counter"),
+                    ("mercury_active_connections", "gauge"),
+                    ("mercury_total_connections", "counter"),
+                    ("mercury_workers_active", "gauge"),
+                    ("mercury_process_resident_memory_bytes", "gauge"),
+                    ("mercury_process_cpu_seconds_total", "counter"),
+                    ("mercury_process_uptime_seconds", "gauge"),
+                ]
+
+                for name, expected_type in expected_families:
+                    self.assertIn(name, families, f"Missing metric family: {name}")
+                    fam = families[name]
+                    self.assertEqual(fam["type"], expected_type, f"Type mismatch for {name}")
+                    self.assertGreater(len(fam["help"]), 0, f"Empty HELP doc for {name}")
+                    self.assertGreater(len(fam["samples"]), 0, f"No samples for {name}")
+
+                # Assert that requests sent changed their expected counters
+                req_fam = families["mercury_http_requests_total"]
+                def get_request_sample(method, status, handler="static"):
+                    target = {"method": method, "status": status, "handler": handler}
+                    matches = [s for s in req_fam["samples"] if s["labels"] == target]
+                    self.assertEqual(len(matches), 1, f"Missing or duplicate sample for {target}")
+                    return matches[0]["value"]
+
+                self.assertEqual(get_request_sample("GET", "2xx"), 1.0)
+                self.assertEqual(get_request_sample("HEAD", "2xx"), 1.0)
+                self.assertEqual(get_request_sample("GET", "4xx"), 1.0)
+                self.assertEqual(get_request_sample("POST", "2xx"), 0.0)
+                self.assertEqual(get_request_sample("GET", "5xx"), 0.0)
+
+                # Validate histogram specification compliance and counter tracking
+                hist = families["mercury_http_request_duration_seconds"]
+                buckets = [s for s in hist["samples"] if s["name"].endswith("_bucket")]
+                counts = [s for s in hist["samples"] if s["name"].endswith("_count")]
+                sums = [s for s in hist["samples"] if s["name"].endswith("_sum")]
+
+                self.assertEqual(len(counts), 1)
+                self.assertEqual(len(sums), 1)
+                total_count = counts[0]["value"]
+                total_sum = sums[0]["value"]
+
+                # Exactly 3 client requests were completed before scraping
+                self.assertEqual(total_count, 3.0)
+                self.assertGreater(total_sum, 0.0)
+
+                expected_le_order = ["0.005", "0.01", "0.025", "0.05", "0.1", "0.25", "0.5", "1.0", "2.5", "5.0", "+Inf"]
+                self.assertEqual([b["labels"]["le"] for b in buckets], expected_le_order)
+
+                prev_val = 0
+                for b in buckets:
+                    val = b["value"]
+                    self.assertGreaterEqual(val, prev_val, f"Histogram non-monotonic: {val} < {prev_val}")
+                    prev_val = val
+
+                # Final +Inf bucket value must equal _count (3.0)
+                self.assertEqual(buckets[-1]["value"], 3.0)
+                self.assertEqual(buckets[-1]["value"], total_count)
+
+                # Validate process, connection, and byte throughput metrics
+                self.assertGreater(families["mercury_http_bytes_received_total"]["samples"][0]["value"], 0.0)
+                self.assertGreater(families["mercury_http_bytes_sent_total"]["samples"][0]["value"], 0.0)
+                self.assertGreaterEqual(families["mercury_total_connections"]["samples"][0]["value"], 1.0)
+                self.assertGreater(families["mercury_process_resident_memory_bytes"]["samples"][0]["value"], 0.0)
+                self.assertGreaterEqual(families["mercury_process_uptime_seconds"]["samples"][0]["value"], 0.0)
+                self.assertGreaterEqual(families["mercury_process_cpu_seconds_total"]["samples"][0]["value"], 0.0)
+
+                # Negative parser tests verifying rejection of malformed Prometheus formats
+                with self.assertRaises(ValueError):
+                    self._parse_labels('method="GET" malformed_token')
+                with self.assertRaises(ValueError):
+                    self._parse_labels('method="GET",,')
+                with self.assertRaises(ValueError):
+                    self._parse_labels('123="invalid_identifier"')
+                with self.assertRaises(ValueError):
+                    self._parse_labels('method="unclosed_quote')
+                with self.assertRaises(ValueError):
+                    self._parse_labels('method="bad\\x_escape"')
+                with self.assertRaises(ValueError):
+                    self._parse_labels('dup="1",dup="2"')
+                with self.assertRaises(ValueError):
+                    self._parse_prometheus_exposition('invalid_line_without_space_or_brace')
+
+            finally:
+                self.stop_server(proc)
+
+    def _parse_labels(self, labels_raw):
+        # Strict tokenizer/parser for Prometheus label pairs inside { ... }
+        labels_raw = labels_raw.strip()
+        if not labels_raw:
+            return {}
+
+        labels = {}
+        idx = 0
+        n = len(labels_raw)
+
+        while idx < n:
+            while idx < n and labels_raw[idx].isspace():
+                idx += 1
+            if idx >= n:
+                break
+
+            # Parse label name: [a-zA-Z_][a-zA-Z0-9_]*
+            name_start = idx
+            if not (labels_raw[idx].isalpha() or labels_raw[idx] == '_'):
+                raise ValueError(f"Invalid label name start at index {idx} in {labels_raw!r}")
+            while idx < n and (labels_raw[idx].isalnum() or labels_raw[idx] == '_'):
+                idx += 1
+            label_name = labels_raw[name_start:idx]
+
+            while idx < n and labels_raw[idx].isspace():
+                idx += 1
+            if idx >= n or labels_raw[idx] != '=':
+                raise ValueError(f"Expected '=' after label name {label_name!r} in {labels_raw!r}")
+            idx += 1
+            while idx < n and labels_raw[idx].isspace():
+                idx += 1
+
+            if idx >= n or labels_raw[idx] != '"':
+                raise ValueError(f"Expected '\"' for value of label {label_name!r} in {labels_raw!r}")
+            idx += 1
+
+            val_chars = []
+            while idx < n:
+                c = labels_raw[idx]
+                if c == '\\':
+                    idx += 1
+                    if idx >= n:
+                        raise ValueError(f"Dangling backslash in label value for {label_name!r}")
+                    esc = labels_raw[idx]
+                    if esc == 'n':
+                        val_chars.append('\n')
+                    elif esc == '\\':
+                        val_chars.append('\\')
+                    elif esc == '"':
+                        val_chars.append('"')
+                    else:
+                        raise ValueError(f"Invalid escape sequence \\{esc} in {labels_raw!r}")
+                elif c == '"':
+                    idx += 1
+                    break
+                else:
+                    val_chars.append(c)
+                idx += 1
+            else:
+                raise ValueError(f"Unterminated quoted value for {label_name!r} in {labels_raw!r}")
+
+            if label_name in labels:
+                raise ValueError(f"Duplicate label {label_name!r} in {labels_raw!r}")
+            labels[label_name] = "".join(val_chars)
+
+            while idx < n and labels_raw[idx].isspace():
+                idx += 1
+
+            if idx < n:
+                if labels_raw[idx] == ',':
+                    idx += 1
+                    while idx < n and labels_raw[idx].isspace():
+                        idx += 1
+                else:
+                    raise ValueError(f"Expected ',' delimiter at index {idx} in {labels_raw!r}")
+
+        return labels
+
+    def _parse_prometheus_exposition(self, text):
+        metric_name_re = re.compile(r'^[a-zA-Z_:][a-zA-Z0-9_:]*$')
+        families = {}
+        current_help = {}
+        current_type = {}
+
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("# HELP "):
+                parts = line[7:].split(" ", 1)
+                name = parts[0]
+                doc = parts[1] if len(parts) > 1 else ""
+                self.assertTrue(metric_name_re.match(name), f"Invalid name in HELP: {name}")
+                current_help[name] = doc
+            elif line.startswith("# TYPE "):
+                parts = line[7:].split(" ", 1)
+                name = parts[0]
+                mtype = parts[1] if len(parts) > 1 else ""
+                self.assertTrue(metric_name_re.match(name), f"Invalid name in TYPE: {name}")
+                self.assertIn(mtype, ("counter", "gauge", "histogram", "summary", "untyped"))
+                current_type[name] = mtype
+            elif line.startswith("#"):
+                continue
+            else:
+                # Sample line
+                brace_open = line.find("{")
+                if brace_open != -1:
+                    name = line[:brace_open].strip()
+                    self.assertTrue(metric_name_re.match(name), f"Invalid metric name in sample: {name}")
+                    brace_close = line.rfind("}")
+                    if brace_close == -1 or brace_close <= brace_open:
+                        raise ValueError(f"Unclosed or malformed label set: {line}")
+                    labels_raw = line[brace_open + 1:brace_close]
+                    val_str = line[brace_close + 1:].strip()
+                    if not val_str:
+                        raise ValueError(f"Missing sample value after labels: {line}")
+                    labels = self._parse_labels(labels_raw)
+                else:
+                    space_idx = line.find(" ")
+                    if space_idx == -1:
+                        raise ValueError(f"Missing value delimiter in sample line: {line}")
+                    name = line[:space_idx].strip()
+                    self.assertTrue(metric_name_re.match(name), f"Invalid metric name in sample: {name}")
+                    val_str = line[space_idx + 1:].strip()
+                    if not val_str:
+                        raise ValueError(f"Missing sample value: {line}")
+                    labels = {}
+
+                family_name = name
+                if name.endswith("_bucket"):
+                    family_name = name[:-7]
+                elif name.endswith("_count"):
+                    family_name = name[:-6]
+                elif name.endswith("_sum"):
+                    family_name = name[:-4]
+
+                if family_name not in families:
+                    families[family_name] = {
+                        "help": current_help.get(family_name, ""),
+                        "type": current_type.get(family_name, "untyped"),
+                        "samples": []
+                    }
+                families[family_name]["samples"].append({
+                    "name": name,
+                    "labels": labels,
+                    "value": float(val_str)
+                })
+
+        return families
 
 
 # Run compact test suite output when called from run.py
