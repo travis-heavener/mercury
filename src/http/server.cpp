@@ -6,6 +6,7 @@
 
 #include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
+#include "../util/metrics.hpp"
 #include "../util/ratelimit.hpp"
 
 #include "telemetry/stats.hpp"
@@ -163,8 +164,10 @@ namespace http {
         else
             n = recv(client, readBuffer, conf::REQUEST_BUFFER_SIZE, 0);
 
-        if (n > 0)
+        if (n > 0) {
             ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
+            util::MetricsRegistry::getInstance().recordBytesRead(static_cast<size_t>(n));
+        }
         return n;
     }
 
@@ -206,8 +209,10 @@ namespace http {
                 }
             #endif
         }
-        if (status > 0)
+        if (status > 0) {
             ServerStats::getInstance().recordBytesSent(static_cast<size_t>(status));
+            util::MetricsRegistry::getInstance().recordBytesSent(static_cast<size_t>(status));
+        }
         return (status <= 0) ? -1 : status;
     }
 
@@ -339,6 +344,7 @@ namespace http {
         std::unique_lock lock(clientsMutex);
         if (isExiting) return false;
         this->clientSocks.insert(client);
+        util::MetricsRegistry::getInstance().recordConnectionOpened();
         return true;
     }
 
@@ -346,6 +352,7 @@ namespace http {
     void Server::untrackClient(const int client) {
         std::unique_lock lock(clientsMutex);
         this->clientSocks.erase(client);
+        util::MetricsRegistry::getInstance().recordConnectionClosed();
     }
 
     int Server::acceptConnection(struct sockaddr_storage& clientAddr, socklen_t& clientLen) {
@@ -487,6 +494,7 @@ namespace http {
                             // Start latency clock when first request bytes arrive
                             if (pending.empty()) requestStartTime = std::chrono::steady_clock::now();
                             ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
+                            util::MetricsRegistry::getInstance().recordBytesRead(static_cast<size_t>(n));
                             pending.append(readBuffer.data(), static_cast<size_t>(n));
                             return true;
                         }
@@ -524,6 +532,7 @@ namespace http {
                         // Exclude idle time before first request bytes arrive
                         if (pending.empty()) requestStartTime = std::chrono::steady_clock::now();
                         ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
+                        util::MetricsRegistry::getInstance().recordBytesRead(static_cast<size_t>(n));
                         pending.append(readBuffer.data(), static_cast<size_t>(n));
                         return true;
                     }
@@ -541,6 +550,14 @@ namespace http {
                 response.streamBody(false, true, sendFunc);
                 ServerStats::getInstance().recordRequest();
                 ServerStats::getInstance().recordStatusCode(status);
+
+                // Update metrics
+                const size_t methodEnd = pending.find(' ');
+                const auto method = methodEnd != std::string::npos ? util::stringToMetricMethod(std::string_view(pending.data(), methodEnd)) : util::MetricMethod::Other;
+                util::MetricsRegistry::getInstance().recordRequest(method);
+                util::MetricsRegistry::getInstance().recordStatus(status);
+                util::MetricsRegistry::getInstance().recordHandler(util::MetricHandler::Static);
+                util::MetricsRegistry::getInstance().recordCompletedRequest(method, status, util::MetricHandler::Static);
             };
 
             // Process requests until the connection limit, shutdown, or an error
@@ -673,6 +690,8 @@ namespace http {
                 // Generate the response using the validated request and owned client IP
                 RequestFlags flags;
                 Request request(reqHeaders, raw, clientIPStr, useTLS, flags);
+                const auto metricMethod = util::stringToMetricMethod(request.getMethodStr());
+                util::MetricsRegistry::getInstance().recordRequest(metricMethod);
 
                 if (pending.size() == requestSize)
                     pending.clear();
@@ -739,6 +758,9 @@ namespace http {
                 const ssize_t status = response->streamBody(request.isMIMEAccepted("text/html"), request.getMethod() == METHOD::HEAD, sendFunc);
 
                 ServerStats::getInstance().recordStatusCode(response->getStatus());
+                util::MetricsRegistry::getInstance().recordStatus(response->getStatus());
+                util::MetricsRegistry::getInstance().recordHandler(response->getMetricHandler());
+                util::MetricsRegistry::getInstance().recordCompletedRequest(metricMethod, response->getStatus(), response->getMetricHandler());
 
                 // Log the final status, including errors detected while preparing the body
                 if (!conf::DISABLE_LOGS) {

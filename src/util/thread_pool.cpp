@@ -4,6 +4,7 @@
 
 #include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
+#include "metrics.hpp"
 
 ThreadWrapper::ThreadWrapper(const bool isTemporary) : isTemporary(isTemporary) {}
 
@@ -317,6 +318,7 @@ void ThreadPool::workerLoop(ThreadWrapper& thisThread) {
                 continue;
             }
             thisThread.isInUse = true;
+            util::MetricsRegistry::getInstance().recordWorkerStarted();
         }
 
         // Execute expired callbacks outside queueMutex
@@ -333,6 +335,7 @@ void ThreadPool::workerLoop(ThreadWrapper& thisThread) {
         {
             std::lock_guard<std::mutex> lock(queueMutex);
             thisThread.isInUse = false;
+            util::MetricsRegistry::getInstance().recordWorkerFinished();
             if (thisThread.isTemporary && tasks.empty()) {
                 thisThread.isDone = true;
                 return;

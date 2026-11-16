@@ -4,6 +4,7 @@
 
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
+#include "../../util/metrics.hpp"
 #include "../../util/toolbox.hpp"
 #include "../cgi/process.hpp"
 #include "../fastcgi/client.hpp"
@@ -120,6 +121,7 @@ namespace http::version::handler_1_1 {
             // Check for PHP files
             if (isPHPFile(file.absoluteResourcePath)) {
                 if (conf::IS_FASTCGI_ENABLED) {
+                    pResponse->setMetricHandler(util::MetricHandler::FastCgi);
                     fastcgi::handleRequest(conf::FASTCGI_ADDRESS, file, request, *pResponse, static_cast<int>(conf::FASTCGI_TIMEOUT));
 
                     // Load additional headers
@@ -134,6 +136,7 @@ namespace http::version::handler_1_1 {
 
                     return pResponse;
                 } else if (conf::IS_PHP_ENABLED) {
+                    pResponse->setMetricHandler(util::MetricHandler::Cgi);
                     cgi::handlePHPRequest(file, request, *pResponse);
 
                     // Load additional headers
