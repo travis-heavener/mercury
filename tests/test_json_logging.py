@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import signal
 import socket
 import subprocess
 import sys
@@ -86,8 +87,13 @@ class JsonLoggingTests(unittest.TestCase):
 
     # Used to start background Mercury instance and wait for socket readiness
     def start_server(self, conf_path):
+        windows = sys.platform in ("win32", "cygwin")
+        flags = subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0
         proc = subprocess.Popen([get_mercury_bin(), "-c", conf_path],
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.PIPE,
+                                stdin=subprocess.DEVNULL,
+                                creationflags=flags)
         self.addCleanup(lambda: self.stop_server(proc))
 
         # Wait for server listener readiness over loopback
@@ -107,9 +113,15 @@ class JsonLoggingTests(unittest.TestCase):
     # Used to terminate background Mercury process gracefully
     def stop_server(self, proc):
         if proc.poll() is None:
-            proc.terminate()
             try:
-                proc.wait(timeout=2)
+                if sys.platform in ("win32", "cygwin"):
+                    proc.send_signal(signal.CTRL_BREAK_EVENT)
+                else:
+                    proc.terminate()
+            except OSError:
+                pass
+            try:
+                proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait()
