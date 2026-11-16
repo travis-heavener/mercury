@@ -227,11 +227,25 @@ void logJsonAccess(const std::string& method, const std::string& clientIP, const
     log += "\",\"latency_ms\":";
 
     // Format finite latency without locale-dependent decimal separators
+    const double validLatency = (std::isfinite(latencyMs) && latencyMs >= 0.0) ? latencyMs : 0.0;
     char number[64];
-    const auto result = std::to_chars(number, number + sizeof(number),
-        std::isfinite(latencyMs) ? latencyMs : 0.0, std::chars_format::fixed, 2);
-    if (result.ec == std::errc()) log.append(number, result.ptr);
-    else log += "0.00";
+    if (validLatency <= static_cast<double>(std::numeric_limits<uint64_t>::max() / 100)) {
+        const auto totalHundredths = static_cast<uint64_t>(validLatency * 100.0 + 0.5);
+        const auto whole = totalHundredths / 100;
+        const auto frac = totalHundredths % 100;
+        const auto wholeResult = std::to_chars(number, number + sizeof(number) - 4, whole);
+        if (wholeResult.ec == std::errc()) {
+            char* ptr = wholeResult.ptr;
+            *ptr++ = '.';
+            *ptr++ = static_cast<char>('0' + (frac / 10));
+            *ptr++ = static_cast<char>('0' + (frac % 10));
+            log.append(number, ptr);
+        } else {
+            log += "0.00";
+        }
+    } else {
+        log += "0.00";
+    }
 
     // Append remaining escaped fields and queue entry
     log += ",\"bytes_sent\":" + std::to_string(bytesSent);
