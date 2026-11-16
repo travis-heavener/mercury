@@ -11,9 +11,9 @@
 #include <string_view>
 #include <vector>
 
-#include "../conf/conf.hpp"
-#include "../http/telemetry/stats.hpp"
-#include "../http/tls/tls.hpp"
+#include "../../conf/conf.hpp"
+#include "../../http/telemetry/stats.hpp"
+#include "../../http/tls/tls.hpp"
 
 #ifdef __linux__
     #include <poll.h>
@@ -21,7 +21,7 @@
 
 #ifdef _WIN32
     // Only used in Windows builds for canonicalizing the path to the PHP init script
-    #include "../io/file_tools.hpp"
+    #include "../../io/file_tools.hpp"
 #endif
 
 #define SLEEP_BETWEEN_CLI std::this_thread::sleep_for(std::chrono::milliseconds(200))

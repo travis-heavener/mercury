@@ -16,7 +16,7 @@
 
 #include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
-#include "../util/privilege.hpp"
+#include "../util/system/privilege.hpp"
 
 #define TMP_FILE_MAX_RETRIES 50
 #define TMP_FILE_NAME_LEN 12

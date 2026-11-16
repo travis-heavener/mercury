@@ -17,8 +17,8 @@
 #include "http/telemetry/version_checker.hpp"
 #include "io/file_cache.hpp"
 #include "logs/logger.hpp"
-#include "util/cli.hpp"
-#include "util/privilege.hpp"
+#include "util/cli/cli.hpp"
+#include "util/system/privilege.hpp"
 
 // Global termination flag (atomic)
 std::atomic<bool> isExiting{false};

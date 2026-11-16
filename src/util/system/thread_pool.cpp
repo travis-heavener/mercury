@@ -2,9 +2,9 @@
 
 #include <stdexcept>
 
-#include "../conf/conf.hpp"
-#include "../logs/logger.hpp"
-#include "metrics.hpp"
+#include "../../conf/conf.hpp"
+#include "../../logs/logger.hpp"
+#include "../metrics/metrics.hpp"
 
 ThreadWrapper::ThreadWrapper(const bool isTemporary) : isTemporary(isTemporary) {}
 

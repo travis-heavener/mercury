@@ -4,8 +4,8 @@
 
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
-#include "../../util/metrics.hpp"
-#include "../../util/toolbox.hpp"
+#include "../../util/metrics/metrics.hpp"
+#include "../../util/tools/toolbox.hpp"
 #include "../cgi/process.hpp"
 #include "../fastcgi/client.hpp"
 

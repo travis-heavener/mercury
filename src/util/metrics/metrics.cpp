@@ -7,7 +7,7 @@
 #include <thread>
 
 #ifdef _WIN32
-    #include "../winheader.hpp"
+    #include "../../winheader.hpp"
     #include <psapi.h>
 #else
     #include <fstream>

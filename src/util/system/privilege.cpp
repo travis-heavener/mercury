@@ -11,8 +11,8 @@
     #include <unistd.h>
 #endif
 
-#include "../conf/conf.hpp"
-#include "../logs/logger.hpp"
+#include "../../conf/conf.hpp"
+#include "../../logs/logger.hpp"
 
 namespace util::privilege {
 

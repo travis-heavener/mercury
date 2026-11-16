@@ -10,8 +10,8 @@
 #endif
 
 #include "../../io/file.hpp"
-#include "../../util/string_tools.hpp"
-#include "../../util/metrics.hpp"
+#include "../../util/tools/string_tools.hpp"
+#include "../../util/metrics/metrics.hpp"
 #include "../streams/body_stream.hpp"
 #include "../tools.hpp"
 

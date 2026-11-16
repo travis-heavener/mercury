@@ -16,9 +16,9 @@
 
 #include "../http/fastcgi/client.hpp"
 #include "../io/file_tools.hpp"
-#include "../util/privilege.hpp"
-#include "../util/ratelimit.hpp"
-#include "../util/string_tools.hpp"
+#include "../util/system/privilege.hpp"
+#include "../util/system/ratelimit.hpp"
+#include "../util/tools/string_tools.hpp"
 
 #define LOAD_UINT_FORBID_ZERO false
 
