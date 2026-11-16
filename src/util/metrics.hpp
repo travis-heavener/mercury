@@ -5,12 +5,15 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
 #include "../http/tools.hpp"
 
 namespace util {
+
+    static_assert(std::atomic<uint64_t>::is_always_lock_free);
 
     // Metric dimension enums
     enum class MetricMethod : uint8_t {
@@ -40,6 +43,25 @@ namespace util {
         Cgi,
         FastCgi,
         Count
+    };
+
+    constexpr size_t LATENCY_FINITE_BUCKETS = 10;
+    constexpr size_t LATENCY_TOTAL_BUCKETS = 11;
+
+    // Fixed latency upper bounds in seconds: 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0
+    inline constexpr double LATENCY_BUCKET_UPPER_BOUNDS[LATENCY_FINITE_BUCKETS] = {
+        0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0
+    };
+
+    inline constexpr std::string_view LATENCY_BUCKET_LABELS[LATENCY_TOTAL_BUCKETS] = {
+        "0.005", "0.01", "0.025", "0.05", "0.1", "0.25", "0.5", "1.0", "2.5", "5.0", "+Inf"
+    };
+
+    // Consistent snapshot of request duration histogram
+    struct LatencySnapshot {
+        uint64_t buckets[LATENCY_TOTAL_BUCKETS];
+        uint64_t count;
+        double sumSeconds;
     };
 
     // Cacheline-aligned atomic wrappers to prevent false sharing across threads
@@ -88,6 +110,12 @@ namespace util {
             void recordWorkerFinished();
             void setActiveWorkers(const int64_t count);
 
+            // Request duration histogram
+            void recordRequestDuration(const double durationSeconds);
+            std::optional<LatencySnapshot> getLatencySnapshot() const;
+            bool isTrackLatencyEnabled() const;
+            void setTrackLatency(const bool enabled);
+
             // Metric readers for Prometheus exposition
             uint64_t getMethodCount(const MetricMethod method) const;
             uint64_t getStatusFamilyCount(const MetricStatusFamily family) const;
@@ -106,7 +134,7 @@ namespace util {
             // Generate Prometheus plain-text exposition payload
             std::string exportPrometheus() const;
 
-            // Reset all metric counters and gauges (used in test fixtures)
+            // Reset metrics only while recording and scraping are stopped
             void reset();
 
         private:
@@ -126,6 +154,13 @@ namespace util {
             AlignedGauge activeConnections;
             AlignedCounter totalConnections;
             AlignedGauge activeWorkers;
+
+            // Validate snapshots without blocking observation writers
+            std::atomic<bool> trackLatency{false};
+            AlignedCounter latencyWriters;
+            AlignedCounter latencyVersion;
+            AlignedCounter rawLatencyBuckets[LATENCY_TOTAL_BUCKETS];
+            AlignedCounter latencySumMicroseconds;
     };
 
 }

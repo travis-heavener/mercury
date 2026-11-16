@@ -4,10 +4,12 @@ import http.client
 import json
 import os
 from pathlib import Path
+import re
 import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 
@@ -336,10 +338,15 @@ class JsonLoggingTests(unittest.TestCase):
             self.assertNotEqual(proc_path.returncode, 0)
             self.assertIn(b"invalid path attribute for Metrics", proc_path.stderr)
 
-            # Reject ambiguous paths and unsupported access restrictions
+            # Reject ambiguous paths, invalid CIDRs, and unsupported settings
             for directive in ('<Metrics path="/metrics?x=1" />',
                               '<Metrics path="/metrics#fragment" />',
-                              '<Metrics><AllowCIDR>127.0.0.1/32</AllowCIDR></Metrics>'):
+                              '<Metrics><UnsupportedTag>val</UnsupportedTag></Metrics>',
+                              '<Metrics><AllowCIDR>invalid_cidr</AllowCIDR></Metrics>',
+                              '<Metrics><AllowCIDR>127.0.0.1/33</AllowCIDR></Metrics>',
+                              '<Metrics><AllowCIDR attr="bad">127.0.0.1/32</AllowCIDR></Metrics>',
+                              '<Metrics><TrackLatency enabled="invalid" /></Metrics>',
+                              '<Metrics><TrackLatency attr="bad" /></Metrics>'):
                 with self.subTest(directive=directive):
                     invalid = Path(self.write_conf(access, error))
                     invalid.write_text(invalid.read_text().replace("</Mercury>", directive + "</Mercury>"))
@@ -350,7 +357,7 @@ class JsonLoggingTests(unittest.TestCase):
             # Start server w/ valid metrics configuration
             conf_valid = Path(self.write_conf(access, error))
             conf_valid.write_text(conf_valid.read_text().replace(
-                "</Mercury>", '<Metrics enabled="true" path="/metrics" /></Mercury>'))
+                "</Mercury>", '<Metrics enabled="true" path="/metrics"><AllowCIDR>127.0.0.1/32</AllowCIDR><TrackLatency enabled="true" /></Metrics></Mercury>'))
             proc = self.start_server(str(conf_valid))
 
             try:
@@ -363,6 +370,12 @@ class JsonLoggingTests(unittest.TestCase):
                 self.assertIn("version=0.0.4", res.headers.get("Content-Type", ""))
                 payload = res.read().decode("utf-8")
                 self.assertIn("mercury_http_requests_total", payload)
+                self.assertIn("mercury_http_request_duration_seconds_bucket", payload)
+                self.assertIn('le="0.005"', payload)
+                self.assertIn('le="1.0"', payload)
+                self.assertIn('le="+Inf"', payload)
+                self.assertIn("mercury_http_request_duration_seconds_sum", payload)
+                self.assertIn("mercury_http_request_duration_seconds_count", payload)
                 self.assertIn("mercury_active_connections", payload)
                 self.assertIn("mercury_process_resident_memory_bytes", payload)
                 self.assertIn("mercury_process_cpu_seconds_total", payload)
@@ -407,6 +420,177 @@ class JsonLoggingTests(unittest.TestCase):
                 self.assertIn("403", response.split("\r\n", 1)[0])
             finally:
                 self.stop_server(proc)
+
+    # Enforce CIDR subnet restrictions on metrics endpoint
+    def test_metrics_cidr_filtering(self):
+        with tempfile.TemporaryDirectory() as directory:
+            # Deny non-matching CIDR
+            conf_deny = Path(self.write_conf(Path(directory) / "access.log", Path(directory) / "error.log"))
+            conf_deny.write_text(conf_deny.read_text().replace(
+                "</Mercury>", '<Metrics enabled="true"><AllowCIDR>10.0.0.0/8</AllowCIDR></Metrics></Mercury>'))
+            proc_deny = self.start_server(str(conf_deny))
+            try:
+                response = self.send_raw_request(
+                    "GET /metrics HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                self.assertIn("403", response.split("\r\n", 1)[0])
+            finally:
+                self.stop_server(proc_deny)
+
+            # Allow matching CIDR
+            conf_allow = Path(self.write_conf(Path(directory) / "access.log", Path(directory) / "error.log"))
+            conf_allow.write_text(conf_allow.read_text().replace(
+                "</Mercury>", '<Metrics enabled="true"><AllowCIDR>127.0.0.1/32</AllowCIDR></Metrics></Mercury>'))
+            proc_allow = self.start_server(str(conf_allow))
+            try:
+                response = self.send_raw_request(
+                    "GET /metrics HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                self.assertIn("200", response.split("\r\n", 1)[0])
+            finally:
+                self.stop_server(proc_allow)
+
+    # Verify TrackLatency disabled toggle omits request duration histogram
+    def test_metrics_track_latency_disabled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            conf = Path(self.write_conf(Path(directory) / "access.log", Path(directory) / "error.log"))
+            conf.write_text(conf.read_text().replace(
+                "</Mercury>", '<Metrics enabled="true"><TrackLatency enabled="false" /></Metrics></Mercury>'))
+            proc = self.start_server(str(conf))
+            try:
+                response = self.send_raw_request(
+                    "GET /metrics HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                self.assertIn("200", response.split("\r\n", 1)[0])
+                self.assertNotIn("mercury_http_request_duration_seconds", response)
+            finally:
+                self.stop_server(proc)
+
+    # Verify histogram buckets remain monotonic and +Inf matches _count under concurrent traffic
+    def test_metrics_histogram_concurrent_consistency(self):
+        with tempfile.TemporaryDirectory() as directory:
+            conf = Path(self.write_conf(Path(directory) / "access.log", Path(directory) / "error.log"))
+            conf.write_text(conf.read_text().replace(
+                "</Mercury>", '<Metrics enabled="true"><TrackLatency enabled="true" /></Metrics></Mercury>'))
+            proc = self.start_server(str(conf))
+
+            try:
+                stop_event = threading.Event()
+                errors = []
+                successful_scrapes = []
+
+                def worker():
+                    while not stop_event.is_set():
+                        try:
+                            conn = http.client.HTTPConnection(HOST, self.port, timeout=1)
+                            conn.request("GET", "/index.html")
+                            res = conn.getresponse()
+                            res.read()
+                            conn.close()
+                        except Exception:
+                            pass
+
+                def scraper():
+                    bucket_re = re.compile(r'mercury_http_request_duration_seconds_bucket\{le="([^"]+)"\}\s+(\d+)')
+                    count_re = re.compile(r'mercury_http_request_duration_seconds_count\s+(\d+)')
+                    sum_re = re.compile(r'mercury_http_request_duration_seconds_sum\s+([0-9.]+)')
+
+                    for _ in range(25):
+                        if stop_event.is_set():
+                            break
+                        try:
+                            conn = http.client.HTTPConnection(HOST, self.port, timeout=1)
+                            conn.request("GET", "/metrics")
+                            res = conn.getresponse()
+                            body = res.read().decode("utf-8")
+                            conn.close()
+
+                            if res.status == 503:
+                                continue
+                            if res.status != 200:
+                                errors.append(f"Scrape status was {res.status}")
+                                continue
+                            successful_scrapes.append(1)
+
+                            buckets = bucket_re.findall(body)
+                            count_match = count_re.search(body)
+                            sum_match = sum_re.search(body)
+
+                            if not buckets or not count_match or not sum_match:
+                                errors.append("Missing histogram metrics in scrape payload")
+                                continue
+
+                            count_val = int(count_match.group(1))
+                            sum_val = float(sum_match.group(1))
+
+                            if sum_val < 0.0:
+                                errors.append(f"Histogram sum negative: {sum_val}")
+
+                            prev_val = 0
+                            previous_bound = 0.0
+                            minimum_sum = 0.0
+                            for le, val_str in buckets:
+                                val = int(val_str)
+                                if val < prev_val:
+                                    errors.append(f"Histogram inversion: bucket le={le} ({val}) < previous ({prev_val})")
+                                minimum_sum += (val - prev_val) * previous_bound
+                                prev_val = val
+                                if le != "+Inf":
+                                    previous_bound = float(le)
+
+                            # Account for per-observation microsecond truncation
+                            if sum_val + count_val * 0.000001 + 0.000001 < minimum_sum:
+                                errors.append(f"Histogram sum {sum_val} below bucket minimum {minimum_sum}")
+
+                            # +Inf bucket must equal _count
+                            inf_bucket_val = int(buckets[-1][1])
+                            if inf_bucket_val != count_val:
+                                errors.append(f"+Inf bucket ({inf_bucket_val}) != count ({count_val})")
+
+                        except Exception as e:
+                            errors.append(f"Scraper error: {e}")
+                        time.sleep(0.02)
+
+                workers = [threading.Thread(target=worker) for _ in range(6)]
+                scrape_thread = threading.Thread(target=scraper)
+
+                for w in workers:
+                    w.start()
+                scrape_thread.start()
+
+                scrape_thread.join(timeout=5)
+                scrape_finished = not scrape_thread.is_alive()
+                stop_event.set()
+                for w in workers:
+                    w.join(timeout=2)
+                scrape_thread.join(timeout=2)
+
+                self.assertTrue(scrape_finished, "Concurrent scraper did not finish within deadline")
+                self.assertEqual(errors, [])
+                self.assertGreater(len(successful_scrapes), 0, "No successful concurrent scrapes")
+            finally:
+                self.stop_server(proc)
+
+    # Verify absent or disabled Metrics configuration avoids metric exposition
+    def test_metrics_disabled_omits_metrics(self):
+        with tempfile.TemporaryDirectory() as directory:
+            conf_absent = Path(self.write_conf(Path(directory) / "access.log", Path(directory) / "error.log"))
+            proc_absent = self.start_server(str(conf_absent))
+            try:
+                response = self.send_raw_request(
+                    "GET /metrics HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                # When metrics is absent, /metrics is not intercepted and yields 404 from static file router
+                self.assertIn("404", response.split("\r\n", 1)[0])
+            finally:
+                self.stop_server(proc_absent)
+
+            conf_disabled = Path(self.write_conf(Path(directory) / "access.log", Path(directory) / "error.log"))
+            conf_disabled.write_text(conf_disabled.read_text().replace(
+                "</Mercury>", '<Metrics enabled="false" /></Mercury>'))
+            proc_disabled = self.start_server(str(conf_disabled))
+            try:
+                response = self.send_raw_request(
+                    "GET /metrics HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                self.assertIn("404", response.split("\r\n", 1)[0])
+            finally:
+                self.stop_server(proc_disabled)
 
     # Verify GPC/DNT privacy headers mask client IPs in JSON log records
     def test_gpc_masking_in_json_log(self):

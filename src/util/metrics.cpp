@@ -1,7 +1,10 @@
 #include "metrics.hpp"
 
+#include <cmath>
 #include <iomanip>
+#include <limits>
 #include <sstream>
+#include <thread>
 
 #ifdef _WIN32
     #include <windows.h>
@@ -159,6 +162,69 @@ namespace util {
     // Set active worker count gauge
     void MetricsRegistry::setActiveWorkers(const int64_t count) { activeWorkers.val.store(count, std::memory_order_relaxed); }
 
+    // Map observed latency duration to discrete histogram bucket index
+    inline size_t getLatencyBucketIndex(const double durationSeconds) {
+        for (size_t i = 0; i < LATENCY_FINITE_BUCKETS; ++i) {
+            if (durationSeconds <= LATENCY_BUCKET_UPPER_BOUNDS[i])
+                return i;
+        }
+        return LATENCY_FINITE_BUCKETS;
+    }
+
+    // Record request duration into discrete differential bucket counter
+    void MetricsRegistry::recordRequestDuration(const double durationSeconds) {
+        if (!trackLatency.load(std::memory_order_relaxed) || !std::isfinite(durationSeconds) || durationSeconds < 0.0 ||
+            durationSeconds * 1000000.0 >= static_cast<double>(std::numeric_limits<uint64_t>::max())) return;
+
+        const size_t bucketIdx = getLatencyBucketIndex(durationSeconds);
+        const uint64_t micros = static_cast<uint64_t>(durationSeconds * 1000000.0);
+
+        // Order writer entry, data updates, and completion against snapshot reads
+        latencyWriters.val.fetch_add(1, std::memory_order_seq_cst);
+        latencySumMicroseconds.val.fetch_add(micros, std::memory_order_seq_cst);
+        rawLatencyBuckets[bucketIdx].val.fetch_add(1, std::memory_order_seq_cst);
+        latencyVersion.val.fetch_add(1, std::memory_order_seq_cst);
+        latencyWriters.val.fetch_sub(1, std::memory_order_seq_cst);
+    }
+
+    // Retry snapshots overlapping observations; never stall request writers
+    std::optional<LatencySnapshot> MetricsRegistry::getLatencySnapshot() const {
+        constexpr size_t MAX_SNAPSHOT_ATTEMPTS = 128;
+        for (size_t attempt = 0; attempt < MAX_SNAPSHOT_ATTEMPTS; ++attempt) {
+            const auto version = latencyVersion.val.load(std::memory_order_seq_cst);
+            if (latencyWriters.val.load(std::memory_order_seq_cst) != 0) {
+                std::this_thread::yield();
+                continue;
+            }
+            LatencySnapshot snap{};
+            const auto micros = latencySumMicroseconds.val.load(std::memory_order_seq_cst);
+            uint64_t cumulative = 0;
+            for (size_t i = 0; i < LATENCY_TOTAL_BUCKETS; ++i) {
+                cumulative += rawLatencyBuckets[i].val.load(std::memory_order_seq_cst);
+                snap.buckets[i] = cumulative;
+            }
+            // Reject both unfinished writers and writers completed during reads
+            if (latencyWriters.val.load(std::memory_order_seq_cst) == 0 &&
+                latencyVersion.val.load(std::memory_order_seq_cst) == version) {
+                snap.count = cumulative;
+                snap.sumSeconds = static_cast<double>(micros) / 1000000.0;
+                return snap;
+            }
+            std::this_thread::yield();
+        }
+        return std::nullopt;
+    }
+
+    // Check whether latency tracking is enabled
+    bool MetricsRegistry::isTrackLatencyEnabled() const {
+        return trackLatency.load(std::memory_order_relaxed);
+    }
+
+    // Set latency tracking enabled state
+    void MetricsRegistry::setTrackLatency(const bool enabled) {
+        trackLatency.store(enabled, std::memory_order_relaxed);
+    }
+
     // Retrieve request count by method
     uint64_t MetricsRegistry::getMethodCount(const MetricMethod method) const {
         const size_t idx = static_cast<size_t>(method);
@@ -271,6 +337,23 @@ namespace util {
             }
         }
 
+        // Request duration histogram
+        if (trackLatency.load(std::memory_order_relaxed)) {
+            const auto snap = getLatencySnapshot();
+            if (!snap) return {};
+            oss << "# HELP mercury_http_request_duration_seconds HTTP request duration in seconds.\n"
+                << "# TYPE mercury_http_request_duration_seconds histogram\n";
+            for (size_t i = 0; i < LATENCY_TOTAL_BUCKETS; ++i) {
+                oss << "mercury_http_request_duration_seconds_bucket{le=\""
+                    << LATENCY_BUCKET_LABELS[i] << "\"} "
+                    << snap->buckets[i] << '\n';
+            }
+            oss << std::fixed << std::setprecision(6)
+                << "mercury_http_request_duration_seconds_sum " << snap->sumSeconds << '\n'
+                << std::defaultfloat
+                << "mercury_http_request_duration_seconds_count " << snap->count << '\n';
+        }
+
         // Ingress bandwidth
         oss << "# HELP mercury_http_bytes_received_total Cumulative ingress bytes read from sockets.\n"
             << "# TYPE mercury_http_bytes_received_total counter\n"
@@ -336,6 +419,14 @@ namespace util {
         activeConnections.val.store(0, std::memory_order_relaxed);
         totalConnections.val.store(0, std::memory_order_relaxed);
         activeWorkers.val.store(0, std::memory_order_relaxed);
+
+        {
+            latencyWriters.val.store(0, std::memory_order_relaxed);
+            latencyVersion.val.store(0, std::memory_order_relaxed);
+            for (size_t i = 0; i < LATENCY_TOTAL_BUCKETS; ++i)
+                rawLatencyBuckets[i].val.store(0, std::memory_order_relaxed);
+            latencySumMicroseconds.val.store(0, std::memory_order_relaxed);
+        }
     }
 
 }

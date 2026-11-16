@@ -94,6 +94,8 @@ namespace conf {
 
     extern bool IS_METRICS_ENABLED;
     extern std::string METRICS_PATH;
+    extern bool IS_METRICS_TRACK_LATENCY_ENABLED;
+    extern std::vector<SanitizedIP> METRICS_ALLOWED_CIDRS;
 
     extern bool SHOW_WELCOME_BANNER;
     extern bool SHOW_DONATION_BANNER;
@@ -112,6 +114,7 @@ namespace conf {
     bool isVersionOutdated(const std::string& latestRemoteVersion);
     void printHelp();
     void printVersion();
+    bool isMetricsIPAllowed(const SanitizedIP& peer);
 }
 
 #endif

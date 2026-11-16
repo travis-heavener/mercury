@@ -85,8 +85,10 @@ namespace conf {
     std::string FASTCGI_ADDRESS;
     unsigned int FASTCGI_TIMEOUT;
 
-    bool IS_METRICS_ENABLED;
-    std::string METRICS_PATH;
+    bool IS_METRICS_ENABLED = false;
+    std::string METRICS_PATH = "/metrics";
+    bool IS_METRICS_TRACK_LATENCY_ENABLED = false;
+    std::vector<SanitizedIP> METRICS_ALLOWED_CIDRS;
 
     bool SHOW_WELCOME_BANNER;
     bool SHOW_DONATION_BANNER;
@@ -908,6 +910,13 @@ namespace conf {
         RATE_LIMIT_BURST = 20.0;
         util::RateLimiter::getInstance().clear();
 
+        // Reset metrics settings
+        IS_METRICS_ENABLED = false;
+        METRICS_PATH = "/metrics";
+        IS_METRICS_TRACK_LATENCY_ENABLED = false;
+        METRICS_ALLOWED_CIDRS.clear();
+        util::MetricsRegistry::getInstance().setTrackLatency(false);
+
         // Reset TLS paths
         TLS_CERT_FILE.clear();
         TLS_KEY_FILE.clear();
@@ -1474,21 +1483,28 @@ namespace conf {
         return CONF_SUCCESS;
     }
 
+    // Check if client IP is permitted by Metrics CIDR restrictions
+    bool isMetricsIPAllowed(const SanitizedIP& peer) {
+        for (const SanitizedIP& cidr : METRICS_ALLOWED_CIDRS) {
+            if (doesAddressFitCIDR(cidr, peer)) return true;
+        }
+        return false;
+    }
+
     // Used to load Metrics configuration directive
     int loadMetrics(const pugi::xml_node& root) {
         const pugi::xml_node node = root.child("Metrics");
+        METRICS_ALLOWED_CIDRS.clear();
+        IS_METRICS_ENABLED = false;
+        IS_METRICS_TRACK_LATENCY_ENABLED = false;
+
         if (!node) {
-            IS_METRICS_ENABLED = false;
             METRICS_PATH = "/metrics";
+            util::MetricsRegistry::getInstance().setTrackLatency(false);
             return CONF_SUCCESS;
         }
 
-        // Reject unsupported settings instead of silently ignoring access restrictions
-        for (const auto& child : node.children()) {
-            if (child.type() == pugi::node_comment) continue;
-            std::cerr << "Failed to parse config file, unsupported Metrics child: " << child.name() << std::endl;
-            return CONF_FAILURE;
-        }
+        // Validate node attributes
         for (const auto& attribute : node.attributes()) {
             const std::string_view name = attribute.name();
             if (name == "enabled" || name == "path") continue;
@@ -1505,8 +1521,10 @@ namespace conf {
         strToLower(enabledStr);
         if (enabledStr == "true" || enabledStr == "on" || enabledStr == "1") {
             IS_METRICS_ENABLED = true;
+            IS_METRICS_TRACK_LATENCY_ENABLED = true;
         } else if (enabledStr == "false" || enabledStr == "off" || enabledStr == "0") {
             IS_METRICS_ENABLED = false;
+            IS_METRICS_TRACK_LATENCY_ENABLED = false;
         } else {
             std::cerr << "Failed to parse config file, invalid enabled attribute for Metrics." << std::endl;
             return CONF_FAILURE;
@@ -1525,6 +1543,81 @@ namespace conf {
         }
         METRICS_PATH = pathStr;
 
+        // Parse child nodes (AllowCIDR, TrackLatency)
+        for (const auto& child : node.children()) {
+            if (child.type() == pugi::node_comment) continue;
+            const std::string_view childName = child.name();
+            if (childName == "AllowCIDR") {
+                if (child.first_attribute()) {
+                    std::cerr << "Failed to parse config file, unsupported attribute for AllowCIDR: "
+                              << child.first_attribute().name() << std::endl;
+                    return CONF_FAILURE;
+                }
+                for (const auto& sub : child.children()) {
+                    if (sub.type() != pugi::node_comment && sub.type() != pugi::node_pcdata) {
+                        std::cerr << "Failed to parse config file, unsupported AllowCIDR child: "
+                                  << sub.name() << std::endl;
+                        return CONF_FAILURE;
+                    }
+                }
+                try {
+                    SanitizedIP sip = parseSanitizedIP(child);
+                    METRICS_ALLOWED_CIDRS.push_back(sip);
+                } catch (const std::exception&) {
+                    std::cerr << "Failed to parse config file, invalid IP/CIDR in Metrics AllowCIDR: "
+                              << child.text().as_string() << std::endl;
+                    return CONF_FAILURE;
+                }
+            } else if (childName == "TrackLatency") {
+                for (const auto& attr : child.attributes()) {
+                    if (std::string_view(attr.name()) != "enabled") {
+                        std::cerr << "Failed to parse config file, unsupported TrackLatency attribute: "
+                                  << attr.name() << std::endl;
+                        return CONF_FAILURE;
+                    }
+                }
+                for (const auto& sub : child.children()) {
+                    if (sub.type() != pugi::node_comment && sub.type() != pugi::node_pcdata) {
+                        std::cerr << "Failed to parse config file, unsupported TrackLatency child: "
+                                  << sub.name() << std::endl;
+                        return CONF_FAILURE;
+                    }
+                }
+                std::string trackVal = "true";
+                if (child.attribute("enabled")) {
+                    trackVal = child.attribute("enabled").as_string();
+                } else if (!std::string_view(child.text().as_string()).empty()) {
+                    trackVal = child.text().as_string();
+                }
+                trimString(trackVal);
+                strToLower(trackVal);
+                if (trackVal == "true" || trackVal == "on" || trackVal == "1") {
+                    IS_METRICS_TRACK_LATENCY_ENABLED = IS_METRICS_ENABLED;
+                } else if (trackVal == "false" || trackVal == "off" || trackVal == "0") {
+                    IS_METRICS_TRACK_LATENCY_ENABLED = false;
+                } else {
+                    std::cerr << "Failed to parse config file, invalid value for TrackLatency." << std::endl;
+                    return CONF_FAILURE;
+                }
+            } else {
+                std::cerr << "Failed to parse config file, unsupported Metrics child: " << child.name() << std::endl;
+                return CONF_FAILURE;
+            }
+        }
+
+        // Default-deny: if no AllowCIDR entries are provided, default to loopback-only
+        if (METRICS_ALLOWED_CIDRS.empty()) {
+            try {
+                METRICS_ALLOWED_CIDRS.push_back(parseSanitizedClientIP("127.0.0.1"));
+                METRICS_ALLOWED_CIDRS.push_back(parseSanitizedClientIP("::1"));
+            } catch (...) {}
+        }
+
+        if (!IS_METRICS_ENABLED) {
+            IS_METRICS_TRACK_LATENCY_ENABLED = false;
+        }
+
+        util::MetricsRegistry::getInstance().setTrackLatency(IS_METRICS_ENABLED && IS_METRICS_TRACK_LATENCY_ENABLED);
         return CONF_SUCCESS;
     }
 

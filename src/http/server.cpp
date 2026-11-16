@@ -552,12 +552,19 @@ namespace http {
                 ServerStats::getInstance().recordStatusCode(status);
 
                 // Update metrics
-                const size_t methodEnd = pending.find(' ');
-                const auto method = methodEnd != std::string::npos ? util::stringToMetricMethod(std::string_view(pending.data(), methodEnd)) : util::MetricMethod::Other;
-                util::MetricsRegistry::getInstance().recordRequest(method);
-                util::MetricsRegistry::getInstance().recordStatus(status);
-                util::MetricsRegistry::getInstance().recordHandler(util::MetricHandler::Static);
-                util::MetricsRegistry::getInstance().recordCompletedRequest(method, status, util::MetricHandler::Static);
+                if (conf::IS_METRICS_ENABLED) {
+                    const size_t methodEnd = pending.find(' ');
+                    const auto method = methodEnd != std::string::npos ? util::stringToMetricMethod(std::string_view(pending.data(), methodEnd)) : util::MetricMethod::Other;
+                    util::MetricsRegistry::getInstance().recordRequest(method);
+                    util::MetricsRegistry::getInstance().recordStatus(status);
+                    util::MetricsRegistry::getInstance().recordHandler(util::MetricHandler::Static);
+                    util::MetricsRegistry::getInstance().recordCompletedRequest(method, status, util::MetricHandler::Static);
+                    if (conf::IS_METRICS_TRACK_LATENCY_ENABLED && requestStartTime != std::chrono::steady_clock::time_point{}) {
+                        const auto requestEndTime = std::chrono::steady_clock::now();
+                        const double durationSec = std::chrono::duration<double>(requestEndTime - requestStartTime).count();
+                        util::MetricsRegistry::getInstance().recordRequestDuration(durationSec);
+                    }
+                }
             };
 
             // Process requests until the connection limit, shutdown, or an error
@@ -716,12 +723,16 @@ namespace http {
                         (conf::ENABLE_LEGACY_HTTP && request.getVersion() == "HTTP/1.0");
                     response = std::make_unique<Response>(supportedVersion ? request.getVersion() : "HTTP/1.1");
 
-                    // Restrict exporter to actual loopback peers until CIDR support is available
-                    auto peer = conf::parseSanitizedClientIP(clientIPStr);
-                    bool allowed = peer.family == conf::IPFamily::IPv4 ? peer.bytes[0] == 127 :
-                        std::all_of(peer.bytes, peer.bytes + 15, [](unsigned char c) { return c == 0; }) && peer.bytes[15] == 1;
-                    for (const conf::Match* pMatch : request.getMatchedRules())
-                        allowed = allowed && pMatch->getAccessControl()->isIPAccepted(peer);
+                    // Enforce CIDR subnet ACLs and match rules
+                    bool allowed = false;
+                    try {
+                        auto peer = conf::parseSanitizedClientIP(clientIPStr);
+                        allowed = conf::isMetricsIPAllowed(peer);
+                        for (const conf::Match* pMatch : request.getMatchedRules())
+                            allowed = allowed && pMatch->getAccessControl()->isIPAccepted(peer);
+                    } catch (...) {
+                        allowed = false;
+                    }
 
                     // Apply protocol and request checks before exposing telemetry
                     if (!supportedVersion) {
@@ -743,11 +754,14 @@ namespace http {
                         response->setStatus(200);
                         response->setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
                         std::string metricsBody = util::MetricsRegistry::getInstance().exportPrometheus();
+                        if (metricsBody.empty()) response->setStatus(503);
                         response->setBodyStream(std::make_unique<MemoryStream>(std::move(metricsBody)));
                         response->setIdentityAccepted(request.isIdentityAccepted());
+
+                        // Handle compression methods
                         const int compressMethod = request.getCompressMethod(response->getContentType());
                         response->setCompressMethod(compressMethod);
-                        if (!request.isIdentityAccepted() && compressMethod == NO_COMPRESS) {
+                        if (response->getStatus() == 200 && !request.isIdentityAccepted() && compressMethod == NO_COMPRESS) {
                             response->setStatus(406);
                             response->clearHeader("Content-Encoding");
                             response->setBodyStream(std::make_unique<MemoryStream>(""));
@@ -800,15 +814,29 @@ namespace http {
                 const ssize_t status = response->streamBody(request.isMIMEAccepted("text/html"), request.getMethod() == METHOD::HEAD, sendFunc);
 
                 ServerStats::getInstance().recordStatusCode(response->getStatus());
-                util::MetricsRegistry::getInstance().recordStatus(response->getStatus());
-                util::MetricsRegistry::getInstance().recordHandler(response->getMetricHandler());
-                util::MetricsRegistry::getInstance().recordCompletedRequest(metricMethod, response->getStatus(), response->getMetricHandler());
+                if (conf::IS_METRICS_ENABLED) {
+                    util::MetricsRegistry::getInstance().recordStatus(response->getStatus());
+                    util::MetricsRegistry::getInstance().recordHandler(response->getMetricHandler());
+                    util::MetricsRegistry::getInstance().recordCompletedRequest(metricMethod, response->getStatus(), response->getMetricHandler());
+                }
+
+                double durationSec = 0.0;
+                bool durationComputed = false;
+                if (conf::IS_METRICS_ENABLED && conf::IS_METRICS_TRACK_LATENCY_ENABLED) {
+                    const auto requestEndTime = std::chrono::steady_clock::now();
+                    durationSec = std::chrono::duration<double>(requestEndTime - requestStartTime).count();
+                    durationComputed = true;
+                    util::MetricsRegistry::getInstance().recordRequestDuration(durationSec);
+                }
 
                 // Log the final status, including errors detected while preparing the body
                 if (!conf::DISABLE_LOGS) {
                     if (conf::ACCESS_LOG_FORMAT == LOG_FORMAT_JSON) {
-                        const auto requestEndTime = std::chrono::steady_clock::now();
-                        const double latencyMs = std::chrono::duration<double, std::milli>(requestEndTime - requestStartTime).count();
+                        if (!durationComputed) {
+                            const auto requestEndTime = std::chrono::steady_clock::now();
+                            durationSec = std::chrono::duration<double>(requestEndTime - requestStartTime).count();
+                        }
+                        const double latencyMs = durationSec * 1000.0;
                         logJsonAccess(request, response->getStatus(), latencyMs, bytesSent);
                     } else {
                         ACCESS_LOG << request.getMethodStr() << ' '
