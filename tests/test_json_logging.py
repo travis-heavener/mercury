@@ -312,18 +312,101 @@ class JsonLoggingTests(unittest.TestCase):
             self.assertGreaterEqual(requests[1]["latency_ms"], 150)
             self.assertLess(requests[1]["latency_ms"], elapsed_ms + 250)
 
-    # Reject metrics configuration until exporter implementation becomes available
-    def test_unimplemented_metrics_fails_config(self):
+    # Validate metrics configuration attributes and live exposition endpoint
+    def test_metrics_config_and_exposition(self):
         with tempfile.TemporaryDirectory() as directory:
             access = Path(directory) / "access.log"
             error = Path(directory) / "error.log"
-            conf = Path(self.write_conf(access, error))
-            conf.write_text(conf.read_text().replace(
+
+            # Reject invalid enabled attribute
+            conf_bad_enabled = Path(self.write_conf(access, error))
+            conf_bad_enabled.write_text(conf_bad_enabled.read_text().replace(
+                "</Mercury>", '<Metrics enabled="invalid" path="/metrics" /></Mercury>'))
+            proc_bad = subprocess.run([get_mercury_bin(), "-c", str(conf_bad_enabled)],
+                                      capture_output=True, timeout=3)
+            self.assertNotEqual(proc_bad.returncode, 0)
+            self.assertIn(b"invalid enabled attribute for Metrics", proc_bad.stderr)
+
+            # Reject invalid path attribute
+            conf_bad_path = Path(self.write_conf(access, error))
+            conf_bad_path.write_text(conf_bad_path.read_text().replace(
+                "</Mercury>", '<Metrics enabled="true" path="no_slash" /></Mercury>'))
+            proc_path = subprocess.run([get_mercury_bin(), "-c", str(conf_bad_path)],
+                                       capture_output=True, timeout=3)
+            self.assertNotEqual(proc_path.returncode, 0)
+            self.assertIn(b"invalid path attribute for Metrics", proc_path.stderr)
+
+            # Reject ambiguous paths and unsupported access restrictions
+            for directive in ('<Metrics path="/metrics?x=1" />',
+                              '<Metrics path="/metrics#fragment" />',
+                              '<Metrics><AllowCIDR>127.0.0.1/32</AllowCIDR></Metrics>'):
+                with self.subTest(directive=directive):
+                    invalid = Path(self.write_conf(access, error))
+                    invalid.write_text(invalid.read_text().replace("</Mercury>", directive + "</Mercury>"))
+                    result = subprocess.run([get_mercury_bin(), "-c", str(invalid)],
+                                            capture_output=True, timeout=3)
+                    self.assertNotEqual(result.returncode, 0)
+
+            # Start server w/ valid metrics configuration
+            conf_valid = Path(self.write_conf(access, error))
+            conf_valid.write_text(conf_valid.read_text().replace(
                 "</Mercury>", '<Metrics enabled="true" path="/metrics" /></Mercury>'))
-            proc = subprocess.run([get_mercury_bin(), "-c", str(conf)],
-                                  capture_output=True, timeout=3)
-            self.assertNotEqual(proc.returncode, 0)
-            self.assertIn(b"Invalid node name in Mercury root node: Metrics", proc.stderr)
+            proc = self.start_server(str(conf_valid))
+
+            try:
+                # Scrape metrics endpoint
+                conn = http.client.HTTPConnection(HOST, self.port, timeout=3)
+                conn.request("GET", "/metrics")
+                res = conn.getresponse()
+                self.assertEqual(res.status, 200)
+                self.assertIn("text/plain", res.headers.get("Content-Type", ""))
+                self.assertIn("version=0.0.4", res.headers.get("Content-Type", ""))
+                payload = res.read().decode("utf-8")
+                self.assertIn("mercury_http_requests_total", payload)
+                self.assertIn("mercury_active_connections", payload)
+                self.assertIn("mercury_process_resident_memory_bytes", payload)
+                self.assertIn("mercury_process_cpu_seconds_total", payload)
+                self.assertIn("mercury_process_uptime_seconds", payload)
+                self.assertIn('method="POST",status="5xx",handler="fastcgi"} 0', payload)
+
+                # Reject requests that disallow every supported content coding
+                for method in ("GET", "HEAD"):
+                    conn.request(method, "/metrics", headers={"Accept-Encoding": "identity;q=0, *;q=0"})
+                    rejected = conn.getresponse()
+                    self.assertEqual(rejected.status, 406)
+                    rejected.read()
+
+                # Reject non-GET/HEAD methods with 405 Method Not Allowed
+                conn.request("POST", "/metrics", body=b"data")
+                res_post = conn.getresponse()
+                self.assertEqual(res_post.status, 405)
+                self.assertIn("GET", res_post.headers.get("Allow", ""))
+                res_post.read()
+                conn.close()
+
+                # Preserve version and request validation for internal route
+                invalid_version = self.send_raw_request(
+                    "GET /metrics HTTP/9.9\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                self.assertIn("505", invalid_version.split("\r\n", 1)[0])
+                invalid_host = self.send_raw_request(
+                    "GET /metrics HTTP/1.1\r\nConnection: close\r\n\r\n")
+                self.assertIn("400", invalid_host.split("\r\n", 1)[0])
+            finally:
+                self.stop_server(proc)
+
+    # Enforce existing access rules on internal metrics endpoint
+    def test_metrics_respects_access_rules(self):
+        with tempfile.TemporaryDirectory() as directory:
+            conf = Path(self.write_conf(Path(directory) / "access.log", Path(directory) / "error.log"))
+            conf.write_text(conf.read_text().replace('mode="allow all"', 'mode="deny all"').replace(
+                "</Mercury>", '<Metrics enabled="true" /></Mercury>'))
+            proc = self.start_server(str(conf))
+            try:
+                response = self.send_raw_request(
+                    "GET /metrics HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                self.assertIn("403", response.split("\r\n", 1)[0])
+            finally:
+                self.stop_server(proc)
 
     # Verify GPC/DNT privacy headers mask client IPs in JSON log records
     def test_gpc_masking_in_json_log(self):

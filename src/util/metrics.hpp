@@ -2,8 +2,10 @@
 #define __METRICS_REGISTRY_HPP
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <string_view>
 
 #include "../http/tools.hpp"
@@ -96,10 +98,20 @@ namespace util {
             uint64_t getTotalConnections() const;
             int64_t getActiveWorkers() const;
 
+            // OS process telemetry
+            size_t getProcessRssBytes() const;
+            double getProcessCpuSeconds() const;
+            double getProcessUptimeSeconds() const;
+
+            // Generate Prometheus plain-text exposition payload
+            std::string exportPrometheus() const;
+
             // Reset all metric counters and gauges (used in test fixtures)
             void reset();
 
         private:
+            std::chrono::steady_clock::time_point startTime;
+
             // Cacheline-isolated counter banks
             AlignedCounter methodCounters[static_cast<size_t>(MetricMethod::Count)];
             AlignedCounter statusCounters[static_cast<size_t>(MetricStatusFamily::Count)];

@@ -92,6 +92,9 @@ namespace conf {
     extern std::string FASTCGI_ADDRESS;
     extern unsigned int FASTCGI_TIMEOUT;
 
+    extern bool IS_METRICS_ENABLED;
+    extern std::string METRICS_PATH;
+
     extern bool SHOW_WELCOME_BANNER;
     extern bool SHOW_DONATION_BANNER;
     extern bool SHOW_PRIVILEGE_DEESCALATION_MESSAGE;

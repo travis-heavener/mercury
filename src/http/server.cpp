@@ -711,6 +711,48 @@ namespace http {
                     response->setHeader("Connection", "close");
                     if (request.isMIMEAccepted("text/html"))
                         response->loadBodyFromErrorDoc(429);
+                } else if (conf::IS_METRICS_ENABLED && request.getDecodedURI() == conf::METRICS_PATH) {
+                    const bool supportedVersion = request.getVersion() == "HTTP/1.1" ||
+                        (conf::ENABLE_LEGACY_HTTP && request.getVersion() == "HTTP/1.0");
+                    response = std::make_unique<Response>(supportedVersion ? request.getVersion() : "HTTP/1.1");
+
+                    // Restrict exporter to actual loopback peers until CIDR support is available
+                    auto peer = conf::parseSanitizedClientIP(clientIPStr);
+                    bool allowed = peer.family == conf::IPFamily::IPv4 ? peer.bytes[0] == 127 :
+                        std::all_of(peer.bytes, peer.bytes + 15, [](unsigned char c) { return c == 0; }) && peer.bytes[15] == 1;
+                    for (const conf::Match* pMatch : request.getMatchedRules())
+                        allowed = allowed && pMatch->getAccessControl()->isIPAccepted(peer);
+
+                    // Apply protocol and request checks before exposing telemetry
+                    if (!supportedVersion) {
+                        response->setStatus(505);
+                    } else if (request.has400Error()) {
+                        response->setStatus(400);
+                    } else if (request.isURITooLong()) {
+                        response->setStatus(414);
+                    } else if (request.isContentTooLarge()) {
+                        response->setStatus(413);
+                    } else if (!allowed) {
+                        response->setStatus(403);
+                    } else if (request.getMethod() != METHOD::GET && request.getMethod() != METHOD::HEAD) {
+                        response->setStatus(405);
+                        response->setHeader("Allow", "GET, HEAD");
+                        if (request.isMIMEAccepted("text/html"))
+                            response->loadBodyFromErrorDoc(405);
+                    } else {
+                        response->setStatus(200);
+                        response->setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+                        std::string metricsBody = util::MetricsRegistry::getInstance().exportPrometheus();
+                        response->setBodyStream(std::make_unique<MemoryStream>(std::move(metricsBody)));
+                        response->setIdentityAccepted(request.isIdentityAccepted());
+                        const int compressMethod = request.getCompressMethod(response->getContentType());
+                        response->setCompressMethod(compressMethod);
+                        if (!request.isIdentityAccepted() && compressMethod == NO_COMPRESS) {
+                            response->setStatus(406);
+                            response->clearHeader("Content-Encoding");
+                            response->setBodyStream(std::make_unique<MemoryStream>(""));
+                        }
+                    }
                 } else {
                     response = genResponse(request);
                 }

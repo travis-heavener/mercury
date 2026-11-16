@@ -1,5 +1,17 @@
 #include "metrics.hpp"
 
+#include <iomanip>
+#include <sstream>
+
+#ifdef _WIN32
+    #include <windows.h>
+    #include <psapi.h>
+#else
+    #include <fstream>
+    #include <sys/resource.h>
+    #include <unistd.h>
+#endif
+
 namespace util {
 
     // Map internal HTTP method enum to metric method enum
@@ -81,7 +93,7 @@ namespace util {
     }
 
     // Initialize metrics registry
-    MetricsRegistry::MetricsRegistry() { reset(); }
+    MetricsRegistry::MetricsRegistry() : startTime(std::chrono::steady_clock::now()) { reset(); }
 
     // Record incoming request count by method
     void MetricsRegistry::recordRequest(const MetricMethod method) {
@@ -183,8 +195,129 @@ namespace util {
     // Retrieve active thread pool worker count gauge
     int64_t MetricsRegistry::getActiveWorkers() const { return activeWorkers.val.load(std::memory_order_relaxed); }
 
+    // Retrieve resident set size in bytes
+    size_t MetricsRegistry::getProcessRssBytes() const {
+        #ifdef _WIN32
+            PROCESS_MEMORY_COUNTERS pmc{};
+            if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
+                return static_cast<size_t>(pmc.WorkingSetSize);
+            return 0;
+        #else
+            std::ifstream statm("/proc/self/statm");
+            if (statm.is_open()) {
+                size_t size = 0, resident = 0;
+                if (statm >> size >> resident) {
+                    const long pageSize = sysconf(_SC_PAGESIZE);
+                    if (pageSize > 0)
+                        return resident * static_cast<size_t>(pageSize);
+                }
+            }
+            return 0;
+        #endif
+    }
+
+    // Retrieve cumulative user and system CPU time in seconds
+    double MetricsRegistry::getProcessCpuSeconds() const {
+        #ifdef _WIN32
+            FILETIME ftCreation, ftExit, ftKernel, ftUser;
+            if (GetProcessTimes(GetCurrentProcess(), &ftCreation, &ftExit, &ftKernel, &ftUser)) {
+                ULARGE_INTEGER kernelTime, userTime;
+                kernelTime.LowPart = ftKernel.dwLowDateTime;
+                kernelTime.HighPart = ftKernel.dwHighDateTime;
+                userTime.LowPart = ftUser.dwLowDateTime;
+                userTime.HighPart = ftUser.dwHighDateTime;
+                return static_cast<double>(kernelTime.QuadPart + userTime.QuadPart) * 1e-7;
+            }
+            return 0.0;
+        #else
+            struct rusage usage{};
+            if (getrusage(RUSAGE_SELF, &usage) == 0) {
+                const double userSec = static_cast<double>(usage.ru_utime.tv_sec) +
+                    static_cast<double>(usage.ru_utime.tv_usec) / 1e6;
+                const double sysSec = static_cast<double>(usage.ru_stime.tv_sec) +
+                    static_cast<double>(usage.ru_stime.tv_usec) / 1e6;
+                return userSec + sysSec;
+            }
+            return 0.0;
+        #endif
+    }
+
+    // Retrieve process uptime in seconds
+    double MetricsRegistry::getProcessUptimeSeconds() const {
+        const auto now = std::chrono::steady_clock::now();
+        return std::chrono::duration<double>(now - startTime).count();
+    }
+
+    // Format all registered metrics into Prometheus plain-text exposition format
+    std::string MetricsRegistry::exportPrometheus() const {
+        std::ostringstream oss;
+
+        // HTTP request totals by method, status family, and handler
+        oss << "# HELP mercury_http_requests_total Total number of HTTP requests completed.\n"
+            << "# TYPE mercury_http_requests_total counter\n";
+
+        for (size_t m = 0; m < static_cast<size_t>(MetricMethod::Count); ++m) {
+            for (size_t s = 0; s < static_cast<size_t>(MetricStatusFamily::Count); ++s) {
+                for (size_t h = 0; h < static_cast<size_t>(MetricHandler::Count); ++h) {
+                    const uint64_t count = completedCounters[m][s][h].val.load(std::memory_order_relaxed);
+                    oss << "mercury_http_requests_total{method=\""
+                        << metricMethodToString(static_cast<MetricMethod>(m))
+                        << "\",status=\""
+                        << metricStatusFamilyToString(static_cast<MetricStatusFamily>(s))
+                        << "\",handler=\""
+                        << metricHandlerToString(static_cast<MetricHandler>(h))
+                        << "\"} " << count << '\n';
+                }
+            }
+        }
+
+        // Ingress bandwidth
+        oss << "# HELP mercury_http_bytes_received_total Cumulative ingress bytes read from sockets.\n"
+            << "# TYPE mercury_http_bytes_received_total counter\n"
+            << "mercury_http_bytes_received_total " << getBytesRead() << '\n';
+
+        // Egress bandwidth
+        oss << "# HELP mercury_http_bytes_sent_total Cumulative egress bytes sent to sockets.\n"
+            << "# TYPE mercury_http_bytes_sent_total counter\n"
+            << "mercury_http_bytes_sent_total " << getBytesSent() << '\n';
+
+        // Active TCP connections gauge
+        oss << "# HELP mercury_active_connections Current number of active client TCP connections.\n"
+            << "# TYPE mercury_active_connections gauge\n"
+            << "mercury_active_connections " << getActiveConnections() << '\n';
+
+        // Cumulative accepted connections counter
+        oss << "# HELP mercury_total_connections Cumulative count of client TCP connections accepted.\n"
+            << "# TYPE mercury_total_connections counter\n"
+            << "mercury_total_connections " << getTotalConnections() << '\n';
+
+        // Worker threads gauge
+        oss << "# HELP mercury_workers_active Number of worker threads currently processing tasks.\n"
+            << "# TYPE mercury_workers_active gauge\n"
+            << "mercury_workers_active " << getActiveWorkers() << '\n';
+
+        // Resident set size (RSS)
+        oss << "# HELP mercury_process_resident_memory_bytes Resident memory size (RSS) in bytes.\n"
+            << "# TYPE mercury_process_resident_memory_bytes gauge\n"
+            << "mercury_process_resident_memory_bytes " << getProcessRssBytes() << '\n';
+
+        // CPU seconds
+        oss << std::fixed << std::setprecision(3);
+        oss << "# HELP mercury_process_cpu_seconds_total Total user and system CPU time spent in seconds.\n"
+            << "# TYPE mercury_process_cpu_seconds_total counter\n"
+            << "mercury_process_cpu_seconds_total " << getProcessCpuSeconds() << '\n';
+
+        // Uptime seconds
+        oss << "# HELP mercury_process_uptime_seconds Process uptime in seconds.\n"
+            << "# TYPE mercury_process_uptime_seconds gauge\n"
+            << "mercury_process_uptime_seconds " << getProcessUptimeSeconds() << '\n';
+
+        return oss.str();
+    }
+
     // Reset all metric counters and gauges to zero
     void MetricsRegistry::reset() {
+        startTime = std::chrono::steady_clock::now();
         for (auto& methods : completedCounters)
             for (auto& statuses : methods)
                 for (auto& counter : statuses)

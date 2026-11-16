@@ -1,5 +1,6 @@
 #include "conf.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <iostream>
@@ -84,6 +85,9 @@ namespace conf {
     std::string FASTCGI_ADDRESS;
     unsigned int FASTCGI_TIMEOUT;
 
+    bool IS_METRICS_ENABLED;
+    std::string METRICS_PATH;
+
     bool SHOW_WELCOME_BANNER;
     bool SHOW_DONATION_BANNER;
     bool SHOW_PRIVILEGE_DEESCALATION_MESSAGE;
@@ -104,7 +108,7 @@ namespace conf {
 
     const std::vector<std::string> mercuryNodeNames = {
         "DocumentRoot", "BindAddressIPv4", "BindAddressIPv6", "Port", "TLSPort", "TLSCertFile", "TLSKeyFile", "TLSCertificateFile", "TLSPrivateKeyFile", "Redirect", "Rewrite",
-        "RateLimit",
+        "RateLimit", "Metrics",
         "AccessLogFile", "ErrorLogFile", "DisableLogs", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "CGITimeout", "WinPHPCGIPath", "EnableFastCGI", "FastCGIAddress", "FastCGITimeout", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
@@ -146,6 +150,7 @@ namespace conf {
     int loadClientSecurityIPSalt(const pugi::xml_node& root, std::string& var, const std::string& defaultSalt="fAhGD0OnCe4YhSyx");
     int loadFastCGIAddress(const pugi::xml_node& root, std::string& var);
     int loadRateLimit(const pugi::xml_node& root);
+    int loadMetrics(const pugi::xml_node& root);
     int loadLogConfig(const pugi::xml_node& root);
 
     // Loads the directory of the running executable to path
@@ -596,6 +601,11 @@ namespace conf {
         /************ LOAD RATE LIMIT ************/
 
         if (loadRateLimit(root) == CONF_FAILURE)
+            return CONF_FAILURE;
+
+        /************ LOAD METRICS ************/
+
+        if (loadMetrics(root) == CONF_FAILURE)
             return CONF_FAILURE;
 
         /************ LOAD BOOLEANS ************/
@@ -1460,6 +1470,60 @@ namespace conf {
                 }
             }
         }
+
+        return CONF_SUCCESS;
+    }
+
+    // Used to load Metrics configuration directive
+    int loadMetrics(const pugi::xml_node& root) {
+        const pugi::xml_node node = root.child("Metrics");
+        if (!node) {
+            IS_METRICS_ENABLED = false;
+            METRICS_PATH = "/metrics";
+            return CONF_SUCCESS;
+        }
+
+        // Reject unsupported settings instead of silently ignoring access restrictions
+        for (const auto& child : node.children()) {
+            if (child.type() == pugi::node_comment) continue;
+            std::cerr << "Failed to parse config file, unsupported Metrics child: " << child.name() << std::endl;
+            return CONF_FAILURE;
+        }
+        for (const auto& attribute : node.attributes()) {
+            const std::string_view name = attribute.name();
+            if (name == "enabled" || name == "path") continue;
+            std::cerr << "Failed to parse config file, unsupported Metrics attribute: " << name << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Parse enabled attribute (default: true if tag is present)
+        std::string enabledStr = "true";
+        if (node.attribute("enabled"))
+            enabledStr = node.attribute("enabled").as_string();
+
+        trimString(enabledStr);
+        strToLower(enabledStr);
+        if (enabledStr == "true" || enabledStr == "on" || enabledStr == "1") {
+            IS_METRICS_ENABLED = true;
+        } else if (enabledStr == "false" || enabledStr == "off" || enabledStr == "0") {
+            IS_METRICS_ENABLED = false;
+        } else {
+            std::cerr << "Failed to parse config file, invalid enabled attribute for Metrics." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Parse path attribute (default: /metrics)
+        std::string pathStr = "/metrics";
+        if (node.attribute("path"))
+            pathStr = node.attribute("path").as_string();
+
+        trimString(pathStr);
+        if (pathStr.empty() || pathStr[0] != '/' || pathStr.find_first_of("?#") != std::string::npos ||
+            std::any_of(pathStr.begin(), pathStr.end(), [](unsigned char c) { return c <= 0x20 || c == 0x7f; })) {
+            std::cerr << "Failed to parse config file, invalid path attribute for Metrics." << std::endl;
+            return CONF_FAILURE;
+        }
+        METRICS_PATH = pathStr;
 
         return CONF_SUCCESS;
     }
