@@ -22,6 +22,7 @@ All configuration nodes must be wrapped within a singular `<Mercury>` root node.
 - [AccessLogFile](#accesslogfile)
 - [ErrorLogFile](#errorlogfile)
 - [RateLimit](#ratelimit)
+- [Metrics](#metrics)
 - [ClientSecurityMode](#clientsecuritymode)
 - [ClientSecurityIPSalt](#clientsecurityipsalt)
 
@@ -203,24 +204,69 @@ Example:
 ### AccessLogFile
 Specifies where server access logs are stored. Overridden if `DisableLogs` is set to `on`.
 
+Attributes:
+- `format`: Output format, either `text` or `json` (default: `text`). When set to `json`, access logs emit newline-delimited JSON (NDJSON) objects containing timestamps (ISO 8601 UTC), request metadata (`method`, `uri`, `status`, `http_version`), `latency_ms`, `bytes_sent`, `user_agent`, `referer`, and privacy-sanitized `client_ip`.
+
 Default: `./logs/access.log`
 
-Example:
+Examples:
 
 ```xml
+<!-- Standard text format (default) -->
 <AccessLogFile> ./logs/access.log </AccessLogFile>
+
+<!-- Structured NDJSON format -->
+<AccessLogFile format="json"> ./logs/access.json.log </AccessLogFile>
 ```
+
+#### Access Log JSON Schema (`format="json"`)
+
+| Field | Type | Description |
+|---|---|---|
+| `timestamp` | string | ISO 8601 UTC timestamp with millisecond precision (`YYYY-MM-DDTHH:MM:SS.sssZ`) |
+| `level` | string | Severity level: `"info"` (status 1xx–3xx), `"warn"` (status 4xx), or `"error"` (status 5xx) |
+| `event` | string | Event classification identifier (`"request"`) |
+| `client_ip` | string | Remote client IP address, sanitized according to `ClientSecurityMode` |
+| `method` | string | HTTP request method (e.g. `"GET"`, `"POST"`) |
+| `uri` | string | Requested URI path and query string |
+| `status` | integer | HTTP response status code (e.g. `200`) |
+| `http_version` | string | Protocol version string (e.g. `"HTTP/1.1"`) |
+| `bytes_sent` | integer | Total response bytes transmitted to client socket (headers and body) |
+| `latency_ms` | number | End-to-end request processing latency in milliseconds |
+| `user_agent` | string | Sanitized `User-Agent` request header |
+| `referer` | string | Sanitized `Referer` request header |
+
+Operational lifecycle events (startup, listener binding, and shutdown) emit matching structured records:
+- **Startup**: `{"timestamp": "...", "level": "info", "event": "startup", "version": "0.41.0", "message": "..."}`
+- **Listen**: `{"timestamp": "...", "level": "info", "event": "listen", "protocol": "tcp4", "port": 8080, "tls": false, "message": "..."}`
+- **Shutdown**: `{"timestamp": "...", "level": "info", "event": "shutdown", "message": "..."}`
 
 ### ErrorLogFile
 Specifies where server error logs are stored. Overridden if `DisableLogs` is set to `on`.
 
+Attributes:
+- `format`: Output format, either `text` or `json` (default: `text`). When set to `json`, error logs emit newline-delimited JSON (NDJSON) objects containing timestamps (ISO 8601 UTC), log level (`error`), event type, and the escaped error message.
+
 Default: `./logs/error.log`
 
-Example:
+Examples:
 
 ```xml
+<!-- Standard text format (default) -->
 <ErrorLogFile> ./logs/error.log </ErrorLogFile>
+
+<!-- Structured NDJSON format -->
+<ErrorLogFile format="json"> ./logs/error.json.log </ErrorLogFile>
 ```
+
+#### Error Log JSON Schema (`format="json"`)
+
+| Field | Type | Description |
+|---|---|---|
+| `timestamp` | string | ISO 8601 UTC timestamp with millisecond precision (`YYYY-MM-DDTHH:MM:SS.sssZ`) |
+| `level` | string | Log severity level (`"error"`) |
+| `event` | string | Operational event identifier (`"error"`) |
+| `message` | string | Escaped error message description |
 
 ### ClientSecurityMode
 Controls how incoming client IP addresses are logged.
@@ -274,6 +320,52 @@ Example:
     <Whitelist> 127.0.0.1 </Whitelist>
     <Whitelist> ::1 </Whitelist>
 </RateLimit>
+```
+
+### Metrics
+Exposes server telemetry in standard Prometheus / OpenMetrics 0.0.4 plain-text format over an internal HTTP route.
+
+Attributes:
+- `enabled`: `true` or `false` (default: `true` when `<Metrics>` tag is present; server defaults to `off` when omitted)
+- `path`: URL route where telemetry is served (default: `/metrics`)
+
+Child nodes:
+- `<AllowCIDR>`: Subnets or individual IP addresses permitted to scrape the endpoint in CIDR notation (e.g. `127.0.0.1/32`, `::1/128`, `10.0.0.0/8`). Multiple `<AllowCIDR>` elements may be declared. If omitted, access defaults strictly to loopback (`127.0.0.1/32`, `::1/128`). Unauthorized requests receive `403 Forbidden`.
+- `<TrackLatency enabled="true|false" />`: Toggles collection of request duration latency histograms (default: `true`). When set to `false`, duration tracking overhead is eliminated and latency histogram metrics are omitted from the export payload.
+
+Supported HTTP Verbs:
+- `GET` and `HEAD` (non-GET/HEAD verbs return `405 Method Not Allowed` with `Allow: GET, HEAD`).
+
+Exported Prometheus Metrics:
+
+| Metric Name | Type | Description | Labels |
+|---|---|---|---|
+| `mercury_http_requests_total` | Counter | Total completed HTTP requests | `method` (`GET`, `POST`, ...), `status` (`2xx`, `3xx`, `4xx`, `5xx`, `other`), `handler` (`static`, `cgi`, `fastcgi`) |
+| `mercury_http_request_duration_seconds` | Histogram | Request duration latency in seconds | `le` (`0.005`, `0.01`, `0.025`, `0.05`, `0.1`, `0.25`, `0.5`, `1.0`, `2.5`, `5.0`, `+Inf`), plus `_sum` and `_count` |
+| `mercury_http_bytes_received_total` | Counter | Cumulative ingress bytes read from client sockets | None |
+| `mercury_http_bytes_sent_total` | Counter | Cumulative egress bytes written to client sockets | None |
+| `mercury_active_connections` | Gauge | Current number of active client TCP connections | None |
+| `mercury_total_connections` | Counter | Cumulative count of accepted client TCP connections | None |
+| `mercury_workers_active` | Gauge | Current number of thread pool worker threads actively processing requests | None |
+| `mercury_process_resident_memory_bytes` | Gauge | Resident set size (RSS) memory in bytes | None |
+| `mercury_process_cpu_seconds_total` | Counter | Cumulative user and system CPU time in seconds | None |
+| `mercury_process_uptime_seconds` | Gauge | Process uptime in seconds | None |
+
+Default: `off`
+
+Examples:
+
+```xml
+<!-- Default metrics exporter (loopback only at /metrics) -->
+<Metrics enabled="true" path="/metrics" />
+
+<!-- Metrics with private network CIDR allowlist and latency histogram -->
+<Metrics enabled="true" path="/metrics">
+    <AllowCIDR>127.0.0.1/32</AllowCIDR>
+    <AllowCIDR>::1/128</AllowCIDR>
+    <AllowCIDR>10.0.0.0/8</AllowCIDR>
+    <TrackLatency enabled="true" />
+</Metrics>
 ```
 
 ### EnablePHPCGI

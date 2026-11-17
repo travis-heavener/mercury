@@ -17,8 +17,8 @@
 #include "http/telemetry/version_checker.hpp"
 #include "io/file_cache.hpp"
 #include "logs/logger.hpp"
-#include "util/cli.hpp"
-#include "util/privilege.hpp"
+#include "util/cli/cli.hpp"
+#include "util/system/privilege.hpp"
 
 // Global termination flag (atomic)
 std::atomic<bool> isExiting{false};
@@ -77,7 +77,10 @@ void cleanExit() {
     io::FileCache::getInstance().clear();
 
     // Log process closure
-    ACCESS_LOG << "Process killed successfully." << std::endl;
+    if (conf::ACCESS_LOG_FORMAT == LOG_FORMAT_JSON)
+        logJsonShutdown();
+    else
+        ACCESS_LOG << "Process killed successfully." << std::endl;
 
     // Cleanup config resources
     conf::cleanupConfig();
@@ -113,7 +116,11 @@ void printWelcomeBanner() {
     printBannerLine(conf::VERSION.empty() ? "Mercury" : conf::VERSION);
     printBannerBorder(false);
 
-    ACCESS_LOG << (conf::VERSION.empty() ? "Mercury" : conf::VERSION) << " started successfully." << std::endl;
+    const std::string message = (conf::VERSION.empty() ? "Mercury" : conf::VERSION) + " started successfully.";
+    if (conf::ACCESS_LOG_FORMAT == LOG_FORMAT_JSON)
+        logJsonStartup(conf::VERSION, message);
+    else
+        ACCESS_LOG << message << std::endl;
 }
 
 // Prints a donation banner on startup, if enabled

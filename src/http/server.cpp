@@ -6,7 +6,8 @@
 
 #include "../conf/conf.hpp"
 #include "../logs/logger.hpp"
-#include "../util/ratelimit.hpp"
+#include "../util/metrics/metrics.hpp"
+#include "../util/system/ratelimit.hpp"
 
 #include "telemetry/stats.hpp"
 #include "fastcgi/client.hpp"
@@ -144,8 +145,15 @@ namespace http {
             }
         }
 
-        if (!conf::DISABLE_LOGS)
-            ACCESS_LOG << "Listening on port " << this->port << " (" << *this << ")." << std::endl;
+        if (!conf::DISABLE_LOGS) {
+            if (conf::ACCESS_LOG_FORMAT == LOG_FORMAT_JSON) {
+                std::ostringstream message;
+                message << "Listening on port " << this->port << " (" << *this << ").";
+                logJsonListen(this->port, this->isIPv4(), this->useTLS, message.str());
+            } else {
+                ACCESS_LOG << "Listening on port " << this->port << " (" << *this << ")." << std::endl;
+            }
+        }
         return 0;
     }
 
@@ -156,8 +164,11 @@ namespace http {
         else
             n = recv(client, readBuffer, conf::REQUEST_BUFFER_SIZE, 0);
 
-        if (n > 0)
+        if (n > 0) {
             ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
+            if (conf::IS_METRICS_ENABLED)
+                util::MetricsRegistry::getInstance().recordBytesRead(static_cast<size_t>(n));
+        }
         return n;
     }
 
@@ -199,8 +210,11 @@ namespace http {
                 }
             #endif
         }
-        if (status > 0)
+        if (status > 0) {
             ServerStats::getInstance().recordBytesSent(static_cast<size_t>(status));
+            if (conf::IS_METRICS_ENABLED)
+                util::MetricsRegistry::getInstance().recordBytesSent(static_cast<size_t>(status));
+        }
         return (status <= 0) ? -1 : status;
     }
 
@@ -332,6 +346,8 @@ namespace http {
         std::unique_lock lock(clientsMutex);
         if (isExiting) return false;
         this->clientSocks.insert(client);
+        if (conf::IS_METRICS_ENABLED)
+            util::MetricsRegistry::getInstance().recordConnectionOpened();
         return true;
     }
 
@@ -339,6 +355,8 @@ namespace http {
     void Server::untrackClient(const int client) {
         std::unique_lock lock(clientsMutex);
         this->clientSocks.erase(client);
+        if (conf::IS_METRICS_ENABLED)
+            util::MetricsRegistry::getInstance().recordConnectionClosed();
     }
 
     int Server::acceptConnection(struct sockaddr_storage& clientAddr, socklen_t& clientLen) {
@@ -441,12 +459,18 @@ namespace http {
             // Keep unread data across requests; one read may contain several requests
             std::vector<char> readBuffer(conf::REQUEST_BUFFER_SIZE);
             std::string pending;
+            std::chrono::steady_clock::time_point requestStartTime;
+            const bool trackLatency = (conf::IS_METRICS_ENABLED && conf::IS_METRICS_TRACK_LATENCY_ENABLED) ||
+                (!conf::DISABLE_LOGS && conf::ACCESS_LOG_FORMAT == LOG_FORMAT_JSON);
             unsigned int requestsLeft = conf::MAX_KEEP_ALIVE_REQUESTS;
             headers_map_t reqHeaders;
 
             // Pass socket writes to Response, which retries partial writes
+            size_t bytesSent = 0;
             std::function<ssize_t(const char*, const size_t)> sendFunc = [&](const char* data, size_t size) {
-                return writeClientSock(client, pSSL, data, size);
+                const ssize_t written = writeClientSock(client, pSSL, data, size);
+                if (written > 0) bytesSent += static_cast<size_t>(written);
+                return written;
             };
 
             // Send complete buffer, retrying partial socket writes
@@ -473,7 +497,11 @@ namespace http {
                     if (useTLS) {
                         const ssize_t n = SSL_read(pSSL, readBuffer.data(), conf::REQUEST_BUFFER_SIZE);
                         if (n > 0) {
+                            // Start latency clock when first request bytes arrive
+                            if (trackLatency && pending.empty()) requestStartTime = std::chrono::steady_clock::now();
                             ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
+                            if (conf::IS_METRICS_ENABLED)
+                                util::MetricsRegistry::getInstance().recordBytesRead(static_cast<size_t>(n));
                             pending.append(readBuffer.data(), static_cast<size_t>(n));
                             return true;
                         }
@@ -508,7 +536,11 @@ namespace http {
 
                         const ssize_t n = recv(client, readBuffer.data(), conf::REQUEST_BUFFER_SIZE, 0);
                         if (n <= 0) return false;
+                        // Exclude idle time before first request bytes arrive
+                        if (trackLatency && pending.empty()) requestStartTime = std::chrono::steady_clock::now();
                         ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
+                        if (conf::IS_METRICS_ENABLED)
+                            util::MetricsRegistry::getInstance().recordBytesRead(static_cast<size_t>(n));
                         pending.append(readBuffer.data(), static_cast<size_t>(n));
                         return true;
                     }
@@ -526,10 +558,28 @@ namespace http {
                 response.streamBody(false, true, sendFunc);
                 ServerStats::getInstance().recordRequest();
                 ServerStats::getInstance().recordStatusCode(status);
+
+                // Update metrics
+                if (conf::IS_METRICS_ENABLED) {
+                    const size_t methodEnd = pending.find(' ');
+                    const auto method = methodEnd != std::string::npos ? util::stringToMetricMethod(std::string_view(pending.data(), methodEnd)) : util::MetricMethod::Other;
+                    util::MetricsRegistry::getInstance().recordRequest(method);
+                    util::MetricsRegistry::getInstance().recordStatus(status);
+                    util::MetricsRegistry::getInstance().recordHandler(util::MetricHandler::Static);
+                    util::MetricsRegistry::getInstance().recordCompletedRequest(method, status, util::MetricHandler::Static);
+                    if (conf::IS_METRICS_TRACK_LATENCY_ENABLED && requestStartTime != std::chrono::steady_clock::time_point{}) {
+                        const auto requestEndTime = std::chrono::steady_clock::now();
+                        const double durationSec = std::chrono::duration<double>(requestEndTime - requestStartTime).count();
+                        util::MetricsRegistry::getInstance().recordRequestDuration(durationSec);
+                    }
+                }
             };
 
             // Process requests until the connection limit, shutdown, or an error
             while (requestsLeft > 0 && !isExiting) {
+                bytesSent = 0;
+                // Start buffered requests immediately without waiting for another read
+                if (trackLatency) requestStartTime = std::chrono::steady_clock::now();
                 size_t headerEnd;
                 bool lineTooLong = false, isSimpleRequest = false;
                 constexpr size_t maxHeaderBytes = 64 * 1024;
@@ -655,6 +705,11 @@ namespace http {
                 // Generate the response using the validated request and owned client IP
                 RequestFlags flags;
                 Request request(reqHeaders, raw, clientIPStr, useTLS, flags);
+                util::MetricMethod metricMethod = util::MetricMethod::Other;
+                if (conf::IS_METRICS_ENABLED) {
+                    metricMethod = util::stringToMetricMethod(request.getMethodStr());
+                    util::MetricsRegistry::getInstance().recordRequest(metricMethod);
+                }
 
                 if (pending.size() == requestSize)
                     pending.clear();
@@ -674,6 +729,55 @@ namespace http {
                     response->setHeader("Connection", "close");
                     if (request.isMIMEAccepted("text/html"))
                         response->loadBodyFromErrorDoc(429);
+                } else if (conf::IS_METRICS_ENABLED && request.getDecodedURI() == conf::METRICS_PATH) {
+                    const bool supportedVersion = request.getVersion() == "HTTP/1.1" ||
+                        (conf::ENABLE_LEGACY_HTTP && request.getVersion() == "HTTP/1.0");
+                    response = std::make_unique<Response>(supportedVersion ? request.getVersion() : "HTTP/1.1");
+
+                    // Enforce CIDR subnet ACLs and match rules
+                    bool allowed = false;
+                    try {
+                        auto peer = conf::parseSanitizedClientIP(clientIPStr);
+                        allowed = conf::isMetricsIPAllowed(peer);
+                        for (const conf::Match* pMatch : request.getMatchedRules())
+                            allowed = allowed && pMatch->getAccessControl()->isIPAccepted(peer);
+                    } catch (...) {
+                        allowed = false;
+                    }
+
+                    // Apply protocol and request checks before exposing telemetry
+                    if (!supportedVersion) {
+                        response->setStatus(505);
+                    } else if (request.has400Error()) {
+                        response->setStatus(400);
+                    } else if (request.isURITooLong()) {
+                        response->setStatus(414);
+                    } else if (request.isContentTooLarge()) {
+                        response->setStatus(413);
+                    } else if (!allowed) {
+                        response->setStatus(403);
+                    } else if (request.getMethod() != METHOD::GET && request.getMethod() != METHOD::HEAD) {
+                        response->setStatus(405);
+                        response->setHeader("Allow", "GET, HEAD");
+                        if (request.isMIMEAccepted("text/html"))
+                            response->loadBodyFromErrorDoc(405);
+                    } else {
+                        response->setStatus(200);
+                        response->setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+                        std::string metricsBody = util::MetricsRegistry::getInstance().exportPrometheus();
+                        if (metricsBody.empty()) response->setStatus(503);
+                        response->setBodyStream(std::make_unique<MemoryStream>(std::move(metricsBody)));
+                        response->setIdentityAccepted(request.isIdentityAccepted());
+
+                        // Handle compression methods
+                        const int compressMethod = request.getCompressMethod(response->getContentType());
+                        response->setCompressMethod(compressMethod);
+                        if (response->getStatus() == 200 && !request.isIdentityAccepted() && compressMethod == NO_COMPRESS) {
+                            response->setStatus(406);
+                            response->clearHeader("Content-Encoding");
+                            response->setBodyStream(std::make_unique<MemoryStream>(""));
+                        }
+                    }
                 } else {
                     response = genResponse(request);
                 }
@@ -721,13 +825,36 @@ namespace http {
                 const ssize_t status = response->streamBody(request.isMIMEAccepted("text/html"), request.getMethod() == METHOD::HEAD, sendFunc);
 
                 ServerStats::getInstance().recordStatusCode(response->getStatus());
+                if (conf::IS_METRICS_ENABLED) {
+                    util::MetricsRegistry::getInstance().recordStatus(response->getStatus());
+                    util::MetricsRegistry::getInstance().recordHandler(response->getMetricHandler());
+                    util::MetricsRegistry::getInstance().recordCompletedRequest(metricMethod, response->getStatus(), response->getMetricHandler());
+                }
+
+                double durationSec = 0.0;
+                bool durationComputed = false;
+                if (conf::IS_METRICS_ENABLED && conf::IS_METRICS_TRACK_LATENCY_ENABLED) {
+                    const auto requestEndTime = std::chrono::steady_clock::now();
+                    durationSec = std::chrono::duration<double>(requestEndTime - requestStartTime).count();
+                    durationComputed = true;
+                    util::MetricsRegistry::getInstance().recordRequestDuration(durationSec);
+                }
 
                 // Log the final status, including errors detected while preparing the body
                 if (!conf::DISABLE_LOGS) {
-                    ACCESS_LOG << request.getMethodStr() << ' '
-                        << formatClientIP(request.getIPStr(), request.isDNT()) << ' '
-                        << SanitizedLogPath{request.getPaths().rawPathFromRequest} << " -- (" << response->getStatus()
-                        << ") [" << request.getVersion() << ']' << std::endl;
+                    if (conf::ACCESS_LOG_FORMAT == LOG_FORMAT_JSON) {
+                        if (!durationComputed) {
+                            const auto requestEndTime = std::chrono::steady_clock::now();
+                            durationSec = std::chrono::duration<double>(requestEndTime - requestStartTime).count();
+                        }
+                        const double latencyMs = durationSec * 1000.0;
+                        logJsonAccess(request, response->getStatus(), latencyMs, bytesSent);
+                    } else {
+                        ACCESS_LOG << request.getMethodStr() << ' '
+                            << formatClientIP(request.getIPStr(), request.isDNT()) << ' '
+                            << SanitizedLogPath{request.getPaths().rawPathFromRequest} << " -- (" << response->getStatus()
+                            << ") [" << request.getVersion() << ']' << std::endl;
+                    }
                 }
 
                 // Do not process queued requests after a failed write or forced closure

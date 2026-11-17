@@ -9,7 +9,7 @@
 #include <cstring>
 #include <stdexcept>
 
-#include "../../util/string_tools.hpp"
+#include "../../util/tools/string_tools.hpp"
 
 namespace conf {
 

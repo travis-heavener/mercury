@@ -10,7 +10,8 @@
 #endif
 
 #include "../../io/file.hpp"
-#include "../../util/string_tools.hpp"
+#include "../../util/tools/string_tools.hpp"
+#include "../../util/metrics/metrics.hpp"
 #include "../streams/body_stream.hpp"
 #include "../tools.hpp"
 
@@ -26,6 +27,8 @@ namespace http {
 
             inline void setStatus(const uint16_t statusCode) { this->statusCode = statusCode; };
             inline uint16_t getStatus() const { return httpVersion == "HTTP/0.9" ? 0 : statusCode; };
+            inline void setMetricHandler(util::MetricHandler handler) { metricHandler = handler; };
+            inline util::MetricHandler getMetricHandler() const { return metricHandler; };
 
             void setHeader(std::string name, const std::string& value);
             void addHeader(std::string name, const std::string& value);
@@ -62,6 +65,7 @@ namespace http {
             void clearByteRanges();
 
             std::string httpVersion;
+            util::MetricHandler metricHandler = util::MetricHandler::Static;
             uint16_t statusCode = 200;
             std::unique_ptr<IBodyStream> pBodyStream;
             int compressMethod = NO_COMPRESS;

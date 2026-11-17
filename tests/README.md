@@ -36,12 +36,21 @@ Windows runs test both Mercury's automatic PHP launch and reuse of an existing
 fixture listener, and verify ownership on shutdown. Unix-socket runs are Linux
 only. Traditional CGI runs remain enabled.
 
-Linux also runs `test_cgi_process.py` automatically through the same command.
-Controlled CGI executables verify stderr handling, concurrent pipe ownership,
+The same command then runs the Python suites in-process, each as one summary
+line. `test_limits.py` and `test_observability.py` use private ports and temp
+directories, so their individual tests share one worker pool (`run_suites` in
+`harness.py`); tests there must stay independent of each other and avoid
+class-level fixtures. `test_backends.py` shares ports 8080/8081 and runs serially: `test_limits.py` (rate limiting, connection queue, slow clients),
+`test_observability.py` (JSON logs, Prometheus metrics), and `test_backends.py`
+(CGI and PHP-FPM process lifecycle; Linux only). Shared server lifecycle, private
+instance base class (`ServerTestCase`), and reporting live in `harness.py`.
+Each module also runs alone, e.g. `python3 tests/test_limits.py`.
+
+On Linux, controlled CGI executables verify stderr handling, concurrent pipe ownership,
 large binary transfers, failed worker exits, execution deadlines, and shutdown
 cancellation. These supplement the real PHP cases. Linux CGI uses `CGITimeout`
 (30 seconds by default); stderr diagnostics stay in the error log and timeouts
-return 504. The process tests can also run with `python3 tests/test_cgi_process.py`.
+return 504.
 
 FastCGI runs reuse the normal JSON cases and wire regressions with CGI disabled,
 covering routing, PATH_INFO, query strings, forms, PHP headers/status, binary
@@ -202,20 +211,15 @@ simple.
 
 ## Linux automatic PHP-FPM ownership
 
-`python3 tests/run.py` automatically runs these checks on Linux after all shared
-CGI/FastCGI HTTP fixtures have stopped. Windows keeps its existing FastCGI startup
-and ownership checks within the HTTP runs. Use this single command locally and
-in CI; no separate ownership-test command is required.
+`python3 tests/run.py` runs these checks (in `test_backends.py`) on Linux after
+all shared CGI/FastCGI HTTP fixtures have stopped. Windows keeps its existing
+FastCGI startup and ownership checks within the HTTP runs. Use this single
+command locally and in CI. Run as your normal development user to exercise real
+Linux automatic pool ownership.
 
-Run as your normal development user to exercise real Linux automatic pool
-ownership. For focused debugging only, the standalone command remains available:
-`python3 tests/test_fastcgi_backend.py`.
-
-Linux ownership-test failures make the overall runner exit unsuccessfully, even
-when HTTP cases pass. The final passing/total count covers HTTP slots and wire
-groups; ownership checks print their own run label and compact passing/failing
-result, including skipped counts. Failures retain individual test tracebacks.
-The focused standalone command keeps standard unittest output.
+Failures print individual tracebacks; the final passing/total count covers HTTP
+slots and wire groups, while each Python suite prints its own pass/fail line,
+including skipped counts.
 
 These checks cover omitted and `auto` addresses, PHP access to an owner-only
 document root, inherited worker identity, private socket permissions, shutdown

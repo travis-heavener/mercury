@@ -282,7 +282,10 @@ namespace http::fastcgi {
                     const bool ready = ::connect(sock, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0;
                     close(sock);
                     if (ready) {
-                        ACCESS_LOG << "FastCGI: started private PHP-FPM at " << conf::FASTCGI_ADDRESS << std::endl;
+                        if (conf::ACCESS_LOG_FORMAT == LOG_FORMAT_JSON)
+                            logJsonFastcgiStart(conf::FASTCGI_ADDRESS);
+                        else
+                            ACCESS_LOG << "FastCGI: started private PHP-FPM at " << conf::FASTCGI_ADDRESS << std::endl;
                         return;
                     }
                 }

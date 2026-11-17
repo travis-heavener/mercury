@@ -11,8 +11,8 @@
     #include <unistd.h>
 #endif
 
-#include "../conf/conf.hpp"
-#include "../logs/logger.hpp"
+#include "../../conf/conf.hpp"
+#include "../../logs/logger.hpp"
 
 namespace util::privilege {
 
@@ -120,8 +120,11 @@ namespace util::privilege {
             }
 
             const std::string displayName = user.name.empty() ? std::to_string(user.uid) : user.name;
-            ACCESS_LOG << "Dropped root privileges to user " << displayName
-                << " (UID: " << user.uid << ", GID: " << user.gid << ")." << std::endl;
+            if (conf::ACCESS_LOG_FORMAT == LOG_FORMAT_JSON)
+                logJsonPrivilegeDrop(displayName, user.uid, user.gid);
+            else
+                ACCESS_LOG << "Dropped root privileges to user " << displayName
+                    << " (UID: " << user.uid << ", GID: " << user.gid << ")." << std::endl;
             if (conf::SHOW_PRIVILEGE_DEESCALATION_MESSAGE)
                 std::cout << "> Dropped root privileges to user '" << displayName << "'." << std::endl;
         #endif

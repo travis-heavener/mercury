@@ -20,6 +20,9 @@
 #define CLIENT_SEC_MASKED     3
 #define CLIENT_SEC_HASHED     4
 
+#define LOG_FORMAT_TEXT       0
+#define LOG_FORMAT_JSON       1
+
 #define CONF_FILE "conf/mercury.conf"
 #define MIMES_FILE "conf/mimes.conf"
 #define VERSION_FILE "version.txt"
@@ -64,6 +67,8 @@ namespace conf {
 
     extern std::filesystem::path ACCESS_LOG_FILE;
     extern std::filesystem::path ERROR_LOG_FILE;
+    extern int ACCESS_LOG_FORMAT;
+    extern int ERROR_LOG_FORMAT;
     extern bool DISABLE_LOGS;
     extern int CLIENT_SECURITY_MODE;
     extern std::string IP_HASH_SALT;
@@ -87,6 +92,11 @@ namespace conf {
     extern std::string FASTCGI_ADDRESS;
     extern unsigned int FASTCGI_TIMEOUT;
 
+    extern bool IS_METRICS_ENABLED;
+    extern std::string METRICS_PATH;
+    extern bool IS_METRICS_TRACK_LATENCY_ENABLED;
+    extern std::vector<SanitizedIP> METRICS_ALLOWED_CIDRS;
+
     extern bool SHOW_WELCOME_BANNER;
     extern bool SHOW_DONATION_BANNER;
     extern bool SHOW_PRIVILEGE_DEESCALATION_MESSAGE;
@@ -104,6 +114,7 @@ namespace conf {
     bool isVersionOutdated(const std::string& latestRemoteVersion);
     void printHelp();
     void printVersion();
+    bool isMetricsIPAllowed(const SanitizedIP& peer);
 }
 
 #endif

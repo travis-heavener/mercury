@@ -1,7 +1,7 @@
 #include "compressor_stream.hpp"
 
 #include "../../conf/conf.hpp"
-#include "../../util/string_tools.hpp"
+#include "../../util/tools/string_tools.hpp"
 
 namespace http {
 

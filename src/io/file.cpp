@@ -3,8 +3,8 @@
 #include "file_cache.hpp"
 #include "../conf/conf.hpp"
 #include "../io/file_tools.hpp"
-#include "../util/string_tools.hpp"
-#include "../util/toolbox.hpp"
+#include "../util/tools/string_tools.hpp"
+#include "../util/tools/toolbox.hpp"
 
 File::File(const http::RequestPath& paths) {
     if (io::FileCache::getInstance().tryGet(paths.decodedURI, *this))

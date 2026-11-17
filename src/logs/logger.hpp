@@ -8,6 +8,7 @@
 #include <queue>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
 
 #define ACCESS_LOG Logger::getInstance()(true)
@@ -16,6 +17,22 @@
 // Fwd dec.
 class Logger;
 std::string genTimestamp();
+std::string genIso8601Timestamp();
+std::string escapeJsonString(std::string_view input);
+
+namespace http {
+    class Request;
+}
+
+void logJsonAccess(const http::Request& request, int status, double latencyMs, size_t bytesSent);
+void logJsonShutdown();
+void logJsonListen(unsigned int port, bool ipv4, bool tls, std::string_view message);
+void logJsonStartup(std::string_view version, std::string_view message);
+void logJsonPrivilegeDrop(std::string_view user, unsigned long long uid, unsigned long long gid);
+void logJsonFastcgiStart(std::string_view address);
+void logJsonAccess(const std::string& method, const std::string& clientIP, const std::string& uri,
+    int status, const std::string& version, double latencyMs, size_t bytesSent,
+    const std::string& userAgent = "", const std::string& referer = "");
 
 namespace conf {
     extern bool DISABLE_LOGS;

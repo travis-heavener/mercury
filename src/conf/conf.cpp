@@ -1,6 +1,8 @@
 #include "conf.hpp"
 
+#include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <iostream>
 #include <limits>
 #include <mutex>
@@ -14,9 +16,9 @@
 
 #include "../http/fastcgi/client.hpp"
 #include "../io/file_tools.hpp"
-#include "../util/privilege.hpp"
-#include "../util/ratelimit.hpp"
-#include "../util/string_tools.hpp"
+#include "../util/system/privilege.hpp"
+#include "../util/system/ratelimit.hpp"
+#include "../util/tools/string_tools.hpp"
 
 #define LOAD_UINT_FORBID_ZERO false
 
@@ -58,6 +60,8 @@ namespace conf {
 
     std::filesystem::path ACCESS_LOG_FILE;
     std::filesystem::path ERROR_LOG_FILE;
+    int ACCESS_LOG_FORMAT = LOG_FORMAT_TEXT;
+    int ERROR_LOG_FORMAT = LOG_FORMAT_TEXT;
     bool DISABLE_LOGS = false;
     int CLIENT_SECURITY_MODE;
     std::string IP_HASH_SALT;
@@ -81,6 +85,11 @@ namespace conf {
     std::string FASTCGI_ADDRESS;
     unsigned int FASTCGI_TIMEOUT;
 
+    bool IS_METRICS_ENABLED = false;
+    std::string METRICS_PATH = "/metrics";
+    bool IS_METRICS_TRACK_LATENCY_ENABLED = false;
+    std::vector<SanitizedIP> METRICS_ALLOWED_CIDRS;
+
     bool SHOW_WELCOME_BANNER;
     bool SHOW_DONATION_BANNER;
     bool SHOW_PRIVILEGE_DEESCALATION_MESSAGE;
@@ -101,7 +110,7 @@ namespace conf {
 
     const std::vector<std::string> mercuryNodeNames = {
         "DocumentRoot", "BindAddressIPv4", "BindAddressIPv6", "Port", "TLSPort", "TLSCertFile", "TLSKeyFile", "TLSCertificateFile", "TLSPrivateKeyFile", "Redirect", "Rewrite",
-        "RateLimit",
+        "RateLimit", "Metrics",
         "AccessLogFile", "ErrorLogFile", "DisableLogs", "ClientSecurityMode", "ClientSecurityIPSalt", "EnablePHPCGI", "CGITimeout", "WinPHPCGIPath", "EnableFastCGI", "FastCGIAddress", "FastCGITimeout", "EnableLegacyHTTPVersions", "EnableCustomStatusDocs",
         "Match", "KeepAlive", "KeepAliveMaxTimeout", "KeepAliveMaxRequests", "IndexFiles",
         "MaxRequestLineLength", "MaxRequestBacklog", "RequestBufferSize", "ResponseBufferSize", "MaxRequestBody", "MaxResponseBody",
@@ -143,6 +152,8 @@ namespace conf {
     int loadClientSecurityIPSalt(const pugi::xml_node& root, std::string& var, const std::string& defaultSalt="fAhGD0OnCe4YhSyx");
     int loadFastCGIAddress(const pugi::xml_node& root, std::string& var);
     int loadRateLimit(const pugi::xml_node& root);
+    int loadMetrics(const pugi::xml_node& root);
+    int loadLogConfig(const pugi::xml_node& root);
 
     // Loads the directory of the running executable to path
     // Returns true if successful or false otherwise
@@ -594,6 +605,11 @@ namespace conf {
         if (loadRateLimit(root) == CONF_FAILURE)
             return CONF_FAILURE;
 
+        /************ LOAD METRICS ************/
+
+        if (loadMetrics(root) == CONF_FAILURE)
+            return CONF_FAILURE;
+
         /************ LOAD BOOLEANS ************/
 
         if (loadOnOff(root, DISABLE_LOGS, "DisableLogs", false) == CONF_FAILURE)
@@ -727,19 +743,8 @@ namespace conf {
 
         /************************** LOAD PATHS **************************/
 
-        if (!DISABLE_LOGS) {
-            if (loadPath(root, ACCESS_LOG_FILE, "AccessLogFile", true, "./logs/access.log") == CONF_FAILURE)
-                return CONF_FAILURE;
-
-            if (loadPath(root, ERROR_LOG_FILE, "ErrorLogFile", true, "./logs/error.log") == CONF_FAILURE)
-                return CONF_FAILURE;
-        } else {
-            // Assign paths without creating log directories
-            pugi::xml_node accessNode = root.child("AccessLogFile");
-            ACCESS_LOG_FILE = expandUserHomePath(accessNode ? accessNode.text().as_string() : "./logs/access.log");
-            pugi::xml_node errorNode = root.child("ErrorLogFile");
-            ERROR_LOG_FILE = expandUserHomePath(errorNode ? errorNode.text().as_string() : "./logs/error.log");
-        }
+        if (loadLogConfig(root) == CONF_FAILURE)
+            return CONF_FAILURE;
 
         #ifdef _WIN32
             if ((IS_PHP_ENABLED || IS_FASTCGI_ENABLED) && loadPath(root, PHP_CGI_EXE_PATH, "WinPHPCGIPath", false, "./php/php-cgi.exe") == CONF_FAILURE)
@@ -896,12 +901,21 @@ namespace conf {
 
         // Reset logging settings
         DISABLE_LOGS = false;
+        ACCESS_LOG_FORMAT = LOG_FORMAT_TEXT;
+        ERROR_LOG_FORMAT = LOG_FORMAT_TEXT;
 
         // Reset rate limiter settings
         IS_RATE_LIMIT_ENABLED = false;
         RATE_LIMIT_RATE = 100.0;
         RATE_LIMIT_BURST = 20.0;
         util::RateLimiter::getInstance().clear();
+
+        // Reset metrics settings
+        IS_METRICS_ENABLED = false;
+        METRICS_PATH = "/metrics";
+        IS_METRICS_TRACK_LATENCY_ENABLED = false;
+        METRICS_ALLOWED_CIDRS.clear();
+        util::MetricsRegistry::getInstance().setTrackLatency(false);
 
         // Reset TLS paths
         TLS_CERT_FILE.clear();
@@ -1464,6 +1478,196 @@ namespace conf {
                     return CONF_FAILURE;
                 }
             }
+        }
+
+        return CONF_SUCCESS;
+    }
+
+    // Check if client IP is permitted by Metrics CIDR restrictions
+    bool isMetricsIPAllowed(const SanitizedIP& peer) {
+        for (const SanitizedIP& cidr : METRICS_ALLOWED_CIDRS) {
+            if (doesAddressFitCIDR(cidr, peer)) return true;
+        }
+        return false;
+    }
+
+    // Used to load Metrics configuration directive
+    int loadMetrics(const pugi::xml_node& root) {
+        const pugi::xml_node node = root.child("Metrics");
+        METRICS_ALLOWED_CIDRS.clear();
+        IS_METRICS_ENABLED = false;
+        IS_METRICS_TRACK_LATENCY_ENABLED = false;
+
+        if (!node) {
+            METRICS_PATH = "/metrics";
+            util::MetricsRegistry::getInstance().setTrackLatency(false);
+            return CONF_SUCCESS;
+        }
+
+        // Validate node attributes
+        for (const auto& attribute : node.attributes()) {
+            const std::string_view name = attribute.name();
+            if (name == "enabled" || name == "path") continue;
+            std::cerr << "Failed to parse config file, unsupported Metrics attribute: " << name << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Parse enabled attribute (default: true if tag is present)
+        std::string enabledStr = "true";
+        if (node.attribute("enabled"))
+            enabledStr = node.attribute("enabled").as_string();
+
+        trimString(enabledStr);
+        strToLower(enabledStr);
+        if (enabledStr == "true" || enabledStr == "on" || enabledStr == "1") {
+            IS_METRICS_ENABLED = true;
+            IS_METRICS_TRACK_LATENCY_ENABLED = true;
+        } else if (enabledStr == "false" || enabledStr == "off" || enabledStr == "0") {
+            IS_METRICS_ENABLED = false;
+            IS_METRICS_TRACK_LATENCY_ENABLED = false;
+        } else {
+            std::cerr << "Failed to parse config file, invalid enabled attribute for Metrics." << std::endl;
+            return CONF_FAILURE;
+        }
+
+        // Parse path attribute (default: /metrics)
+        std::string pathStr = "/metrics";
+        if (node.attribute("path"))
+            pathStr = node.attribute("path").as_string();
+
+        trimString(pathStr);
+        if (pathStr.empty() || pathStr[0] != '/' || pathStr.find_first_of("?#") != std::string::npos ||
+            std::any_of(pathStr.begin(), pathStr.end(), [](unsigned char c) { return c <= 0x20 || c == 0x7f; })) {
+            std::cerr << "Failed to parse config file, invalid path attribute for Metrics." << std::endl;
+            return CONF_FAILURE;
+        }
+        METRICS_PATH = pathStr;
+
+        // Parse child nodes (AllowCIDR, TrackLatency)
+        for (const auto& child : node.children()) {
+            if (child.type() == pugi::node_comment) continue;
+            const std::string_view childName = child.name();
+            if (childName == "AllowCIDR") {
+                if (child.first_attribute()) {
+                    std::cerr << "Failed to parse config file, unsupported attribute for AllowCIDR: "
+                              << child.first_attribute().name() << std::endl;
+                    return CONF_FAILURE;
+                }
+                for (const auto& sub : child.children()) {
+                    if (sub.type() != pugi::node_comment && sub.type() != pugi::node_pcdata) {
+                        std::cerr << "Failed to parse config file, unsupported AllowCIDR child: "
+                                  << sub.name() << std::endl;
+                        return CONF_FAILURE;
+                    }
+                }
+                try {
+                    SanitizedIP sip = parseSanitizedIP(child);
+                    METRICS_ALLOWED_CIDRS.push_back(sip);
+                } catch (const std::exception&) {
+                    std::cerr << "Failed to parse config file, invalid IP/CIDR in Metrics AllowCIDR: "
+                              << child.text().as_string() << std::endl;
+                    return CONF_FAILURE;
+                }
+            } else if (childName == "TrackLatency") {
+                for (const auto& attr : child.attributes()) {
+                    if (std::string_view(attr.name()) != "enabled") {
+                        std::cerr << "Failed to parse config file, unsupported TrackLatency attribute: "
+                                  << attr.name() << std::endl;
+                        return CONF_FAILURE;
+                    }
+                }
+                for (const auto& sub : child.children()) {
+                    if (sub.type() != pugi::node_comment && sub.type() != pugi::node_pcdata) {
+                        std::cerr << "Failed to parse config file, unsupported TrackLatency child: "
+                                  << sub.name() << std::endl;
+                        return CONF_FAILURE;
+                    }
+                }
+                std::string trackVal = "true";
+                if (child.attribute("enabled")) {
+                    trackVal = child.attribute("enabled").as_string();
+                } else if (!std::string_view(child.text().as_string()).empty()) {
+                    trackVal = child.text().as_string();
+                }
+                trimString(trackVal);
+                strToLower(trackVal);
+                if (trackVal == "true" || trackVal == "on" || trackVal == "1") {
+                    IS_METRICS_TRACK_LATENCY_ENABLED = IS_METRICS_ENABLED;
+                } else if (trackVal == "false" || trackVal == "off" || trackVal == "0") {
+                    IS_METRICS_TRACK_LATENCY_ENABLED = false;
+                } else {
+                    std::cerr << "Failed to parse config file, invalid value for TrackLatency." << std::endl;
+                    return CONF_FAILURE;
+                }
+            } else {
+                std::cerr << "Failed to parse config file, unsupported Metrics child: " << child.name() << std::endl;
+                return CONF_FAILURE;
+            }
+        }
+
+        // Default-deny: if no AllowCIDR entries are provided, default to loopback-only
+        if (METRICS_ALLOWED_CIDRS.empty()) {
+            try {
+                METRICS_ALLOWED_CIDRS.push_back(parseSanitizedClientIP("127.0.0.1"));
+                METRICS_ALLOWED_CIDRS.push_back(parseSanitizedClientIP("::1"));
+            } catch (...) {}
+        }
+
+        if (!IS_METRICS_ENABLED) {
+            IS_METRICS_TRACK_LATENCY_ENABLED = false;
+        }
+
+        util::MetricsRegistry::getInstance().setTrackLatency(IS_METRICS_ENABLED && IS_METRICS_TRACK_LATENCY_ENABLED);
+        return CONF_SUCCESS;
+    }
+
+    // Used to load AccessLogFile and ErrorLogFile configuration directives
+    int loadLogConfig(const pugi::xml_node& root) {
+        ACCESS_LOG_FORMAT = LOG_FORMAT_TEXT;
+        ERROR_LOG_FORMAT = LOG_FORMAT_TEXT;
+
+        pugi::xml_node accessNode = root.child("AccessLogFile");
+        if (accessNode) {
+            pugi::xml_attribute fmtAttr = accessNode.attribute("format");
+            if (fmtAttr) {
+                std::string fmtStr = fmtAttr.as_string();
+                trimString(fmtStr); strToLower(fmtStr);
+                if (fmtStr == "json") {
+                    ACCESS_LOG_FORMAT = LOG_FORMAT_JSON;
+                } else if (fmtStr == "text") {
+                    ACCESS_LOG_FORMAT = LOG_FORMAT_TEXT;
+                } else {
+                    std::cerr << "Failed to parse config file, invalid format attribute for AccessLogFile: " << fmtStr << std::endl;
+                    return CONF_FAILURE;
+                }
+            }
+        }
+
+        pugi::xml_node errorNode = root.child("ErrorLogFile");
+        if (errorNode) {
+            pugi::xml_attribute fmtAttr = errorNode.attribute("format");
+            if (fmtAttr) {
+                std::string fmtStr = fmtAttr.as_string();
+                trimString(fmtStr); strToLower(fmtStr);
+                if (fmtStr == "json") {
+                    ERROR_LOG_FORMAT = LOG_FORMAT_JSON;
+                } else if (fmtStr == "text") {
+                    ERROR_LOG_FORMAT = LOG_FORMAT_TEXT;
+                } else {
+                    std::cerr << "Failed to parse config file, invalid format attribute for ErrorLogFile: " << fmtStr << std::endl;
+                    return CONF_FAILURE;
+                }
+            }
+        }
+
+        if (!DISABLE_LOGS) {
+            if (loadPath(root, ACCESS_LOG_FILE, "AccessLogFile", true, "./logs/access.log") == CONF_FAILURE)
+                return CONF_FAILURE;
+            if (loadPath(root, ERROR_LOG_FILE, "ErrorLogFile", true, "./logs/error.log") == CONF_FAILURE)
+                return CONF_FAILURE;
+        } else {
+            ACCESS_LOG_FILE = expandUserHomePath(accessNode ? accessNode.text().as_string() : "./logs/access.log");
+            ERROR_LOG_FILE = expandUserHomePath(errorNode ? errorNode.text().as_string() : "./logs/error.log");
         }
 
         return CONF_SUCCESS;

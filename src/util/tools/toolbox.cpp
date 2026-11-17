@@ -6,11 +6,11 @@
 #include <string>
 
 #ifdef _WIN32
-    #include "../winheader.hpp"
+    #include "../../winheader.hpp"
 #endif
 
 #include "string_tools.hpp"
-#include "../conf/conf.hpp"
+#include "../../conf/conf.hpp"
 
 static void formatFileSize(size_t fileSize, std::string& buffer) {
     long double truncatedSize;

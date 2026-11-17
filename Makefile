@@ -41,7 +41,7 @@ SRCS := $(shell find src -type f -name "*.cpp") $(wildcard $(PUGIXML_DIR)/*.cpp)
 CXX_FLAGS := -Wall -Wextra -Werror
 STATIC_FLAGS := -std=c++20
 LIB_FLAGS := -static-libstdc++ -static-libgcc -lbrotlienc -lbrotlicommon -lz -lpthread -lssl -lcrypto -lzstd
-WIN_FLAGS := -static -lcrypt32 -lws2_32 -lbcrypt -mconsole
+WIN_FLAGS := -static -lcrypt32 -lws2_32 -lbcrypt -lpsapi -mconsole
 
 # Targets
 TARGET_LINUX := bin/mercury

@@ -8,26 +8,23 @@ This file uses the test cases in tests.json to test the output of
 """
 
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from contextlib import contextmanager, nullcontext
+from contextlib import nullcontext
 import os
 import psutil
-import signal
 import socket
-import ssl
-import subprocess
 import sys
-import tempfile
 import time
 
 from fastcgi_backend import FastCGIBackend
+from harness import HOST, HOST_V6, mercury_process, PORT, run_suite, run_suites, TLS_PORT, tls_context
 from regressions import run_wire_regressions, WIRE_TEST_COUNT
+import test_backends
 from test_case import load_runs, TestCase
+import test_limits
+import test_observability
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-host = "127.0.0.1"
-host_v6 = "::1"
-port = 8080
-ssl_port = 8081
+ssl_ctx = tls_context()
 
 
 # Returns True if Mercury process is currently active
@@ -59,68 +56,18 @@ def is_tls_set_up():
     return os.path.exists("../conf/ssl/cert.pem") and os.path.exists("../conf/ssl/key.pem")
 
 
-# Returns True if socket connection to target address succeeds
-def _ping_sock(addr: str, port: int, ipv4: bool) -> bool:
-    try:
-        sock = socket.socket(socket.AF_INET if ipv4 else socket.AF_INET6, socket.SOCK_STREAM)
-        sock.settimeout(1) # 1 second timeout
-        sock.connect((addr, port))
-        return True
-    except KeyboardInterrupt as e:
-        raise e
-    except:
-        return False
-    finally:
-        sock.close()
-
-
-# Returns True when all listening endpoints accept socket connections
-def wait_until_live() -> bool:
-    MAX_TIMEOUT = 15 # Max timeout in seconds
-
-    # Test IPv4
-    start_ts = time.time()
-    while not _ping_sock(host, port, ipv4=True):
-        if time.time() > start_ts + MAX_TIMEOUT:
-            return False
-        time.sleep(0.25)
-
-    # Test IPv6
-    start_ts = time.time()
-    while not _ping_sock(host_v6, port, ipv4=False):
-        if time.time() > start_ts + MAX_TIMEOUT:
-            return False
-        time.sleep(0.25)
-
-    # Test IPv4 w/ SSL
-    start_ts = time.time()
-    while not _ping_sock(host, ssl_port, ipv4=True):
-        if time.time() > start_ts + MAX_TIMEOUT:
-            return False
-        time.sleep(0.25)
-
-    # Test IPv6 w/ SSL
-    start_ts = time.time()
-    while not _ping_sock(host_v6, ssl_port, ipv4=False):
-        if time.time() > start_ts + MAX_TIMEOUT:
-            return False
-        time.sleep(0.25)
-
-    return True
-
-
 # Returns True if single test case passes across specified transport
 def run_single_test(case: TestCase, ipv4: bool, tls: bool) -> bool:
     test_type = f"IPv{4 if ipv4 else 6}{' SSL' if tls else ''}"
     try:
-        addr = (host if ipv4 else host_v6, ssl_port if tls else port)
+        addr = (HOST if ipv4 else HOST_V6, TLS_PORT if tls else PORT)
         family = socket.AF_INET if ipv4 else socket.AF_INET6
 
         # Dispatch test over TLS or plaintext socket connection
         with socket.socket(family, socket.SOCK_STREAM) as sock:
             sock.connect(addr)
             if tls:
-                with ssl_ctx.wrap_socket(sock, server_hostname=host if ipv4 else host_v6) as s:
+                with ssl_ctx.wrap_socket(sock, server_hostname=HOST if ipv4 else HOST_V6) as s:
                     return case.test(s, f"{test_type} test")
             else:
                 return case.test(sock, f"{test_type} test")
@@ -184,90 +131,6 @@ def run_tests(cases: list[TestCase], max_workers: int) -> int:
     return num_passing
 
 
-# Returns default SSL context w/ verification disabled
-def init_ssl():
-    context = ssl.create_default_context()
-    context.check_hostname = False # Allow self-signed certs
-    context.verify_mode = ssl.CERT_NONE
-    return context
-
-
-# Used to manage Mercury process lifecycle for test run
-@contextmanager
-def mercury_process(config_path):
-    windows = sys.platform in ("win32", "cygwin")
-
-    # Capture stderr diagnostics in temporary buffer while discarding stdout
-    with tempfile.TemporaryFile() as diagnostics:
-        proc = subprocess.Popen(
-            ["../bin/mercury.exe" if windows else "../bin/mercury", "-c", config_path],
-            stdout=subprocess.DEVNULL,
-            stderr=diagnostics,
-            stdin=subprocess.DEVNULL,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0
-        )
-        failed = False
-
-        try:
-            # Verify server endpoints are responding before running tests
-            if not wait_until_live() or proc.poll() is not None:
-                diagnostics.seek(0)
-                raise RuntimeError("Mercury failed to start:\n" + diagnostics.read().decode(errors="replace"))
-
-            # Wait for HTTP workers after backend startup completes
-            with socket.create_connection((host, port), timeout=10) as probe:
-                probe.sendall(b"GET /small.txt HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
-                if not probe.recv(1024):
-                    raise RuntimeError("Mercury closed startup probe")
-
-            # Yield running server process to test runner
-            yield proc
-
-            # Verify process did not crash during execution
-            if proc.poll() is not None:
-                raise RuntimeError("Mercury exited unexpectedly during test run")
-        except BaseException:
-            failed = True
-            raise
-        finally:
-            # Capture unexpected exit before sending normal shutdown signal
-            unexpected_exit = proc.poll()
-            shutdown_error = None
-
-            # Terminate server gracefully w/ interrupt signal
-            if proc.poll() is None:
-                proc.send_signal(signal.CTRL_BREAK_EVENT if windows else signal.SIGINT)
-                try:
-                    proc.wait(timeout=15)
-                except subprocess.TimeoutExpired:
-                    shutdown_error = RuntimeError("Mercury did not shut down gracefully")
-                    try:
-                        proc.kill()
-                        proc.wait(timeout=5)
-                    except (OSError, subprocess.TimeoutExpired) as error:
-                        print(f"[Diagnostics] Forced shutdown failed: {error}", flush=True)
-
-            # Preserve runtime crash diagnostics normally hidden by redirected stderr
-            if failed or unexpected_exit is not None or shutdown_error is not None:
-                code = proc.returncode
-                formatted_code = f"{code} (0x{code & 0xFFFFFFFF:08X})" if windows and code is not None else str(code)
-                state = "unexpected exit" if unexpected_exit is not None else "after test failure and shutdown"
-                if shutdown_error is not None:
-                    state = "forced shutdown after timeout"
-
-                print(f"[Diagnostics] Mercury PID {proc.pid}: {state}; exit code {formatted_code}", flush=True)
-                diagnostics.seek(0)
-                captured = diagnostics.read().decode(errors="replace")
-                print("[Diagnostics] Mercury stderr:\n" + (captured or "(empty)"), flush=True)
-
-            # Report cleanup failure after diagnostics without replacing original exception
-            if shutdown_error is not None:
-                if failed:
-                    print(f"[Diagnostics] {shutdown_error}", flush=True)
-                else:
-                    raise shutdown_error
-
-
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -293,7 +156,6 @@ if __name__ == "__main__":
         runs = [run for run in load_runs() if not run["platforms"] or sys.platform in run["platforms"]]
         num_passing = 0
         num_total = sum(len(run["cases"]) * 4 + (WIRE_TEST_COUNT if run["wire_regressions"] else 0) for run in runs)
-        ssl_ctx = init_ssl()
 
         for run in runs:
             print("=" * 80)
@@ -324,7 +186,7 @@ if __name__ == "__main__":
                         if sys.stdout.isatty():
                             sys.stdout.write("\r  Running wire regressions...")
                             sys.stdout.flush()
-                        wire_passed = run_wire_regressions(host, host_v6, port, ssl_port)
+                        wire_passed = run_wire_regressions(HOST, HOST_V6, PORT, TLS_PORT)
                         if sys.stdout.isatty():
                             sys.stdout.write("\r\033[K")
                             sys.stdout.flush()
@@ -352,32 +214,16 @@ if __name__ == "__main__":
                 if backend is not None and backend.proc is not None and backend.proc.poll() is not None:
                     raise RuntimeError("Mercury stopped externally managed PHP backend")
 
-        # Run Linux process checks only after HTTP fixtures release server ports
-        ownership_ok = True
-        cgi_ok = True
-
-        # Use same interpreter and propagate failures into overall suite result
-        if sys.platform == "linux":
-            print("=" * 80, flush=True)
-            cgi_script = os.path.join(TESTS_DIR, "test_cgi_process.py")
-            cgi_ok = subprocess.run([sys.executable, cgi_script, "--mercury-output"]).returncode == 0
-
-            print("=" * 80, flush=True)
-            ownership_script = os.path.join(TESTS_DIR, "test_fastcgi_backend.py")
-            ownership_ok = subprocess.run([sys.executable, ownership_script, "--mercury-output"]).returncode == 0
-
-        # Run rate limiting integration tests across all platforms
-        print("=" * 80, flush=True)
-        ratelimit_script = os.path.join(TESTS_DIR, "test_ratelimit.py")
-        ratelimit_ok = subprocess.run([sys.executable, ratelimit_script, "--mercury-output"]).returncode == 0
-
-        # Run connection queue integration tests across all platforms
-        queue_script = os.path.join(TESTS_DIR, "test_connection_queue.py")
-        queue_ok = subprocess.run([sys.executable, queue_script, "--mercury-output"]).returncode == 0
+        # Run private-port suites together (own ports and temp dirs), then shared-port backend suite alone
+        suites_ok = [
+            run_suites(("Rate Limiting and Connection Queue Tests", test_limits),
+                       ("Structured Logging and Metrics Tests", test_observability)),
+            run_suite("CGI and PHP-FPM Process Tests", test_backends),
+        ]
 
         # Print overall test suite summary
         print("=" * 80)
-        success = num_passing == num_total and ownership_ok and cgi_ok and ratelimit_ok and queue_ok
+        success = num_passing == num_total and all(suites_ok)
         print("✅ Success" if success else "❌ Failure")
         print(f"Passing: {num_passing}/{num_total}")
         sys.exit(0 if success else 1)

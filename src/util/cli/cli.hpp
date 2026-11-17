@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "../http/server.hpp"
+#include "../../http/server.hpp"
 
 // Enables raw terminal input mode
 #ifdef __linux__
