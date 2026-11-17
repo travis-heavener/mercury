@@ -61,13 +61,13 @@ The following measurements compare Mercury, Apache, and Nginx under the benchmar
 
 | Metric | Mercury (v0.41.0) | Apache (2.4.58) | Nginx (1.24.0) | Comparison (vs. Apache) |
 |---|---|---|---|:---:|
-| **Avg. Idle Memory** | **3.1 MB** | 3.0 MB | 4.6 MB | Mercury is 2% heavier |
-| **Avg. Load Memory** | **5.0 MB** | 5.3 MB | 4.8 MB | **Mercury is 6% lighter** |
-| **Avg. Peak Memory** | **5.1 MB** | 6.6 MB | 4.8 MB | **Mercury is 23% lighter** |
-| **Req / Second (1 KB)** | **134,262 rps** | 58,237 rps | 179,473 rps | **Mercury is 131% faster** |
-| **Avg. Latency (mean)** | **0.3 ms** | 0.8 ms | 0.4 ms | **Mercury is 58% lower** |
-| **Avg. Latency (p50)** | **0.2 ms** | 0.8 ms | 0.2 ms | **Mercury is 76% lower** |
-| **Avg. Latency (p99)** | **2.2 ms** | 2.0 ms | 2.8 ms | Mercury is 12% higher |
+| **Avg. Idle Memory** | **3.1 MB** | 3.0 MB | 4.7 MB | Mercury is 2% heavier |
+| **Avg. Load Memory** | **5.0 MB** | 5.7 MB | 4.9 MB | **Mercury is 11% lighter** |
+| **Avg. Peak Memory** | **5.1 MB** | 6.6 MB | 4.9 MB | **Mercury is 22% lighter** |
+| **Req / Second (1 KB)** | **185,529 rps** | 83,785 rps | 260,831 rps | **Mercury is 121% faster** |
+| **Avg. Latency (mean)** | **0.3 ms** | 0.6 ms | 0.3 ms | **Mercury is 55% lower** |
+| **Avg. Latency (p50)** | **0.1 ms** | 0.6 ms | 0.1 ms | **Mercury is 76% lower** |
+| **Avg. Latency (p99)** | **1.9 ms** | 1.6 ms | 2.6 ms | Mercury is 20% higher |
 
 Comparison uses Apache as baseline when present, otherwise Nginx.
 
@@ -75,13 +75,13 @@ Comparison uses Apache as baseline when present, otherwise Nginx.
 
 | Metric | Mercury (v0.41.0) | Apache (2.4.55) | Nginx (1.31.8) | Comparison (vs. Apache) |
 |---|---|---|---|:---:|
-| **Avg. Idle Memory** | **7.1 MB** | 19.8 MB | 25.8 MB | **Mercury is 64% lighter** |
-| **Avg. Load Memory** | **9.3 MB** | 23.2 MB | 26.0 MB | **Mercury is 60% lighter** |
-| **Avg. Peak Memory** | **9.3 MB** | 24.0 MB | 26.0 MB | **Mercury is 61% lighter** |
-| **Req / Second (1 KB)** | **14,566 rps** | 5,636 rps | 15,320 rps | **Mercury is 158% faster** |
-| **Avg. Latency (mean)** | **3.4 ms** | 7.9 ms | 3.2 ms | **Mercury is 57% lower** |
-| **Avg. Latency (p50)** | **2.9 ms** | 5.1 ms | 2.7 ms | **Mercury is 44% lower** |
-| **Avg. Latency (p99)** | **11.9 ms** | 17.8 ms | 11.4 ms | **Mercury is 33% lower** |
+| **Avg. Idle Memory** | **7.1 MB** | 19.9 MB | 25.8 MB | **Mercury is 64% lighter** |
+| **Avg. Load Memory** | **9.3 MB** | 23.8 MB | 26.0 MB | **Mercury is 61% lighter** |
+| **Avg. Peak Memory** | **9.4 MB** | 23.9 MB | 26.1 MB | **Mercury is 61% lighter** |
+| **Req / Second (1 KB)** | **20,092 rps** | 6,609 rps | 20,535 rps | **Mercury is 204% faster** |
+| **Avg. Latency (mean)** | **2.5 ms** | 7.4 ms | 2.4 ms | **Mercury is 67% lower** |
+| **Avg. Latency (p50)** | **2.0 ms** | 6.9 ms | 2.0 ms | **Mercury is 71% lower** |
+| **Avg. Latency (p99)** | **8.9 ms** | 16.0 ms | 8.6 ms | **Mercury is 44% lower** |
 
 Comparison uses Apache as baseline when present, otherwise Nginx.
 
