@@ -11,6 +11,8 @@ Mercury uses a test runner located in [`tests/`](../tests/):
 - **JSON Test Specification**: [`tests/tests.json`](../tests/tests.json) defines declarative HTTP request/response test cases across HTTP versions and configurations.
 - **Wire Regression Engine**: [`tests/regressions.py`](../tests/regressions.py) implements raw TCP and TLS socket tests for protocol edge cases, fuzzing, pipelining, and binary safety.
 - **Test Case Abstraction**: [`tests/test_case.py`](../tests/test_case.py) handles HTTP serialization, socket communication, response parsing, and assertion verification.
+- **Shared Harness**: [`tests/harness.py`](../tests/harness.py) owns Mercury process lifecycle (`mercury_process`), the `ServerTestCase` base for tests that spawn private instances on fresh ports (`serve`, `fetch`, `write_conf`), and the compact reporter (`run_suite`). Reuse it instead of copying config/start/stop helpers.
+- **Python Suites**: [`test_limits.py`](../tests/test_limits.py) (rate limit, queue, slow clients), [`test_observability.py`](../tests/test_observability.py) (JSON logs, metrics), and [`test_backends.py`](../tests/test_backends.py) (CGI/PHP-FPM lifecycle). `run.py` runs all three in-process after the HTTP runs; each is also runnable alone.
 - **Update Utility Test Suite**: [`tests/test_update.py`](../tests/test_update.py) validates version parsing, XML configuration reconciliation, process detection, and atomic rollback for `conf/update.py`.
 - **Test Configurations**: [`tests/conf_files/`](../tests/conf_files/) contains specialized `mercury.conf` variants for feature-specific runs.
 - **Document Fixtures**: [`tests/root/`](../tests/root/) contains static files, error pages, and PHP scripts used by tests.
