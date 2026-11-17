@@ -12,7 +12,10 @@
 namespace {
     // Thread-local response read buffers eliminate per-request buffer allocation churn
     thread_local std::vector<char> threadLocalStreamBuffer;
+
+#ifndef _WIN32
     thread_local std::string threadLocalHeadersBuffer;
+#endif
 
     inline char* getStreamBuffer(const size_t requiredSize) {
         if (threadLocalStreamBuffer.size() < requiredSize)
@@ -20,9 +23,11 @@ namespace {
         return threadLocalStreamBuffer.data();
     }
 
+#ifndef _WIN32
     inline std::string& getHeadersBuffer() {
         return threadLocalHeadersBuffer;
     }
+#endif
 }
 
 namespace http {
@@ -586,7 +591,11 @@ namespace http {
         const bool combineBody = !omitBody && bodySize > 0 && bodySize <= conf::RESPONSE_BUFFER_SIZE;
         const size_t totalBufferSize = estimatedSize + (combineBody ? bodySize : 0);
 
+#ifdef _WIN32
+        std::string headersBlock;
+#else
         std::string& headersBlock = getHeadersBuffer();
+#endif
         headersBlock.clear();
         if (headersBlock.capacity() < totalBufferSize)
             headersBlock.reserve(totalBufferSize);
