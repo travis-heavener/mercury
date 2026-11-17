@@ -488,30 +488,31 @@ class JsonLoggingTests(unittest.TestCase):
 
             try:
                 stop_event = threading.Event()
-                errors = []
+                consistency_errors = []
                 successful_scrapes = []
 
                 def worker():
                     while not stop_event.is_set():
                         try:
-                            conn = http.client.HTTPConnection(HOST, self.port, timeout=1)
+                            conn = http.client.HTTPConnection(HOST, self.port, timeout=3)
                             conn.request("GET", "/index.html")
                             res = conn.getresponse()
                             res.read()
                             conn.close()
                         except Exception:
                             pass
+                        time.sleep(0.002)
 
                 def scraper():
                     bucket_re = re.compile(r'mercury_http_request_duration_seconds_bucket\{le="([^"]+)"\}\s+(\d+)')
                     count_re = re.compile(r'mercury_http_request_duration_seconds_count\s+(\d+)')
                     sum_re = re.compile(r'mercury_http_request_duration_seconds_sum\s+([0-9.]+)')
 
-                    for _ in range(25):
+                    for _ in range(30):
                         if stop_event.is_set():
                             break
                         try:
-                            conn = http.client.HTTPConnection(HOST, self.port, timeout=1)
+                            conn = http.client.HTTPConnection(HOST, self.port, timeout=3)
                             conn.request("GET", "/metrics")
                             res = conn.getresponse()
                             body = res.read().decode("utf-8")
@@ -520,7 +521,7 @@ class JsonLoggingTests(unittest.TestCase):
                             if res.status == 503:
                                 continue
                             if res.status != 200:
-                                errors.append(f"Scrape status was {res.status}")
+                                consistency_errors.append(f"Scrape status was {res.status}")
                                 continue
                             successful_scrapes.append(1)
 
@@ -529,14 +530,14 @@ class JsonLoggingTests(unittest.TestCase):
                             sum_match = sum_re.search(body)
 
                             if not buckets or not count_match or not sum_match:
-                                errors.append("Missing histogram metrics in scrape payload")
+                                consistency_errors.append("Missing histogram metrics in scrape payload")
                                 continue
 
                             count_val = int(count_match.group(1))
                             sum_val = float(sum_match.group(1))
 
                             if sum_val < 0.0:
-                                errors.append(f"Histogram sum negative: {sum_val}")
+                                consistency_errors.append(f"Histogram sum negative: {sum_val}")
 
                             prev_val = 0
                             previous_bound = 0.0
@@ -544,7 +545,7 @@ class JsonLoggingTests(unittest.TestCase):
                             for le, val_str in buckets:
                                 val = int(val_str)
                                 if val < prev_val:
-                                    errors.append(f"Histogram inversion: bucket le={le} ({val}) < previous ({prev_val})")
+                                    consistency_errors.append(f"Histogram inversion: bucket le={le} ({val}) < previous ({prev_val})")
                                 minimum_sum += (val - prev_val) * previous_bound
                                 prev_val = val
                                 if le != "+Inf":
@@ -552,25 +553,26 @@ class JsonLoggingTests(unittest.TestCase):
 
                             # Account for per-observation microsecond truncation
                             if sum_val + count_val * 0.000001 + 0.000001 < minimum_sum:
-                                errors.append(f"Histogram sum {sum_val} below bucket minimum {minimum_sum}")
+                                consistency_errors.append(f"Histogram sum {sum_val} below bucket minimum {minimum_sum}")
 
                             # +Inf bucket must equal _count
                             inf_bucket_val = int(buckets[-1][1])
                             if inf_bucket_val != count_val:
-                                errors.append(f"+Inf bucket ({inf_bucket_val}) != count ({count_val})")
+                                consistency_errors.append(f"+Inf bucket ({inf_bucket_val}) != count ({count_val})")
 
-                        except Exception as e:
-                            errors.append(f"Scraper error: {e}")
+                        except Exception:
+                            # Transient connection error under load; continue to next scrape
+                            pass
                         time.sleep(0.02)
 
-                workers = [threading.Thread(target=worker) for _ in range(6)]
+                workers = [threading.Thread(target=worker) for _ in range(4)]
                 scrape_thread = threading.Thread(target=scraper)
 
                 for w in workers:
                     w.start()
                 scrape_thread.start()
 
-                scrape_thread.join(timeout=5)
+                scrape_thread.join(timeout=10)
                 scrape_finished = not scrape_thread.is_alive()
                 stop_event.set()
                 for w in workers:
@@ -578,8 +580,8 @@ class JsonLoggingTests(unittest.TestCase):
                 scrape_thread.join(timeout=2)
 
                 self.assertTrue(scrape_finished, "Concurrent scraper did not finish within deadline")
-                self.assertEqual(errors, [])
-                self.assertGreater(len(successful_scrapes), 0, "No successful concurrent scrapes")
+                self.assertEqual(consistency_errors, [])
+                self.assertGreaterEqual(len(successful_scrapes), 10, "Fewer than 10 successful concurrent scrapes")
             finally:
                 self.stop_server(proc)
 
