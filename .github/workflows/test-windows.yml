@@ -84,6 +84,21 @@ jobs:
             throw 'Failed to install ProcDump postmortem capture.'
           }
 
+      # Enable Full PageHeap for mercury.exe to catch heap corruption immediately
+      - name: Enable PageHeap
+        shell: pwsh
+        run: |
+          $gflags = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\gflags.exe" -ErrorAction SilentlyContinue |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $gflags) {
+            throw 'gflags.exe not found in Windows Kits Debuggers directory.'
+          }
+          & $gflags /p /enable mercury.exe /full
+          if ($LASTEXITCODE -ne 0) {
+            throw "gflags failed with exit code $LASTEXITCODE"
+          }
+          & $gflags /p /query mercury.exe
+
       # Make TLS cert
       - name: Make TLS Cert
         run: |
@@ -130,6 +145,18 @@ jobs:
           $dumps | Select-Object Name, Length, LastWriteTime | Format-Table -AutoSize
           if ($dumps.Count -eq 0) {
             'No crash dumps were captured.' | Tee-Object -FilePath 'crash-dumps/capture-status.txt'
+          }
+          exit 0
+
+      # Disable PageHeap even when tests fail
+      - name: Disable PageHeap
+        if: always()
+        shell: pwsh
+        run: |
+          $gflags = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\gflags.exe" -ErrorAction SilentlyContinue |
+            Select-Object -First 1 -ExpandProperty FullName
+          if ($gflags) {
+            & $gflags /p /disable mercury.exe
           }
           exit 0
 
