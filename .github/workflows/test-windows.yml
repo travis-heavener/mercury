@@ -6,7 +6,10 @@ on:
       artifact-name:
         required: true
         type: string
-
+      debug:
+        required: false
+        type: boolean
+        default: false
 jobs:
   Test-Windows:
     runs-on: windows-latest
@@ -15,11 +18,19 @@ jobs:
 
       # Download binaries
       - name: Cache Windows Binaries
+        if: ${{ !inputs.debug }}
         uses: actions/cache@v6
         with:
           path: ./bin/mercury.exe
           key: mercury-windows-binaries-${{ github.sha }}
           enableCrossOsArchive: true
+
+      - name: Download Debug Windows Binary
+        if: ${{ inputs.debug == true }}
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ./bin
 
       - name: Copy Default Config
         run: |

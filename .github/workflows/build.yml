@@ -2,6 +2,12 @@ name: Build & Test
 
 on:
   workflow_dispatch:
+    inputs:
+      debug:
+        description: 'Build with DEBUG=1 (-g -O0) and bypass binary cache'
+        required: false
+        type: boolean
+        default: false
   workflow_call:
   push:
     branches: ["main"]
@@ -22,14 +28,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Cache build outputs by commit hash
+      # Cache build outputs by commit hash (bypassed in DEBUG mode)
       - name: Cache Linux Binaries (Overwritten by Make -B Don't Worry)
+        if: ${{ !inputs.debug }}
         uses: actions/cache@v6
         with:
           path: ./bin/mercury
           key: mercury-linux-binaries-${{ github.sha }}
 
       - name: Cache Windows Binaries (Overwritten by Make -B Don't Worry)
+        if: ${{ !inputs.debug }}
         uses: actions/cache@v6
         with:
           path: ./bin/mercury.exe
@@ -83,17 +91,36 @@ jobs:
 
       # Build
       - name: Build Mercury Binaries
+        env:
+          IS_DEBUG: ${{ inputs.debug == true }}
         run: |
-          sudo make -j -B
+          if [ "$IS_DEBUG" = "true" ]; then
+            sudo make -j -B DEBUG=1
+          else
+            sudo make -j -B
+          fi
+
+      # Pass uncached debug binaries to downstream test workflows
+      - name: Upload Debug Binaries
+        if: ${{ inputs.debug == true }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: mercury-binaries-debug-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 1
+          path: |
+            ./bin/mercury
+            ./bin/mercury.exe
 
   Run-Linux-Tests:
     needs: Build
     uses: ./.github/workflows/test-linux.yml
     with:
-      artifact-name: mercury-binaries
+      artifact-name: mercury-binaries-debug-${{ github.run_id }}-${{ github.run_attempt }}
+      debug: ${{ inputs.debug == true }}
 
   Run-Windows-Tests:
     needs: Build
     uses: ./.github/workflows/test-windows.yml
     with:
-      artifact-name: mercury-binaries
+      artifact-name: mercury-binaries-debug-${{ github.run_id }}-${{ github.run_attempt }}
+      debug: ${{ inputs.debug == true }}
