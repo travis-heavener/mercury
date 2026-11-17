@@ -5,6 +5,9 @@
 #include "../../conf/conf.hpp"
 #include "../../logs/logger.hpp"
 #include "../metrics/metrics.hpp"
+#ifdef _WIN32
+    #include "../../http/telemetry/stats.hpp"
+#endif
 
 ThreadWrapper::ThreadWrapper(const bool isTemporary) : isTemporary(isTemporary) {}
 
@@ -254,6 +257,13 @@ void ThreadPool::pruneExpired() {
 }
 
 void ThreadPool::workerLoop(ThreadWrapper& thisThread) {
+#ifdef _WIN32
+    // Flush batched counters before MinGW's thread-local storage teardown.
+    // Stack lifetime ensures this runs on all normal worker exit paths.
+    struct FlushStatsOnExit {
+        ~FlushStatsOnExit() { http::ServerStats::flush(); }
+    } flushStatsOnExit;
+#endif
     while (true) {
         QueuedTask task;
         std::vector<std::function<void()>> expiredCallbacks;

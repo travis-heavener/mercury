@@ -51,9 +51,11 @@ namespace http {
         uint64_t statusOther = 0;
         uint32_t opsCount = 0;
 
+#ifndef _WIN32
         ~ThreadLocalStats() {
             ServerStats::flush();
         }
+#endif
     };
 
     static thread_local ThreadLocalStats threadStats;

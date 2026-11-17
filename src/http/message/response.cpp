@@ -10,12 +10,11 @@
 #define tostr std::to_string
 
 namespace {
-    // Thread-local response read buffers eliminate per-request buffer allocation churn
-    thread_local std::vector<char> threadLocalStreamBuffer;
-
+    // MinGW can free emulated TLS backing storage before running C++ destructors.
+    // Keep nontrivial per-thread buffers on other platforms only.
 #ifndef _WIN32
+    thread_local std::vector<char> threadLocalStreamBuffer;
     thread_local std::string threadLocalHeadersBuffer;
-#endif
 
     inline char* getStreamBuffer(const size_t requiredSize) {
         if (threadLocalStreamBuffer.size() < requiredSize)
@@ -23,7 +22,6 @@ namespace {
         return threadLocalStreamBuffer.data();
     }
 
-#ifndef _WIN32
     inline std::string& getHeadersBuffer() {
         return threadLocalHeadersBuffer;
     }
@@ -304,7 +302,12 @@ namespace http {
         if (pBodyStream->size() <= conf::RESPONSE_BUFFER_SIZE) {
             std::string inMemoryBuffer;
             inMemoryBuffer.reserve(pBodyStream->size());
+#ifdef _WIN32
+            std::vector<char> readBuffer(conf::RESPONSE_BUFFER_SIZE);
+            char* pReadChunk = readBuffer.data();
+#else
             char* pReadChunk = getStreamBuffer(conf::RESPONSE_BUFFER_SIZE);
+#endif
             std::vector<char> compressChunk;
             while (true) {
                 size_t bytesRead = pBodyStream->read(pReadChunk, conf::RESPONSE_BUFFER_SIZE);
@@ -350,7 +353,12 @@ namespace http {
         }
 
         // Write in chunks
+#ifdef _WIN32
+        std::vector<char> readBuffer(conf::RESPONSE_BUFFER_SIZE);
+        char* pReadChunk = readBuffer.data();
+#else
         char* pReadChunk = getStreamBuffer(conf::RESPONSE_BUFFER_SIZE);
+#endif
         std::vector<char> compressChunk;
         while (true) {
             // Read
@@ -469,7 +477,12 @@ namespace http {
                 return -1;
             }
 
+#ifdef _WIN32
+            std::vector<char> readBuffer(conf::RESPONSE_BUFFER_SIZE);
+            char* pReadChunk = readBuffer.data();
+#else
             char* pReadChunk = getStreamBuffer(conf::RESPONSE_BUFFER_SIZE);
+#endif
             // Send chunks
             while (true) {
                 size_t bytesRead = pBodyStream->read(pReadChunk, conf::RESPONSE_BUFFER_SIZE);
@@ -660,7 +673,12 @@ namespace http {
             return 0;
         };
 
+#ifdef _WIN32
+        std::vector<char> readBuffer(conf::RESPONSE_BUFFER_SIZE);
+        char* pReadChunk = readBuffer.data();
+#else
         char* pReadChunk = getStreamBuffer(conf::RESPONSE_BUFFER_SIZE);
+#endif
         std::vector<char> compressChunk;
 
         // Set to true if sending a new range
