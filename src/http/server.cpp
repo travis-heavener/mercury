@@ -166,7 +166,8 @@ namespace http {
 
         if (n > 0) {
             ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
-            util::MetricsRegistry::getInstance().recordBytesRead(static_cast<size_t>(n));
+            if (conf::IS_METRICS_ENABLED)
+                util::MetricsRegistry::getInstance().recordBytesRead(static_cast<size_t>(n));
         }
         return n;
     }
@@ -211,7 +212,8 @@ namespace http {
         }
         if (status > 0) {
             ServerStats::getInstance().recordBytesSent(static_cast<size_t>(status));
-            util::MetricsRegistry::getInstance().recordBytesSent(static_cast<size_t>(status));
+            if (conf::IS_METRICS_ENABLED)
+                util::MetricsRegistry::getInstance().recordBytesSent(static_cast<size_t>(status));
         }
         return (status <= 0) ? -1 : status;
     }
@@ -344,7 +346,8 @@ namespace http {
         std::unique_lock lock(clientsMutex);
         if (isExiting) return false;
         this->clientSocks.insert(client);
-        util::MetricsRegistry::getInstance().recordConnectionOpened();
+        if (conf::IS_METRICS_ENABLED)
+            util::MetricsRegistry::getInstance().recordConnectionOpened();
         return true;
     }
 
@@ -352,7 +355,8 @@ namespace http {
     void Server::untrackClient(const int client) {
         std::unique_lock lock(clientsMutex);
         this->clientSocks.erase(client);
-        util::MetricsRegistry::getInstance().recordConnectionClosed();
+        if (conf::IS_METRICS_ENABLED)
+            util::MetricsRegistry::getInstance().recordConnectionClosed();
     }
 
     int Server::acceptConnection(struct sockaddr_storage& clientAddr, socklen_t& clientLen) {
@@ -456,6 +460,8 @@ namespace http {
             std::vector<char> readBuffer(conf::REQUEST_BUFFER_SIZE);
             std::string pending;
             std::chrono::steady_clock::time_point requestStartTime;
+            const bool trackLatency = (conf::IS_METRICS_ENABLED && conf::IS_METRICS_TRACK_LATENCY_ENABLED) ||
+                (!conf::DISABLE_LOGS && conf::ACCESS_LOG_FORMAT == LOG_FORMAT_JSON);
             unsigned int requestsLeft = conf::MAX_KEEP_ALIVE_REQUESTS;
             headers_map_t reqHeaders;
 
@@ -492,9 +498,10 @@ namespace http {
                         const ssize_t n = SSL_read(pSSL, readBuffer.data(), conf::REQUEST_BUFFER_SIZE);
                         if (n > 0) {
                             // Start latency clock when first request bytes arrive
-                            if (pending.empty()) requestStartTime = std::chrono::steady_clock::now();
+                            if (trackLatency && pending.empty()) requestStartTime = std::chrono::steady_clock::now();
                             ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
-                            util::MetricsRegistry::getInstance().recordBytesRead(static_cast<size_t>(n));
+                            if (conf::IS_METRICS_ENABLED)
+                                util::MetricsRegistry::getInstance().recordBytesRead(static_cast<size_t>(n));
                             pending.append(readBuffer.data(), static_cast<size_t>(n));
                             return true;
                         }
@@ -530,9 +537,10 @@ namespace http {
                         const ssize_t n = recv(client, readBuffer.data(), conf::REQUEST_BUFFER_SIZE, 0);
                         if (n <= 0) return false;
                         // Exclude idle time before first request bytes arrive
-                        if (pending.empty()) requestStartTime = std::chrono::steady_clock::now();
+                        if (trackLatency && pending.empty()) requestStartTime = std::chrono::steady_clock::now();
                         ServerStats::getInstance().recordBytesRead(static_cast<size_t>(n));
-                        util::MetricsRegistry::getInstance().recordBytesRead(static_cast<size_t>(n));
+                        if (conf::IS_METRICS_ENABLED)
+                            util::MetricsRegistry::getInstance().recordBytesRead(static_cast<size_t>(n));
                         pending.append(readBuffer.data(), static_cast<size_t>(n));
                         return true;
                     }
@@ -571,7 +579,7 @@ namespace http {
             while (requestsLeft > 0 && !isExiting) {
                 bytesSent = 0;
                 // Start buffered requests immediately without waiting for another read
-                requestStartTime = std::chrono::steady_clock::now();
+                if (trackLatency) requestStartTime = std::chrono::steady_clock::now();
                 size_t headerEnd;
                 bool lineTooLong = false, isSimpleRequest = false;
                 constexpr size_t maxHeaderBytes = 64 * 1024;
@@ -697,8 +705,11 @@ namespace http {
                 // Generate the response using the validated request and owned client IP
                 RequestFlags flags;
                 Request request(reqHeaders, raw, clientIPStr, useTLS, flags);
-                const auto metricMethod = util::stringToMetricMethod(request.getMethodStr());
-                util::MetricsRegistry::getInstance().recordRequest(metricMethod);
+                util::MetricMethod metricMethod = util::MetricMethod::Other;
+                if (conf::IS_METRICS_ENABLED) {
+                    metricMethod = util::stringToMetricMethod(request.getMethodStr());
+                    util::MetricsRegistry::getInstance().recordRequest(metricMethod);
+                }
 
                 if (pending.size() == requestSize)
                     pending.clear();
