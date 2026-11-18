@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.41.2] - 2026-11-18
+- TODO
+
 ## [0.41.1] - 2026-11-18
 - Changed: expanded default mimes.conf to include a more thorough, modern list of MIME types and their file extensions
 - Docs: correct v0.41.0 changelog date (was 2026-11-15, corrected to 2026-11-17)
