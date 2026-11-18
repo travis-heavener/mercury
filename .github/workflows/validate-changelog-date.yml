@@ -1,0 +1,41 @@
+name: Validate Changelog Date
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "CHANGELOG.md"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "CHANGELOG.md"
+
+jobs:
+  Validate-Date:
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate Changelog Release Date
+        run: |
+          CHANGELOG_DATE=$(grep -Po '^## \[\d+\.\d+\.\d+\] - \K\d{4}-\d{2}-\d{2}' CHANGELOG.md | head -1)
+
+          if [ -f /usr/share/zoneinfo/America/New_York ]; then
+            EXPECTED_DATE=$(TZ="America/New_York" date +%Y-%m-%d)
+          else
+            EXPECTED_DATE=$(TZ="EST5EDT,M3.2.0,M11.1.0" date +%Y-%m-%d)
+          fi
+
+          if [ -z "$CHANGELOG_DATE" ]; then
+            echo "::error file=CHANGELOG.md::Could not find a valid '## [X.Y.Z] - YYYY-MM-DD' header in CHANGELOG.md"
+            exit 1
+          fi
+
+          if [ "$CHANGELOG_DATE" != "$EXPECTED_DATE" ]; then
+            echo "❌ CHANGELOG date mismatch!"
+            echo "Top entry date: $CHANGELOG_DATE"
+            echo "Current date (America/New_York): $EXPECTED_DATE"
+            echo "Please update CHANGELOG.md with today's date before merging."
+            echo "::error file=CHANGELOG.md::Changelog date ($CHANGELOG_DATE) does not match today's date in America/New_York ($EXPECTED_DATE)"
+            exit 1
+          fi
