@@ -86,7 +86,7 @@ jobs:
         run: |
           if [ ! -d libs ] || [ -z "$(find libs -mindepth 1 -maxdepth 1 -type d -print -quit)" ]; then
             mkdir -p libs
-            make -j libs_no_deps
+            make -j$(nproc) libs_no_deps
           fi
 
       # Build
@@ -95,9 +95,9 @@ jobs:
           IS_DEBUG: ${{ inputs.debug == true }}
         run: |
           if [ "$IS_DEBUG" = "true" ]; then
-            sudo make -j -B DEBUG=1
+            sudo make -j$(nproc) -B DEBUG=1
           else
-            sudo make -j -B
+            sudo make -j$(nproc) -B
           fi
 
       # Pass uncached debug binaries to downstream test workflows

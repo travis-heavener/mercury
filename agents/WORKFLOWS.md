@@ -39,7 +39,7 @@ The project uses a root [`Makefile`](../Makefile) with strict compiler warnings 
 | `make linux` | Builds optimized Linux executable | `bin/mercury` |
 | `make windows` | Cross-compiles Windows executable with icon resource | `bin/mercury.exe` |
 | `make all` | Builds both Linux and Windows targets | `bin/mercury`, `bin/mercury.exe` |
-| `DEBUG=1 make -j -B` | Builds in debug mode (`-g -O0`) | `bin/mercury` |
+| `DEBUG=1 make -j$(nproc) -B` | Builds in debug mode (`-g -O0`) | `bin/mercury` |
 | `CXX=clang++ make linux` | Builds Linux target using Clang | `bin/mercury` |
 | `make cert` | Generates 365-day self-signed TLS 1.3 keypair | `conf/ssl/cert.pem`, `conf/ssl/key.pem` |
 | `make clean` | Removes build artifacts, object files, and logs | `bin/`, `tmp/`, `logs/` |
@@ -47,7 +47,7 @@ The project uses a root [`Makefile`](../Makefile) with strict compiler warnings 
 
 ### Debug Builds
 > [!IMPORTANT]
-> When debugging with `gdb`, profiling, or analyzing crashes, build with `DEBUG=1` (`DEBUG=1 make -j -B`). This compiles with `-g -O0` and preserves unoptimized debug symbols.
+> When debugging with `gdb`, profiling, or analyzing crashes, build with `DEBUG=1` (`DEBUG=1 make -j$(nproc) -B`). This compiles with `-g -O0` and preserves unoptimized debug symbols.
 
 ---
 
