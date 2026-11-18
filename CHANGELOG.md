@@ -1,6 +1,11 @@
 # Changelog
 
-## [0.41.0] - 2026-11-15
+## [0.41.1] - 2026-11-18
+- Changed: expanded default mimes.conf to include a more thorough, modern list of MIME types and their file extensions
+- Docs: correct v0.41.0 changelog date (was 2026-11-15, corrected to 2026-11-17)
+- Docs: cleaned up README, revised wording
+
+## [0.41.0] - 2026-11-17
 - Added: NDJSON-compatible access & error logging support (via format="json" on AccessLogFile/ErrorLogFile)
 - Added: Prometheus metrics exporter in OpenMetrics text format with lock-free atomic counters, request duration histogram, and CIDR subnet access control (#535)
 - Docs: tidy up contribution guidelines in CONTRIBUTING.md
