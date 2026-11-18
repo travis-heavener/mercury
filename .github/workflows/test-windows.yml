@@ -97,6 +97,7 @@ jobs:
 
       # Enable Full PageHeap for mercury.exe to catch heap corruption immediately
       - name: Enable PageHeap
+        if: ${{ inputs.debug == true }}
         shell: pwsh
         run: |
           $gflags = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\gflags.exe" -ErrorAction SilentlyContinue |
@@ -161,7 +162,7 @@ jobs:
 
       # Disable PageHeap even when tests fail
       - name: Disable PageHeap
-        if: always()
+        if: ${{ always() && inputs.debug == true }}
         shell: pwsh
         run: |
           $gflags = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\gflags.exe" -ErrorAction SilentlyContinue |
