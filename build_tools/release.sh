@@ -12,7 +12,7 @@ if [ "$1" = "--no-build" ] || [ "$SKIP_BUILD" = "1" ]; then
         exit 1
     fi
 else
-    make -j --no-print-directory -s
+    make -j$(nproc) --no-print-directory -s
 fi
 
 $TOOLS_PATH/safe_rm "temp_release"
