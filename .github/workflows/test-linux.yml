@@ -6,6 +6,10 @@ on:
       artifact-name:
         required: true
         type: string
+      debug:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   Test-Linux:
@@ -15,10 +19,22 @@ jobs:
 
       # Download binaries
       - name: Cache Linux Binaries
+        if: ${{ !inputs.debug }}
         uses: actions/cache@v6
         with:
           path: ./bin/mercury
           key: mercury-linux-binaries-${{ github.sha }}
+
+      - name: Download Debug Linux Binary
+        if: ${{ inputs.debug == true }}
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ./bin
+
+      - name: Make Linux Binary Executable
+        if: ${{ inputs.debug == true }}
+        run: chmod +x ./bin/mercury
 
       - name: Copy Default Config
         run: |
