@@ -19,15 +19,16 @@ Mercury is a lightweight, configurable HTTP web server implemented in modern C++
 
 ## Key Features
 
-- **Blazing Fast & Low Memory**: Uses up to 65% less idle memory than Apache with over 160,000 req/sec throughput and sub-millisecond (0.1 ms) p50 response times.
+- **Blazing Fast & Low Memory**: Delivers over 114,000 req/sec with sub-millisecond (0.2 ms) p50 latency on Linux (up to 160,000+ req/sec on bare-metal), using 61–64% less memory than Apache and Nginx on Windows.
+- **First-Class Windows & Linux Parity**: Standalone executables with zero external runtime DLL dependencies. Matches Nginx throughput on Windows at roughly one-third the memory footprint (7.1 MB idle).
+- **Streaming Compression**: Dynamic, on-the-fly compression supporting **Brotli**, **Zstandard**, **Gzip**, and **Deflate** statically built-in with zero module compilation.
+- **PHP FastCGI & CGI**: Persistent FastCGI gateway communicating directly with auto-managed PHP-FPM pools (Linux) or persistent `php-cgi` (Windows), with zero disk I/O and legacy RFC 3875 CGI fallback.
+- **Interactive CLI & Rollback-Safe Updates**: Built-in interactive console for live metrics and routing inspection, paired with an automated updater (`conf/update.py`) providing atomic, rollback-safe XML config reconciliation.
 - **Protocol Support**: Full HTTP/1.1 (keep-alive, pipelining, chunked transfer encoding) with backward-compatible HTTP/1.0 and HTTP/0.9 handlers.
 - **Modern TLS**: TLS 1.3 encryption powered by OpenSSL with self-signed certificate automation.
-- **Streaming Compression**: Dynamic, on-the-fly compression supporting **Brotli**, **Zstandard**, **Gzip**, and **Deflate**.
-- **PHP FastCGI & CGI**: Persistent FastCGI gateway communicating directly with PHP-FPM (Linux) or persistent `php-cgi` (Windows), with zero disk I/O and legacy RFC 3875 CGI fallback.
-- **Flexible XML Configuration**: Declarative virtual host rules, regex URL rewrites, HTTP redirects (301/302/308), CIDR/IP access control lists, and custom status pages.
+- **Flexible XML Configuration**: Path-based routing rules, regex URL rewrites, HTTP redirects (301/302/308), CIDR/IP access control lists, and custom status pages.
 - **Privacy First**: Zero telemetry, no external calls, and built-in DNT/Sec-GPC client IP bit-masking and hashing.
 - **Privilege Separation**: Safely drops root privileges when started via `sudo` or `doas` after binding privileged ports, preserving invoking user ownership on logs and temp files.
-- **Cross-Platform**: Compiles natively on Linux and cross-compiles for Windows with zero external runtime DLL dependencies.
 
 ---
 
