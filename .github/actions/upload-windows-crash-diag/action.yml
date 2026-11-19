@@ -1,0 +1,23 @@
+name: Upload Windows Crash Diagnostics
+description: Upload Windows Crash Diagnostics from current run, if failed
+
+runs:
+  using: composite
+  steps:
+    # Preserve dumps alongside exact binaries and configuration needed for analysis
+    - name: Upload Windows Crash Diagnostics
+      uses: actions/upload-artifact@v7
+      with:
+        name: windows-crash-diagnostics-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+        retention-days: 7
+        path: |
+          crash-dumps/
+          tests/logs/
+          bin/mercury.exe
+          php/php-cgi.exe
+          php/php8*.dll
+          php/ext/php_opcache.dll
+          php/php.ini
+          php/mercury-cgi.ini
+          build_tools/dependencies.txt
+          libs/artifacts.lock

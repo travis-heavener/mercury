@@ -1,0 +1,32 @@
+name: Collect Windows Crash Diagnostics
+description: Collects Windows Crash Diagnostics from current run, if failed
+
+runs:
+  using: composite
+  steps:
+    # Collect Windows crash reports without masking original test result
+    - name: Windows Crash Diagnostics
+      shell: pwsh
+      run: |
+        New-Item -Path 'crash-dumps' -ItemType Directory -Force | Out-Null
+
+        $events = Get-WinEvent -FilterHashtable @{
+          LogName = 'Application'
+          Id = 1000, 1001
+          StartTime = (Get-Date).AddHours(-1)
+        } -ErrorAction SilentlyContinue | Where-Object {
+          $_.Message -match 'mercury\.exe|php-cgi\.exe|php_opcache\.dll'
+        }
+        if ($events) {
+          $events | Format-List TimeCreated, Id, ProviderName, Message |
+            Out-String -Width 300 | Tee-Object -FilePath 'crash-dumps/application-events.txt'
+        } else {
+          'No matching Windows application crash events found.' |
+            Tee-Object -FilePath 'crash-dumps/application-events.txt'
+        }
+        $dumps = @(Get-ChildItem -Path 'crash-dumps' -Filter '*.dmp')
+        $dumps | Select-Object Name, Length, LastWriteTime | Format-Table -AutoSize
+        if ($dumps.Count -eq 0) {
+          'No crash dumps were captured.' | Tee-Object -FilePath 'crash-dumps/capture-status.txt'
+        }
+        exit 0

@@ -2,7 +2,8 @@ import json
 from sys import argv
 import time
 
-def main(version_full: str, linux_hash: str, win_hash: str):
+def main(version_full: str, linux_hash: str, win_hash: str,
+         linux_arm64_hash: str = "", win_arm64_hash: str = ""):
     version = version_full.replace("Mercury ", "")
 
     # Load existing JSON
@@ -15,16 +16,20 @@ def main(version_full: str, linux_hash: str, win_hash: str):
     releases_json = [ r for r in releases_json if r["name"] != version ]
 
     # Prepend new version entry
-    releases_json.insert(0, {
+    release = {
         "name": version,
         "date": int(round(time.time() * 1000)),
         "linuxHash": linux_hash,
         "winHash": win_hash
-    })
+    }
+    if linux_arm64_hash and win_arm64_hash:
+        release["linuxHashArm64"] = linux_arm64_hash
+        release["winHashArm64"] = win_arm64_hash
+    releases_json.insert(0, release)
 
     # Update file
     with open("./website/releases.json", "w+") as f:
         json.dump(releases_json, f, indent=4)
 
 if __name__ == "__main__":
-    main(*argv[1:4])
+    main(*argv[1:])

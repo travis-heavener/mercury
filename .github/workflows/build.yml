@@ -1,10 +1,10 @@
-name: Build & Test
+name: Build
 
 on:
   workflow_dispatch:
     inputs:
       debug:
-        description: 'Build with DEBUG=1 (-g -O0) and bypass binary cache'
+        description: 'Build with DEBUG=1 (-g -O0)'
         required: false
         type: boolean
         default: false
@@ -18,31 +18,20 @@ on:
       - "conf/**"
       - "Makefile"
       - "version.txt"
+      - ".github/actions/**"
       - ".github/workflows/**"
   pull_request:
     branches: ["main"]
 
 jobs:
-  Build:
+  #############################################################################################
+  ####                                  x86_64 Build                                       ####
+  #############################################################################################
+
+  Build-x86_64:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
-
-      # Cache build outputs by commit hash (bypassed in DEBUG mode)
-      - name: Cache Linux Binaries (Overwritten by Make -B Don't Worry)
-        if: ${{ !inputs.debug }}
-        uses: actions/cache@v6
-        with:
-          path: ./bin/mercury
-          key: mercury-linux-binaries-${{ github.sha }}
-
-      - name: Cache Windows Binaries (Overwritten by Make -B Don't Worry)
-        if: ${{ !inputs.debug }}
-        uses: actions/cache@v6
-        with:
-          path: ./bin/mercury.exe
-          key: mercury-windows-binaries-${{ github.sha }}
-          enableCrossOsArchive: true
 
       # Init build environment BEFORE libs
       - name: Make Clean
@@ -60,7 +49,7 @@ jobs:
         with:
           path: ./libs
           key: >-
-            ${{ runner.os }}-artifacts-${{
+            ${{ runner.os }}-${{ runner.arch }}-glibc-artifacts-${{
               hashFiles(
                 '**/build_tools/lib_pugixml.sh',
                 '**/build_tools/lib_zlib.sh',
@@ -100,27 +89,131 @@ jobs:
             sudo make -j$(nproc) -B
           fi
 
-      # Pass uncached debug binaries to downstream test workflows
-      - name: Upload Debug Binaries
-        if: ${{ inputs.debug == true }}
+      # Verify all binaries are built, throw error if not
+      - name: Verify Binaries Were Built
+        run: |
+          test -s bin/mercury
+          test -s bin/mercury.exe
+
+      # Verify the binary's architectures are correct
+      - name: Verify Binary Architectures
+        uses: ./.github/actions/verify-binary-architectures
+
+      - name: Upload Binaries
         uses: actions/upload-artifact@v7
         with:
-          name: mercury-binaries-debug-${{ github.run_id }}-${{ github.run_attempt }}
-          retention-days: 1
+          name: mercury-x86_64-binaries-${{ github.run_id }}
+          retention-days: 3
+          if-no-files-found: error
+          overwrite: true
           path: |
             ./bin/mercury
             ./bin/mercury.exe
 
-  Run-Linux-Tests:
-    needs: Build
-    uses: ./.github/workflows/test-linux.yml
+  #############################################################################################
+  ####                                  ARM64 Build                                        ####
+  #############################################################################################
+
+  Build-ARM64:
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@v7
+
+      # Init build environment BEFORE libs
+      - name: Make Clean
+        run: yes | make clean
+
+      # Make executables
+      - name: Make Executable Shell Scripts
+        run: |
+          sudo chmod +x ./build_tools/*.sh
+          sudo chmod +x ./build_tools/tools/*
+
+      # Mark artifacts for caching
+      - name: Cache Library Artifacts
+        uses: actions/cache@v6
+        with:
+          path: ./libs
+          key: >-
+            ${{ runner.os }}-${{ runner.arch }}-glibc-artifacts-${{
+              hashFiles(
+                '**/build_tools/lib_pugixml.sh',
+                '**/build_tools/lib_zlib.sh',
+                '**/build_tools/lib_openssl.sh',
+                '**/build_tools/lib_brotli.sh',
+                '**/build_tools/lib_zstd.sh',
+                '**/build_tools/dependencies.txt'
+              )
+            }}
+
+      # Install & cache APT deps
+      - name: Install APT Deps
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: build-essential nasm php-cgi
+          version: 1.0
+
+      # Install deps & build static binaries
+      - name: Install Workflow Dependencies
+        run: sudo ./build_tools/install_workflow_deps.sh --verbose
+
+      - name: Build Libs
+        run: |
+          if [ ! -d libs ] || [ -z "$(find libs -mindepth 1 -maxdepth 1 -type d -print -quit)" ]; then
+            mkdir -p libs
+            make -j$(nproc) libs_no_deps
+          fi
+
+      # Build
+      - name: Build Mercury Binaries
+        env:
+          IS_DEBUG: ${{ inputs.debug == true }}
+        run: |
+          if [ "$IS_DEBUG" = "true" ]; then
+            sudo make -j$(nproc) -B DEBUG=1
+          else
+            sudo make -j$(nproc) -B
+          fi
+
+      # Verify all binaries are built, throw error if not
+      - name: Verify Binaries Were Built
+        run: |
+          test -s bin/mercury
+          test -s bin/mercury.exe
+
+      # Verify the binary's architectures are correct
+      - name: Verify Binary Architectures
+        uses: ./.github/actions/verify-binary-architectures
+
+      - name: Upload Binaries
+        uses: actions/upload-artifact@v7
+        with:
+          name: mercury-arm64-binaries-${{ github.run_id }}
+          retention-days: 3
+          if-no-files-found: error
+          overwrite: true
+          path: |
+            ./bin/mercury
+            ./bin/mercury.exe
+
+  #############################################################################################
+  ####                                  Invoke Tests                                       ####
+  #############################################################################################
+
+  Tests-x86_64:
+    needs: Build-x86_64
+    uses: ./.github/workflows/tests.yml
     with:
-      artifact-name: mercury-binaries-debug-${{ github.run_id }}-${{ github.run_attempt }}
+      linux-runner: ubuntu-24.04
+      windows-runner: windows-latest
+      artifact-name: mercury-x86_64-binaries-${{ github.run_id }}
       debug: ${{ inputs.debug == true }}
 
-  Run-Windows-Tests:
-    needs: Build
-    uses: ./.github/workflows/test-windows.yml
+  Tests-ARM64:
+    needs: Build-ARM64
+    uses: ./.github/workflows/tests.yml
     with:
-      artifact-name: mercury-binaries-debug-${{ github.run_id }}-${{ github.run_attempt }}
+      linux-runner: ubuntu-24.04-arm
+      windows-runner: windows-11-arm
+      artifact-name: mercury-arm64-binaries-${{ github.run_id }}
       debug: ${{ inputs.debug == true }}

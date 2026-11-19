@@ -1,0 +1,62 @@
+name: Find Tested Build
+description: Find successful push build with unexpired artifacts for commit
+
+inputs:
+  token:
+    description: Token with Actions read access
+    required: true
+  sha:
+    description: Commit SHA to match
+    required: true
+  branch:
+    description: Optional branch name to match
+    required: false
+    default: ""
+  artifact-prefixes:
+    description: JSON array of artifact prefixes preceding run ID
+    required: true
+
+outputs:
+  hit:
+    description: Whether a matching run was found
+    value: ${{ steps.find.outputs.hit }}
+  run-id:
+    description: Matching workflow run ID
+    value: ${{ steps.find.outputs.run-id }}
+
+runs:
+  using: composite
+  steps:
+    - name: Find Tested Build
+      id: find
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        BUILD_SHA: ${{ inputs.sha }}
+        BUILD_BRANCH: ${{ inputs.branch }}
+        ARTIFACT_PREFIXES: ${{ inputs.artifact-prefixes }}
+        REPOSITORY: ${{ github.repository }}
+      run: |
+        jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' <<< "$ARTIFACT_PREFIXES" > /dev/null
+        runs=$(gh api --paginate --slurp --method GET \
+          "repos/${REPOSITORY}/actions/workflows/build.yml/runs" \
+          -f event=push -f status=success -f "head_sha=$BUILD_SHA" -F per_page=100)
+        run_ids=$(jq -r --arg branch "$BUILD_BRANCH" \
+          '.[].workflow_runs[] | select(.status == "completed" and .conclusion == "success" and ($branch == "" or .head_branch == $branch)) | .id' <<< "$runs")
+
+        while IFS= read -r run_id; do
+          [ -n "$run_id" ] || continue
+          artifacts=$(gh api --paginate --slurp "repos/${REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100")
+          if jq -e --arg run_id "$run_id" --argjson prefixes "$ARTIFACT_PREFIXES" '
+            [.[].artifacts[] | select(.expired == false) | .name] as $names |
+            all($prefixes[]; . + $run_id as $name | $names | index($name) != null)
+          ' <<< "$artifacts" > /dev/null; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+            echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+            echo "Found tested build run $run_id"
+            exit 0
+          fi
+        done <<< "$run_ids"
+
+        echo "hit=false" >> "$GITHUB_OUTPUT"
+        echo "No tested build with required artifacts found"
