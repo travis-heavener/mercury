@@ -72,17 +72,25 @@ ZSTD_FLAGS="ZSTD_LEGACY_SUPPORT=0 ZSTD_LIB_DECOMPRESSION=0 ZSTD_LIB_DICTBUILDER=
     cp *.h "$LIB_PATH/zstd/linux/include"
     mv libzstd.a "$LIB_PATH/zstd/linux/lib"
 ) &
+build_pids=("$!")
 
 if [ "$LINUX_ONLY" != "1" ]; then
     (
         cd "zstd-$version-windows/lib"
-        make -j$(nproc) libzstd.a CC=x86_64-w64-mingw32-gcc AR=x86_64-w64-mingw32-ar $ZSTD_FLAGS 1> /dev/null
+        make -j$(nproc) libzstd.a CC="${WIN_CC:-x86_64-w64-mingw32-gcc}" AR="${WIN_PREFIX:-x86_64-w64-mingw32}-ar" $ZSTD_FLAGS 1> /dev/null
         cp *.h "$LIB_PATH/zstd/windows/include"
         mv libzstd.a "$LIB_PATH/zstd/windows/lib"
     ) &
+    build_pids+=("$!")
 fi
 
-wait
+build_status=0
+for pid in "${build_pids[@]}"; do
+    wait "$pid" || build_status=$?
+done
+if (( build_status != 0 )); then
+    exit "$build_status"
+fi
 
 # ==== Clean Up ====
 cd "$LIB_PATH"

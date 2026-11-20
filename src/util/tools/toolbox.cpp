@@ -308,7 +308,8 @@ std::time_t getFileModTimeT(const std::string& filePath) {
     // Get the last write time
     auto lastWriteTime = std::filesystem::last_write_time(std::filesystem::path(filePath));
     auto systemTime = std::chrono::system_clock::now() + (lastWriteTime - std::filesystem::file_time_type::clock::now());
-    return std::chrono::system_clock::to_time_t(systemTime);
+    return std::chrono::system_clock::to_time_t(
+        std::chrono::time_point_cast<std::chrono::system_clock::duration>(systemTime));
 }
 
 std::string getFileModGMTString(const std::string& filePath) {

@@ -1,11 +1,11 @@
-name: Make Release
+name: Make New Release
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  actions: read
+  contents: read
 
 jobs:
   check-cache:
@@ -13,70 +13,45 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       hit: ${{ steps.check.outputs.hit }}
+      run-id: ${{ steps.check.outputs.run-id }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Restore Linux Binaries
-        uses: actions/cache@v6
-        with:
-          path: ./bin/mercury
-          key: mercury-linux-binaries-${{ github.sha }}
-
-      - name: Restore Windows Binaries
-        uses: actions/cache@v6
-        with:
-          path: ./bin/mercury.exe
-          key: mercury-windows-binaries-${{ github.sha }}
-          enableCrossOsArchive: true
-
-      - name: Restore Libs
-        id: lib-cache
-        uses: actions/cache@v6
-        with:
-          path: ./libs
-          key: >-
-            ${{ runner.os }}-artifacts-${{
-              hashFiles(
-                '**/build_tools/lib_pugixml.sh',
-                '**/build_tools/lib_zlib.sh',
-                '**/build_tools/lib_openssl.sh',
-                '**/build_tools/lib_brotli.sh',
-                '**/build_tools/lib_zstd.sh',
-                '**/build_tools/dependencies.txt'
-              )
-            }}
-
-      - name: Determine if both caches exist
+      # Find successful main push build for release commit
+      - name: Find Existing Tested Build
         id: check
-        run: |
-          if [ -s "./bin/mercury" ] && [ -s "./bin/mercury.exe" ] && [ -d "./libs" ]; then
-            echo "hit=true" >> $GITHUB_OUTPUT
-          else
-            echo "hit=false" >> $GITHUB_OUTPUT
-          fi
+        uses: ./.github/actions/find-tested-build
+        with:
+          token: ${{ github.token }}
+          sha: ${{ github.sha }}
+          branch: main
+          artifact-prefixes: '["mercury-x86_64-binaries-", "mercury-arm64-binaries-"]'
 
-  build:
+  release-build:
     needs: check-cache
     if: github.ref == 'refs/heads/main' && needs.check-cache.outputs.hit == 'false'
     uses: ./.github/workflows/build.yml
 
-  release:
-    needs: [check-cache, build]
+  deploy-release:
+    needs: [check-cache, release-build]
     if: >
       !cancelled() &&
       github.ref == 'refs/heads/main' &&
       needs.check-cache.result == 'success' &&
       (
         needs.check-cache.outputs.hit == 'true' ||
-        needs.build.result == 'success'
+        needs.release-build.result == 'success'
       )
-    runs-on: ubuntu-24.04 # <--- Use 24.04 instead of 22.04 since python3-zstandard does not have a mirror
+    runs-on: ubuntu-24.04
+    env:
+      BUILD_RUN_ID: ${{ needs.check-cache.outputs.run-id || github.run_id }}
     steps:
       - uses: actions/create-github-app-token@v3
         id: app-token
         with:
           client-id: ${{ vars.MERCURY_BOT_APP_ID }}
           private-key: ${{ secrets.MERCURY_BOT_KEY }}
+          permission-contents: write
 
       - uses: actions/checkout@v7
         with:
@@ -89,50 +64,26 @@ jobs:
           git config user.name "Mercury Actions Bot"
           git config user.email "mercury-actions-bot[bot]@users.noreply.github.com"
 
-      # Download binaries & static libs
-      - name: Restore Linux Binaries
-        uses: actions/cache@v6
+      # Download tested binaries from selected build run
+      - name: Download x86_64 Binaries
+        uses: actions/download-artifact@v7
         with:
-          path: ./bin/mercury
-          key: mercury-linux-binaries-${{ github.sha }}
+          name: mercury-x86_64-binaries-${{ env.BUILD_RUN_ID }}
+          path: ./bin/x86_64
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BUILD_RUN_ID }}
 
-      - name: Restore Windows Binaries
-        uses: actions/cache@v6
+      - name: Download ARM64 Binaries
+        uses: actions/download-artifact@v7
         with:
-          path: ./bin/mercury.exe
-          key: mercury-windows-binaries-${{ github.sha }}
-          enableCrossOsArchive: true
-
-      # Make executables
-      - name: Make Executable Shell Scripts
-        run: |
-          chmod +x ./build_tools/*.sh
-          chmod +x ./build_tools/tools/*
-
-      - name: Restore Cached Libs
-        uses: actions/cache@v6
-        with:
-          path: ./libs
-          key: >-
-            ${{ runner.os }}-artifacts-${{
-              hashFiles(
-                '**/build_tools/lib_pugixml.sh',
-                '**/build_tools/lib_zlib.sh',
-                '**/build_tools/lib_openssl.sh',
-                '**/build_tools/lib_brotli.sh',
-                '**/build_tools/lib_zstd.sh',
-                '**/build_tools/dependencies.txt'
-              )
-            }}
+          name: mercury-arm64-binaries-${{ env.BUILD_RUN_ID }}
+          path: ./bin/arm64
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BUILD_RUN_ID }}
 
       # Run release builder
       - name: Make Release
-        run: |
-          # Verify binary cache is present
-          test -s bin/mercury
-          test -s bin/mercury.exe
-          make lib_deps
-          make release SKIP_BUILD=1
+        run: bash ./build_tools/release.sh --ci-artifacts
 
       # Read version from version.txt
       - name: Extract Version
@@ -168,11 +119,16 @@ jobs:
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          SUMMARY_FILE=$(ls ./releases/SUMMARY_*.md | head -n1)
-          TAR_FILE=$(ls ./releases/*.tar.gz | head -n1)
-          ZIP_FILE=$(ls ./releases/*.zip | head -n1)
+          RELEASE_NAME="${VERSION//./_}"
+          SUMMARY_FILE="./releases/SUMMARY_$RELEASE_NAME.md"
+          ARCHIVES=(
+            "./releases/Linux_$RELEASE_NAME.tar.gz"
+            "./releases/Windows_$RELEASE_NAME.zip"
+            "./releases/Mercury_ARM64_$RELEASE_NAME.tar.gz"
+            "./releases/Mercury_ARM64_$RELEASE_NAME.zip"
+          )
 
           # Determine if this is a pre-release (v0.*.*)
           if [[ "$VERSION" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
@@ -182,7 +138,7 @@ jobs:
           fi
 
           # Create release (tag is the version only, title keeps "Mercury vX.X.X")
-          gh release create "$VERSION" "$TAR_FILE" "$ZIP_FILE" \
+          gh release create "$VERSION" "${ARCHIVES[@]}" \
             --target "${{ github.sha }}" \
             --title "Mercury $VERSION" \
             --notes-file "$SUMMARY_FILE" \

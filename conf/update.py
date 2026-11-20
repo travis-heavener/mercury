@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import shutil
 import subprocess
 import sys
@@ -175,34 +176,59 @@ def fetch_release_info(tag: str | None = None) -> dict:
     except urllib.error.URLError as e:
         raise RuntimeError(f"Failed to reach GitHub: {e.reason}") from e
 
-# Returns download URL and asset filename for platform
-def select_platform_asset(assets: list[dict], platform_name: str) -> tuple[str, str]:
-    is_windows = platform_name in ("win32", "cygwin")
+# Returns native host architecture used by release builds
+def get_release_architecture() -> str:
+    machine = platform.machine().lower()
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
 
-    for asset in assets:
-        name = asset.get("name", "")
-        url = asset.get("browser_download_url", "")
-        if is_windows and name.endswith(".zip") and ("windows" in name.lower() or "win" in name.lower()):
-            return url, name
-        if not is_windows and name.endswith(".tar.gz") and ("linux" in name.lower() or "debian" in name.lower()):
-            return url, name
+        # Query host architecture even when Python runs under Windows emulation
+        kernel32 = ctypes.WinDLL("kernel32")
+        query = getattr(kernel32, "IsWow64Process2", None)
+        if query is not None:
+            kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+            query.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.USHORT), ctypes.POINTER(wintypes.USHORT))
+            query.restype = wintypes.BOOL
+            process_machine = wintypes.USHORT()
+            native_machine = wintypes.USHORT()
+            if query(kernel32.GetCurrentProcess(), ctypes.byref(process_machine), ctypes.byref(native_machine)):
+                machine = {0x8664: "amd64", 0xAA64: "arm64"}.get(native_machine.value, hex(native_machine.value))
 
-    # Fallback search by file extension
-    for asset in assets:
-        name = asset.get("name", "")
-        url = asset.get("browser_download_url", "")
-        if is_windows and name.endswith(".zip"):
-            return url, name
-        if not is_windows and name.endswith(".tar.gz"):
-            return url, name
+    if machine in ("amd64", "x86_64"):
+        return "x86_64"
+    if machine in ("aarch64", "arm64"):
+        return "arm64"
+    raise RuntimeError(f"Unsupported release architecture '{machine or 'unknown'}'")
 
-    raise RuntimeError(f"No compatible release asset found for platform '{platform_name}'")
+# Returns download URL and asset filename for platform and architecture
+def select_platform_asset(assets: list[dict], version_tag: str, platform_name: str, arch: str) -> tuple[str, str]:
+    _, asset_name = construct_direct_asset_url(version_tag, platform_name, arch)
+    names = [asset_name]
+    if asset_name.startswith("Linux_"):
+        names.append(asset_name.replace("Linux_", "Debian_", 1))
+
+    for name in names:
+        for asset in assets:
+            if asset.get("name") == name and asset.get("browser_download_url"):
+                return asset["browser_download_url"], name
+
+    raise RuntimeError(f"Release '{version_tag}' has no archive for {platform_name} {arch} (expected '{asset_name}')")
 
 # Returns direct asset download URL and filename without GitHub API
-def construct_direct_asset_url(version_tag: str, platform_name: str) -> tuple[str, str]:
+def construct_direct_asset_url(version_tag: str, platform_name: str, arch: str) -> tuple[str, str]:
     is_windows = platform_name in ("win32", "cygwin")
+    if not is_windows and not platform_name.startswith("linux"):
+        raise RuntimeError(f"Unsupported release platform '{platform_name}'")
+    if arch not in ("x86_64", "arm64"):
+        raise RuntimeError(f"Unsupported release architecture '{arch}'")
+
     version_slug = version_tag.replace(".", "_")
-    asset_name = f"Windows_{version_slug}.zip" if is_windows else f"Linux_{version_slug}.tar.gz"
+    prefix = "Windows" if is_windows else "Linux"
+    if arch == "arm64":
+        prefix = "Mercury_ARM64"
+    extension = ".zip" if is_windows else ".tar.gz"
+    asset_name = f"{prefix}_{version_slug}{extension}"
     url = f"https://github.com/travis-heavener/mercury/releases/download/{version_tag}/{asset_name}"
     return url, asset_name
 
@@ -247,19 +273,20 @@ def compute_sha256(file_path: Path) -> str:
             hasher.update(chunk)
     return hasher.hexdigest()
 
-# Returns expected archive hash for version and platform from releases.json
-def fetch_expected_release_hash(version_tag: str, platform_name: str) -> str | None:
+# Returns expected archive hash for version, platform, and architecture from releases.json
+def fetch_expected_release_hash(version_tag: str, platform_name: str, arch: str) -> str | None:
     url = "https://mercury.wowtravis.com/releases.json"
     req = urllib.request.Request(url, headers={"User-Agent": "Mercury-Updater"})
+    target_key = "winHash" if platform_name in ("win32", "cygwin") else "linuxHash"
+    if arch == "arm64":
+        target_key += "Arm64"
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             releases = json.loads(resp.read().decode("utf-8"))
             clean_tag = version_tag.lstrip("v")
-            is_windows = platform_name in ("win32", "cygwin")
             for entry in releases:
                 entry_name = entry.get("name", "").lstrip("v")
                 if entry_name == clean_tag:
-                    target_key = "winHash" if is_windows else "linuxHash"
                     expected = entry.get(target_key)
                     if expected:
                         return expected.strip()
@@ -732,20 +759,20 @@ def main() -> None:
                 print("Use --force to reinstall or re-apply this release.")
                 sys.exit(0)
 
-            # Resolve asset download URL
-            asset_url = None
-            asset_name = None
-
-            # Try GitHub API asset resolution
+            # Resolve archive for native host architecture
             try:
-                release_info = fetch_release_info(target_version)
-                asset_url, asset_name = select_platform_asset(
-                    release_info.get("assets", []),
-                    sys.platform
-                )
-            except RuntimeError:
-                # Fallback to direct release download URL
-                asset_url, asset_name = construct_direct_asset_url(target_version, sys.platform)
+                arch = get_release_architecture()
+                try:
+                    release_info = fetch_release_info(target_version)
+                except RuntimeError:
+                    asset_url, asset_name = construct_direct_asset_url(target_version, sys.platform, arch)
+                else:
+                    asset_url, asset_name = select_platform_asset(
+                        release_info.get("assets", []), target_version, sys.platform, arch
+                    )
+            except RuntimeError as e:
+                print(f"❌ Error selecting release archive: {e}")
+                sys.exit(1)
 
             archive_path = tmp_dir / asset_name
             try:
@@ -758,7 +785,7 @@ def main() -> None:
         if not args.skip_verify:
             actual_hash = compute_sha256(archive_path)
             if not args.archive:
-                expected_hash = fetch_expected_release_hash(target_version, sys.platform)
+                expected_hash = fetch_expected_release_hash(target_version, sys.platform, arch)
                 if expected_hash:
                     if actual_hash.lower() == expected_hash.lower():
                         print(f"Verified SHA-256 integrity digest ({actual_hash[:8]}...{actual_hash[-8:]})")

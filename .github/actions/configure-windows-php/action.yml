@@ -1,0 +1,31 @@
+name: Configure Windows PHP
+description: Configure PHP for Mercury tests
+
+runs:
+  using: composite
+  steps:
+    # Modify the PHP config
+    - name: Setup PHP
+      shell: pwsh
+      run: |
+        if (-not (Test-Path 'php/php-cgi.exe')) { ./conf/setup_php.ps1 }
+        if (-not (Test-Path 'tmp')) { New-Item -ItemType Directory -Force -Path 'tmp' | Out-Null }
+
+        $extPath = (Resolve-Path 'php/ext').ProviderPath
+        $tmpPath = (Resolve-Path 'tmp').ProviderPath
+
+        # Update extension_dir and tmp_dir
+        (Get-Content php/php.ini) | ForEach-Object {
+          if ($_ -match '^extension_dir\s*=') { "extension_dir = `"$extPath`"" }
+          elseif ($_ -match '^upload_tmp_dir\s*=') { "upload_tmp_dir = `"$tmpPath`"" }
+          else { $_ }
+        } | Set-Content php/php.ini
+
+        # Update extension_dir and tmp_dir
+        (Get-Content php/mercury-cgi.ini) | ForEach-Object {
+          if ($_ -match '^extension_dir\s*=') { "extension_dir = `"$extPath`"" }
+          elseif ($_ -match '^upload_tmp_dir\s*=') { "upload_tmp_dir = `"$tmpPath`"" }
+          else { $_ }
+        } | Set-Content php/mercury-cgi.ini
+
+        & ./php/php-cgi.exe -v

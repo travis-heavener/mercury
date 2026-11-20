@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.42.0] - 2026-11-20
+- Added: ARM64 builds for Linux & Windows, with dedicated GitHub CI workflow to run the same test suite as x86_64 (#548)
+- CI: global GitHub CI workflow refactor
+
 ## [0.41.1] - 2026-11-18
 - Changed: expanded default mimes.conf to include a more thorough, modern list of MIME types and their file extensions
 - Docs: correct v0.41.0 changelog date (was 2026-11-15, corrected to 2026-11-17)

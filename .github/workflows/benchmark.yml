@@ -94,33 +94,45 @@ jobs:
     needs: resolve-target
     if: needs.resolve-target.outputs.release_tag == 'build'
     runs-on: ubuntu-22.04
+    permissions:
+      actions: read
+      contents: read
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
 
-      # Restore cached binaries from build workflow if available for this commit
-      - name: Restore Linux Binaries
-        uses: actions/cache@v6
+      # Reuse successful x86_64 build for selected commit
+      - name: Find Existing Tested Build
+        id: find-build
+        uses: ./.github/actions/find-tested-build
         with:
-          path: ./bin/mercury
-          key: mercury-linux-binaries-${{ github.sha }}
+          token: ${{ github.token }}
+          sha: ${{ github.sha }}
+          artifact-prefixes: '["mercury-x86_64-binaries-"]'
 
-      - name: Restore Windows Binaries
-        uses: actions/cache@v6
+      - name: Download Tested Binaries
+        if: steps.find-build.outputs.hit == 'true'
+        uses: actions/download-artifact@v7
         with:
-          path: ./bin/mercury.exe
-          key: mercury-windows-binaries-${{ github.sha }}
-          enableCrossOsArchive: true
+          name: mercury-x86_64-binaries-${{ steps.find-build.outputs.run-id }}
+          path: ./bin
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.find-build.outputs.run-id }}
+
+      - name: Make Linux Binary Executable
+        if: steps.find-build.outputs.hit == 'true'
+        run: chmod +x bin/mercury
 
       # Restore cached static libraries built in build.yml
       - name: Restore Cached Libs
+        if: steps.find-build.outputs.hit != 'true'
         uses: actions/cache@v6
         with:
           path: ./libs
           key: >-
-            ${{ runner.os }}-artifacts-${{
+            ${{ runner.os }}-${{ runner.arch }}-glibc-artifacts-${{
               hashFiles(
                 '**/build_tools/lib_pugixml.sh',
                 '**/build_tools/lib_zlib.sh',
@@ -143,7 +155,7 @@ jobs:
       - name: Build Release Binaries
         run: |
           if [ -s bin/mercury ] && [ -s bin/mercury.exe ]; then
-            echo "✅ Using pre-built binaries from build workflow cache"
+            echo "✅ Using tested binaries from build workflow artifact"
           else
             mkdir -p bin
             if [ ! -d libs ] || ! ./build_tools/validate_libs.sh --q >/dev/null 2>&1; then

@@ -1,0 +1,44 @@
+name: Enable Windows Diagnostics
+description: Enable Windows Crash Dumps & PageHeap
+
+inputs:
+  debug:
+    description: Enable PageHeap for debug builds
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    # Install postmortem capture before short-lived PHP workers start
+    - name: Enable Windows Crash Dumps
+      shell: pwsh
+      run: |
+        $dumpFolder = Join-Path $env:GITHUB_WORKSPACE 'crash-dumps'
+        New-Item -Path $dumpFolder -ItemType Directory -Force | Out-Null
+        $toolFolder = Join-Path $env:RUNNER_TEMP 'mercury-procdump'
+        $archive = Join-Path $env:RUNNER_TEMP 'mercury-procdump.zip'
+
+        Invoke-WebRequest -Uri 'https://download.sysinternals.com/files/Procdump.zip' -OutFile $archive
+        Expand-Archive -Path $archive -DestinationPath $toolFolder -Force
+        $procDump = Join-Path $toolFolder 'procdump64.exe'
+
+        & $procDump -accepteula -ma -i $dumpFolder
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to install ProcDump postmortem capture.' }
+
+    # Enable Full PageHeap for mercury.exe to catch heap corruption immediately
+    - name: Enable PageHeap
+      if: ${{ inputs.debug == 'true' }}
+      shell: pwsh
+      run: |
+        $gflags = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\gflags.exe" -ErrorAction SilentlyContinue |
+          Select-Object -First 1 -ExpandProperty FullName
+        if (-not $gflags) {
+          throw 'gflags.exe not found in Windows Kits Debuggers directory.'
+        }
+
+        & $gflags /p /enable mercury.exe /full
+        if ($LASTEXITCODE -ne 0) {
+          throw "gflags failed with exit code $LASTEXITCODE"
+        }
+        & $gflags /p /query mercury.exe

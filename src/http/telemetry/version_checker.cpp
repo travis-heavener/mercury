@@ -111,7 +111,7 @@ namespace {
         #else
         fd_set fds;
         FD_ZERO(&fds);
-        FD_SET(sock, &fds);
+        FD_SET(static_cast<SOCKET>(sock), &fds);
 
         struct timeval tv;
         tv.tv_sec = static_cast<long>(remainingMs / 1000);
@@ -159,8 +159,8 @@ namespace {
         fd_set writefds, exceptfds;
         FD_ZERO(&writefds);
         FD_ZERO(&exceptfds);
-        FD_SET(sock, &writefds);
-        FD_SET(sock, &exceptfds);
+        FD_SET(static_cast<SOCKET>(sock), &writefds);
+        FD_SET(static_cast<SOCKET>(sock), &exceptfds);
 
         struct timeval tv;
         tv.tv_sec = static_cast<long>(remainingMs / 1000);

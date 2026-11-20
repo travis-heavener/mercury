@@ -82,6 +82,7 @@ mv "brotli-$version-linux/LICENSE" ../licenses/Brotli_LICENSE.txt
     mv *.a "$LIB_PATH/brotli/linux/lib"
     cp -r ../c/include "$LIB_PATH/brotli/linux"
 ) &
+build_pids=("$!")
 
 if [ "$LINUX_ONLY" != "1" ]; then
     (
@@ -90,7 +91,7 @@ if [ "$LINUX_ONLY" != "1" ]; then
 
         cmake .. \
             -DCMAKE_SYSTEM_NAME=Windows \
-            -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+            -DCMAKE_C_COMPILER="${WIN_CC:-x86_64-w64-mingw32-gcc}" \
             -DCMAKE_BUILD_TYPE=Release \
             -DBROTLI_BUNDLED_MODE=ON \
             -DBROTLI_BUILD_TOOLS=OFF \
@@ -102,9 +103,16 @@ if [ "$LINUX_ONLY" != "1" ]; then
         mv *.a "$LIB_PATH/brotli/windows/lib"
         cp -r ../c/include "$LIB_PATH/brotli/windows"
     ) &
+    build_pids+=("$!")
 fi
 
-wait
+build_status=0
+for pid in "${build_pids[@]}"; do
+    wait "$pid" || build_status=$?
+done
+if (( build_status != 0 )); then
+    exit "$build_status"
+fi
 
 # ==== Clean Up ====
 cd "$LIB_PATH"

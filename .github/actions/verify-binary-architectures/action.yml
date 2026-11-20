@@ -1,0 +1,43 @@
+name: Verify Binary Architectures
+description: Verify Linux and Windows binaries match runner architecture
+
+runs:
+  using: composite
+  steps:
+    - name: Verify Binary Architectures
+      shell: bash
+      env:
+        EXPECTED_ARCH: ${{ runner.arch }}
+      run: |
+        python3 - <<'PY'
+        import os
+        import struct
+        from pathlib import Path
+
+        expected = {
+            "X64": (62, 0x8664),
+            "ARM64": (183, 0xAA64),
+        }
+        arch = os.environ["EXPECTED_ARCH"]
+        if arch not in expected:
+            raise SystemExit(f"Unsupported runner architecture: {arch}")
+        elf_machine, pe_machine = expected[arch]
+
+        elf = Path("bin/mercury").read_bytes()
+        if len(elf) < 20 or elf[:4] != b"\x7fELF" or elf[4:6] != b"\x02\x01":
+            raise SystemExit("Expected 64-bit little-endian ELF binary")
+        if struct.unpack_from("<H", elf, 18)[0] != elf_machine:
+            raise SystemExit(f"Linux binary is not {arch}")
+        print(f"Verified Linux binary is {arch}")
+
+        pe = Path("bin/mercury.exe").read_bytes()
+        if len(pe) < 64 or pe[:2] != b"MZ":
+            raise SystemExit("Expected Windows PE binary")
+        pe_offset = struct.unpack_from("<I", pe, 0x3C)[0]
+        if pe_offset + 6 > len(pe) or pe[pe_offset:pe_offset + 4] != b"PE\0\0":
+            raise SystemExit("Invalid PE header")
+        if struct.unpack_from("<H", pe, pe_offset + 4)[0] != pe_machine:
+            raise SystemExit(f"Windows binary is not {arch}")
+
+        print(f"Verified Windows binary is {arch}")
+        PY

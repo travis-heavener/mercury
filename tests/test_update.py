@@ -11,7 +11,7 @@ import shutil
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "conf"))
@@ -57,7 +57,7 @@ class TestUpdateUtility(unittest.TestCase):
                 "browser_download_url": "https://github.com/travis-heavener/mercury/releases/download/v0.35.0/Linux_v0_35_0.tar.gz"
             },
         ]
-        url, name = update.select_platform_asset(assets, "linux")
+        url, name = update.select_platform_asset(assets, "v0.35.0", "linux", "x86_64")
         self.assertEqual(name, "Linux_v0_35_0.tar.gz")
         self.assertEqual(url, "https://github.com/travis-heavener/mercury/releases/download/v0.35.0/Linux_v0_35_0.tar.gz")
 
@@ -72,9 +72,62 @@ class TestUpdateUtility(unittest.TestCase):
                 "browser_download_url": "https://github.com/travis-heavener/mercury/releases/download/v0.35.0/Linux_v0_35_0.tar.gz"
             },
         ]
-        url, name = update.select_platform_asset(assets, "win32")
+        url, name = update.select_platform_asset(assets, "v0.35.0", "win32", "x86_64")
         self.assertEqual(name, "Windows_v0_35_0.zip")
         self.assertEqual(url, "https://github.com/travis-heavener/mercury/releases/download/v0.35.0/Windows_v0_35_0.zip")
+
+    def test_select_platform_asset_with_both_architectures(self):
+        tag = "v1.2.3"
+        cases = [
+            ("linux", "arm64", "Mercury_ARM64_v1_2_3.tar.gz"),
+            ("win32", "arm64", "Mercury_ARM64_v1_2_3.zip"),
+            ("linux", "x86_64", "Linux_v1_2_3.tar.gz"),
+            ("win32", "x86_64", "Windows_v1_2_3.zip"),
+        ]
+        assets = [{"name": name, "browser_download_url": f"https://example.com/{name}"} for _, _, name in cases]
+        for platform_name, arch, name in cases:
+            with self.subTest(platform=platform_name, arch=arch):
+                expected = (f"https://example.com/{name}", name)
+                self.assertEqual(update.select_platform_asset(assets, tag, platform_name, arch), expected)
+                self.assertEqual(update.construct_direct_asset_url(tag, platform_name, arch)[1], name)
+                other_assets = [asset for asset in assets if asset["name"] != name]
+                with self.assertRaisesRegex(RuntimeError, "has no archive"):
+                    update.select_platform_asset(other_assets, tag, platform_name, arch)
+
+    def test_select_legacy_debian_asset(self):
+        name = "Debian_v0_29_2.tar.gz"
+        url = f"https://example.com/{name}"
+        assets = [{"name": name, "browser_download_url": url}]
+        self.assertEqual(update.select_platform_asset(assets, "v0.29.2", "linux", "x86_64"), (url, name))
+        with self.assertRaisesRegex(RuntimeError, "has no archive"):
+            update.select_platform_asset(assets, "v0.29.2", "linux", "arm64")
+
+    def test_get_release_architecture(self):
+        with patch.object(update.sys, "platform", "linux"):
+            for machine, arch in [("aarch64", "arm64"), ("ARM64", "arm64"), ("AMD64", "x86_64"), ("x86_64", "x86_64")]:
+                with self.subTest(machine=machine), patch.object(update.platform, "machine", return_value=machine):
+                    self.assertEqual(update.get_release_architecture(), arch)
+            with patch.object(update.platform, "machine", return_value="i686"):
+                with self.assertRaisesRegex(RuntimeError, "Unsupported release architecture"):
+                    update.get_release_architecture()
+
+    def test_get_release_architecture_windows_emulation(self):
+        import ctypes
+        from ctypes import wintypes
+
+        def query_machine(process, process_machine, native_machine):
+            ctypes.cast(process_machine, ctypes.POINTER(wintypes.USHORT))[0] = 0x8664
+            ctypes.cast(native_machine, ctypes.POINTER(wintypes.USHORT))[0] = 0xAA64
+            return 1
+
+        kernel32 = Mock()
+        kernel32.IsWow64Process2.side_effect = query_machine
+        with (
+            patch.object(update.sys, "platform", "win32"),
+            patch.object(update.platform, "machine", return_value="AMD64"),
+            patch.object(ctypes, "WinDLL", return_value=kernel32, create=True)
+        ):
+            self.assertEqual(update.get_release_architecture(), "arm64")
 
     def test_compute_sha256(self):
         # Verify SHA-256 calculation on known content
@@ -98,7 +151,13 @@ class TestUpdateUtility(unittest.TestCase):
             '    {\n'
             '        "name": "v0.35.0",\n'
             '        "linuxHash": "11109bd69ce1e2a685d7290d9e5d10c3dcd5804ebc566f9f06b4eb80b9f192ab",\n'
-            '        "winHash": "8cc8355d9866964a1ed9b5ad0f947c190212f412d4506b050217fe1887967312"\n'
+            '        "winHash": "8cc8355d9866964a1ed9b5ad0f947c190212f412d4506b050217fe1887967312",\n'
+            '        "linuxHashArm64": "linux-arm64-hash",\n'
+            '        "winHashArm64": "win-arm64-hash"\n'
+            '    },\n'
+            '    {\n'
+            '        "name": "v0.34.0",\n'
+            '        "linuxHash": "legacy-linux-hash"\n'
             '    }\n'
             ']\n'
         )
@@ -113,23 +172,26 @@ class TestUpdateUtility(unittest.TestCase):
         orig_urlopen = update.urllib.request.urlopen
         update.urllib.request.urlopen = lambda req, timeout=10: MockResponse()
         try:
-            linux_hash = update.fetch_expected_release_hash("v0.35.0", "linux")
-            win_hash = update.fetch_expected_release_hash("v0.35.0", "win32")
+            linux_hash = update.fetch_expected_release_hash("v0.35.0", "linux", "x86_64")
+            win_hash = update.fetch_expected_release_hash("v0.35.0", "win32", "x86_64")
             self.assertEqual(linux_hash, "11109bd69ce1e2a685d7290d9e5d10c3dcd5804ebc566f9f06b4eb80b9f192ab")
             self.assertEqual(win_hash, "8cc8355d9866964a1ed9b5ad0f947c190212f412d4506b050217fe1887967312")
+            self.assertEqual(update.fetch_expected_release_hash("v0.35.0", "linux", "arm64"), "linux-arm64-hash")
+            self.assertEqual(update.fetch_expected_release_hash("v0.35.0", "win32", "arm64"), "win-arm64-hash")
+            self.assertIsNone(update.fetch_expected_release_hash("v0.34.0", "linux", "arm64"))
         finally:
             update.urllib.request.urlopen = orig_urlopen
 
     def test_construct_direct_asset_url(self):
         # Verify direct download URL generation without API
-        url_linux, name_linux = update.construct_direct_asset_url("v0.35.0", "linux")
+        url_linux, name_linux = update.construct_direct_asset_url("v0.35.0", "linux", "x86_64")
         self.assertEqual(name_linux, "Linux_v0_35_0.tar.gz")
         self.assertEqual(
             url_linux,
             "https://github.com/travis-heavener/mercury/releases/download/v0.35.0/Linux_v0_35_0.tar.gz"
         )
 
-        url_win, name_win = update.construct_direct_asset_url("v0.35.0", "win32")
+        url_win, name_win = update.construct_direct_asset_url("v0.35.0", "win32", "x86_64")
         self.assertEqual(name_win, "Windows_v0_35_0.zip")
         self.assertEqual(
             url_win,
