@@ -22,8 +22,9 @@ def main(version_full: str, linux_hash: str, win_hash: str,
         "linuxHash": linux_hash,
         "winHash": win_hash
     }
-    if linux_arm64_hash and win_arm64_hash:
+    if linux_arm64_hash:
         release["linuxHashArm64"] = linux_arm64_hash
+    if win_arm64_hash:
         release["winHashArm64"] = win_arm64_hash
     releases_json.insert(0, release)
 

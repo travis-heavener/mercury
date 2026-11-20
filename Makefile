@@ -1,5 +1,21 @@
 SHELL := /bin/bash
 
+HOST_ARCH := $(shell uname -m)
+ifeq ($(HOST_ARCH),aarch64) # arm64
+    WIN_PREFIX := aarch64-w64-mingw32
+    WIN_CC := $(WIN_PREFIX)-clang
+    WIN_CXX := $(WIN_PREFIX)-clang++
+    ifeq ($(shell command -v $(WIN_CXX) 2>/dev/null),)
+        override LINUX_ONLY := 1
+    endif
+else # x86_64
+    WIN_PREFIX := x86_64-w64-mingw32
+    WIN_CC := $(WIN_PREFIX)-gcc
+    WIN_CXX := $(WIN_PREFIX)-$(shell if command -v apt >/dev/null 2>&1; then echo g++-posix; else echo g++; fi)
+    WIN_RUNTIME_FLAGS := -static-libstdc++ -static-libgcc -lpthread
+endif
+export LINUX_ONLY WIN_PREFIX WIN_CC
+
 .PHONY: clean clean_build all linux windows check_libs check_win_libs \
 	libs lib_deps libs_no_deps lib_brotli lib_openssl lib_zlib lib_pugixml lib_zstd \
 	release cert
@@ -19,8 +35,6 @@ LIB_WIN = $(shell find libs -type d -name 'lib' | grep -P 'windows/lib' | sed 's
 
 # Compiler
 CXX ?= g++
-MINGW_CXX := x86_64-w64-mingw32
-MINGW_CXX_SUFFIX := $(shell if command -v apt >/dev/null 2>&1; then echo g++-posix; else echo g++; fi)
 
 # Optional compiler cache wrapper
 CCACHE := $(shell command -v ccache 2>/dev/null)
@@ -30,17 +44,17 @@ ifneq ($(CCACHE),)
     else
         CXX_CMD := $(CXX)
     endif
-    WIN_CXX_CMD := $(CCACHE) $(MINGW_CXX)-$(MINGW_CXX_SUFFIX)
+    WIN_CXX_CMD := $(CCACHE) $(WIN_CXX)
 else
     CXX_CMD := $(CXX)
-    WIN_CXX_CMD := $(MINGW_CXX)-$(MINGW_CXX_SUFFIX)
+    WIN_CXX_CMD := $(WIN_CXX)
 endif
 
 SRCS := $(shell find src -type f -name "*.cpp") $(wildcard $(PUGIXML_DIR)/*.cpp)
 
 CXX_FLAGS := -Wall -Wextra -Werror
 STATIC_FLAGS := -std=c++20
-LIB_FLAGS := -static-libstdc++ -static-libgcc -lbrotlienc -lbrotlicommon -lz -lpthread -lssl -lcrypto -lzstd
+LIB_FLAGS := -lbrotlienc -lbrotlicommon -lz -lssl -lcrypto -lzstd
 WIN_FLAGS := -static -lcrypt32 -lws2_32 -lbcrypt -lpsapi -mconsole
 
 # Targets
@@ -70,7 +84,7 @@ DEPS_LINUX := $(OBJS_LINUX:.o=.d)
 DEPS_WIN := $(OBJS_WIN:.o=.d)
 
 # Recipes
-all: check_libs $(TARGET_LINUX) $(TARGET_WIN)
+all: linux $(if $(filter 1,$(LINUX_ONLY)),,windows)
 linux: check_libs $(TARGET_LINUX)
 windows: check_win_libs $(TARGET_WIN)
 
@@ -78,10 +92,7 @@ check_libs:
 	@./build_tools/validate_libs.sh --q
 
 check_win_libs: check_libs
-	@if [[ ! -d ./libs/brotli/windows ]] || [[ ! -d ./libs/openssl/windows ]] || [[ ! -d ./libs/zlib/windows ]] || [[ ! -d ./libs/zstd/windows ]]; then \
-		echo "Missing Windows libraries"; \
-		exit 1; \
-	fi
+	@./build_tools/validate_libs.sh --q --windows
 
 clean:
 	@./build_tools/clean.sh
@@ -102,7 +113,8 @@ $(TARGET_LINUX): $(OBJS_LINUX) $(ARTIFACTS_LOCK) | check_libs
 	@mkdir -p $(dir $@)
 	@$(CXX_CMD) \
 		$(OBJS_LINUX) -o $(TARGET_LINUX) \
-		$(STATIC_FLAGS) $(CXX_FLAGS) $(LIB_LINUX) $(LIB_FLAGS)
+		$(STATIC_FLAGS) $(CXX_FLAGS) $(LIB_LINUX) $(LIB_FLAGS) \
+		-static-libstdc++ -static-libgcc -lpthread
 	@echo "✅ Built for Linux."
 
 ###################################################################
@@ -111,7 +123,7 @@ $(TARGET_LINUX): $(OBJS_LINUX) $(ARTIFACTS_LOCK) | check_libs
 
 $(TARGET_WIN_ICON): src/res/icon.rc src/res/icon.ico | check_win_libs
 	@mkdir -p $(dir $@)
-	@$(MINGW_CXX)-windres $< -O coff -o $@
+	@$(WIN_PREFIX)-windres $< -O coff -o $@
 
 $(OBJ_WIN_DIR)/%.o: %.cpp $(ARTIFACTS_LOCK) | check_win_libs
 	@mkdir -p $(dir $@)
@@ -121,7 +133,7 @@ $(TARGET_WIN): $(OBJS_WIN) $(TARGET_WIN_ICON) src/winheader.hpp $(ARTIFACTS_LOCK
 	@mkdir -p $(dir $@)
 	@$(WIN_CXX_CMD) \
 		$(OBJS_WIN) $(TARGET_WIN_ICON) -o $(TARGET_WIN) \
-		$(STATIC_FLAGS) $(CXX_FLAGS) $(LIB_WIN) $(LIB_FLAGS) $(WIN_FLAGS)
+		$(STATIC_FLAGS) $(CXX_FLAGS) $(LIB_WIN) $(LIB_FLAGS) $(WIN_RUNTIME_FLAGS) $(WIN_FLAGS)
 	@echo "✅ Built for Windows."
 
 ifeq ($(filter clean%,$(MAKECMDGOALS)),)
@@ -133,7 +145,8 @@ endif
 ############################ LIBRARIES ############################
 ###################################################################
 
-libs: lib_deps libs_no_deps
+libs: lib_deps
+	@$(MAKE) libs_no_deps
 libs_no_deps: lib_brotli lib_openssl lib_zlib lib_pugixml lib_zstd
 
 lib_deps:

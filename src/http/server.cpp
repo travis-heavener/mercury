@@ -367,7 +367,11 @@ namespace http {
         // Poll acceptance periodically so shutdown can end the loop
         fd_set fds;
         FD_ZERO(&fds);
-        FD_SET(listener, &fds);
+        #ifdef _WIN32
+            FD_SET(static_cast<SOCKET>(listener), &fds);
+        #else
+            FD_SET(listener, &fds);
+        #endif
 
         struct timeval tv;
         tv.tv_sec = 0;

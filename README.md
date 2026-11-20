@@ -96,6 +96,8 @@ Comparison uses Apache as baseline when present, otherwise Nginx.
 
 Download the latest release archive from [mercury.wowtravis.com](https://mercury.wowtravis.com) or the [Releases](https://github.com/travis-heavener/mercury/releases) page.
 
+For ARM64, choose the `Mercury_ARM64_<version>.tar.gz` archive for Linux or `Mercury_ARM64_<version>.zip` for Windows on GitHub Releases.
+
 - **Linux**: `./bin/mercury [options]`
 - **Windows**: `bin\mercury.exe [options]`
 
@@ -221,11 +223,21 @@ Developers and automated agents should reference [`AGENTS.md`](AGENTS.md) and th
 
 ```bash
 make clean      # Clean previous build artifacts
-make lib_deps   # Install build dependencies (APT, Pacman, DNF)
-make libs -j    # Build static dependencies (OpenSSL, Brotli, Zstd, Zlib, PugiXML)
+make libs -j    # Install build dependencies and build static libraries
 make linux      # Compile bin/mercury
-make windows    # Cross-compile bin/mercury.exe (MinGW-w64)
+make windows    # Cross-compile bin/mercury.exe
 ```
+
+`make linux` builds for the host architecture using the local toolchain and libc. On an ARM64 Linux host, `make all` also builds Windows ARM64 when LLVM-MinGW is on `PATH`. Install the pinned toolchain before building the static libraries.
+
+```bash
+bash build_tools/install_llvm_mingw.sh "$PWD/build/llvm-mingw"
+export PATH="$PWD/build/llvm-mingw/bin:$PATH"
+make -j libs
+make -j all
+```
+
+CI builds the Linux and Windows binaries on Ubuntu 22.04 runners for x86_64 and ARM64.
 
 - **Debug Builds**: Run `DEBUG=1 make -j -B` to compile with `-g -O0` with unoptimized debug symbols.
 - **Running Tests**: Run `python3 tests/run.py` to execute the JSON test cases and socket wire regressions (requires `brotli`, `zstandard`, `psutil`, and generated TLS certs via `make cert`).

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #
-# Updates artifacts.lock's dependency and version
+# Updates artifacts.lock's dependency version and host architecture
 #
 # Usage (ex. update OpenSSL to v3.6.0):
 #   ./update_artifact "openssl" "3.6.0"
@@ -23,13 +23,15 @@ cd libs
 lockfile="/tmp/artifacts_lock.lock"
 exec 200>"$lockfile"
 flock -x 200
-if [ ! -e "artifacts.lock" ]; then
-    echo "" > artifacts.lock
-fi
-flock -u 200
 
+entry="$1=$2"
+if [[ "$1" != pugixml ]]; then
+    entry+="@$(uname -m)"
+fi
+
+touch artifacts.lock || exit 1
 if grep -q "^$1=" artifacts.lock; then
-    sed -i "s/^$1=.*$/$1=$2/" artifacts.lock
+    sed -i "s/^$1=.*$/$entry/" artifacts.lock
 else
-    { echo "$1=$2"; cat artifacts.lock; } > temp && mv temp artifacts.lock
+    { echo "$entry"; cat artifacts.lock; } > temp && mv temp artifacts.lock
 fi

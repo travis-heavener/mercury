@@ -6,17 +6,28 @@ cd "$(dirname "$0")/../"
 TOOLS_PATH=$(pwd)/build_tools/tools
 
 # Select binary directories
-binary_dirs=(bin)
+linux_dirs=(bin)
+windows_dirs=(bin)
 if [ "$1" = "--ci-artifacts" ]; then
-    binary_dirs=(bin/x86_64 bin/arm64)
+    linux_dirs=(bin/x86_64 bin/arm64)
+    windows_dirs=(bin/x86_64 bin/arm64)
+elif [[ "$(uname -m)" != x86_64 ]]; then
+    echo "Local release packaging requires an x86_64 host. Use --ci-artifacts to package binaries from both build jobs." >&2
+    exit 1
 elif [ "$1" != "--no-build" ] && [ "$SKIP_BUILD" != "1" ]; then
     make -j$(nproc) --no-print-directory -s
 fi
 
 # Verify binaries before preparing release directory
-for binary_dir in "${binary_dirs[@]}"; do
-    if [ ! -s "$binary_dir/mercury" ] || [ ! -s "$binary_dir/mercury.exe" ]; then
-        echo "Missing release binaries in $binary_dir/" >&2
+for binary_dir in "${linux_dirs[@]}"; do
+    if [ ! -s "$binary_dir/mercury" ]; then
+        echo "Missing release binary: $binary_dir/mercury" >&2
+        exit 1
+    fi
+done
+for binary_dir in "${windows_dirs[@]}"; do
+    if [ ! -s "$binary_dir/mercury.exe" ]; then
+        echo "Missing release binary: $binary_dir/mercury.exe" >&2
         exit 1
     fi
 done
@@ -76,9 +87,9 @@ cp "../conf/ssl/makecert.sh" "./$VERSION/conf/ssl/"
 rm -f "./$VERSION/conf/setup_php.ps1"
 
 # Package Linux binaries w/ executable permissions
-for i in "${!binary_dirs[@]}"; do
+for i in "${!linux_dirs[@]}"; do
     archive="${linux_archives[$i]}"
-    install -m 755 "../${binary_dirs[$i]}/mercury" "./$VERSION/bin/mercury"
+    install -m 755 "../${linux_dirs[$i]}/mercury" "./$VERSION/bin/mercury"
     tar -czf "$archive" "$VERSION"
     echo "✅ Linux ${architectures[$i]} release archive created: ${archive:3}"
 done
@@ -92,9 +103,9 @@ cp "../conf/ssl/makecert.ps1" "./$VERSION/conf/ssl/"
 cp "../conf/setup_php.ps1" "./$VERSION/conf/"
 
 # Package Windows binaries
-for i in "${!binary_dirs[@]}"; do
+for i in "${!windows_dirs[@]}"; do
     archive="${win_archives[$i]}"
-    cp "../${binary_dirs[$i]}/mercury.exe" "./$VERSION/bin/mercury.exe"
+    cp "../${windows_dirs[$i]}/mercury.exe" "./$VERSION/bin/mercury.exe"
     zip -qr "$archive" "$VERSION"
     echo "✅ Windows ${architectures[$i]} release archive created: ${archive:3}"
 done
@@ -133,7 +144,7 @@ release_hashes=()
     printf '# SHA-256 Hashes\n\n'
     printf '| System | Archive | SHA-256 Hash Digest |\n'
     printf '|--------|---------|---------------------|\n'
-    for i in "${!binary_dirs[@]}"; do
+    for i in "${!linux_dirs[@]}"; do
         linux_hash=$(sha256sum "${linux_archives[$i]}")
         win_hash=$(sha256sum "${win_archives[$i]}")
         printf '| Linux %s | `%s` | `%s` |\n' "${architectures[$i]}" "${linux_archives[$i]##*/}" "${linux_hash%% *}"

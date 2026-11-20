@@ -73,28 +73,34 @@ mv "zlib-$version-linux/LICENSE" ../licenses/zlib_LICENSE.txt
     cp zconf.h "$LIB_PATH/zlib/linux/include/"
     mv libz.a "$LIB_PATH/zlib/linux/lib/"
 ) &
+build_pids=("$!")
 
 if [ "$LINUX_ONLY" != "1" ]; then
     (
         cd "zlib-$version-windows"
 
-        MAKEFILE_PATH="win32/Makefile.gcc"
-        sed -i 's/^PREFIX *=.*$/PREFIX=x86_64-w64-mingw32-/' "$MAKEFILE_PATH"
-        if command -v x86_64-w64-mingw32-gcc-win32 >/dev/null 2>&1; then
-            sed -i 's/^CC *=.*$/CC=\$(PREFIX)gcc-win32/' "$MAKEFILE_PATH"
-        else
-            sed -i 's/^CC *=.*$/CC=\$(PREFIX)gcc/' "$MAKEFILE_PATH"
+        win_prefix=${WIN_PREFIX:-x86_64-w64-mingw32}
+        win_cc=${WIN_CC:-x86_64-w64-mingw32-gcc}
+        if [[ "$win_prefix" == x86_64-w64-mingw32 ]] && command -v "$win_prefix-gcc-win32" >/dev/null 2>&1; then
+            win_cc="$win_prefix-gcc-win32"
         fi
 
-        make -j$(nproc) -f "$MAKEFILE_PATH" libz.a &> /dev/null
+        make -j$(nproc) -f win32/Makefile.gcc libz.a PREFIX="$win_prefix-" CC="$win_cc" > /dev/null
 
         cp zlib.h "$LIB_PATH/zlib/windows/include/"
         cp zconf.h "$LIB_PATH/zlib/windows/include/"
         mv libz.a "$LIB_PATH/zlib/windows/lib/"
     ) &
+    build_pids+=("$!")
 fi
 
-wait
+build_status=0
+for pid in "${build_pids[@]}"; do
+    wait "$pid" || build_status=$?
+done
+if (( build_status != 0 )); then
+    exit "$build_status"
+fi
 
 # ==== Clean Up ====
 cd "$LIB_PATH"

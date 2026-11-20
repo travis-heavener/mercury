@@ -142,6 +142,7 @@ jobs:
                 '**/build_tools/lib_openssl.sh',
                 '**/build_tools/lib_brotli.sh',
                 '**/build_tools/lib_zstd.sh',
+                '**/build_tools/install_llvm_mingw.sh',
                 '**/build_tools/dependencies.txt'
               )
             }}
@@ -150,17 +151,17 @@ jobs:
       - name: Install APT Deps
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: build-essential nasm php-cgi
-          version: 1.0
+          packages: build-essential cmake perl wget xz-utils
+          version: arm64-linux-1
 
-      # Install deps & build static binaries
-      - name: Install Workflow Dependencies
-        run: sudo ./build_tools/install_workflow_deps.sh --verbose
+      - name: Install Windows ARM64 Toolchain
+        run: |
+          bash build_tools/install_llvm_mingw.sh "$RUNNER_TEMP/llvm-mingw"
+          echo "$RUNNER_TEMP/llvm-mingw/bin" >> "$GITHUB_PATH"
 
       - name: Build Libs
         run: |
-          if [ ! -d libs ] || [ -z "$(find libs -mindepth 1 -maxdepth 1 -type d -print -quit)" ]; then
-            mkdir -p libs
+          if ! ./build_tools/validate_libs.sh --q --windows; then
             make -j$(nproc) libs_no_deps
           fi
 
@@ -170,16 +171,10 @@ jobs:
           IS_DEBUG: ${{ inputs.debug == true }}
         run: |
           if [ "$IS_DEBUG" = "true" ]; then
-            sudo make -j$(nproc) -B DEBUG=1
+            make -j$(nproc) -B linux windows DEBUG=1
           else
-            sudo make -j$(nproc) -B
+            make -j$(nproc) -B linux windows
           fi
-
-      # Verify all binaries are built, throw error if not
-      - name: Verify Binaries Were Built
-        run: |
-          test -s bin/mercury
-          test -s bin/mercury.exe
 
       # Verify the binary's architectures are correct
       - name: Verify Binary Architectures

@@ -2,6 +2,12 @@
 
 set -e
 
+case "$(uname -m)" in
+    x86_64) linux_target=linux-x86_64 ;;
+    aarch64) linux_target=linux-aarch64 ;;
+    *) echo "Unsupported OpenSSL build architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+
 # CD into project directory
 cd "$(dirname "$0")/../"
 
@@ -72,7 +78,7 @@ OPENSSL_OPTS="no-shared no-dso no-asm no-comp no-tests no-docs no-legacy no-apps
 (
     cd "openssl-$version-linux"
 
-    ./Configure linux-x86_64 $OPENSSL_OPTS --prefix="$LIB_PATH/openssl/linux" 1> /dev/null
+    ./Configure "$linux_target" $OPENSSL_OPTS --prefix="$LIB_PATH/openssl/linux" 1> /dev/null
     make -j$(nproc) build_libs &>/dev/null
     make install_dev &>/dev/null
 
@@ -83,12 +89,20 @@ OPENSSL_OPTS="no-shared no-dso no-asm no-comp no-tests no-docs no-legacy no-apps
     fi
     rm -rf "$LIB_PATH/openssl/linux/bin"
 ) &
+build_pids=("$!")
 
 if [ "$LINUX_ONLY" != "1" ]; then
     (
         cd "openssl-$version-windows"
 
-        ./Configure mingw64 $OPENSSL_OPTS --cross-compile-prefix=x86_64-w64-mingw32- enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" 1> /dev/null
+        win_prefix=${WIN_PREFIX:-x86_64-w64-mingw32}
+        if [[ "$win_prefix" == aarch64-w64-mingw32 ]]; then
+            CC=clang CXX=clang++ AR=ar RANLIB=ranlib ./Configure mingwarm64 $OPENSSL_OPTS \
+                --cross-compile-prefix="$win_prefix-" --libdir=lib --prefix="$LIB_PATH/openssl/windows" > /dev/null
+        else
+            ./Configure mingw64 $OPENSSL_OPTS --cross-compile-prefix="$win_prefix-" \
+                enable-ec_nistp_64_gcc_128 --prefix="$LIB_PATH/openssl/windows" > /dev/null
+        fi
         make -j$(nproc) build_libs &>/dev/null
         make install_dev &>/dev/null
 
@@ -99,9 +113,16 @@ if [ "$LINUX_ONLY" != "1" ]; then
         fi
         rm -rf "$LIB_PATH/openssl/windows/bin"
     ) &
+    build_pids+=("$!")
 fi
 
-wait
+build_status=0
+for pid in "${build_pids[@]}"; do
+    wait "$pid" || build_status=$?
+done
+if (( build_status != 0 )); then
+    exit "$build_status"
+fi
 
 # ==== Clean Up ====
 rm -f "openssl-$version.tar.gz"
